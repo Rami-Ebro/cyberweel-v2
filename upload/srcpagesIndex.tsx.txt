@@ -1,0 +1,145 @@
+const Index = () => {
+  return (
+    <div className="min-h-screen bg-background text-foreground font-sans">
+      {/* Hero Section */}
+      <section className="px-6 pt-32 pb-24 max-w-4xl mx-auto text-center">
+        <h1 className="text-5xl md:text-7xl font-light tracking-tight text-primary leading-tight">
+          CyberWeel
+        </h1>
+        <p className="mt-8 text-xl md:text-2xl font-light text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+          From where you are... to where you want to be.
+        </p>
+        <div className="mt-12">
+          <a
+            href="#contact"
+            className="inline-block px-8 py-3 bg-primary text-primary-foreground rounded-md text-sm font-medium tracking-wide hover:opacity-90 transition-opacity"
+          >
+            Start Your Journey
+          </a>
+        </div>
+      </section>
+
+      {/* Methodology Section */}
+      <section className="px-6 py-24 max-w-5xl mx-auto">
+        <h2 className="text-center text-sm font-medium tracking-widest uppercase text-muted-foreground mb-16">
+          Our Methodology
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+          <div className="text-center">
+            <div className="w-12 h-12 mx-auto mb-6 rounded-md border border-border flex items-center justify-center text-lg font-light">
+              1
+            </div>
+            <h3 className="text-lg font-medium text-primary mb-3">Clarity</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              We begin by understanding where you are. Deep listening. Clear assessment. No assumptions.
+            </p>
+          </div>
+          <div className="text-center">
+            <div className="w-12 h-12 mx-auto mb-6 rounded-md border border-border flex items-center justify-center text-lg font-light">
+              2
+            </div>
+            <h3 className="text-lg font-medium text-primary mb-3">Decision</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Together, we define the path forward. Strategic choices grounded in insight, not impulse.
+            </p>
+          </div>
+          <div className="text-center">
+            <div className="w-12 h-12 mx-auto mb-6 rounded-md border border-border flex items-center justify-center text-lg font-light">
+              3
+            </div>
+            <h3 className="text-lg font-medium text-primary mb-3">Progress</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Measured movement toward your goal. Consistent, deliberate, and sustainable growth.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Services Section */}
+      <section className="px-6 py-24 bg-muted/30">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-center text-sm font-medium tracking-widest uppercase text-muted-foreground mb-16">
+            Services
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="p-8 bg-background rounded-lg border border-border">
+              <h3 className="text-lg font-medium text-primary mb-3">Strategic Consulting</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Tailored guidance for organizations navigating complexity. We bring clarity to your most critical decisions.
+              </p>
+            </div>
+            <div className="p-8 bg-background rounded-lg border border-border">
+              <h3 className="text-lg font-medium text-primary mb-3">Digital Transformation</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Modernize your operations with purpose. Technology that serves your vision, not the other way around.
+              </p>
+            </div>
+            <div className="p-8 bg-background rounded-lg border border-border">
+              <h3 className="text-lg font-medium text-primary mb-3">Growth Architecture</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Build systems that scale. From foundation to expansion, we design for sustainable momentum.
+              </p>
+            </div>
+            <div className="p-8 bg-background rounded-lg border border-border">
+              <h3 className="text-lg font-medium text-primary mb-3">Leadership Development</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Strengthen the people who drive your mission. Coaching and frameworks for decisive leadership.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust Section */}
+      <section className="px-6 py-24 max-w-4xl mx-auto text-center">
+        <h2 className="text-sm font-medium tracking-widest uppercase text-muted-foreground mb-8">
+          Why CyberWeel
+        </h2>
+        <p className="text-2xl md:text-3xl font-light text-primary leading-relaxed max-w-3xl mx-auto">
+          We don't sell urgency. We build confidence. Every engagement is rooted in trust, precision, and a shared commitment to meaningful outcomes.
+        </p>
+        <div className="mt-16 grid grid-cols-3 gap-8 max-w-2xl mx-auto">
+          <div>
+            <p className="text-3xl font-light text-primary">12+</p>
+            <p className="text-xs text-muted-foreground mt-2 uppercase tracking-wide">Years Experience</p>
+          </div>
+          <div>
+            <p className="text-3xl font-light text-primary">200+</p>
+            <p className="text-xs text-muted-foreground mt-2 uppercase tracking-wide">Projects Delivered</p>
+          </div>
+          <div>
+            <p className="text-3xl font-light text-primary">98%</p>
+            <p className="text-xs text-muted-foreground mt-2 uppercase tracking-wide">Client Retention</p>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section id="contact" className="px-6 py-24 bg-primary text-primary-foreground">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-3xl md:text-4xl font-light tracking-tight">
+            Ready to move forward?
+          </h2>
+          <p className="mt-6 text-lg font-light opacity-80">
+            Let's start with a conversation. No pressure, no pitch — just clarity.
+          </p>
+          <div className="mt-10">
+            <a
+              href="mailto:hello@cyberweel.com"
+              className="inline-block px-8 py-3 bg-background text-primary rounded-md text-sm font-medium tracking-wide hover:opacity-90 transition-opacity"
+            >
+              Get in Touch
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="px-6 py-12 text-center">
+        <p className="text-xs text-muted-foreground">© 2024 CyberWeel. All rights reserved.</p>
+      </footer>
+    </div>
+  );
+};
+
+export default Index;

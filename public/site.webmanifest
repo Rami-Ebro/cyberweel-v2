@@ -1,0 +1,37 @@
+{
+  "name": "CyberWeel — Progress Partner",
+  "short_name": "CyberWeel",
+  "description": "CyberWeel is a progress partner. We help you see clearly, make the right decision, and move confidently toward the next stage. Clarity → Decision → Progress.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F3EB",
+  "theme_color": "#111827",
+  "icons": [
+    {
+      "src": "/favicon-16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

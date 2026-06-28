@@ -1,0 +1,17 @@
+export default {
+  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        background: "#F7F3EB",
+        primary: "#111827",
+        accent: "#B89A5A",
+        muted: "#D8D2C4"
+      },
+      borderRadius: {
+        DEFAULT: "0.5rem"
+      }
+    }
+  },
+  plugins: []
+};
