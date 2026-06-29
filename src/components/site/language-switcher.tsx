@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 "use client";
 
 import { useI18n } from "@/components/site/i18n";
@@ -56,4 +55,3 @@ export function LanguageSwitcher({ className }: { className?: string }) {
     </button>
   );
 }
->>>>>>> 0d2d90e9f17bc15315fda8af6702b754efb3467d
