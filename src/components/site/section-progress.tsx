@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 "use client";
 
 import { useEffect, useState } from "react";
@@ -198,4 +197,3 @@ export function SectionProgress({
     </div>
   );
 }
->>>>>>> 0d2d90e9f17bc15315fda8af6702b754efb3467d
