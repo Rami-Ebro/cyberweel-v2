@@ -121,7 +121,6 @@ export function ShareIconButton({
 }
 
 const BRAND_NAME = "CyberWeel";
-=======
 "use client";
 
 import { useState } from "react";
