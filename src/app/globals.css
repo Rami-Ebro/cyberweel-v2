@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -266,3 +267,273 @@
     scroll-behavior: auto !important;
   }
 }
+=======
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), Georgia, "Times New Roman", serif;
+  --font-arabic: var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
+  --font-display-arabic: var(--font-display-arabic), Georgia, "Times New Roman", serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-floral: var(--floral);
+  --color-camel: var(--camel);
+  --color-bone: var(--bone);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/*
+  CyberWeel Approved Color System
+  ─────────────────────────────────
+  Ink Black   #111827   60%  primary text, dark sections
+  Floral White#F7F3EB   25%  background, light surfaces
+  Camel       #B89A5A   10%  accent, keystone, CTAs
+  Bone        #D8D2C4   5%   borders, muted surfaces
+*/
+:root {
+  --radius: 0.75rem;
+
+  /* Brand palette */
+  --ink: #111827;
+  --floral: #F7F3EB;
+  --camel: #B89A5A;
+  --bone: #D8D2C4;
+
+  /* Semantic mapping */
+  --background: #F7F3EB;            /* Floral White — page bg */
+  --foreground: #111827;            /* Ink Black */
+  --card: #FFFFFF;                  /* clean card surface */
+  --card-foreground: #111827;
+  --popover: #FFFFFF;
+  --popover-foreground: #111827;
+  --primary: #111827;               /* Ink Black */
+  --primary-foreground: #F7F3EB;    /* Floral White */
+  --secondary: #D8D2C4;             /* Bone */
+  --secondary-foreground: #111827;
+  --muted: #ECE7DA;                 /* warm muted surface between floral & bone */
+  --muted-foreground: #5B5F6A;      /* calm neutral ink for body text */
+  --accent: #B89A5A;                /* Camel */
+  --accent-foreground: #111827;
+  --destructive: #9B3A3A;           /* quiet, non-techy red */
+  --border: #D8D2C4;                /* Bone */
+  --input: #D8D2C4;
+  --ring: #B89A5A;                  /* Camel focus ring */
+  --chart-1: #111827;
+  --chart-2: #B89A5A;
+  --chart-3: #D8D2C4;
+  --chart-4: #5B5F6A;
+  --chart-5: #8A7A4F;
+  --sidebar: #F7F3EB;
+  --sidebar-foreground: #111827;
+  --sidebar-primary: #111827;
+  --sidebar-primary-foreground: #F7F3EB;
+  --sidebar-accent: #ECE7DA;
+  --sidebar-accent-foreground: #111827;
+  --sidebar-border: #D8D2C4;
+  --sidebar-ring: #B89A5A;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv01", "cv11";
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    font-weight: 400;
+  }
+  /* Supporting text — visibly heavier for confidence and readability.
+     Targets paragraphs carrying muted-foreground (captions, descriptions,
+     methodology, FAQ, footer) without touching display headings. */
+  p.text-muted-foreground,
+  li.text-muted-foreground,
+  span.text-muted-foreground {
+    font-weight: 600;
+  }
+  [dir="rtl"] p.text-muted-foreground,
+  [dir="rtl"] li.text-muted-foreground,
+  [dir="rtl"] span.text-muted-foreground {
+    font-weight: 700;
+  }
+  /* Arabic typography: switch to Arabic fonts when RTL.
+     Override the underlying font CSS variables on body so every utility
+     that references them (font-sans, font-display, body) picks up Arabic. */
+  [dir="rtl"] body {
+    --font-inter: var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
+    --font-display: var(--font-display-arabic), Georgia, serif;
+    font-family: var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
+  }
+  [dir="rtl"] .font-display {
+    font-family: var(--font-display-arabic), Georgia, serif !important;
+  }
+  ::selection {
+    background: var(--camel);
+    color: var(--ink);
+  }
+  /* Refined scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--floral);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--bone);
+    border-radius: 9999px;
+    border: 2px solid var(--floral);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--camel);
+  }
+}
+
+@layer utilities {
+  /* Display serif for premium headings */
+  .font-display {
+    font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  }
+  /* Quiet uppercase eyebrow label */
+  .eyebrow {
+    @apply text-sm font-medium uppercase tracking-[0.22em] text-muted-foreground;
+  }
+  .eyebrow-camel {
+    @apply text-sm font-medium uppercase tracking-[0.22em] text-accent;
+  }
+  /* Subtle hairline divider */
+  .hairline {
+    @apply h-px w-full bg-border;
+  }
+  /* Calm focus visible for keyboard users */
+  .focus-ring:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+  /* Container rhythm */
+  .cw-container {
+    @apply mx-auto w-full max-w-6xl px-6 sm:px-8 lg:px-10;
+  }
+  .cw-container-narrow {
+    @apply mx-auto w-full max-w-3xl px-6 sm:px-8;
+  }
+  /* Quiet paper texture for muted sections — adds depth without noise */
+  .section-texture {
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(17, 24, 39, 0.025) 1px, transparent 0);
+    background-size: 22px 22px;
+  }
+  /* Quiet texture for dark/ink sections */
+  .section-texture-dark {
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(247, 243, 235, 0.03) 1px, transparent 0);
+    background-size: 22px 22px;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Print styles — calm, readable hard copy for the consultancy
+   ───────────────────────────────────────────────────────────── */
+@media print {
+  header,
+  footer,
+  [aria-label="Open menu"],
+  [aria-label="Open quick navigation (Cmd or Ctrl+K)"],
+  [aria-label="Back to top"],
+  [aria-label="Share this page"],
+  .fixed {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-size: 11pt;
+  }
+  main {
+    padding: 0 !important;
+  }
+  section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    padding: 0.5rem 0 !important;
+  }
+  a {
+    color: #111827 !important;
+    text-decoration: none !important;
+  }
+  .bg-ink {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+  .text-floral,
+  .text-bone\/75,
+  .text-bone\/70,
+  .text-bone\/80 {
+    color: #111827 !important;
+  }
+  .border-border,
+  .border-camel\/40 {
+    border-color: #d8d2c4 !important;
+  }
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-2xl {
+    box-shadow: none !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Reduced motion — respect user preference, keep transitions calm
+   ───────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+>>>>>>> 0d2d90e9f17bc15315fda8af6702b754efb3467d
