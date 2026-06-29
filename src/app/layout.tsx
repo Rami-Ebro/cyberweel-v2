@@ -3,6 +3,7 @@ import { Inter, Cormorant_Garamond, Noto_Sans_Arabic, Amiri } from "next/font/go
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -203,6 +204,7 @@ export default function RootLayout({
         {children}
         <Toaster />
         <Sonner />
+        <SpeedInsights />
       </body>
     </html>
   );
