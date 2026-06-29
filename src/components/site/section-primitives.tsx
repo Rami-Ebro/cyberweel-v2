@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 "use client";
 
 import { cn } from "@/lib/utils";
@@ -310,4 +309,3 @@ export function GhostCta({
     </button>
   );
 }
->>>>>>> 0d2d90e9f17bc15315fda8af6702b754efb3467d
