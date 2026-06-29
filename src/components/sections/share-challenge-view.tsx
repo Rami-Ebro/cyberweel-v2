@@ -118,7 +118,6 @@ export function ShareChallengeView() {
     </div>
   );
 }
-=======
 "use client";
 
 import { ShieldCheck, Clock, MessageCircle, HelpCircle } from "lucide-react";
