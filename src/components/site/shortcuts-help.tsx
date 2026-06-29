@@ -89,7 +89,6 @@ export function ShortcutsHelp({
     </Dialog>
   );
 }
-=======
 "use client";
 
 import { useEffect } from "react";
