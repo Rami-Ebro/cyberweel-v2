@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 "use client";
 
 import { useState } from "react";
@@ -370,4 +369,3 @@ export function SiteHeader() {
 }
 
 const BRAND_NAME = "CyberWeel";
->>>>>>> 0d2d90e9f17bc15315fda8af6702b754efb3467d
