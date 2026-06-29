@@ -65,7 +65,7 @@ export function LogoLockup({
     </span>
   );
 }
-=======
+
 "use client";
 
 import Image from "next/image";
