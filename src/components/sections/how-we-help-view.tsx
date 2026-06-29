@@ -178,9 +178,7 @@ export function HowWeHelpView() {
     </div>
   );
 }
-=======
 "use client";
-
 import { motion } from "framer-motion";
 import {
   Eye,
