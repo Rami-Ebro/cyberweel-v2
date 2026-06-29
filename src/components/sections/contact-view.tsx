@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 "use client";
 
 import { Mail, Clock, Globe } from "lucide-react";
@@ -222,4 +221,3 @@ export function ContactView() {
     </div>
   );
 }
->>>>>>> 0d2d90e9f17bc15315fda8af6702b754efb3467d
