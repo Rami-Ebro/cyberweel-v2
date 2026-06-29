@@ -30,7 +30,7 @@ export function ShortcutsHelp({
         const tag = (e.target as HTMLElement)?.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA") return;
         e.preventDefault();
-        onOpenChange(true);
+        onOpenChange(!open);
       }
     };
     window.addEventListener("keydown", onKey);
