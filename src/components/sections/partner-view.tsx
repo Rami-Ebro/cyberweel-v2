@@ -121,7 +121,7 @@ export function PartnerView() {
     </div>
   );
 }
-=======
+
 "use client";
 
 import { motion } from "framer-motion";
