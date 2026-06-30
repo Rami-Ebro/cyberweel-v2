@@ -81,7 +81,7 @@ export function HomeView() {
   return (
     <div>
       {/* ───────────────── Hero (calm, trust-first, logo as anchor) ───────────────── */}
-      <section className="relative overflow-hidden bg-background">
+      <section id="hero" className="relative overflow-hidden bg-background">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-[0.5]"
@@ -505,6 +505,8 @@ export function HomeView() {
       {/* Quiet right-rail section progress (desktop only) */}
       <SectionProgress
         sections={[
+          { id: "hero", label: t.nav.home },
+          { id: "practical-help", label: practicalHelp.title },
           { id: "methodology", label: t.nav["how-we-help"] },
           { id: "how-we-help", label: t.nav["how-we-help"] },
           { id: "why", label: t.philosophy.eyebrow },
