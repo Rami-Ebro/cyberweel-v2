@@ -91,6 +91,7 @@ export function HomeView() {
         why: "لماذا سايبر ويل",
         principles: "كيف نفكر",
         faq: "أسئلة",
+        cta: "شاركنا مشكلتك",
       }
     : {
         home: "Home",
@@ -100,6 +101,7 @@ export function HomeView() {
         why: "Why CyberWeel",
         principles: "How we think",
         faq: "FAQ",
+        cta: "Share your challenge",
       };
 
   return (
@@ -493,7 +495,7 @@ export function HomeView() {
       </Section>
 
       {/* ───────────────── Closing CTA — exact two-column card structure ───────────────── */}
-      <section className="cw-container py-10 sm:py-12">
+      <section id="share-challenge" className="cw-container py-10 sm:py-12">
         <div className="grid overflow-hidden rounded-2xl border border-border bg-white shadow-sm lg:grid-cols-2">
           {/* Image side */}
           <div className="relative min-h-[260px] bg-floral lg:min-h-[420px]">
@@ -507,7 +509,7 @@ export function HomeView() {
           {/* Content side */}
           <div className="flex flex-col items-center justify-center px-8 py-12 text-center sm:px-12 lg:px-16">
             <h2 className="font-display text-3xl leading-tight text-ink sm:text-4xl lg:text-5xl">
-              {t.dir === "rtl" ? "شاركنا مشكلتك" : "Share your challenge"}
+              {t.dir === "rtl" ? "هل أنت مستعد لرؤية الصورة بوضوح أكثر؟" : "Are you ready to see the picture more clearly?"}
             </h2>
 
             <p className="mt-5 max-w-xl text-base font-medium leading-8 text-muted-foreground sm:text-lg">
@@ -552,6 +554,7 @@ export function HomeView() {
           { id: "why", label: sectionProgressLabels.why },
           { id: "principles", label: sectionProgressLabels.principles },
           { id: "faq", label: sectionProgressLabels.faq },
+          { id: "share-challenge", label: sectionProgressLabels.cta },
         ]}
       />
     </div>
