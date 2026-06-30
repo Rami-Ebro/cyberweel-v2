@@ -29,6 +29,12 @@ export function SiteHeader() {
     setMobileOpen(false);
   };
 
+  const navLabel = (id: ViewId) => {
+    if (dir === "rtl" && id === "how-we-help") return "كيف نساعدك";
+    if (dir === "rtl" && id === "share-challenge") return "شاركنا مشكلتك";
+    return t.nav[id];
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/70 bg-background/90 backdrop-blur-md">
       <div className="cw-container flex h-28 items-center justify-between">
@@ -74,7 +80,7 @@ export function SiteHeader() {
                 )}
                 aria-current={active ? "page" : undefined}
               >
-                {t.nav[item.id]}
+                {navLabel(item.id)}
                 <span
                   className={cn(
                     "absolute inset-x-3.5 -bottom-[1px] h-[2px] bg-accent transition-transform duration-300",
@@ -155,7 +161,7 @@ export function SiteHeader() {
                     >
                       <span className="flex items-center gap-3">
                         <Icon className="h-5 w-5 text-accent" />
-                        <span className="font-medium">{t.nav[item.id]}</span>
+                        <span className="font-medium">{navLabel(item.id)}</span>
                       </span>
                       {active && <span className="h-1.5 w-1.5 rounded-full bg-accent" />}
                     </button>
