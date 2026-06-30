@@ -85,18 +85,18 @@ export function HomeView() {
   const sectionProgressLabels = t.dir === "rtl"
     ? {
         home: "الرئيسية",
-        practicalHelp: "ماذا نفعل فعليًا؟",
+        practicalHelp: "كيف نساعدك؟",
         methodology: "منهجيتنا",
-        howWeHelp: "استشارة، لا معاملات",
+        howWeHelp: "قبل أي قرار",
         why: "لماذا سايبر ويل",
         principles: "كيف نفكر",
         faq: "أسئلة",
       }
     : {
         home: "Home",
-        practicalHelp: "What we actually do",
+        practicalHelp: "How we help you",
         methodology: "Methodology",
-        howWeHelp: "Consultation, not transactions",
+        howWeHelp: "Before any decision",
         why: "Why CyberWeel",
         principles: "How we think",
         faq: "FAQ",
@@ -507,7 +507,7 @@ export function HomeView() {
           {/* Content side */}
           <div className="flex flex-col items-center justify-center px-8 py-12 text-center sm:px-12 lg:px-16">
             <h2 className="font-display text-3xl leading-tight text-ink sm:text-4xl lg:text-5xl">
-              هل أنت مستعد لرؤية الصورة بوضوح أكثر؟
+              {t.dir === "rtl" ? "شاركنا مشكلتك" : "Share your challenge"}
             </h2>
 
             <p className="mt-5 max-w-xl text-base font-medium leading-8 text-muted-foreground sm:text-lg">
