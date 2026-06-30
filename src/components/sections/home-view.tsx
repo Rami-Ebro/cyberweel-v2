@@ -31,6 +31,7 @@ export function HomeView() {
   const { t } = useI18n();
   const practicalHelp = t.dir === "rtl"
     ? {
+        eyebrow: "ماذا نفعل فعليًا؟",
         title: "كيف نساعدك؟",
         intro: "نساعدك على تحويل التحدي غير الواضح إلى قرار عملي وخطوة قابلة للتنفيذ.",
         cards: [
@@ -53,6 +54,7 @@ export function HomeView() {
         ],
       }
     : {
+        eyebrow: "What we actually do",
         title: "How we help you",
         intro: "We help turn an unclear challenge into a practical decision and an actionable next step.",
         cards: [
@@ -75,8 +77,27 @@ export function HomeView() {
         ],
       };
   const howWeHelpTeaserTitle = t.dir === "rtl"
-    ? "حلول عملية للخطوة التالية"
-    : "Practical solutions for the next step";
+    ? "قبل أي قرار"
+    : "Before any decision";
+  const sectionProgressLabels = t.dir === "rtl"
+    ? {
+        home: "الرئيسية",
+        practicalHelp: "كيف نساعدك؟",
+        methodology: "منهجيتنا",
+        howWeHelp: "قبل أي قرار",
+        why: "لماذا سايبر ويل",
+        principles: "كيف نفكر",
+        faq: "أسئلة",
+      }
+    : {
+        home: "Home",
+        practicalHelp: "How we help you",
+        methodology: "Methodology",
+        howWeHelp: "Before any decision",
+        why: "Why CyberWeel",
+        principles: "How we think",
+        faq: "FAQ",
+      };
 
   return (
     <div>
@@ -204,7 +225,11 @@ export function HomeView() {
 
               {/* The logo centered as the keystone/anchor — large, present */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <Logo size={260} className="relative z-10 drop-shadow-[0_8px_24px_rgba(17,24,39,0.18)]" />
+                <img
+                  src="/logo-transparent.png"
+                  alt="CyberWeel"
+                  className="relative z-10 h-[260px] w-[260px] object-contain drop-shadow-[0_8px_24px_rgba(17,24,39,0.18)]"
+                />
               </div>
 
               {/* Quiet label at the base plinth */}
@@ -234,7 +259,11 @@ export function HomeView() {
             />
             <ArchGateway className="absolute inset-0" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <Logo size={140} className="relative z-10 drop-shadow-[0_8px_24px_rgba(17,24,39,0.18)]" />
+              <img
+                src="/logo-transparent.png"
+                alt="CyberWeel"
+                className="relative z-10 h-[140px] w-[140px] object-contain drop-shadow-[0_8px_24px_rgba(17,24,39,0.18)]"
+              />
             </div>
           </motion.div>
         </div>
@@ -244,6 +273,7 @@ export function HomeView() {
       <Section tone="floral" id="practical-help">
         <SectionHeading
           align="center"
+          eyebrow={practicalHelp.eyebrow}
           title={practicalHelp.title}
           intro={practicalHelp.intro}
           className="mx-auto"
@@ -505,13 +535,13 @@ export function HomeView() {
       {/* Quiet right-rail section progress (desktop only) */}
       <SectionProgress
         sections={[
-          { id: "hero", label: t.nav.home },
-          { id: "practical-help", label: practicalHelp.title },
-          { id: "methodology", label: t.nav["how-we-help"] },
-          { id: "how-we-help", label: t.nav["how-we-help"] },
-          { id: "why", label: t.philosophy.eyebrow },
-          { id: "principles", label: t.principles.eyebrow },
-          { id: "faq", label: t.faq.eyebrow },
+          { id: "hero", label: sectionProgressLabels.home },
+          { id: "practical-help", label: sectionProgressLabels.practicalHelp },
+          { id: "methodology", label: sectionProgressLabels.methodology },
+          { id: "how-we-help", label: sectionProgressLabels.howWeHelp },
+          { id: "why", label: sectionProgressLabels.why },
+          { id: "principles", label: sectionProgressLabels.principles },
+          { id: "faq", label: sectionProgressLabels.faq },
         ]}
       />
     </div>
