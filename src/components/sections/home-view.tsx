@@ -403,7 +403,7 @@ export function HomeView() {
           className="pointer-events-none absolute inset-x-8 bottom-8 h-px bg-floral/10 sm:inset-x-16"
         />
         <div className="relative mx-auto max-w-3xl text-center">
-          <p className="eyebrow text-white/80">{t.philosophy.eyebrow}</p>
+          <p className="eyebrow text-white">{t.philosophy.eyebrow}</p>
           <p className="mt-6 font-display text-3xl font-light leading-[1.2] text-white sm:text-4xl lg:text-[2.75rem]">
             {t.philosophy.statement}
           </p>
@@ -541,10 +541,6 @@ export function HomeView() {
         [aria-label="Section progress"] button[aria-label="Jump to Why CyberWeel"][aria-current="true"] span:first-child,
         [aria-label="Section progress"] button[aria-label="Jump to لماذا سايبر ويل"][aria-current="true"] span:first-child {
           color: rgb(255 255 255 / 0.96) !important;
-        }
-
-        [aria-label="Section progress"] > div > span {
-          color: rgb(255 255 255 / 0.8) !important;
         }
       `}</style>
 
