@@ -29,6 +29,51 @@ const fadeUp = {
 export function HomeView() {
   const { navigate } = useNav();
   const { t } = useI18n();
+  const practicalHelp = t.dir === "rtl"
+    ? {
+        title: "ماذا نفعل فعليًا؟",
+        intro: "نساعدك على تحويل التحدي غير الواضح إلى قرار عملي وخطوة قابلة للتنفيذ.",
+        cards: [
+          {
+            title: "نوضح المشكلة",
+            text: "نساعدك على فهم أين الخلل الحقيقي قبل صرف المال على حلول عشوائية.",
+          },
+          {
+            title: "نحدد الخطوة التالية",
+            text: "نحوّل الوضع الحالي إلى قرار عملي واضح.",
+          },
+          {
+            title: "نبني ما تحتاجه فقط",
+            text: "موقع، نظام، هوية، أو خطة نمو — عندما تكون فعلًا هي الخطوة الصحيحة.",
+          },
+          {
+            title: "نرافق التنفيذ",
+            text: "نساعدك على التحرك بهدوء وبلا هدر، خطوة بعد خطوة.",
+          },
+        ],
+      }
+    : {
+        title: "What we actually do?",
+        intro: "We help turn an unclear challenge into a practical decision and an actionable next step.",
+        cards: [
+          {
+            title: "Clarify the real problem",
+            text: "We help you understand where the actual bottleneck is before spending money on random solutions.",
+          },
+          {
+            title: "Define the next step",
+            text: "We turn the current situation into a clear practical decision.",
+          },
+          {
+            title: "Build only what you need",
+            text: "A website, system, identity, or growth plan — only when it is truly the right step.",
+          },
+          {
+            title: "Support execution",
+            text: "We help you move calmly, with less waste, one step at a time.",
+          },
+        ],
+      };
 
   return (
     <div>
@@ -191,6 +236,39 @@ export function HomeView() {
           </motion.div>
         </div>
       </section>
+
+      {/* ───────────────── Practical help ───────────────── */}
+      <Section tone="floral" id="practical-help">
+        <SectionHeading
+          align="center"
+          title={practicalHelp.title}
+          intro={practicalHelp.intro}
+          className="mx-auto"
+        />
+        <div className="relative mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+          {practicalHelp.cards.map((card, i) => (
+            <motion.div
+              key={card.title}
+              variants={fadeUp}
+              custom={i}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, margin: "-80px" }}
+              className="group relative flex gap-5 rounded-xl border border-border bg-background p-8 text-center transition-all duration-300 hover:-translate-y-1 hover:border-camel/40 hover:shadow-lg hover:shadow-ink/[0.06] md:block"
+            >
+              <span className="block font-display text-base font-medium tracking-[0.2em] text-bone">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <h3 className="mt-4 font-display text-2xl font-light text-ink sm:text-3xl">
+                {card.title}
+              </h3>
+              <p className="mx-auto mt-5 max-w-xs text-lg leading-relaxed text-muted-foreground">
+                {card.text}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      </Section>
 
       {/* ───────────────── Methodology ───────────────── */}
       <Section tone="muted" id="methodology" className="section-texture relative" before={<SectionReadingBar sectionId="methodology" />}>
