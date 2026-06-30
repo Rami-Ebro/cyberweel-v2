@@ -498,7 +498,7 @@ export function HomeView() {
       <section id="share-challenge" className="cw-container py-10 sm:py-12">
         <div className="grid overflow-hidden rounded-2xl border border-border bg-white shadow-sm lg:grid-cols-2">
           {/* Image side */}
-          <div className="relative min-h-[260px] bg-floral lg:min-h-[420px] rtl:lg:order-2">
+          <div className="relative min-h-[260px] bg-floral lg:min-h-[420px] ltr:lg:order-2 rtl:lg:order-2">
             <img
               src="/closing-image.png"
               alt="CyberWeel"
@@ -507,13 +507,13 @@ export function HomeView() {
           </div>
 
           {/* Content side */}
-          <div className="flex flex-col items-center justify-center px-8 py-12 text-center sm:px-12 lg:px-16 rtl:lg:order-1">
+          <div className="flex flex-col items-center justify-center px-8 py-12 text-center sm:px-12 lg:px-16 ltr:lg:order-1 rtl:lg:order-1">
             <h2 className="font-display text-3xl leading-tight text-ink sm:text-4xl lg:text-5xl">
               {t.dir === "rtl" ? "هل أنت مستعد لرؤية الصورة بوضوح أكثر؟" : "Are you ready to see the picture more clearly?"}
             </h2>
 
             <p className="mt-5 max-w-xl text-base font-medium leading-8 text-muted-foreground sm:text-lg">
-              ابدأ محادثة قصيرة وسنساعدك على رسم الخطوة التالية
+              {t.dir === "rtl" ? "ابدأ محادثة قصيرة وسنساعدك على رسم الخطوة التالية" : "Start a short conversation and we'll help you map the next step."}
             </p>
 
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -523,14 +523,14 @@ export function HomeView() {
                 rel="noopener noreferrer"
                 className="focus-ring inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-camel px-6 text-base font-semibold text-ink transition hover:bg-camel/90"
               >
-                <span>ابدأ محادثة واتساب</span>
+                <span>{t.dir === "rtl" ? "ابدأ محادثة واتساب" : "Start a WhatsApp conversation"}</span>
               </a>
 
               <a
                 href="#contact"
                 className="focus-ring inline-flex min-h-12 items-center justify-center rounded-md border border-border bg-white px-6 text-base font-semibold text-ink transition hover:bg-bone/40"
               >
-                احجز استشارة
+                {t.dir === "rtl" ? "احجز استشارة" : "Book a consultation"}
               </a>
             </div>
           </div>
