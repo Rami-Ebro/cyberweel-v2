@@ -401,16 +401,16 @@ export function HomeView() {
           className="pointer-events-none absolute inset-x-8 bottom-8 h-px bg-floral/10 sm:inset-x-16"
         />
         <div className="relative mx-auto max-w-3xl text-center">
-          <p className="eyebrow text-bone/60">{t.philosophy.eyebrow}</p>
-          <p className="mt-6 font-display text-3xl font-light leading-[1.2] text-floral sm:text-4xl lg:text-[2.75rem]">
+          <p className="eyebrow text-white/70">{t.philosophy.eyebrow}</p>
+          <p className="mt-6 font-display text-3xl font-light leading-[1.2] text-white sm:text-4xl lg:text-[2.75rem]">
             {t.philosophy.statement}
           </p>
-          <p className="mt-7 text-lg leading-relaxed text-bone/75">
+          <p className="mt-7 text-lg leading-relaxed text-white/80">
             {t.philosophy.body}
           </p>
           <div className="mt-12 inline-flex flex-col items-center gap-3">
             <Logo onDark size={56} />
-            <p className="font-display text-base text-bone/70">
+            <p className="font-display text-base text-white/70">
               {t.philosophy.note}
             </p>
           </div>
@@ -534,6 +534,13 @@ export function HomeView() {
           </div>
         </div>
       </section>
+
+      <style>{`
+        [aria-label="Section progress"] button[aria-label="Jump to Why CyberWeel"][aria-current="true"] span:first-child,
+        [aria-label="Section progress"] button[aria-label="Jump to لماذا سايبر ويل"][aria-current="true"] span:first-child {
+          color: rgb(255 255 255 / 0.92);
+        }
+      `}</style>
 
       {/* Quiet right-rail section progress (desktop only) */}
       <SectionProgress
