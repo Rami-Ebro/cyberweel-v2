@@ -31,7 +31,7 @@ export function HomeView() {
   const { t } = useI18n();
   const practicalHelp = t.dir === "rtl"
     ? {
-        title: "ماذا نفعل فعليًا؟",
+        title: "كيف نساعدك؟",
         intro: "نساعدك على تحويل التحدي غير الواضح إلى قرار عملي وخطوة قابلة للتنفيذ.",
         cards: [
           {
@@ -53,7 +53,7 @@ export function HomeView() {
         ],
       }
     : {
-        title: "What we actually do?",
+        title: "How we help you",
         intro: "We help turn an unclear challenge into a practical decision and an actionable next step.",
         cards: [
           {
@@ -74,6 +74,9 @@ export function HomeView() {
           },
         ],
       };
+  const howWeHelpTeaserTitle = t.dir === "rtl"
+    ? "حلول عملية للخطوة التالية"
+    : "Practical solutions for the next step";
 
   return (
     <div>
@@ -254,9 +257,9 @@ export function HomeView() {
               initial="hidden"
               whileInView="show"
               viewport={{ once: true, margin: "-80px" }}
-              className="group relative flex gap-5 rounded-xl border border-border bg-background p-8 text-center transition-all duration-300 hover:-translate-y-1 hover:border-camel/40 hover:shadow-lg hover:shadow-ink/[0.06] md:block"
+              className="group relative flex gap-5 rounded-xl border border-border bg-muted p-8 text-center transition-all duration-300 hover:-translate-y-1 hover:border-camel/40 hover:shadow-lg hover:shadow-ink/[0.06] md:block"
             >
-              <span className="block font-display text-base font-medium tracking-[0.2em] text-bone">
+              <span className="inline-flex rounded-md bg-white px-3 py-1 font-display text-base font-medium tracking-[0.2em] text-ink shadow-sm">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <h3 className="mt-4 font-display text-2xl font-light text-ink sm:text-3xl">
@@ -294,7 +297,7 @@ export function HomeView() {
               viewport={{ once: true, margin: "-80px" }}
               className="group relative flex gap-5 rounded-xl border border-border bg-background p-8 text-center transition-all duration-300 hover:-translate-y-1 hover:border-camel/40 hover:shadow-lg hover:shadow-ink/[0.06] md:block"
             >
-              <span className="block font-display text-base font-medium tracking-[0.2em] text-bone">
+              <span className="inline-flex rounded-md bg-white px-3 py-1 font-display text-base font-medium tracking-[0.2em] text-ink shadow-sm">
                 0{m.step}
               </span>
               {/* The concept name — large, prominent, the visual heart of each card */}
@@ -317,7 +320,7 @@ export function HomeView() {
         <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <SectionHeading
             eyebrow={t.howWeHelpTeaser.eyebrow}
-            title={t.howWeHelpTeaser.title}
+            title={howWeHelpTeaserTitle}
             intro={t.howWeHelpTeaser.intro}
           />
           <div className="grid gap-5 sm:grid-cols-2">
