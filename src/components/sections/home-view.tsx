@@ -31,8 +31,8 @@ export function HomeView() {
   const { t } = useI18n();
   const practicalHelp = t.dir === "rtl"
     ? {
-        eyebrow: "ماذا نفعل فعليًا؟",
-        title: "كيف نساعدك؟",
+        eyebrow: "كيف نساعدك؟",
+        title: "ماذا نفعل فعليًا؟",
         intro: "نساعدك على تحويل التحدي غير الواضح إلى قرار عملي وخطوة قابلة للتنفيذ.",
         cards: [
           {
@@ -54,8 +54,8 @@ export function HomeView() {
         ],
       }
     : {
-        eyebrow: "What we actually do",
-        title: "How we help you",
+        eyebrow: "How we help you",
+        title: "What we actually do",
         intro: "We help turn an unclear challenge into a practical decision and an actionable next step.",
         cards: [
           {
@@ -76,24 +76,27 @@ export function HomeView() {
           },
         ],
       };
-  const howWeHelpTeaserTitle = t.dir === "rtl"
+  const howWeHelpTeaserEyebrow = t.dir === "rtl"
     ? "قبل أي قرار"
     : "Before any decision";
+  const howWeHelpTeaserTitle = t.dir === "rtl"
+    ? "استشارة، لا معاملات"
+    : "Consultation, not transactions";
   const sectionProgressLabels = t.dir === "rtl"
     ? {
         home: "الرئيسية",
-        practicalHelp: "كيف نساعدك؟",
+        practicalHelp: "ماذا نفعل فعليًا؟",
         methodology: "منهجيتنا",
-        howWeHelp: "قبل أي قرار",
+        howWeHelp: "استشارة، لا معاملات",
         why: "لماذا سايبر ويل",
         principles: "كيف نفكر",
         faq: "أسئلة",
       }
     : {
         home: "Home",
-        practicalHelp: "How we help you",
+        practicalHelp: "What we actually do",
         methodology: "Methodology",
-        howWeHelp: "Before any decision",
+        howWeHelp: "Consultation, not transactions",
         why: "Why CyberWeel",
         principles: "How we think",
         faq: "FAQ",
@@ -349,7 +352,7 @@ export function HomeView() {
       <Section tone="floral" id="how-we-help">
         <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <SectionHeading
-            eyebrow={t.howWeHelpTeaser.eyebrow}
+            eyebrow={howWeHelpTeaserEyebrow}
             title={howWeHelpTeaserTitle}
             intro={t.howWeHelpTeaser.intro}
           />
