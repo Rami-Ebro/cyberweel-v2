@@ -12,8 +12,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { requireOwner } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { toggleSmartLink } from "./actions";
+import { LogoutButton } from "./logout-button";
 import { CreateSmartLinkForm, EditDestinationForm } from "./smart-link-forms";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +34,8 @@ function formatDate(date: Date) {
 }
 
 export default async function SmartLinksAdminPage() {
+  await requireOwner();
+
   const smartLinks = await db.smartLink.findMany({
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { scans: true } } },
@@ -60,9 +64,12 @@ export default async function SmartLinksAdminPage() {
               </span>
             </span>
           </Link>
-          <Button asChild variant="outline" className="border-bone/40 bg-transparent text-floral hover:bg-floral hover:text-ink">
-            <Link href="/">العودة إلى الموقع</Link>
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button asChild variant="outline" className="border-bone/40 bg-transparent text-floral hover:bg-floral hover:text-ink">
+              <Link href="/">العودة إلى الموقع</Link>
+            </Button>
+            <LogoutButton />
+          </div>
         </div>
       </header>
 

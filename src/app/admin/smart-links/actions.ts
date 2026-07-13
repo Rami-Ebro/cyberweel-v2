@@ -2,6 +2,7 @@
 
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { requireOwner } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 
 export type SmartLinkActionState = {
@@ -47,6 +48,8 @@ export async function createSmartLink(
   _previousState: SmartLinkActionState,
   formData: FormData,
 ): Promise<SmartLinkActionState> {
+  await requireOwner();
+
   const title = text(formData, "title");
   const slug = text(formData, "slug").toLowerCase();
   const destinationUrl = text(formData, "destinationUrl");
@@ -84,6 +87,8 @@ export async function updateSmartLinkDestination(
   _previousState: SmartLinkActionState,
   formData: FormData,
 ): Promise<SmartLinkActionState> {
+  await requireOwner();
+
   const id = text(formData, "id");
   const destinationUrl = text(formData, "destinationUrl");
 
@@ -107,6 +112,8 @@ export async function updateSmartLinkDestination(
 }
 
 export async function toggleSmartLink(formData: FormData) {
+  await requireOwner();
+
   const id = text(formData, "id");
   const nextState = text(formData, "nextState") === "true";
 
