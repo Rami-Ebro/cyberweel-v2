@@ -51,3 +51,7 @@ server.log
 
 # Skills directory
 /skills/
+
+# local SQLite databases
+*.db
+*.db-journal
