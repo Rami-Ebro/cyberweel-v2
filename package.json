@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
+    "db:generate:sqlite": "prisma generate --schema prisma/schema.sqlite.prisma",
+    "db:migrate:data": "npm run db:generate && npm run db:generate:sqlite && node scripts/migrate-sqlite-to-postgres.mjs",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset"
   },
