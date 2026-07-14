@@ -1,23 +1,19 @@
-import { PrismaClient as PostgresClient } from "@prisma/client";
+import { neon } from "@neondatabase/serverless";
 import { PrismaClient as SqliteClient } from "../src/generated/sqlite-client/index.js";
 
-const sqlite = new SqliteClient();
-const postgres = new PostgresClient();
+process.env.SQLITE_DATABASE_URL ||= "file:./custom.db";
 
-async function upsertMany(items, upsert) {
-  for (const item of items) {
-    await upsert(item);
-  }
+const postgresUrl = process.env.POSTGRES_DATABASE_URL || process.env.DATABASE_URL;
+if (!postgresUrl?.startsWith("postgres")) {
+  throw new Error("POSTGRES_DATABASE_URL or DATABASE_URL must contain the Neon PostgreSQL URL");
 }
 
-async function main() {
-  if (!process.env.SQLITE_DATABASE_URL) {
-    throw new Error("SQLITE_DATABASE_URL is required");
-  }
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is required");
-  }
+const sqlite = new SqliteClient();
+const sql = neon(postgresUrl);
 
+const iso = (value) => (value instanceof Date ? value.toISOString() : value);
+
+async function main() {
   const [users, smartLinks, scans] = await Promise.all([
     sqlite.user.findMany(),
     sqlite.smartLink.findMany(),
@@ -30,51 +26,102 @@ async function main() {
     scans: scans.length,
   });
 
-  await upsertMany(users, (user) =>
-    postgres.user.upsert({
-      where: { id: user.id },
-      create: user,
-      update: user,
-    }),
-  );
+  for (const user of users) {
+    await sql.query(
+      `INSERT INTO "User" ("id", "email", "name", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT ("id") DO UPDATE SET
+         "email" = EXCLUDED."email",
+         "name" = EXCLUDED."name",
+         "createdAt" = EXCLUDED."createdAt",
+         "updatedAt" = EXCLUDED."updatedAt"`,
+      [user.id, user.email, user.name, iso(user.createdAt), iso(user.updatedAt)],
+    );
+  }
 
-  await upsertMany(smartLinks, (link) =>
-    postgres.smartLink.upsert({
-      where: { id: link.id },
-      create: link,
-      update: link,
-    }),
-  );
+  for (const link of smartLinks) {
+    await sql.query(
+      `INSERT INTO "SmartLink"
+         ("id", "title", "slug", "destinationUrl", "isActive", "redirectType", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT ("id") DO UPDATE SET
+         "title" = EXCLUDED."title",
+         "slug" = EXCLUDED."slug",
+         "destinationUrl" = EXCLUDED."destinationUrl",
+         "isActive" = EXCLUDED."isActive",
+         "redirectType" = EXCLUDED."redirectType",
+         "createdAt" = EXCLUDED."createdAt",
+         "updatedAt" = EXCLUDED."updatedAt"`,
+      [
+        link.id,
+        link.title,
+        link.slug,
+        link.destinationUrl,
+        link.isActive,
+        link.redirectType,
+        iso(link.createdAt),
+        iso(link.updatedAt),
+      ],
+    );
+  }
 
-  await upsertMany(scans, (scan) =>
-    postgres.smartLinkScan.upsert({
-      where: { id: scan.id },
-      create: scan,
-      update: scan,
-    }),
-  );
+  for (const scan of scans) {
+    await sql.query(
+      `INSERT INTO "SmartLinkScan"
+         ("id", "smartLinkId", "scannedAt", "ipHash", "country", "city", "device", "os", "browser", "userAgent", "referer", "createdAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       ON CONFLICT ("id") DO UPDATE SET
+         "smartLinkId" = EXCLUDED."smartLinkId",
+         "scannedAt" = EXCLUDED."scannedAt",
+         "ipHash" = EXCLUDED."ipHash",
+         "country" = EXCLUDED."country",
+         "city" = EXCLUDED."city",
+         "device" = EXCLUDED."device",
+         "os" = EXCLUDED."os",
+         "browser" = EXCLUDED."browser",
+         "userAgent" = EXCLUDED."userAgent",
+         "referer" = EXCLUDED."referer",
+         "createdAt" = EXCLUDED."createdAt"`,
+      [
+        scan.id,
+        scan.smartLinkId,
+        iso(scan.scannedAt),
+        scan.ipHash,
+        scan.country,
+        scan.city,
+        scan.device,
+        scan.os,
+        scan.browser,
+        scan.userAgent,
+        scan.referer,
+        iso(scan.createdAt),
+      ],
+    );
+  }
 
-  const [userCount, smartLinkCount, scanCount] = await Promise.all([
-    postgres.user.count(),
-    postgres.smartLink.count(),
-    postgres.smartLinkScan.count(),
+  const [userRows, linkRows, scanRows] = await Promise.all([
+    sql.query('SELECT COUNT(*)::int AS count FROM "User"'),
+    sql.query('SELECT COUNT(*)::int AS count FROM "SmartLink"'),
+    sql.query('SELECT COUNT(*)::int AS count FROM "SmartLinkScan"'),
   ]);
 
-  console.log("Destination counts", {
-    users: userCount,
-    smartLinks: smartLinkCount,
-    scans: scanCount,
-  });
+  const destination = {
+    users: userRows[0].count,
+    smartLinks: linkRows[0].count,
+    scans: scanRows[0].count,
+  };
+
+  console.log("Destination counts", destination);
 
   if (
-    userCount < users.length ||
-    smartLinkCount < smartLinks.length ||
-    scanCount < scans.length
+    destination.users < users.length ||
+    destination.smartLinks < smartLinks.length ||
+    destination.scans < scans.length
   ) {
     throw new Error("Destination counts are lower than source counts");
   }
 
-  console.log("Migration completed successfully");
+  console.log("Migration completed successfully over Neon HTTPS");
 }
 
 main()
@@ -83,5 +130,5 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
-    await Promise.allSettled([sqlite.$disconnect(), postgres.$disconnect()]);
+    await sqlite.$disconnect();
   });
