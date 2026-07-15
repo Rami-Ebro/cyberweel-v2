@@ -15,6 +15,7 @@ import {
 import { requireOwner } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { toggleSmartLink } from "./actions";
+import { DeleteSmartLinkButton } from "./delete-smart-link-button";
 import { LogoutButton } from "./logout-button";
 import { QrCodeActions } from "./qr-code-actions";
 import { CreateSmartLinkForm, EditDestinationForm } from "./smart-link-forms";
@@ -170,22 +171,30 @@ export default async function SmartLinksAdminPage() {
                           {formatDate(smartLink.createdAt)}
                         </TableCell>
                         <TableCell className="align-top text-left">
-                          <form action={toggleSmartLink}>
-                            <input type="hidden" name="id" value={smartLink.id} />
-                            <input
-                              type="hidden"
-                              name="nextState"
-                              value={String(!smartLink.isActive)}
-                            />
-                            <Button
-                              type="submit"
-                              size="sm"
-                              variant={smartLink.isActive ? "outline" : "default"}
-                            >
-                              <Power />
-                              {smartLink.isActive ? "تعطيل" : "تفعيل"}
-                            </Button>
-                          </form>
+                          <div className="flex min-w-max flex-wrap justify-end gap-2">
+                            <form action={toggleSmartLink}>
+                              <input type="hidden" name="id" value={smartLink.id} />
+                              <input
+                                type="hidden"
+                                name="nextState"
+                                value={String(!smartLink.isActive)}
+                              />
+                              <Button
+                                type="submit"
+                                size="sm"
+                                variant={smartLink.isActive ? "outline" : "default"}
+                              >
+                                <Power />
+                                {smartLink.isActive ? "تعطيل" : "تفعيل"}
+                              </Button>
+                            </form>
+                            {!smartLink.isActive ? (
+                              <DeleteSmartLinkButton
+                                id={smartLink.id}
+                                title={smartLink.title}
+                              />
+                            ) : null}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
