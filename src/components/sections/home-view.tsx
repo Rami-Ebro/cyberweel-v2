@@ -29,11 +29,85 @@ const fadeUp = {
 export function HomeView() {
   const { navigate } = useNav();
   const { t } = useI18n();
+  const practicalHelp = t.dir === "rtl"
+    ? {
+        eyebrow: "كيف نساعدك؟",
+        title: "ماذا نفعل فعليًا؟",
+        intro: "نساعدك على تحويل التحدي غير الواضح إلى قرار عملي وخطوة قابلة للتنفيذ.",
+        cards: [
+          {
+            title: "نوضح المشكلة",
+            text: "نساعدك على فهم أين الخلل الحقيقي قبل صرف المال على حلول عشوائية.",
+          },
+          {
+            title: "نحدد الخطوة التالية",
+            text: "نحوّل الوضع الحالي إلى قرار عملي واضح.",
+          },
+          {
+            title: "نبني ما تحتاجه فقط",
+            text: "موقع، نظام، هوية، أو خطة نمو — عندما تكون فعلًا هي الخطوة الصحيحة.",
+          },
+          {
+            title: "نرافق التنفيذ",
+            text: "نساعدك على التحرك بهدوء وبلا هدر، خطوة بعد خطوة.",
+          },
+        ],
+      }
+    : {
+        eyebrow: "How we help you",
+        title: "What we actually do",
+        intro: "We help turn an unclear challenge into a practical decision and an actionable next step.",
+        cards: [
+          {
+            title: "Clarify the real problem",
+            text: "We help you understand where the actual bottleneck is before spending money on random solutions.",
+          },
+          {
+            title: "Define the next step",
+            text: "We turn the current situation into a clear practical decision.",
+          },
+          {
+            title: "Build only what you need",
+            text: "A website, system, identity, or growth plan — only when it is truly the right step.",
+          },
+          {
+            title: "Support execution",
+            text: "We help you move calmly, with less waste, one step at a time.",
+          },
+        ],
+      };
+  const howWeHelpTeaserEyebrow = t.dir === "rtl"
+    ? "قبل أي قرار"
+    : "Before any decision";
+  const howWeHelpTeaserTitle = t.dir === "rtl"
+    ? "استشارة، لا معاملات"
+    : "Consultation, not transactions";
+  const sectionProgressLabels = t.dir === "rtl"
+    ? {
+        home: "الرئيسية",
+        practicalHelp: "كيف نساعدك؟",
+        methodology: "منهجيتنا",
+        howWeHelp: "قبل أي قرار",
+        why: "لماذا سايبر ويل",
+        principles: "كيف نفكر",
+        faq: "أسئلة",
+        cta: "شاركنا مشكلتك",
+      }
+    : {
+        home: "Home",
+        practicalHelp: "How we help you",
+        methodology: "Methodology",
+        howWeHelp: "Before any decision",
+        why: "Why CyberWeel",
+        principles: "How we think",
+        faq: "FAQ",
+        cta: "Share your challenge",
+      };
 
   return (
     <div>
       {/* ───────────────── Hero (calm, trust-first, logo as anchor) ───────────────── */}
-      <section className="relative overflow-hidden bg-background">
+      <section id="hero" className="relative overflow-hidden bg-background">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-[0.5]"
@@ -156,7 +230,11 @@ export function HomeView() {
 
               {/* The logo centered as the keystone/anchor — large, present */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <Logo size={260} className="relative z-10 drop-shadow-[0_8px_24px_rgba(17,24,39,0.18)]" />
+                <img
+                  src="/logo-transparent.png"
+                  alt="CyberWeel"
+                  className="relative z-10 h-[260px] w-[260px] object-contain drop-shadow-[0_8px_24px_rgba(17,24,39,0.18)]"
+                />
               </div>
 
               {/* Quiet label at the base plinth */}
@@ -186,11 +264,49 @@ export function HomeView() {
             />
             <ArchGateway className="absolute inset-0" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <Logo size={140} className="relative z-10 drop-shadow-[0_8px_24px_rgba(17,24,39,0.18)]" />
+              <img
+                src="/logo-transparent.png"
+                alt="CyberWeel"
+                className="relative z-10 h-[140px] w-[140px] object-contain drop-shadow-[0_8px_24px_rgba(17,24,39,0.18)]"
+              />
             </div>
           </motion.div>
         </div>
       </section>
+
+      {/* ───────────────── Practical help ───────────────── */}
+      <Section tone="floral" id="practical-help">
+        <SectionHeading
+          align="center"
+          eyebrow={practicalHelp.eyebrow}
+          title={practicalHelp.title}
+          intro={practicalHelp.intro}
+          className="mx-auto"
+        />
+        <div className="relative mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+          {practicalHelp.cards.map((card, i) => (
+            <motion.div
+              key={card.title}
+              variants={fadeUp}
+              custom={i}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, margin: "-80px" }}
+              className="group relative flex gap-5 rounded-xl border border-border bg-muted p-8 text-center transition-all duration-300 hover:-translate-y-1 hover:border-camel/40 hover:shadow-lg hover:shadow-ink/[0.06] md:block"
+            >
+              <span className="inline-flex rounded-md bg-white px-3 py-1 font-display text-base font-medium tracking-[0.2em] text-ink shadow-sm">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <h3 className="mt-4 font-display text-2xl font-light text-ink sm:text-3xl">
+                {card.title}
+              </h3>
+              <p className="mx-auto mt-5 max-w-xs text-lg leading-relaxed text-muted-foreground">
+                {card.text}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      </Section>
 
       {/* ───────────────── Methodology ───────────────── */}
       <Section tone="muted" id="methodology" className="section-texture relative" before={<SectionReadingBar sectionId="methodology" />}>
@@ -216,7 +332,7 @@ export function HomeView() {
               viewport={{ once: true, margin: "-80px" }}
               className="group relative flex gap-5 rounded-xl border border-border bg-background p-8 text-center transition-all duration-300 hover:-translate-y-1 hover:border-camel/40 hover:shadow-lg hover:shadow-ink/[0.06] md:block"
             >
-              <span className="block font-display text-base font-medium tracking-[0.2em] text-bone">
+              <span className="inline-flex rounded-md bg-white px-3 py-1 font-display text-base font-medium tracking-[0.2em] text-ink shadow-sm">
                 0{m.step}
               </span>
               {/* The concept name — large, prominent, the visual heart of each card */}
@@ -238,8 +354,8 @@ export function HomeView() {
       <Section tone="floral" id="how-we-help">
         <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <SectionHeading
-            eyebrow={t.howWeHelpTeaser.eyebrow}
-            title={t.howWeHelpTeaser.title}
+            eyebrow={howWeHelpTeaserEyebrow}
+            title={howWeHelpTeaserTitle}
             intro={t.howWeHelpTeaser.intro}
           />
           <div className="grid gap-5 sm:grid-cols-2">
@@ -274,7 +390,7 @@ export function HomeView() {
       <Section tone="ink" id="why" className="section-texture-dark relative overflow-hidden">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.04]"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.14]"
         >
           <ArchMotif size={520} onDark />
         </div>
@@ -287,16 +403,16 @@ export function HomeView() {
           className="pointer-events-none absolute inset-x-8 bottom-8 h-px bg-floral/10 sm:inset-x-16"
         />
         <div className="relative mx-auto max-w-3xl text-center">
-          <p className="eyebrow text-bone/60">{t.philosophy.eyebrow}</p>
-          <p className="mt-6 font-display text-3xl font-light leading-[1.2] text-floral sm:text-4xl lg:text-[2.75rem]">
+          <p className="eyebrow !text-white">{t.philosophy.eyebrow}</p>
+          <p className="mt-6 font-display text-3xl font-light leading-[1.2] text-white sm:text-4xl lg:text-[2.75rem]">
             {t.philosophy.statement}
           </p>
-          <p className="mt-7 text-lg leading-relaxed text-bone/75">
+          <p className="mt-7 text-lg leading-relaxed text-white/80">
             {t.philosophy.body}
           </p>
           <div className="mt-12 inline-flex flex-col items-center gap-3">
             <Logo onDark size={56} />
-            <p className="font-display text-base text-bone/70">
+            <p className="font-display text-base text-white/70">
               {t.philosophy.note}
             </p>
           </div>
@@ -379,10 +495,10 @@ export function HomeView() {
       </Section>
 
       {/* ───────────────── Closing CTA — exact two-column card structure ───────────────── */}
-      <section className="cw-container py-10 sm:py-12">
+      <section id="share-challenge" className="cw-container py-10 sm:py-12">
         <div className="grid overflow-hidden rounded-2xl border border-border bg-white shadow-sm lg:grid-cols-2">
           {/* Image side */}
-          <div className="relative min-h-[260px] bg-floral lg:min-h-[420px]">
+          <div className="relative min-h-[260px] bg-floral lg:min-h-[420px] ltr:lg:order-2 rtl:lg:order-2">
             <img
               src="/closing-image.png"
               alt="CyberWeel"
@@ -391,13 +507,13 @@ export function HomeView() {
           </div>
 
           {/* Content side */}
-          <div className="flex flex-col items-center justify-center px-8 py-12 text-center sm:px-12 lg:px-16">
+          <div className="flex flex-col items-center justify-center px-8 py-12 text-center sm:px-12 lg:px-16 ltr:lg:order-1 rtl:lg:order-1">
             <h2 className="font-display text-3xl leading-tight text-ink sm:text-4xl lg:text-5xl">
-              هل أنت مستعد لرؤية الصورة بوضوح أكثر؟
+              {t.dir === "rtl" ? "هل أنت مستعد لرؤية الصورة بوضوح أكثر؟" : "Are you ready to see the picture more clearly?"}
             </h2>
 
             <p className="mt-5 max-w-xl text-base font-medium leading-8 text-muted-foreground sm:text-lg">
-              ابدأ محادثة قصيرة وسنساعدك على رسم الخطوة التالية
+              {t.dir === "rtl" ? "ابدأ محادثة قصيرة وسنساعدك على رسم الخطوة التالية" : "Start a short conversation and we'll help you map the next step."}
             </p>
 
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -407,28 +523,38 @@ export function HomeView() {
                 rel="noopener noreferrer"
                 className="focus-ring inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-camel px-6 text-base font-semibold text-ink transition hover:bg-camel/90"
               >
-                <span>ابدأ محادثة واتساب</span>
+                <span>{t.dir === "rtl" ? "ابدأ محادثة واتساب" : "Start a WhatsApp conversation"}</span>
               </a>
 
               <a
                 href="#contact"
                 className="focus-ring inline-flex min-h-12 items-center justify-center rounded-md border border-border bg-white px-6 text-base font-semibold text-ink transition hover:bg-bone/40"
               >
-                احجز استشارة
+                {t.dir === "rtl" ? "احجز استشارة" : "Book a consultation"}
               </a>
             </div>
           </div>
         </div>
       </section>
 
+      <style>{`
+        [aria-label="Section progress"] button[aria-label="Jump to Why CyberWeel"][aria-current="true"] span:first-child,
+        [aria-label="Section progress"] button[aria-label="Jump to لماذا سايبر ويل"][aria-current="true"] span:first-child {
+          color: rgb(255 255 255 / 0.96) !important;
+        }
+      `}</style>
+
       {/* Quiet right-rail section progress (desktop only) */}
       <SectionProgress
         sections={[
-          { id: "methodology", label: t.nav["how-we-help"] },
-          { id: "how-we-help", label: t.nav["how-we-help"] },
-          { id: "why", label: t.philosophy.eyebrow },
-          { id: "principles", label: t.principles.eyebrow },
-          { id: "faq", label: t.faq.eyebrow },
+          { id: "hero", label: sectionProgressLabels.home },
+          { id: "practical-help", label: sectionProgressLabels.practicalHelp },
+          { id: "methodology", label: sectionProgressLabels.methodology },
+          { id: "how-we-help", label: sectionProgressLabels.howWeHelp },
+          { id: "why", label: sectionProgressLabels.why },
+          { id: "principles", label: sectionProgressLabels.principles },
+          { id: "faq", label: sectionProgressLabels.faq },
+          { id: "share-challenge", label: sectionProgressLabels.cta },
         ]}
       />
     </div>

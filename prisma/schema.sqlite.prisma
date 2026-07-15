@@ -1,10 +1,11 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/sqlite-client"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = env("SQLITE_DATABASE_URL")
 }
 
 model User {
@@ -21,7 +22,7 @@ model SmartLink {
   slug           String          @unique
   destinationUrl String
   isActive       Boolean         @default(true)
-  redirectType   String          @default("TEMPORARY")
+  redirectType   RedirectType    @default(TEMPORARY)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   scans          SmartLinkScan[]
@@ -44,4 +45,9 @@ model SmartLinkScan {
 
   @@index([smartLinkId])
   @@index([scannedAt])
+}
+
+enum RedirectType {
+  TEMPORARY
+  PERMANENT
 }
