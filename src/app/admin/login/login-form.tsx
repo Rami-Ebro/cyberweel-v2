@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { Loader2, LogIn } from "lucide-react";
+import { useActionState, useState } from "react";
+import { Eye, EyeOff, Loader2, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { loginOwner, type LoginActionState } from "./actions";
@@ -16,6 +16,7 @@ export function LoginForm() {
     loginOwner,
     initialLoginActionState,
   );
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <form action={action} className="grid gap-5">
@@ -32,13 +33,34 @@ export function LoginForm() {
 
       <label className="grid gap-2 text-sm font-bold text-ink">
         كلمة المرور
-        <Input
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          dir="ltr"
+        <div className="relative">
+          <Input
+            name="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            required
+            dir="ltr"
+            className="pl-11"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((value) => !value)}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-ink"
+            aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+            title={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+          >
+            {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+          </button>
+        </div>
+      </label>
+
+      <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink">
+        <input
+          name="remember"
+          type="checkbox"
+          className="size-4 rounded border-input accent-current"
         />
+        تذكّرني لمدة 30 يومًا
       </label>
 
       {state.status === "error" ? (
