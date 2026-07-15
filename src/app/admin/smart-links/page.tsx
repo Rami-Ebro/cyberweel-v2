@@ -16,6 +16,7 @@ import { requireOwner } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { toggleSmartLink } from "./actions";
 import { LogoutButton } from "./logout-button";
+import { QrCodeActions } from "./qr-code-actions";
 import { CreateSmartLinkForm, EditDestinationForm } from "./smart-link-forms";
 
 export const dynamic = "force-dynamic";
@@ -80,7 +81,7 @@ export default async function SmartLinksAdminPage() {
             إدارة الروابط الذكية
           </h1>
           <p className="mt-4 leading-8 text-muted-foreground">
-            أنشئ الروابط المختصرة، غيّر وجهاتها، وتابع الزيارات من مكان واحد.
+            أنشئ الروابط المختصرة، غيّر وجهاتها، حمّل رمز QR، وتابع الزيارات من مكان واحد.
           </p>
         </div>
 
@@ -122,6 +123,7 @@ export default async function SmartLinksAdminPage() {
                     <TableRow className="bg-muted/50">
                       <TableHead>الرابط</TableHead>
                       <TableHead>الوجهة</TableHead>
+                      <TableHead>QR</TableHead>
                       <TableHead>الحالة</TableHead>
                       <TableHead>الزيارات</TableHead>
                       <TableHead>تاريخ الإنشاء</TableHead>
@@ -145,6 +147,9 @@ export default async function SmartLinksAdminPage() {
                             id={smartLink.id}
                             destinationUrl={smartLink.destinationUrl}
                           />
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <QrCodeActions slug={smartLink.slug} />
                         </TableCell>
                         <TableCell className="align-top">
                           <Badge
