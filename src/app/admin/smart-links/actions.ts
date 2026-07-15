@@ -125,3 +125,20 @@ export async function toggleSmartLink(formData: FormData) {
   });
   revalidatePath("/admin/smart-links");
 }
+
+export async function deleteSmartLink(formData: FormData) {
+  await requireOwner();
+
+  const id = text(formData, "id");
+  if (!id) return;
+
+  const smartLink = await db.smartLink.findUnique({
+    where: { id },
+    select: { isActive: true },
+  });
+
+  if (!smartLink || smartLink.isActive) return;
+
+  await db.smartLink.delete({ where: { id } });
+  revalidatePath("/admin/smart-links");
+}
