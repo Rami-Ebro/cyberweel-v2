@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   ADMIN_SESSION_COOKIE,
+  REMEMBERED_SESSION_TTL_SECONDS,
   SESSION_TTL_SECONDS,
   clearAttempts,
   createSessionToken,
@@ -24,8 +25,10 @@ export async function loginOwner(
 ): Promise<LoginActionState> {
   const emailValue = formData.get("email");
   const passwordValue = formData.get("password");
+  const rememberValue = formData.get("remember");
   const email = typeof emailValue === "string" ? emailValue.trim() : "";
   const password = typeof passwordValue === "string" ? passwordValue : "";
+  const remember = rememberValue === "on";
 
   const clientKey = await getClientKey();
 
@@ -38,19 +41,21 @@ export async function loginOwner(
 
   if (!email || !password || !verifyOwnerCredentials(email, password)) {
     recordFailedAttempt(clientKey);
-    // Never log emails, passwords, hashes, or tokens.
     return { status: "error", message: "بيانات الدخول غير صحيحة." };
   }
 
   clearAttempts(clientKey);
 
+  const maxAge = remember
+    ? REMEMBERED_SESSION_TTL_SECONDS
+    : SESSION_TTL_SECONDS;
   const cookieStore = await cookies();
-  cookieStore.set(ADMIN_SESSION_COOKIE, createSessionToken(), {
+  cookieStore.set(ADMIN_SESSION_COOKIE, createSessionToken(maxAge), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: SESSION_TTL_SECONDS,
+    maxAge,
   });
 
   redirect("/admin/smart-links");
