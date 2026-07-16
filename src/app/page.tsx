@@ -12,6 +12,7 @@ import { ScrollUtilities } from "@/components/site/scroll-utilities";
 import { ShortcutsHelp } from "@/components/site/shortcuts-help";
 import { BreadcrumbLd } from "@/components/site/breadcrumb-ld";
 import { WhatsAppButton } from "@/components/site/whatsapp-button";
+import { LaunchSectionEnhancer } from "@/components/site/launch-section-enhancer";
 import { BRAND } from "@/lib/site-data";
 import { HomeView } from "@/components/sections/home-view";
 import { HowWeHelpView } from "@/components/sections/how-we-help-view";
@@ -64,6 +65,7 @@ function HomeInner() {
             }
           }
         `}</style>
+        <LaunchSectionEnhancer />
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:text-floral"
