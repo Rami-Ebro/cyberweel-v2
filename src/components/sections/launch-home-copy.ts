@@ -1,0 +1,93 @@
+export const launchCopy = {
+  ar: {
+    hero: {
+      eyebrow: "سايبرويل",
+      title1: "من حيث أنت…",
+      title2: "إلى حيث تريد أن تكون",
+      promise: "نساعد أصحاب الأعمال على فهم تحدياتهم الرقمية، واتخاذ القرار المناسب، وبناء الحل الذي يحتاجه مشروعهم فعلًا.",
+      note: "لا عروض جاهزة، ولا حلول عشوائية، ولا هدر للوقت والمال.",
+      primary: "ابدأ محادثة الآن",
+      secondary: "اعرض مشكلتك",
+      ctaNote: "أحيانًا لا تحتاج إلى تغيير كل شيء… فقط إلى فهم المشكلة واتخاذ الخطوة الصحيحة التالية.",
+    },
+    situations: {
+      eyebrow: "ابدأ من وضعك الحقيقي",
+      title: "أيٌّ من هذه الحالات يشبهك؟",
+      intro: "لا تحتاج إلى معرفة الحل قبل أن تتواصل معنا. يكفي أن تعرف ما الذي يعيق تقدمك.",
+      items: [
+        ["لدي مشروع ولا أعرف الخطوة التالية", "نرتب الصورة ونحدد القرار الأكثر أولوية بدل تشتيتك بعشرات الخيارات."],
+        ["لدي مشكلة رقمية ولا أعرف سببها", "نفصل الأعراض عن السبب الحقيقي قبل البدء بأي تنفيذ."],
+        ["أحتاج موقعًا أو نظامًا لكن أخشى الاختيار الخطأ", "نحدد ما تحتاجه فعلًا، وما يمكنك تأجيله، وما لا يستحق أن تدفع مقابله الآن."],
+      ],
+    },
+    process: {
+      eyebrow: "ماذا نفعل فعليًا؟",
+      title: "من المشكلة الغامضة إلى خطوة قابلة للتنفيذ",
+      intro: "نرافقك من الفهم إلى القرار ثم التنفيذ، دون تعقيد أو تكاليف غير ضرورية.",
+      items: [
+        ["نوضح المشكلة", "نحدد موضع الخلل الحقيقي والنتيجة التي تريد الوصول إليها."],
+        ["نحدد القرار", "نرتب الخيارات ونختار الخطوة الأعلى أثرًا والأقل هدرًا."],
+        ["نبني الحل", "موقع، نظام، هوية أو خطة نمو عندما يكون ذلك هو الحل الصحيح."],
+        ["نرافق التنفيذ", "نتابع معك خطوة بخطوة حتى يصبح التقدم واضحًا وملموسًا."],
+      ],
+    },
+    areas: {
+      eyebrow: "أين نساعد؟",
+      title: "حلول تنطلق من المشكلة، لا من قائمة خدمات",
+      intro: "لا نبدأ من الخدمة التي نريد بيعها، بل من الخطوة التي يحتاجها مشروعك فعلًا.",
+      items: [
+        ["وضوح استراتيجي", "نساعدك على رؤية وضعك بصدق وتحديد القيد الحقيقي والفرصة الفعلية."],
+        ["حضور ومنتج رقمي", "موقع أو منتج أو نظام يخدم رؤيتك ويُقاس بالنتائج."],
+        ["الهوية والتموضع", "نشكّل هوية واضحة وصادقة تساعد الناس على فهم قيمة عملك."],
+        ["النمو والتسويق", "نحدد أين يحقق الانتباه والميزانية أثرًا حقيقيًا بدل المزيد من الضجيج."],
+        ["العمليات والأنظمة", "نبسّط العمل ونزيل الاحتكاك الذي يبطئ فريقك وتقدمك."],
+        ["رأي ثانٍ صادق", "نراجع وضعك ونقول لك بوضوح ما يستحق التنفيذ وما يمكن تأجيله."],
+      ],
+    },
+    why: {
+      eyebrow: "لماذا سايبرويل؟",
+      title: "نحن لا نبيع الاستعجال، بل نبني الثقة",
+      body: "قد لا تحتاج موقعًا جديدًا أو تسويقًا أكثر أو نظامًا أكبر. قد تحتاج أولًا إلى فهم أوضح أو خطوة أبسط. لن ندفعك نحو عمل لا تحتاجه.",
+      note: "CyberWeel — شريكك للتقدم، لا مجرد وكالة",
+    },
+    principles: {
+      eyebrow: "كيف نفكر",
+      title: "مبادئ تُوجّه كل قرار",
+      intro: "أربعة مبادئ تحكم كل توصية وقرار وتنفيذ.",
+      items: [
+        ["نبدأ من السؤال الحقيقي", "المشكلة المعلنة نادرًا ما تكون المشكلة الفعلية؛ نبحث أولًا عمّا تحاول حله حقًا."],
+        ["نفضّل الخطوة الأبسط", "خطوة صغيرة مختارة جيدًا قد تتفوق على مشروع كبير لا يخدم الأولوية الحالية."],
+        ["نقول ما نعتقده فعلًا", "الصدق قبل المجاملات؛ نسمي الثغرة ونقول الانتظار عندما يكون هو القرار الأنسب."],
+        ["نصمّم لما يدوم", "نبني قرارات وأنظمة يتراكم أثرها بدل حلول سريعة تتبدد بعد فترة قصيرة."],
+      ],
+    },
+    faq: {
+      eyebrow: "أسئلة",
+      title: "ما الذي تحتاج إلى معرفته قبل أن تبدأ؟",
+      intro: "إجابات واضحة بلا لغة وكالات أو وعود مبالغ فيها.",
+      items: [
+        ["هل سايبرويل وكالة رقمية؟", "لسنا وكالة بالمعنى التقليدي. نبدأ بالفهم والقرار، ثم ننفذ الموقع أو النظام أو الهوية عندما يكون ذلك هو الحل الصحيح."],
+        ["ماذا يعني وضوح، قرار، تقدم؟", "الوضوح هو فهم الوضع الحقيقي، والقرار هو اختيار الخطوة المناسبة، والتقدم هو تحويلها إلى نتيجة قابلة للملاحظة والقياس."],
+        ["هل تقبلون كل مشروع؟", "لا. قد تكون توصيتنا أن تؤجل التنفيذ أو تختار خطوة أبسط، ولن نقترح عليك عملًا لا تحتاجه."],
+        ["مع من تعملون؟", "نعمل مع أصحاب الأعمال والمؤسسين والفرق التي تواجه قرارًا رقميًا أو تشغيليًا وتحتاج إلى رؤية أوضح."],
+        ["كيف يبدأ التعاون؟", "بمحادثة قصيرة نفهم فيها وضعك وما يعيقك، ثم نحدد معك الخطوة التالية دون ضغط أو عرض جاهز."],
+      ],
+    },
+    final: {
+      title: "لا تحتاج إلى معرفة الحل، فقط أخبرنا بما يعيقك",
+      body: "نساعدك على فهم الصورة وتحديد الخطوة التالية، بوضوح ودون ضغط.",
+      primary: "ابدأ محادثة الآن",
+      secondary: "اعرض مشكلتك",
+    },
+  },
+  en: {
+    hero: { eyebrow: "CyberWeel", title1: "From where you are…", title2: "to where you want to be", promise: "We help business owners understand digital challenges, make the right decision, and build what the business truly needs.", note: "No canned pitches, random solutions, or wasted time and money.", primary: "Start a conversation", secondary: "Share your challenge", ctaNote: "Sometimes you do not need to change everything—only understand the problem and take the right next step." },
+    situations: { eyebrow: "Start from your real situation", title: "Which situation sounds like yours?", intro: "You do not need to know the solution before contacting us. You only need to know what is blocking progress.", items: [["I have a project but no clear next step", "We organize the picture and identify the highest-priority decision."], ["I have a digital problem but do not know the cause", "We separate symptoms from the real cause before execution."], ["I need a website or system but fear choosing wrong", "We define what you need, what can wait, and what is not worth paying for now."]] },
+    process: { eyebrow: "What we actually do", title: "From an unclear problem to an actionable step", intro: "We guide you from understanding to decision and execution, without unnecessary complexity or costs.", items: [["Clarify the problem", "We identify the real bottleneck and desired outcome."], ["Define the decision", "We choose the highest-impact, lowest-waste next step."], ["Build the solution", "A website, system, identity, or growth plan when it is the right solution."], ["Support execution", "We stay with you until progress becomes clear and tangible."]] },
+    areas: { eyebrow: "Where we help", title: "Solutions that start with the problem, not a service list", intro: "We start with what your business truly needs, not what we want to sell.", items: [["Strategic clarity", "See the real constraint and opportunity."], ["Digital presence and product", "Websites, products, and systems built for outcomes."], ["Identity and positioning", "A clear identity that communicates your value."], ["Growth and marketing", "Focus attention and budget where they matter."], ["Operations and systems", "Reduce friction and simplify how work moves."], ["An honest second opinion", "Know what deserves action and what can wait."]] },
+    why: { eyebrow: "Why CyberWeel?", title: "We do not sell urgency; we build trust", body: "You may not need a new website, more marketing, or a larger system. You may need clearer understanding or a simpler step first. We will not push work you do not need.", note: "CyberWeel — your progress partner, not just an agency" },
+    principles: { eyebrow: "How we think", title: "Principles behind every decision", intro: "Four principles guide every recommendation, decision, and implementation.", items: [["Start with the real question", "The stated problem is rarely the whole problem."], ["Prefer the simplest step", "A well-chosen small step can outperform a large project."], ["Say what we truly think", "Honesty comes before pleasing recommendations."], ["Design for durability", "We build decisions and systems whose value compounds."]] },
+    faq: { eyebrow: "FAQ", title: "What should you know before starting?", intro: "Clear answers without agency language or inflated promises.", items: [["Is CyberWeel a digital agency?", "Not in the traditional sense. We begin with understanding and decision, then execute only when execution is the right step."], ["What do clarity, decision, and progress mean?", "Understand reality, choose the right step, and turn it into a visible result."], ["Do you accept every project?", "No. We may recommend waiting or taking a simpler step."], ["Who do you work with?", "Business owners, founders, and teams facing an important digital or operational decision."], ["How does collaboration begin?", "With a short conversation about your situation and what is blocking progress."]] },
+    final: { title: "You do not need to know the solution—just tell us what is blocking you", body: "We help you understand the picture and define the next step, clearly and without pressure.", primary: "Start a conversation", secondary: "Share your challenge" },
+  },
+} as const;
