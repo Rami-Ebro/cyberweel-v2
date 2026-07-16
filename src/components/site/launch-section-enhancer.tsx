@@ -126,7 +126,7 @@ export function LaunchSectionEnhancer() {
       const situationsGrid = situations?.querySelector<HTMLElement>(".grid");
       const methodologyGrid = methodology?.querySelector<HTMLElement>(".grid");
       if (situationsGrid) setColumns(situationsGrid, 3, 900);
-      if (methodologyGrid) setColumns(methodologyGrid, 4, 900);
+      if (methodologyGrid) setColumns(methodologyGrid, 4, 640);
     };
 
     applyLayout();
