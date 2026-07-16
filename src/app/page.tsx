@@ -49,6 +49,21 @@ function HomeInner() {
   return (
     <NavContext.Provider value={{ view, navigate, openShortcuts: () => setShortcutsOpen(true) }}>
       <div className="flex min-h-screen flex-col bg-background">
+        <style jsx global>{`
+          .eyebrow,
+          .eyebrow-camel {
+            font-size: 1rem;
+            line-height: 1.6;
+            font-weight: 700;
+          }
+
+          @media (min-width: 640px) {
+            .eyebrow,
+            .eyebrow-camel {
+              font-size: 1.125rem;
+            }
+          }
+        `}</style>
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:text-floral"
