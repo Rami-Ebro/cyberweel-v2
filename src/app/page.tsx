@@ -58,10 +58,20 @@ function HomeInner() {
             font-weight: 700;
           }
 
+          #methodology .grid > :not([aria-hidden="true"]) {
+            opacity: 1 !important;
+            transform: none !important;
+            visibility: visible !important;
+          }
+
           @media (min-width: 640px) {
             .eyebrow,
             .eyebrow-camel {
               font-size: 1.125rem;
+            }
+
+            #methodology .grid {
+              grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
             }
           }
         `}</style>
