@@ -4,7 +4,7 @@ export const runtime = "nodejs";
 
 type ContactPayload = {
   subject?: string;
-  fields?: Array<{ label?: string; value?: string }>;
+  fields?: Array<{ name?: string; label?: string; value?: string }>;
   website?: string;
 };
 
@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
       ? payload.fields
           .slice(0, 20)
           .map((field) => ({
+            name: clean(field.name, 80),
             label: clean(field.label, 120),
             value: clean(field.value, 5000),
           }))
@@ -62,6 +63,8 @@ export async function POST(request: NextRequest) {
       )
       .join("");
 
+    const replyTo = fields.find((field) => field.name === "email")?.value;
+
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -74,6 +77,7 @@ export async function POST(request: NextRequest) {
         subject,
         text,
         html,
+        ...(replyTo ? { reply_to: replyTo } : {}),
       }),
     });
 
