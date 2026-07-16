@@ -19,11 +19,6 @@ type MailtoFormProps = {
   className?: string;
 };
 
-/**
- * Frontend-only form. No backend. On submit it constructs a mailto: link
- * with the entered content and opens the user's email client — honest and
- * functional. Shows a confirmation toast.
- */
 export function MailtoForm({
   to,
   subject,
@@ -34,39 +29,56 @@ export function MailtoForm({
 }: MailtoFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const { t } = useI18n();
+  const isArabic = t.dir === "rtl";
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setSubmitting(true);
     const form = e.currentTarget;
+
+    if (!form.reportValidity()) return;
+
+    setSubmitting(true);
     const data = new FormData(form);
 
-    const lines: string[] = [];
-    for (const f of fields) {
-      const val = String(data.get(f.name) ?? "").trim();
-      lines.push(`${f.label}: ${val || "—"}`);
-    }
-    const body = lines.join("\n\n");
-
-    const mailto = `mailto:${to}?subject=${encodeURIComponent(
-      subject
-    )}&body=${encodeURIComponent(body)}`;
-
     try {
-      window.location.href = mailto;
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject,
+          website: String(data.get("website") ?? ""),
+          fields: fields.map((field) => ({
+            name: field.name,
+            label: field.label,
+            value: String(data.get(field.name) ?? "").trim(),
+          })),
+        }),
+      });
+
+      const result = (await response.json().catch(() => null)) as
+        | { ok?: boolean; error?: string }
+        | null;
+
+      if (!response.ok || !result?.ok) {
+        throw new Error(result?.error || "SEND_FAILED");
+      }
+
       toast.success(
-        successMessage ?? "Your email client should open now.",
-        {
-          description: `If it didn't, write to us directly at ${to}.`,
-        }
+        successMessage ??
+          (isArabic ? "وصلت رسالتك بنجاح" : "Your message was sent successfully"),
       );
       form.reset();
     } catch {
-      toast.error("Something went wrong. Please email us directly.", {
-        description: to,
-      });
+      toast.error(
+        isArabic ? "تعذر إرسال الرسالة الآن" : "We couldn't send your message right now",
+        {
+          description: isArabic
+            ? `يمكنك مراسلتنا مباشرة على ${to}`
+            : `You can email us directly at ${to}`,
+        },
+      );
     } finally {
-      setTimeout(() => setSubmitting(false), 600);
+      setSubmitting(false);
     }
   };
 
@@ -74,8 +86,16 @@ export function MailtoForm({
     <form
       onSubmit={handleSubmit}
       className={cn("space-y-6", className)}
-      noValidate
     >
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        className="hidden"
+        aria-hidden="true"
+      />
+
       <div className="grid gap-6 sm:grid-cols-2">
         {fields.map((f) => (
           <div
@@ -119,9 +139,13 @@ export function MailtoForm({
         <button
           type="submit"
           disabled={submitting}
-          className="focus-ring inline-flex items-center justify-center gap-2 rounded-md bg-ink px-7 py-3.5 text-sm font-medium text-floral transition-colors hover:bg-ink/90 disabled:opacity-60"
+          className="focus-ring inline-flex items-center justify-center gap-2 rounded-md bg-ink px-7 py-3.5 text-sm font-medium text-floral transition-colors hover:bg-ink/90 disabled:cursor-wait disabled:opacity-60"
         >
-          {submitLabel}
+          {submitting
+            ? isArabic
+              ? "جارٍ الإرسال..."
+              : "Sending..."
+            : submitLabel}
           <Send className="h-4 w-4" />
         </button>
       </div>
