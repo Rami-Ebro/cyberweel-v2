@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useNav } from "@/components/site/nav-context";
 import { BRAND } from "@/lib/site-data";
 
@@ -10,7 +11,13 @@ export function FinalCta({ copy }: { copy: any }) {
     <section id="share-challenge" className="cw-container py-12">
       <div className="grid overflow-hidden rounded-2xl border border-border bg-white shadow-sm lg:grid-cols-2">
         <div className="relative min-h-[260px] bg-floral lg:min-h-[420px] lg:order-2">
-          <img src="/closing-image.png" alt="CyberWeel" className="h-full w-full object-cover object-left" />
+          <Image
+            src="/closing-image.png"
+            alt="CyberWeel"
+            fill
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            className="object-cover object-left"
+          />
         </div>
         <div className="flex flex-col items-center justify-center px-8 py-12 text-center sm:px-12 lg:px-16 lg:order-1">
           <h2 className="font-display text-3xl leading-tight text-ink sm:text-4xl lg:text-5xl">{copy.title}</h2>
