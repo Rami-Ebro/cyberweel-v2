@@ -52,6 +52,8 @@ function updateCards(section: HTMLElement, copy: string[][], count: number) {
     const body = card.querySelector<HTMLElement>("p");
 
     card.classList.add(
+      "h-full",
+      "min-w-0",
       "hover:-translate-y-1.5",
       "hover:border-camel/60",
       "hover:bg-background",
@@ -97,8 +99,7 @@ export function LaunchSectionEnhancer() {
         : "You do not need to know the solution before contacting us. You only need to know what is blocking your progress.";
 
       if (grid) {
-        grid.classList.remove("md:grid-cols-2", "lg:grid-cols-4");
-        grid.classList.add("md:grid-cols-3");
+        grid.className = "relative mt-16 grid grid-cols-1 gap-8 md:grid-cols-3";
       }
       updateCards(situations, ar ? AR_SITUATIONS : EN_SITUATIONS, 3);
     }
@@ -115,12 +116,11 @@ export function LaunchSectionEnhancer() {
         ? "من المشكلة الغامضة إلى خطوة قابلة للتنفيذ"
         : "From an unclear problem to an actionable step";
       if (intro) intro.textContent = ar
-        ? "نرافقك من الفهم إلى القرار ثم التنفيذ، دون تعقيد غير ضروري."
-        : "We guide you from understanding to decision and execution, without unnecessary complexity.";
+        ? "نرافقك من الفهم إلى القرار ثم التنفيذ، دون تعقيد أو تكاليف غير ضرورية."
+        : "We guide you from understanding to decision and execution, without unnecessary complexity or costs.";
 
       if (grid) {
-        grid.classList.remove("md:grid-cols-3");
-        grid.classList.add("md:grid-cols-2", "lg:grid-cols-4");
+        grid.className = "relative mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 xl:grid-cols-4";
       }
       updateCards(methodology, ar ? AR_STEPS : EN_STEPS, 4);
     }
