@@ -84,9 +84,9 @@ function updateCards(section: HTMLElement, copy: readonly CardCopy[]) {
   });
 }
 
-function setColumns(grid: HTMLElement, wideCount: number) {
+function setColumns(grid: HTMLElement, wideCount: number, wideAt: number) {
   const width = window.innerWidth;
-  const columns = width >= 1280 ? wideCount : width >= 640 ? 2 : 1;
+  const columns = width >= wideAt ? wideCount : width >= 640 ? 2 : 1;
   grid.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
 }
 
@@ -125,8 +125,8 @@ export function LaunchSectionEnhancer() {
     const applyLayout = () => {
       const situationsGrid = situations?.querySelector<HTMLElement>(".grid");
       const methodologyGrid = methodology?.querySelector<HTMLElement>(".grid");
-      if (situationsGrid) setColumns(situationsGrid, 3);
-      if (methodologyGrid) setColumns(methodologyGrid, 4);
+      if (situationsGrid) setColumns(situationsGrid, 3, 900);
+      if (methodologyGrid) setColumns(methodologyGrid, 4, 900);
     };
 
     applyLayout();
