@@ -54,7 +54,18 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   }, [lang, setLang]);
 
   const dir = lang === "ar" ? "rtl" : "ltr";
-  const t = CONTENT[lang];
+  const t = lang === "ar"
+    ? {
+        ...CONTENT.ar,
+        hero: {
+          ...CONTENT.ar.hero,
+          promise:
+            "نساعد أصحاب الأعمال على فهم تحدياتهم الرقمية، واتخاذ القرار المناسب، وبناء الحل الذي يحتاجه مشروعهم فعلًا.",
+          calmNote:
+            "لا عروض جاهزة، ولا حلول عشوائية، ولا هدر للوقت والمال.",
+        },
+      }
+    : CONTENT.en;
 
   // Sync <html lang> and dir attributes
   useEffect(() => {
