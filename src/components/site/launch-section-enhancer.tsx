@@ -31,17 +31,24 @@ const EN_STEPS: readonly CardCopy[] = [
   ["Support execution", "We stay with you step by step until progress becomes clear and tangible."],
 ];
 
+function getCards(grid: HTMLElement) {
+  return Array.from(grid.children).filter(
+    (child): child is HTMLElement =>
+      child instanceof HTMLElement && !child.hasAttribute("aria-hidden")
+  );
+}
+
 function updateCards(section: HTMLElement, copy: readonly CardCopy[]) {
   const grid = section.querySelector<HTMLElement>(".grid");
   if (!grid) return;
 
-  let cards = Array.from(grid.children) as HTMLElement[];
+  let cards = getCards(grid);
   while (cards.length < copy.length && cards.length > 0) {
     const clone = cards[cards.length - 1]?.cloneNode(true) as HTMLElement | undefined;
     if (!clone) break;
     clone.querySelectorAll("svg").forEach((icon) => icon.remove());
     grid.appendChild(clone);
-    cards = Array.from(grid.children) as HTMLElement[];
+    cards = getCards(grid);
   }
 
   cards.forEach((card, index) => {
