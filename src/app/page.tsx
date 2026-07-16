@@ -13,7 +13,7 @@ import { ShortcutsHelp } from "@/components/site/shortcuts-help";
 import { BreadcrumbLd } from "@/components/site/breadcrumb-ld";
 import { WhatsAppButton } from "@/components/site/whatsapp-button";
 import { BRAND } from "@/lib/site-data";
-import { LaunchHomeView } from "@/components/sections/launch-home-view";
+import { HomeView } from "@/components/sections/home-view";
 import { HowWeHelpView } from "@/components/sections/how-we-help-view";
 import { ShareChallengeView } from "@/components/sections/share-challenge-view";
 import { PartnerView } from "@/components/sections/partner-view";
@@ -22,7 +22,7 @@ import { ContactView } from "@/components/sections/contact-view";
 import type { ViewId } from "@/lib/site-data";
 
 const VIEWS: Record<ViewId, () => React.ReactElement> = {
-  home: LaunchHomeView,
+  home: HomeView,
   "how-we-help": HowWeHelpView,
   "share-challenge": ShareChallengeView,
   partner: PartnerView,
