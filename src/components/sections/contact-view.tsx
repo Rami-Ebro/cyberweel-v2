@@ -35,7 +35,6 @@ export function ContactView() {
 
       <Section tone="floral" className="!pt-0">
         <div className="grid gap-12 lg:grid-cols-[1fr_0.8fr] lg:gap-16">
-          {/* Form */}
           <div className="rounded-2xl border border-border bg-white p-8 sm:p-10">
             <h2 className="font-display text-2xl font-medium text-ink">
               {c.formHeading}
@@ -48,13 +47,12 @@ export function ContactView() {
                 to={BRAND.email}
                 subject={`${c.eyebrow} — CyberWeel`}
                 submitLabel={c.submitLabel}
-                successMessage={c.successMessage}
+                successMessage={t.dir === "rtl" ? "وصلت رسالتك بنجاح، وسنتواصل معك قريبًا" : "Your message was sent successfully. We will get back to you soon."}
                 fields={c.fields.map((f) => ({ ...f, kind: f.rows ? "textarea" : "text" }))}
               />
             </div>
           </div>
 
-          {/* Details */}
           <aside className="space-y-5">
             {c.details.map((d, i) => {
               const Icon = DETAIL_ICONS[i] ?? Mail;
