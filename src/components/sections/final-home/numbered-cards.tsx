@@ -44,8 +44,8 @@ export function NumberedCards({
             <span className="inline-flex rounded-md bg-ink px-3 py-1 font-display text-sm font-semibold tracking-[0.2em] text-floral transition-colors group-hover:bg-camel group-hover:text-ink">
               {String(i + 1).padStart(2, "0")}
             </span>
-            <h3 className="mt-5 font-display text-2xl font-light text-ink sm:text-3xl">{itemTitle}</h3>
-            <p className="mx-auto mt-4 max-w-xs text-base leading-relaxed text-muted-foreground">{text}</p>
+            <h3 className="mt-5 font-display text-2xl font-normal text-ink sm:text-3xl">{itemTitle}</h3>
+            <p className="mx-auto mt-4 max-w-xs text-lg leading-relaxed text-muted-foreground">{text}</p>
           </motion.article>
         ))}
       </div>
