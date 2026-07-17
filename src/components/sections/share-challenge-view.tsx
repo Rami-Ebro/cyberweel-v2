@@ -45,7 +45,7 @@ export function ShareChallengeView() {
                 to={BRAND.email}
                 subject={`${s.eyebrow} — CyberWeel`}
                 submitLabel={s.submitLabel}
-                successMessage={s.successMessage}
+                successMessage={t.dir === "rtl" ? "وصلت رسالتك بنجاح، وسنراجعها ونتواصل معك قريبًا" : "Your message was sent successfully. We will review it and get back to you soon."}
                 fields={s.fields.map((f) => ({ ...f, kind: f.rows ? "textarea" : "text" }))}
               />
             </div>
