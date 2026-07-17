@@ -40,7 +40,6 @@ export function PartnerView() {
         actions={<ShareAction view={view} />}
       />
 
-      {/* Who we work with */}
       <Section tone="muted" className="!pt-0">
         <SectionHeading
           eyebrow={p.whoEyebrow}
@@ -71,7 +70,6 @@ export function PartnerView() {
         </div>
       </Section>
 
-      {/* Principles + form */}
       <Section tone="floral">
         <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
           <div>
@@ -111,7 +109,7 @@ export function PartnerView() {
                 to={BRAND.email}
                 subject={`${p.eyebrow} — CyberWeel`}
                 submitLabel={p.submitLabel}
-                successMessage={p.successMessage}
+                successMessage={t.dir === "rtl" ? "وصل طلبك بنجاح، وسنراجعه ونتواصل معك عند وجود توافق" : "Your request was sent successfully. We will review it and contact you if there is a fit."}
                 fields={p.fields.map((f) => ({ ...f, kind: f.rows ? "textarea" : "text" }))}
               />
             </div>
@@ -121,5 +119,3 @@ export function PartnerView() {
     </div>
   );
 }
-
-
