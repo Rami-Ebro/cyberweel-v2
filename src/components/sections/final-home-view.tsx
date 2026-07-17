@@ -13,13 +13,20 @@ import { FinalCta } from "./final-home/final-cta";
 
 export function FinalHomeView() {
   const { t } = useI18n();
-  const copy = t.dir === "rtl" ? launchCopy.ar : launchCopy.en;
+  const isArabic = t.dir === "rtl";
+  const copy = isArabic ? launchCopy.ar : launchCopy.en;
+  const methodology = isArabic
+    ? "وضوح ← قرار ← تقدّم"
+    : "Clarity → Decision → Progress";
+  const processIntro = isArabic
+    ? "وضوح ← قرار ← تقدّم هي منهجيتنا. والخطوات الأربع التالية هي طريقتنا العملية لتطبيقها من الفهم حتى التنفيذ."
+    : copy.process.intro;
 
   return (
     <div>
-      <FinalHero copy={copy.hero} />
+      <FinalHero copy={copy.hero} methodology={methodology} />
       <NumberedCards id="situations" eyebrow={copy.situations.eyebrow} title={copy.situations.title} intro={copy.situations.intro} items={copy.situations.items} columns={3} />
-      <NumberedCards id="process" tone="muted" eyebrow={copy.process.eyebrow} title={copy.process.title} intro={copy.process.intro} items={copy.process.items} columns={4} />
+      <NumberedCards id="process" tone="muted" eyebrow={copy.process.eyebrow} title={copy.process.title} intro={processIntro} items={copy.process.items} columns={4} />
       <AreasSection copy={copy.areas} />
       <WhySection copy={copy.why} />
       <PrinciplesSection copy={copy.principles} />
@@ -27,7 +34,7 @@ export function FinalHomeView() {
       <FinalCta copy={copy.final} />
       <SectionProgress
         sections={[
-          { id: "hero", label: t.dir === "rtl" ? "الرئيسية" : "Home" },
+          { id: "hero", label: isArabic ? "الرئيسية" : "Home" },
           { id: "situations", label: copy.situations.eyebrow },
           { id: "process", label: copy.process.eyebrow },
           { id: "areas", label: copy.areas.eyebrow },
