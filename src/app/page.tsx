@@ -27,7 +27,7 @@ function ViewLoading() {
 }
 
 const HowWeHelpView = dynamic(
-  () => import("@/components/sections/how-we-help-view").then((module) => module.HowWeHelpView),
+  () => import("@/components/sections/how-we-help-streamlined-view").then((module) => module.HowWeHelpStreamlinedView),
   { loading: ViewLoading },
 );
 const ShareChallengeView = dynamic(
