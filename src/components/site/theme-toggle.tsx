@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { useI18n } from "@/components/site/i18n";
+import { ThemeStyles } from "@/components/site/theme-styles";
 
 export function ThemeToggle() {
   const { t } = useI18n();
@@ -28,14 +29,17 @@ export function ThemeToggle() {
     : dark ? "Switch to light mode" : "Switch to dark mode";
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={label}
-      title={label}
-      className="focus-ring inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-ink transition-colors hover:bg-muted"
-    >
-      {dark ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
-    </button>
+    <>
+      <ThemeStyles />
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={label}
+        title={label}
+        className="focus-ring inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-ink transition-colors hover:bg-muted"
+      >
+        {dark ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
+      </button>
+    </>
   );
 }
