@@ -40,7 +40,7 @@ export function FinalHomeView() {
           { id: "situations", label: copy.situations.eyebrow },
           { id: "process", label: copy.process.eyebrow },
           { id: "areas", label: copy.areas.eyebrow },
-          { id: "why", label: copy.why.eyebrow },
+          { id: "why", label: copy.why.eyebrow, dark: true },
           { id: "principles", label: copy.principles.eyebrow },
           { id: "case-study", label: isArabic ? "حالة عمل حقيقية" : "Real case study" },
           { id: "faq", label: copy.faq.eyebrow },
