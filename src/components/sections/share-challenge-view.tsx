@@ -33,10 +33,9 @@ export function ShareChallengeView() {
 
       <Section tone="floral" className="!pt-0">
         <div className="grid gap-12 lg:grid-cols-[1.3fr_0.7fr] lg:gap-16">
-          {/* Form */}
           <div className="rounded-2xl border border-border bg-white p-8 sm:p-10">
             <h2 className="font-display text-2xl font-medium text-ink">
-              {s.formHeading}
+              {t.dir === "rtl" ? "اشرح لنا ما الذي تواجهه" : s.formHeading}
             </h2>
             <p className="mt-2 text-base text-muted-foreground">
               {s.formHint}
@@ -52,7 +51,6 @@ export function ShareChallengeView() {
             </div>
           </div>
 
-          {/* Reassurance */}
           <aside className="space-y-6">
             {s.reassurance.map((r, i) => {
               const Icon = REASSURANCE_ICONS[i] ?? MessageCircle;
@@ -65,18 +63,18 @@ export function ShareChallengeView() {
                   <h3 className="mt-4 font-display text-lg font-medium text-ink">
                     {r.title}
                   </h3>
-                <p className="mt-2 text-base leading-relaxed text-muted-foreground">
-                  {r.text}
-                </p>
-              </div>
-            );
-          })}
+                  <p className="mt-2 text-base leading-relaxed text-muted-foreground">
+                    {r.text}
+                  </p>
+                </div>
+              );
+            })}
 
-          <div className="rounded-xl bg-ink p-6 text-floral">
-            <p className="font-display text-lg">
-              {s.directHeading}
-            </p>
-            <p className="mt-2 text-base text-bone/75">
+            <div className="rounded-xl bg-ink p-6 text-floral">
+              <p className="font-display text-lg">
+                {s.directHeading}
+              </p>
+              <p className="mt-2 text-base text-bone/75">
                 {s.directBody}
               </p>
               <a
@@ -90,7 +88,6 @@ export function ShareChallengeView() {
         </div>
       </Section>
 
-      {/* Common questions — preempt frequent asks */}
       <Section tone="muted" className="section-texture !pt-0">
         <SectionHeading
           eyebrow={s.commonEyebrow}
