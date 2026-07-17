@@ -14,7 +14,7 @@ export function FinalHero({ copy }: { copy: any }) {
       <div className="cw-container grid items-center gap-12 py-20 lg:grid-cols-[1.1fr_0.9fr] lg:py-28">
         <div>
           <p className="eyebrow-camel">{copy.eyebrow}</p>
-          <h1 className="mt-8 font-display text-[2rem] font-light leading-[1.12] tracking-tight text-ink xs:text-[2.4rem] sm:text-5xl lg:text-[4.25rem]">
+          <h1 className="mt-8 font-display text-[2rem] font-normal leading-[1.12] tracking-tight text-ink xs:text-[2.4rem] sm:text-5xl lg:text-[4.25rem]">
             <span className="block">{copy.title1}</span>
             <span className="mt-1 block text-accent">{copy.title2}</span>
           </h1>
