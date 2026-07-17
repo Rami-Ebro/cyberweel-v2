@@ -8,6 +8,7 @@ import { NumberedCards } from "./final-home/numbered-cards";
 import { AreasSection } from "./final-home/areas";
 import { WhySection } from "./final-home/why";
 import { PrinciplesSection } from "./final-home/principles";
+import { CaseStudySection } from "./final-home/case-study";
 import { FaqSection } from "./final-home/faq";
 import { FinalCta } from "./final-home/final-cta";
 
@@ -30,6 +31,7 @@ export function FinalHomeView() {
       <AreasSection copy={copy.areas} />
       <WhySection copy={copy.why} />
       <PrinciplesSection copy={copy.principles} />
+      <CaseStudySection />
       <FaqSection copy={copy.faq} />
       <FinalCta copy={copy.final} />
       <SectionProgress
