@@ -9,7 +9,10 @@ export function WhySection({ copy }: { copy: any }) {
         <ArchMotif size={520} onDark />
       </div>
       <div className="relative mx-auto max-w-3xl text-center">
-        <p className="eyebrow !text-white">{copy.eyebrow}</p>
+        <div className="flex items-center justify-center gap-2.5">
+          <span className="h-1.5 w-1.5 rotate-45 bg-camel" aria-hidden />
+          <p className="eyebrow !text-white">{copy.eyebrow}</p>
+        </div>
         <h2 className="mt-6 font-display text-3xl font-light leading-tight text-white sm:text-4xl lg:text-5xl">{copy.title}</h2>
         <p className="mt-7 text-lg leading-relaxed text-white/80">{copy.body}</p>
         <div className="mt-10 inline-flex flex-col items-center gap-3">
