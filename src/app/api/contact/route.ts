@@ -2,10 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-type ContactPayload = {
-  subject?: string;
-  fields?: Array<{ name?: string; label?: string; value?: string }>;
-  website?: string;
+const MAX_FILES = 3;
+const MAX_TOTAL_BYTES = 4 * 1024 * 1024;
+const ALLOWED_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+]);
+
+type ContactField = {
+  name?: string;
+  label?: string;
+  value?: string;
 };
 
 function clean(value: unknown, max = 4000) {
@@ -14,24 +27,35 @@ function clean(value: unknown, max = 4000) {
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = (await request.json()) as ContactPayload;
+    const formData = await request.formData();
 
     // Honeypot: bots commonly fill hidden fields.
-    if (clean(payload.website, 200)) {
+    if (clean(formData.get("website"), 200)) {
       return NextResponse.json({ ok: true });
     }
 
-    const subject = clean(payload.subject, 180) || "New CyberWeel enquiry";
-    const fields = Array.isArray(payload.fields)
-      ? payload.fields
-          .slice(0, 20)
-          .map((field) => ({
-            name: clean(field.name, 80),
-            label: clean(field.label, 120),
-            value: clean(field.value, 5000),
-          }))
-          .filter((field) => field.label && field.value)
-      : [];
+    const subject = clean(formData.get("subject"), 180) || "New CyberWeel enquiry";
+    const rawFields = clean(formData.get("fields"), 30000);
+
+    let parsedFields: ContactField[] = [];
+    try {
+      const parsed = JSON.parse(rawFields);
+      if (Array.isArray(parsed)) parsedFields = parsed;
+    } catch {
+      return NextResponse.json(
+        { ok: false, error: "INVALID_FIELDS" },
+        { status: 400 },
+      );
+    }
+
+    const fields = parsedFields
+      .slice(0, 20)
+      .map((field) => ({
+        name: clean(field.name, 80),
+        label: clean(field.label, 120),
+        value: clean(field.value, 5000),
+      }))
+      .filter((field) => field.label && field.value);
 
     if (fields.length === 0) {
       return NextResponse.json(
@@ -39,6 +63,35 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    const files = formData
+      .getAll("attachments")
+      .filter((entry): entry is File => entry instanceof File && entry.size > 0)
+      .slice(0, MAX_FILES);
+
+    const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalBytes > MAX_TOTAL_BYTES) {
+      return NextResponse.json(
+        { ok: false, error: "FILES_TOO_LARGE" },
+        { status: 413 },
+      );
+    }
+
+    const unsupportedFile = files.find((file) => !ALLOWED_TYPES.has(file.type));
+    if (unsupportedFile) {
+      return NextResponse.json(
+        { ok: false, error: "UNSUPPORTED_FILE_TYPE" },
+        { status: 415 },
+      );
+    }
+
+    const attachments = await Promise.all(
+      files.map(async (file) => ({
+        filename: sanitizeFilename(file.name),
+        content: Buffer.from(await file.arrayBuffer()).toString("base64"),
+        content_type: file.type,
+      })),
+    );
 
     const apiKey = process.env.RESEND_API_KEY;
     const recipient = process.env.CONTACT_TO_EMAIL || "hello@cyberweel.com";
@@ -78,6 +131,7 @@ export async function POST(request: NextRequest) {
         text,
         html,
         ...(replyTo ? { reply_to: replyTo } : {}),
+        ...(attachments.length ? { attachments } : {}),
       }),
     });
 
@@ -98,6 +152,10 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
+}
+
+function sanitizeFilename(value: string) {
+  return value.replace(/[^\p{L}\p{N}._ -]/gu, "_").slice(0, 120) || "attachment";
 }
 
 function escapeHtml(value: string) {
