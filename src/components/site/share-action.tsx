@@ -67,7 +67,7 @@ export function ShareAction({
           {copied ? t.share.copied : t.share.label}
         </span>
         <span className="mt-1 text-xs font-normal text-muted-foreground">
-          {isArabic ? "شاركها مع من لديه مشكلة" : "Share it with someone facing a challenge"}
+          {isArabic ? "شاركها مع من يبحث عن حل" : "Share it with someone looking for a solution"}
         </span>
       </span>
     </button>
