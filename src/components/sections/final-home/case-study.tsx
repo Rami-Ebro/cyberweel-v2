@@ -34,10 +34,10 @@ export function CaseStudySection() {
   return (
     <Section id="case-study" tone="muted">
       <div className="mx-auto max-w-3xl text-center">
-        <p className="eyebrow-camel inline-flex items-center justify-center gap-2">
-          <span className="h-2 w-2 rounded-[2px] bg-accent" aria-hidden />
-          {copy.eyebrow}
-        </p>
+        <div className="flex items-center justify-center gap-2.5">
+          <span className="h-1.5 w-1.5 rotate-45 bg-camel" aria-hidden />
+          <p className="eyebrow-camel">{copy.eyebrow}</p>
+        </div>
         <span
           aria-label="CyberWeel"
           className="mx-auto mt-5 block h-[42px] w-[164px] bg-ink"
