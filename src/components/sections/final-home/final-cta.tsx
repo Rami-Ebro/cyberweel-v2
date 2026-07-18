@@ -26,7 +26,7 @@ export function FinalCta({ copy }: { copy: any }) {
             <a href={BRAND.social.whatsapp} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex min-h-12 items-center justify-center rounded-md bg-camel px-6 text-base font-semibold text-ink transition hover:bg-camel/90">
               {copy.primary}
             </a>
-            <button type="button" onClick={() => navigate("share-challenge")} className="focus-ring inline-flex min-h-12 items-center justify-center rounded-md border border-border bg-white px-6 text-base font-semibold text-ink transition hover:bg-bone/40">
+            <button type="button" onClick={() => navigate("share-challenge")} className="cta-bounce focus-ring inline-flex min-h-12 items-center justify-center rounded-md border border-border bg-white px-6 text-base font-semibold text-ink transition hover:bg-bone/40">
               {copy.secondary}
             </button>
           </div>
