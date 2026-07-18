@@ -30,7 +30,7 @@ function FooterWordmark() {
           }}
         />
         <span className="mt-1 text-[11px] font-bold tracking-[0.18em] text-[#D8D2C4]">
-          شريك تقدّم
+          شريكك للتقدّم
         </span>
       </span>
     </span>
@@ -43,6 +43,10 @@ export function SiteFooter() {
 
   const go = (id: ViewId) => navigate(id);
   const shareLabel = dir === "rtl" ? "شاركنا مشكلتك" : "Share your challenge";
+  const methodology = dir === "rtl" ? "وضوح ← قرار ← تقدّم" : "Clarity → Decision → Progress";
+  const copyright = dir === "rtl"
+    ? "© 2026 CyberWeel — جميع الحقوق محفوظة"
+    : "© 2026 CyberWeel — All rights reserved";
 
   return (
     <footer className="relative mt-auto overflow-hidden bg-ink text-floral">
@@ -92,6 +96,9 @@ export function SiteFooter() {
                 </li>
               ))}
             </ul>
+            <p className="mt-7 border-t border-[#F7F3EB]/10 pt-5 text-sm font-semibold tracking-wide text-[#D8D2C4]/85">
+              {methodology}
+            </p>
           </div>
 
           <div>
@@ -121,22 +128,19 @@ export function SiteFooter() {
             <button
               type="button"
               onClick={() => go("share-challenge")}
-              className="focus-ring mt-6 inline-flex items-center gap-2 rounded-md border border-camel/50 bg-camel/10 px-5 py-2.5 text-sm font-semibold text-[#F7F3EB] transition-colors hover:bg-camel/20"
+              className="focus-ring mt-6 inline-flex items-center gap-2 rounded-md bg-camel px-5 py-2.5 text-sm font-semibold text-[#111827] transition-colors hover:bg-camel/90"
             >
               {shareLabel}
             </button>
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col gap-4 border-t border-[#F7F3EB]/10 pt-7 text-base text-[#D8D2C4]/70 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} {t.footer.copyright.replace("© ", "")}</p>
-          <p className="font-medium tracking-wide text-[#D8D2C4]/85">
-            {t.footer.methodology}
-          </p>
+        <div className="mt-12 border-t border-[#F7F3EB]/10 pt-7 text-center">
+          <p className="text-base text-[#D8D2C4]/75">{copyright}</p>
           <button
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="focus-ring inline-flex items-center gap-1.5 rounded-md text-[#D8D2C4]/75 transition-colors hover:text-[#F7F3EB]"
+            className="focus-ring mt-4 inline-flex items-center gap-1.5 rounded-md text-sm text-[#D8D2C4]/75 transition-colors hover:text-[#F7F3EB]"
             aria-label={t.footer.backToTop}
           >
             {t.footer.backToTop}
