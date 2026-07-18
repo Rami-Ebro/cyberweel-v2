@@ -24,7 +24,7 @@ export function FinalHero({ copy, methodology }: { copy: any; methodology: strin
             <a href={BRAND.social.whatsapp} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex min-h-12 items-center justify-center rounded-md bg-camel px-6 text-base font-semibold text-ink transition hover:bg-camel/90">
               {copy.primary}
             </a>
-            <button type="button" onClick={() => navigate("share-challenge")} className="focus-ring group inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-border bg-white px-6 text-base font-semibold text-ink transition hover:bg-bone/40">
+            <button type="button" onClick={() => navigate("share-challenge")} className="cta-bounce focus-ring group inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-border bg-white px-6 text-base font-semibold text-ink transition hover:bg-bone/40">
               {copy.secondary}
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 rtl:rotate-180 rtl:group-hover:-translate-x-1" />
             </button>
