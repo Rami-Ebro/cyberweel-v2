@@ -57,9 +57,42 @@ export function HowWeHelpStreamlinedView() {
                 {p.text}
               </p>
               <div className="mt-5 border-t border-border/70 pt-4">
-                <span className="block h-px w-10 bg-accent/50 transition-all duration-300 group-hover:w-16" aria-hidden />
+                <span
+                  className="block h-px w-10 bg-accent/50 transition-all duration-300 group-hover:w-16"
+                  aria-hidden
+                />
               </div>
             </motion.article>
           ))}
         </div>
-     
+      </Section>
+
+      <Section tone="ink">
+        <div className="mx-auto max-w-3xl">
+          <p className="eyebrow text-bone/60">{h.honestyEyebrow}</p>
+          <h2 className="mt-6 font-display text-3xl font-normal leading-relaxed text-floral">
+            {h.honestyStatement}
+          </h2>
+          <div className="mt-8 space-y-4 text-base leading-relaxed text-bone/75">
+            {h.honestyBody.map((paragraph, index) => (
+              <p key={index}>{paragraph}</p>
+            ))}
+          </div>
+          <div className="mt-10 flex flex-wrap items-center gap-4">
+            <PrimaryCta onClick={() => navigate("share-challenge")}>
+              {h.honestyCta}
+            </PrimaryCta>
+            <button
+              type="button"
+              onClick={() => navigate("about")}
+              className="focus-ring inline-flex items-center gap-2 text-base font-medium text-bone/80 hover:text-floral"
+            >
+              {h.honestySecondary}
+              <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+            </button>
+          </div>
+        </div>
+      </Section>
+    </div>
+  );
+}
