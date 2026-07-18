@@ -11,29 +11,29 @@ import { useI18n } from "@/components/site/i18n";
 import { BRAND } from "@/lib/site-data";
 
 const PARTNER_AR = {
-  title: "شريك تنفيذ وخبرة",
-  intro: "للمبرمجين والمصممين والمسوقين والمحللين والخبراء الذين يمكنهم المشاركة في تنفيذ مشاريع حقيقية",
+  title: "نفّذ معنا المشاريع",
+  intro: "ساهم بخبرتك في تحويل الأفكار والتحديات إلى حلول حقيقية ضمن مشاريع واضحة ومنظمة",
   gives: ["خبرة قابلة للتطبيق", "التزام واضح بالمواعيد والجودة", "تعاون مهني وشفاف"],
   gets: ["فرص عمل مناسبة لتخصصك", "نطاق ومسؤوليات واضحة", "تعاون طويل المدى عند نجاح التجربة"],
 };
 
 const AMBASSADOR_AR = {
-  title: "سفير CyberWeel",
-  intro: "لمن يملك شبكة علاقات جيدة، يفهم احتياجات أصحاب الأعمال، ويستطيع الوصول إلى فرص مناسبة",
+  title: "رشّح CyberWeel واكسب",
+  intro: "أوصلنا إلى أصحاب الأعمال الذين يحتاجون إلى حل مناسب، واحصل على عمولة واضحة عن الفرص التي تتحول إلى مشاريع",
   gives: ["ترشيح فرص جادة ومناسبة", "تمثيل صادق للعلامة", "مساعدة أولية في فهم حاجة العميل"],
   gets: ["مكافأة أو عمولة متفق عليها", "مواد وأدوات تساعدك في التعريف بنا", "دعم مباشر في تقييم الفرص"],
 };
 
 const PARTNER_EN = {
-  title: "Execution and expertise partner",
-  intro: "For developers, designers, marketers, analysts, and specialists who can contribute to real client work",
+  title: "Build projects with us",
+  intro: "Use your expertise to turn ideas and challenges into real solutions through clear, well-organized projects",
   gives: ["Practical expertise", "Clear commitment to quality and deadlines", "Professional and transparent collaboration"],
   gets: ["Relevant project opportunities", "Clear scope and responsibilities", "Long-term collaboration when the fit is proven"],
 };
 
 const AMBASSADOR_EN = {
-  title: "CyberWeel ambassador",
-  intro: "For people with strong networks who understand business needs and can surface suitable opportunities",
+  title: "Refer CyberWeel and earn",
+  intro: "Connect us with business owners who need the right solution and earn a clear commission when an opportunity becomes a project",
   gives: ["Serious and relevant referrals", "Honest brand representation", "Initial help understanding the client need"],
   gets: ["Agreed reward or commission", "Materials to help present CyberWeel", "Direct support evaluating opportunities"],
 };
@@ -58,7 +58,7 @@ export function PartnerView() {
             </span>
           </>
         }
-        intro={isArabic ? "يمكنك أن تعمل معنا في التنفيذ، أو تمثل CyberWeel وتصل بنا إلى فرص مناسبة" : "You can contribute to delivery, or represent CyberWeel and connect us with suitable opportunities"}
+        intro={isArabic ? "اختر المسار الأقرب لك، وتعرّف إلى ما ستقدّمه وما ستحصل عليه في المقابل" : "Choose the path that fits you and see clearly what you bring and what you receive in return"}
         actions={<ShareAction view={view} />}
       />
 
@@ -80,7 +80,6 @@ export function PartnerView() {
                 </div>
                 <h2 className="mt-6 font-display text-3xl font-semibold text-ink">{path.title}</h2>
                 <p className="mt-4 text-base leading-relaxed text-muted-foreground">{path.intro}</p>
-
                 <div className="mt-8 grid gap-7 sm:grid-cols-2">
                   <div>
                     <h3 className="text-sm font-bold text-ink">{isArabic ? "ما الذي تقدّمه" : "What you bring"}</h3>
@@ -145,7 +144,6 @@ export function PartnerView() {
               {isArabic ? "أرسل خبرتك أو طبيعة شبكتك، وما الذي تتوقعه من التعاون. يمكنك إرفاق السيرة أو ملف الأعمال" : "Tell us about your expertise or network and what you expect from the collaboration. You may attach a CV or portfolio"}
             </p>
           </div>
-
           <div className="rounded-2xl border border-bone/15 bg-background p-8 sm:p-10">
             <MailtoForm
               to={BRAND.email}
