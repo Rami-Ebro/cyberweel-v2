@@ -1,6 +1,6 @@
 "use client";
 
-import { Mail, ArrowUp } from "lucide-react";
+import { Mail } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ArchMotif } from "@/components/brand/motif";
 import { NAV_ITEMS, BRAND, type ViewId } from "@/lib/site-data";
@@ -137,15 +137,6 @@ export function SiteFooter() {
 
         <div className="mt-12 border-t border-[#F7F3EB]/10 pt-7 text-center">
           <p className="text-base text-[#D8D2C4]/75">{copyright}</p>
-          <button
-            type="button"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="focus-ring mt-4 inline-flex items-center gap-1.5 rounded-md text-sm text-[#D8D2C4]/75 transition-colors hover:text-[#F7F3EB]"
-            aria-label={t.footer.backToTop}
-          >
-            {t.footer.backToTop}
-            <ArrowUp className="h-3 w-3" />
-          </button>
         </div>
       </div>
     </footer>
