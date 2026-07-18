@@ -83,7 +83,7 @@ export function HowWeHelpStreamlinedView() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-60px" }}
               transition={{ duration: 0.55, delay: index * 0.05 }}
-              className="group rounded-xl border border-border bg-white p-7 transition-all duration-300 hover:-translate-y-1 hover:border-camel/50 hover:shadow-lg"
+              className={`group rounded-xl border border-border bg-white p-7 transition-all duration-300 hover:-translate-y-1 hover:border-camel/50 hover:shadow-lg ${index === services.length - 1 ? "lg:col-start-2" : ""}`}
             >
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-camel/10 font-display text-sm font-semibold text-accent">{String(index + 1).padStart(2, "0")}</span>
               <h3 className="mt-5 font-display text-2xl font-semibold text-ink">{title}</h3>
