@@ -1,22 +1,51 @@
 "use client";
 
-import { Mail, Keyboard, ArrowUp } from "lucide-react";
-import { LogoLockup } from "@/components/brand/logo";
+import { Mail, ArrowUp } from "lucide-react";
+import { Logo } from "@/components/brand/logo";
 import { ArchMotif } from "@/components/brand/motif";
 import { NAV_ITEMS, BRAND, type ViewId } from "@/lib/site-data";
 import { useNav } from "@/components/site/nav-context";
 import { useI18n } from "@/components/site/i18n";
 import { SocialLinks } from "@/components/site/social-links";
 
+const FOOTER_ITEMS = NAV_ITEMS.filter((item) => item.id !== "share-challenge");
+
+function FooterWordmark() {
+  return (
+    <span className="flex items-center gap-3">
+      <Logo size={52} />
+      <span className="flex flex-col">
+        <span
+          aria-label="CyberWeel"
+          className="block h-[38px] w-[142px] bg-[#F7F3EB]"
+          style={{
+            WebkitMaskImage: "url('/cyberweel-wordmark.svg')",
+            maskImage: "url('/cyberweel-wordmark.svg')",
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+          }}
+        />
+        <span className="mt-1 text-[11px] font-bold tracking-[0.18em] text-[#D8D2C4]">
+          شريك تقدّم
+        </span>
+      </span>
+    </span>
+  );
+}
+
 export function SiteFooter() {
-  const { navigate, openShortcuts } = useNav();
-  const { t } = useI18n();
+  const { navigate } = useNav();
+  const { t, dir } = useI18n();
 
   const go = (id: ViewId) => navigate(id);
+  const shareLabel = dir === "rtl" ? "شاركنا مشكلتك" : "Share your challenge";
 
   return (
     <footer className="relative mt-auto overflow-hidden bg-ink text-floral">
-      {/* Depth: stronger gradient + architectural arch motif backdrop */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
@@ -31,35 +60,32 @@ export function SiteFooter() {
       >
         <ArchMotif size={520} onDark />
       </div>
-      {/* Top hairline accent — stronger */}
       <div
         aria-hidden
         className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-camel/70 to-transparent"
       />
 
-      <div className="cw-container relative py-20">
-        <div className="grid gap-12 lg:grid-cols-[1.5fr_1fr_1fr]">
-          {/* Brand */}
+      <div className="cw-container relative py-16">
+        <div className="grid gap-10 lg:grid-cols-[1.5fr_1fr_1fr]">
           <div className="max-w-sm">
-            <LogoLockup onDark size={52} />
-            <p className="mt-6 font-display text-2xl font-light leading-snug text-floral">
+            <FooterWordmark />
+            <p className="mt-6 font-display text-2xl font-normal leading-snug text-[#F7F3EB]">
               {t.footer.tagline}
             </p>
-            <p className="mt-6 text-base leading-relaxed text-bone/70">
+            <p className="mt-5 text-base leading-relaxed text-[#D8D2C4]/85">
               {t.footer.description}
             </p>
           </div>
 
-          {/* Navigate */}
           <div>
-            <p className="eyebrow text-bone/60">{t.footer.navigate}</p>
+            <p className="eyebrow !text-[#D8D2C4]/75">{t.footer.navigate}</p>
             <ul className="mt-5 space-y-3">
-              {NAV_ITEMS.map((item) => (
+              {FOOTER_ITEMS.map((item) => (
                 <li key={item.id}>
                   <button
                     type="button"
                     onClick={() => go(item.id)}
-                    className="focus-ring inline-flex items-center gap-2 rounded-md text-sm text-bone/85 transition-colors hover:text-floral"
+                    className="focus-ring inline-flex items-center gap-2 rounded-md text-sm text-[#D8D2C4]/90 transition-colors hover:text-[#F7F3EB]"
                   >
                     {t.nav[item.id]}
                   </button>
@@ -68,65 +94,49 @@ export function SiteFooter() {
             </ul>
           </div>
 
-          {/* Stay in touch */}
           <div>
-            <p className="eyebrow text-bone/60">{t.footer.stayInTouch}</p>
-            <p className="mt-5 text-base leading-relaxed text-bone/70">
+            <p className="eyebrow !text-[#D8D2C4]/75">{t.footer.stayInTouch}</p>
+            <p className="mt-5 text-base leading-relaxed text-[#D8D2C4]/85">
               {t.footer.stayInTouchBody}
             </p>
             <ul className="mt-5 space-y-3 text-base">
               <li>
                 <a
                   href={`mailto:${BRAND.email}`}
-                  className="focus-ring inline-flex items-center gap-2 rounded-md text-bone/85 transition-colors hover:text-floral"
+                  className="focus-ring inline-flex items-center gap-2 rounded-md text-[#D8D2C4]/90 transition-colors hover:text-[#F7F3EB]"
                 >
                   <Mail className="h-4 w-4 text-accent" />
                   {BRAND.email}
                 </a>
               </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={openShortcuts}
-                  className="focus-ring inline-flex items-center gap-2 rounded-md text-bone/85 transition-colors hover:text-floral"
-                >
-                  <Keyboard className="h-4 w-4 text-accent" />
-                  {t.footer.keyboardShortcuts}
-                  <kbd className="rounded border border-bone/20 px-1.5 py-0.5 text-sm text-bone/60">?</kbd>
-                </button>
-              </li>
             </ul>
-            {/* Social links */}
+
             <div className="mt-6">
-              <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-bone/50">
+              <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-[#D8D2C4]/75">
                 {t.footer.followUs}
               </p>
               <SocialLinks onDark size="sm" />
             </div>
+
             <button
               type="button"
               onClick={() => go("share-challenge")}
-              className="focus-ring mt-6 inline-flex items-center gap-2 rounded-md border border-camel/40 bg-camel/10 px-5 py-2.5 text-sm font-medium text-floral transition-colors hover:bg-camel/20"
+              className="focus-ring mt-6 inline-flex items-center gap-2 rounded-md border border-camel/50 bg-camel/10 px-5 py-2.5 text-sm font-semibold text-[#F7F3EB] transition-colors hover:bg-camel/20"
             >
-              {t.footer.shareChallenge}
+              {shareLabel}
             </button>
           </div>
         </div>
 
-        {/* Quiet arch motif divider */}
-        <div className="mt-14 flex justify-center" aria-hidden>
-          <ArchMotif size={56} onDark />
-        </div>
-
-        <div className="mt-10 flex flex-col gap-4 border-t border-floral/10 pt-8 text-base text-bone/50 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-12 flex flex-col gap-4 border-t border-[#F7F3EB]/10 pt-7 text-base text-[#D8D2C4]/70 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} {t.footer.copyright.replace("© ", "")}</p>
-          <p className="font-medium tracking-wide text-bone/70">
+          <p className="font-medium tracking-wide text-[#D8D2C4]/85">
             {t.footer.methodology}
           </p>
           <button
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="focus-ring inline-flex items-center gap-1.5 rounded-md text-bone/50 transition-colors hover:text-floral"
+            className="focus-ring inline-flex items-center gap-1.5 rounded-md text-[#D8D2C4]/75 transition-colors hover:text-[#F7F3EB]"
             aria-label={t.footer.backToTop}
           >
             {t.footer.backToTop}
