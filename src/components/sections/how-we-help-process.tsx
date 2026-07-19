@@ -10,16 +10,16 @@ type Props = {
 export function HowWeHelpProcess({ rtl }: Props) {
   const items = rtl
     ? [
-        ["وضوح", "نصغي، نفهم السياق، ونحدّد أصل المشكلة وما يستحق الأولوية"],
-        ["قرار", "نقارن الخيارات ونختار المسار الأنسب لواقع مشروعك"],
-        ["تنفيذ", "نبني الحل أو نحسّنه بخطوات واضحة ومسؤوليات محددة"],
-        ["تقدّم", "نقيس النتيجة ونطوّر ما يلزم للوصول إلى تقدّم ملموس"],
+        ["إصغاء", "نبدأ بفهم أين أنت اليوم، وسياق عملك، وما تحاول حلّه فعلًا"],
+        ["إيضاح", "نفصل الإشارة عن الضجيج، ونحدّد أصل المشكلة وما يستحق الأولوية"],
+        ["قرار", "نقارن الخيارات الواقعية ونختار المسار الأنسب لواقع مشروعك"],
+        ["تحرّك", "نحوّل القرار إلى خطوات واضحة، ثم ننفّذ ونقيس التقدّم"],
       ]
     : [
-        ["Clarity", "We listen, understand the context, and identify the real priority"],
-        ["Decision", "We compare options and choose the path that fits your business"],
-        ["Execution", "We build or improve the solution through clear, accountable steps"],
-        ["Progress", "We measure outcomes and refine what is needed for tangible progress"],
+        ["Listen", "We begin by understanding where you are, your context, and what you are truly trying to solve"],
+        ["Clarify", "We separate signal from noise and identify the real problem and priority"],
+        ["Decide", "We compare realistic options and choose the path that fits your business"],
+        ["Move", "We turn the decision into clear steps, execute, and measure progress"],
       ];
 
   return (
@@ -27,11 +27,11 @@ export function HowWeHelpProcess({ rtl }: Props) {
       <SectionHeading
         align="center"
         eyebrow={rtl ? "كيف نعمل" : "How we work"}
-        title={rtl ? "وضوح، قرار، تنفيذ، تقدّم" : "Clarity, decision, execution, progress"}
+        title={rtl ? "إيقاع هادئ ومدروس" : "A calm, deliberate rhythm"}
         intro={
           rtl
-            ? "منهجية واحدة تقود كل تعاون من فهم المشكلة إلى نتيجة قابلة للقياس"
-            : "One methodology guides every engagement from understanding the problem to a measurable result"
+            ? "نبدأ بالفهم، ولا نتحرّك قبل أن تصبح الخطوة التالية واضحة"
+            : "We begin with understanding and do not move until the next step is clear"
         }
         className="mx-auto"
       />
