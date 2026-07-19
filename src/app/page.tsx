@@ -1,7 +1,7 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { NavContext } from "@/components/site/nav-context";
@@ -13,16 +13,42 @@ import { ShortcutsHelp } from "@/components/site/shortcuts-help";
 import { BreadcrumbLd } from "@/components/site/breadcrumb-ld";
 import { WhatsAppButton } from "@/components/site/whatsapp-button";
 import { BRAND } from "@/lib/site-data";
-import { HomeView } from "@/components/sections/home-view";
-import { HowWeHelpView } from "@/components/sections/how-we-help-view";
-import { ShareChallengeView } from "@/components/sections/share-challenge-view";
-import { PartnerView } from "@/components/sections/partner-view";
-import { AboutView } from "@/components/sections/about-view";
-import { ContactView } from "@/components/sections/contact-view";
+import { FinalHomeView } from "@/components/sections/final-home-view";
 import type { ViewId } from "@/lib/site-data";
 
-const VIEWS: Record<ViewId, () => React.ReactElement> = {
-  home: HomeView,
+function ViewLoading() {
+  return (
+    <div className="cw-container py-24" role="status" aria-live="polite">
+      <div className="h-7 w-40 animate-pulse rounded bg-muted" />
+      <div className="mt-6 h-12 max-w-2xl animate-pulse rounded bg-muted" />
+      <div className="mt-5 h-6 max-w-xl animate-pulse rounded bg-muted" />
+    </div>
+  );
+}
+
+const HowWeHelpView = dynamic(
+  () => import("@/components/sections/how-we-help-streamlined-view").then((module) => module.HowWeHelpStreamlinedView),
+  { loading: ViewLoading },
+);
+const ShareChallengeView = dynamic(
+  () => import("@/components/sections/share-challenge-view").then((module) => module.ShareChallengeView),
+  { loading: ViewLoading },
+);
+const PartnerView = dynamic(
+  () => import("@/components/sections/partner-view").then((module) => module.PartnerView),
+  { loading: ViewLoading },
+);
+const AboutView = dynamic(
+  () => import("@/components/sections/about-view").then((module) => module.AboutView),
+  { loading: ViewLoading },
+);
+const ContactView = dynamic(
+  () => import("@/components/sections/contact-view").then((module) => module.ContactView),
+  { loading: ViewLoading },
+);
+
+const VIEWS: Record<ViewId, React.ComponentType> = {
+  home: FinalHomeView,
   "how-we-help": HowWeHelpView,
   "share-challenge": ShareChallengeView,
   partner: PartnerView,
@@ -49,26 +75,28 @@ function HomeInner() {
   return (
     <NavContext.Provider value={{ view, navigate, openShortcuts: () => setShortcutsOpen(true) }}>
       <div className="flex min-h-screen flex-col bg-background">
-        <a
-          href="#main"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:text-floral"
-        >
+        <style jsx global>{`
+          .eyebrow,
+          .eyebrow-camel {
+            font-size: 1rem;
+            line-height: 1.6;
+            font-weight: 700;
+          }
+
+          @media (min-width: 640px) {
+            .eyebrow,
+            .eyebrow-camel {
+              font-size: 1.125rem;
+            }
+          }
+        `}</style>
+        <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:text-floral">
           {t.common.skipToContent}
         </a>
         <ScrollUtilities />
         <SiteHeader />
         <main id="main" className="flex-1">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={view}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <Current />
-            </motion.div>
-          </AnimatePresence>
+          <Current />
         </main>
         <SiteFooter />
         <WhatsAppButton number={BRAND.whatsapp} />

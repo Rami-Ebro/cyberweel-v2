@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Send } from "lucide-react";
+import { Paperclip, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/components/site/i18n";
 
@@ -17,13 +17,13 @@ type MailtoFormProps = {
   submitLabel?: string;
   successMessage?: string;
   className?: string;
+  allowAttachments?: boolean;
 };
 
-/**
- * Frontend-only form. No backend. On submit it constructs a mailto: link
- * with the entered content and opens the user's email client — honest and
- * functional. Shows a confirmation toast.
- */
+const MAX_FILES = 3;
+const MAX_TOTAL_BYTES = 4 * 1024 * 1024;
+const ACCEPTED_FILES = ".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp";
+
 export function MailtoForm({
   to,
   subject,
@@ -31,61 +31,98 @@ export function MailtoForm({
   submitLabel = "Send",
   successMessage,
   className,
+  allowAttachments = false,
 }: MailtoFormProps) {
   const [submitting, setSubmitting] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const { t } = useI18n();
+  const isArabic = t.dir === "rtl";
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setSubmitting(true);
     const form = e.currentTarget;
-    const data = new FormData(form);
 
-    const lines: string[] = [];
-    for (const f of fields) {
-      const val = String(data.get(f.name) ?? "").trim();
-      lines.push(`${f.label}: ${val || "—"}`);
+    if (!form.reportValidity()) return;
+
+    if (selectedFiles.length > MAX_FILES) {
+      toast.error(isArabic ? "يمكن رفع 3 ملفات كحد أقصى" : "You can upload up to 3 files");
+      return;
     }
-    const body = lines.join("\n\n");
 
-    const mailto = `mailto:${to}?subject=${encodeURIComponent(
-      subject
-    )}&body=${encodeURIComponent(body)}`;
+    const totalBytes = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+    if (totalBytes > MAX_TOTAL_BYTES) {
+      toast.error(isArabic ? "يجب ألا يتجاوز مجموع الملفات 4 ميغابايت" : "Files must total no more than 4 MB");
+      return;
+    }
+
+    setSubmitting(true);
+    const data = new FormData(form);
+    const requestData = new FormData();
+
+    requestData.set("subject", subject);
+    requestData.set("website", String(data.get("website") ?? ""));
+    requestData.set(
+      "fields",
+      JSON.stringify(
+        fields.map((field) => ({
+          name: field.name,
+          label: field.label,
+          value: String(data.get(field.name) ?? "").trim(),
+        })),
+      ),
+    );
+
+    selectedFiles.forEach((file) => requestData.append("attachments", file));
 
     try {
-      window.location.href = mailto;
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        body: requestData,
+      });
+
+      const result = (await response.json().catch(() => null)) as
+        | { ok?: boolean; error?: string }
+        | null;
+
+      if (!response.ok || !result?.ok) {
+        throw new Error(result?.error || "SEND_FAILED");
+      }
+
       toast.success(
-        successMessage ?? "Your email client should open now.",
-        {
-          description: `If it didn't, write to us directly at ${to}.`,
-        }
+        successMessage ??
+          (isArabic ? "وصلت رسالتك بنجاح" : "Your message was sent successfully"),
       );
       form.reset();
+      setSelectedFiles([]);
     } catch {
-      toast.error("Something went wrong. Please email us directly.", {
-        description: to,
-      });
+      toast.error(
+        isArabic ? "تعذر إرسال الرسالة الآن" : "We couldn't send your message right now",
+        {
+          description: isArabic
+            ? `يمكنك مراسلتنا مباشرة على ${to}`
+            : `You can email us directly at ${to}`,
+        },
+      );
     } finally {
-      setTimeout(() => setSubmitting(false), 600);
+      setSubmitting(false);
     }
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className={cn("space-y-6", className)}
-      noValidate
-    >
+    <form onSubmit={handleSubmit} className={cn("space-y-6", className)}>
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        className="hidden"
+        aria-hidden="true"
+      />
+
       <div className="grid gap-6 sm:grid-cols-2">
         {fields.map((f) => (
-          <div
-            key={f.name}
-            className={cn(f.full && "sm:col-span-2")}
-          >
-            <label
-              htmlFor={f.name}
-              className="mb-2 block text-sm font-medium text-ink"
-            >
+          <div key={f.name} className={cn(f.full && "sm:col-span-2")}>
+            <label htmlFor={f.name} className="mb-2 block text-sm font-medium text-ink">
               {f.label}
               {f.required && <span className="ml-1 text-accent">*</span>}
             </label>
@@ -112,16 +149,55 @@ export function MailtoForm({
         ))}
       </div>
 
+      {allowAttachments && (
+        <div>
+          <label htmlFor="attachments" className="mb-2 block text-sm font-medium text-ink">
+            {isArabic ? "إرفاق ملفات" : "Attach files"}
+          </label>
+          <label
+            htmlFor="attachments"
+            className="focus-ring flex cursor-pointer items-center gap-3 rounded-md border border-dashed border-border bg-muted/30 px-4 py-4 text-sm text-muted-foreground transition-colors hover:border-camel/50 hover:bg-muted/50"
+          >
+            <Paperclip className="h-4 w-4 text-accent" />
+            <span>
+              {selectedFiles.length
+                ? isArabic
+                  ? `تم اختيار ${selectedFiles.length} ملف`
+                  : `${selectedFiles.length} file(s) selected`
+                : isArabic
+                  ? "اختر ملفات تساعدنا على فهم رسالتك"
+                  : "Choose files that help us understand your message"}
+            </span>
+          </label>
+          <input
+            id="attachments"
+            name="attachments"
+            type="file"
+            multiple
+            accept={ACCEPTED_FILES}
+            className="sr-only"
+            onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []).slice(0, MAX_FILES))}
+          />
+          <p className="mt-2 text-xs text-muted-foreground">
+            {isArabic
+              ? "حتى 3 ملفات بصيغة PDF أو Word أو Excel أو صورة، وبإجمالي 4 ميغابايت"
+              : "Up to 3 PDF, Word, Excel, or image files, 4 MB total"}
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          {t.common.noPitches}
-        </p>
+        <p className="text-sm text-muted-foreground">{t.common.noPitches}</p>
         <button
           type="submit"
           disabled={submitting}
-          className="focus-ring inline-flex items-center justify-center gap-2 rounded-md bg-ink px-7 py-3.5 text-sm font-medium text-floral transition-colors hover:bg-ink/90 disabled:opacity-60"
+          className="focus-ring inline-flex items-center justify-center gap-2 rounded-md bg-ink px-7 py-3.5 text-sm font-medium text-floral transition-colors hover:bg-ink/90 disabled:cursor-wait disabled:opacity-60"
         >
-          {submitLabel}
+          {submitting
+            ? isArabic
+              ? "جارٍ الإرسال..."
+              : "Sending..."
+            : submitLabel}
           <Send className="h-4 w-4" />
         </button>
       </div>

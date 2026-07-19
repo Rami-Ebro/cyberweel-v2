@@ -1,0 +1,189 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { ArrowRight } from "lucide-react";
+import { PageHeader } from "@/components/site/page-header";
+import { Section, SectionHeading, PrimaryCta } from "@/components/site/section-primitives";
+import { useNav } from "@/components/site/nav-context";
+import { useI18n } from "@/components/site/i18n";
+import { ShareAction } from "@/components/site/share-action";
+
+const AREA_DELIVERABLES_AR = [
+  "تشخيص رقمي، ترتيب أولويات، وخريطة قرار",
+  "مواقع، متاجر، منصات، تطبيقات وأنظمة مخصصة",
+  "هوية بصرية، تموضع، ورسائل العلامة",
+  "خطط نمو، حملات، صفحات هبوط ومسارات تحويل",
+  "أتمتة، ربط أدوات، لوحات إدارة وأنظمة تشغيل",
+  "مراجعة المشاريع والعروض قبل الاستثمار فيها",
+];
+
+const AREA_DELIVERABLES_EN = [
+  "Digital diagnosis, priorities, and a decision roadmap",
+  "Websites, stores, platforms, apps, and custom systems",
+  "Visual identity, positioning, and brand messaging",
+  "Growth plans, campaigns, landing pages, and conversion paths",
+  "Automation, integrations, dashboards, and operating systems",
+  "Project and proposal reviews before you invest",
+];
+
+export function HowWeHelpView() {
+  const { navigate, view } = useNav();
+  const { t } = useI18n();
+  const h = t.howWeHelp;
+  const isArabic = t.dir === "rtl";
+  const deliverables = isArabic ? AREA_DELIVERABLES_AR : AREA_DELIVERABLES_EN;
+
+  return (
+    <div>
+      <PageHeader
+        eyebrow={h.eyebrow}
+        title={
+          <>
+            {h.titleLine1}
+            <br />
+            <span className="text-accent">{h.titleLine2}</span>
+          </>
+        }
+        intro={h.intro}
+        actions={<ShareAction view={view} />}
+      />
+
+      {/* Areas */}
+      <Section tone="muted" className="section-texture">
+        <SectionHeading
+          eyebrow={h.areasEyebrow}
+          title={h.areasTitle}
+          intro={h.areasIntro}
+        />
+        <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {h.areas.map((a, i) => (
+            <motion.article
+              key={a.title}
+              initial={{ opacity: 0, y: 18 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-60px" }}
+              transition={{ duration: 0.55, delay: i * 0.05 }}
+              className="group flex h-full flex-col rounded-xl border border-border bg-background p-6 transition duration-300 ease-out hover:-translate-y-1.5 hover:scale-[1.01] hover:border-accent/60 hover:shadow-lg motion-reduce:transform-none"
+            >
+              <h3 className="text-xl font-bold text-ink">{a.title}</h3>
+              <p className="mt-3 text-base leading-relaxed text-muted-foreground">
+                {a.text}
+              </p>
+              <div className="mt-auto border-t border-border/80 pt-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">
+                  {isArabic ? "ما الذي ننفّذه" : "What we deliver"}
+                </p>
+                <p className="mt-2 text-sm font-medium leading-6 text-ink/85">
+                  {deliverables[i]}
+                </p>
+              </div>
+            </motion.article>
+          ))}
+        </div>
+      </Section>
+
+      {/* Process */}
+      <Section tone="floral">
+        <SectionHeading
+          align="center"
+          eyebrow={h.processEyebrow}
+          title={h.processTitle}
+          intro={h.processIntro}
+          className="mx-auto"
+        />
+
+        {/* Mobile/tablet vertical timeline */}
+        <div className="relative mt-14 lg:hidden">
+          <div
+            aria-hidden
+            className="absolute bottom-2 left-[27px] top-2 w-px bg-border"
+          />
+          <ol className="space-y-8">
+            {h.process.map((p, i) => (
+              <motion.li
+                key={p.n}
+                initial={{ opacity: 0, x: -12 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, margin: "-40px" }}
+                transition={{ duration: 0.5, delay: i * 0.08 }}
+                className="relative flex gap-5"
+              >
+                <span className="relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border bg-background font-display text-xl font-light text-ink">
+                  {p.n}
+                </span>
+                <div className="pt-1.5">
+                  <h3 className="font-display text-xl font-medium text-ink">
+                    {p.title}
+                  </h3>
+                  <p className="mt-2 text-base leading-relaxed text-muted-foreground">
+                    {p.text}
+                  </p>
+                </div>
+              </motion.li>
+            ))}
+          </ol>
+        </div>
+
+        {/* Desktop horizontal timeline */}
+        <div className="relative mt-16 hidden lg:grid lg:grid-cols-4 lg:gap-8">
+          <div
+            aria-hidden
+            className="absolute left-0 right-0 top-7 h-px bg-border"
+            style={{ marginInline: "12%" }}
+          />
+          {h.process.map((p, i) => (
+            <motion.div
+              key={p.n}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-60px" }}
+              transition={{ duration: 0.6, delay: i * 0.08 }}
+              className="group relative"
+            >
+              <div className="flex items-center gap-4">
+                <span className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full border border-border bg-background font-display text-xl font-light text-ink transition-all duration-300 group-hover:border-camel group-hover:text-accent">
+                  {p.n}
+                </span>
+              </div>
+              <div className="mt-5 h-px w-10 bg-accent transition-all duration-300 group-hover:w-16" />
+              <h3 className="mt-4 font-display text-xl font-medium text-ink">
+                {p.title}
+              </h3>
+              <p className="mt-2 text-base leading-relaxed text-muted-foreground">
+                {p.text}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      </Section>
+
+      {/* Honesty note */}
+      <Section tone="ink">
+        <div className="mx-auto max-w-3xl">
+          <p className="eyebrow text-bone/60">{h.honestyEyebrow}</p>
+          <p className="mt-6 font-display text-2xl font-light leading-relaxed text-floral sm:text-3xl">
+            {h.honestyStatement}
+          </p>
+          <div className="mt-8 space-y-4 text-base leading-relaxed text-bone/75">
+            {h.honestyBody.map((para, i) => (
+              <p key={i}>{para}</p>
+            ))}
+          </div>
+          <div className="mt-10 flex flex-wrap items-center gap-4">
+            <PrimaryCta onClick={() => navigate("share-challenge")}>
+              {h.honestyCta}
+            </PrimaryCta>
+            <button
+              type="button"
+              onClick={() => navigate("about")}
+              className="focus-ring inline-flex items-center gap-2 text-base font-medium text-bone/80 transition-colors hover:text-floral"
+            >
+              {h.honestySecondary}
+              <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+            </button>
+          </div>
+        </div>
+      </Section>
+    </div>
+  );
+}

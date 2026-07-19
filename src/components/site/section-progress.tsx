@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 type Section = {
   id: string;
   label: string;
+  dark?: boolean;
 };
 
 /**
@@ -28,7 +28,6 @@ export function SectionProgress({
       const docH = document.documentElement.scrollHeight - window.innerHeight;
       setProgress(docH > 0 ? Math.min(scrollY / docH, 1) : 0);
 
-      // find the section whose top is nearest above the viewport center
       const mid = scrollY + window.innerHeight * 0.4;
       let current = 0;
       sections.forEach((s, i) => {
@@ -37,6 +36,7 @@ export function SectionProgress({
       });
       setActive(current);
     };
+
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -56,7 +56,6 @@ export function SectionProgress({
       role="navigation"
     >
       <div className="flex flex-col items-end gap-3">
-        {/* vertical progress track */}
         <div className="relative flex flex-col items-end gap-2.5">
           {sections.map((s, i) => (
             <button
@@ -71,7 +70,9 @@ export function SectionProgress({
                 className={cn(
                   "text-sm font-medium uppercase tracking-[0.2em] transition-colors",
                   i === active
-                    ? "text-ink"
+                    ? s.dark
+                      ? "text-[#F7F3EB] drop-shadow-sm"
+                      : "text-ink"
                     : "text-transparent group-hover:text-muted-foreground"
                 )}
               >
@@ -88,7 +89,6 @@ export function SectionProgress({
             </button>
           ))}
         </div>
-        {/* overall progress dot */}
         <div className="mt-2 h-px w-8 bg-border" aria-hidden />
         <span className="text-sm font-medium tabular-nums text-muted-foreground">
           {String(Math.round(progress * 100)).padStart(2, "0")}%
