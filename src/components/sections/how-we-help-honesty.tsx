@@ -1,0 +1,5 @@
+"use client";
+import { ArrowRight } from "lucide-react";
+import { PrimaryCta,Section } from "@/components/site/section-primitives";
+type P={eyebrow:string;statement:string;body:string[];cta:string;secondary:string;onCta:()=>void;onAbout:()=>void};
+export function HowWeHelpHonesty(p:P){return <Section tone="ink"><div className="mx-auto max-w-3xl"><p className="eyebrow text-bone/60">{p.eyebrow}</p><p className="mt-6 font-display text-2xl font-light leading-relaxed text-floral sm:text-3xl">{p.statement}</p><div className="mt-8 space-y-4 text-base leading-relaxed text-bone/75">{p.body.map((x,i)=><p key={i}>{x}</p>)}</div><div className="mt-10 flex flex-wrap items-center gap-4"><PrimaryCta onClick={p.onCta}>{p.cta}</PrimaryCta><button type="button" onClick={p.onAbout} className="focus-ring inline-flex items-center gap-2 text-base font-medium text-bone/80 transition-colors hover:text-floral">{p.secondary}<ArrowRight className="h-4 w-4 rtl:rotate-180"/></button></div></div></Section>;}
