@@ -14,7 +14,7 @@ type Props = {
 
 export function AboutIdentitySection({ isArabic, weAreTitle, weAre, weAreNotTitle, weAreNot }: Props) {
   return (
-    <Section tone="floral" className="!pt-20 sm:!pt-24">
+    <Section tone="floral" className="!bg-[#ece7da] !pt-20 sm:!pt-24">
       <SectionHeading
         align="center"
         eyebrow={isArabic ? "طريقتنا في العمل" : "How we work"}
