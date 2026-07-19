@@ -22,6 +22,7 @@ export function HowWeHelpView() {
   const { navigate, view } = useNav();
   const { t } = useI18n();
   const h = t.howWeHelp;
+  const isArabic = t.dir === "rtl";
 
   return (
     <div>
@@ -30,8 +31,9 @@ export function HowWeHelpView() {
         title={
           <>
             {h.titleLine1}
-            <br />
-            <span className="text-accent">{h.titleLine2}</span>
+            <span className="mt-5 block text-accent sm:mt-6">
+              {h.titleLine2}
+            </span>
           </>
         }
         intro={h.intro}
@@ -39,7 +41,7 @@ export function HowWeHelpView() {
       />
 
       {/* Areas */}
-      <Section tone="muted" className="section-texture">
+      <Section tone="muted" className="section-texture !pt-24 sm:!pt-28">
         <SectionHeading
           eyebrow={h.areasEyebrow}
           title={h.areasTitle}
@@ -162,7 +164,7 @@ export function HowWeHelpView() {
           </div>
           <div className="mt-10 flex flex-wrap items-center gap-4">
             <PrimaryCta onClick={() => navigate("share-challenge")}>
-              {h.honestyCta}
+              {isArabic ? "شاركنا مشكلتك" : h.honestyCta}
             </PrimaryCta>
             <button
               type="button"
