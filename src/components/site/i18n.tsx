@@ -66,31 +66,23 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
           howWeHelp: {
             ...CONTENT.ar.howWeHelp,
             intro:
-              "نفهم المشكلة أولًا، ثم نحدّد وننفّذ ما يحتاجه مشروعك فعلًا: موقع، متجر، نظام، هوية، تسويق، أمن سيبراني، أو تحسين للعمليات.",
+              "نفهم المشكلة أولًا، ثم نحدّد وننفّذ ما يحتاجه مشروعك فعلًا: موقع، متجر، نظام، أتمتة، أمن سيبراني، أو تطوير لما لديك.",
             areas: [
               {
-                title: "وضوح استراتيجي",
-                text: "نساعدك على رؤية وضعك بصدق، وتحديد القيد الحقيقي والفرصة الفعلية وما يستحق الأولوية.",
+                title: "المواقع والمنصات الرقمية",
+                text: "نصمّم ونطوّر مواقع الشركات، المتاجر الإلكترونية، ومنصات الخدمات الرقمية بما يوضّح قيمة عملك ويسهّل وصول العملاء إليك.",
               },
               {
-                title: "مواقع ومتاجر ومنصات وأنظمة",
-                text: "نبني أو نطوّر حضورك ومنتجاتك الرقمية بما يخدم عملك ويقود إلى نتيجة قابلة للقياس.",
+                title: "أنظمة إدارة الأعمال",
+                text: "نبني أنظمة مخصّصة لإدارة العمليات، العملاء، المبيعات، المخزون، والمهام بما يتناسب مع طريقة عمل شركتك.",
+              },
+              {
+                title: "الأتمتة والذكاء الاصطناعي",
+                text: "نربط الأدوات والأنظمة، ونؤتمت المهام المتكررة، ونوظّف الذكاء الاصطناعي حيث يحقق فائدة عملية حقيقية.",
               },
               {
                 title: "الأمن السيبراني وحماية الأعمال الرقمية",
-                text: "نراجع المخاطر ونقاط الضعف، ونساعدك على حماية موقعك وأنظمتك وحساباتك وبيانات عملك بحلول عملية تناسب حجم مشروعك.",
-              },
-              {
-                title: "الهوية والتموضع والرسائل",
-                text: "نوضّح كيف يجب أن يُفهم عملك، ونبني هوية ورسائل متماسكة تصمد مع النمو.",
-              },
-              {
-                title: "النمو والتسويق ومسار العميل",
-                text: "نحدّد أين يجب أن يذهب انتباهك وميزانيتك، ونحسّن الرحلة من أول تواصل حتى النتيجة.",
-              },
-              {
-                title: "تبسيط العمليات والأتمتة",
-                text: "نرتّب العمليات، نقلّل الاحتكاك، ونبني أنظمة وأتمتة تجعل العمل أوضح وأسرع وأكثر قابلية للتوسع.",
+                text: "نقيّم المخاطر الرقمية، ونساعدك على حماية المواقع والأنظمة والحسابات والبيانات، ووضع إجراءات تقلّل احتمالات الاختراق أو فقدان المعلومات.",
               },
             ],
           },
@@ -100,31 +92,23 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
           howWeHelp: {
             ...CONTENT.en.howWeHelp,
             intro:
-              "We understand the problem first, then define and execute what your business truly needs: a site, store, system, identity, marketing, cybersecurity, or operational improvement.",
+              "We understand the problem first, then define and execute what your business truly needs: a site, store, system, automation, cybersecurity, or improvement to what you already have.",
             areas: [
               {
-                title: "Strategic clarity",
-                text: "We help you see the real constraint, opportunity, and priority before you invest in a solution.",
+                title: "Websites and digital platforms",
+                text: "We design and build company sites, online stores, and service platforms that communicate value clearly and make it easier for customers to act.",
               },
               {
-                title: "Sites, stores, platforms and systems",
-                text: "We build or improve digital products and systems that support measurable business outcomes.",
+                title: "Business management systems",
+                text: "We build systems for operations, customers, sales, inventory, and tasks around the way your business actually works.",
+              },
+              {
+                title: "Automation and AI",
+                text: "We connect tools, automate repetitive work, and apply AI where it creates practical value rather than noise.",
               },
               {
                 title: "Cybersecurity and digital protection",
-                text: "We review risks and weaknesses and help protect your site, systems, accounts, and business data with practical measures suited to your scale.",
-              },
-              {
-                title: "Positioning, identity and messaging",
-                text: "We clarify how your business should be understood and create a coherent identity and message.",
-              },
-              {
-                title: "Growth, marketing and customer journey",
-                text: "We focus attention and budget where they can improve the journey from first contact to result.",
-              },
-              {
-                title: "Operations and automation",
-                text: "We simplify workflows, reduce friction, and build systems that make the business clearer and more scalable.",
+                text: "We assess digital risks and help protect sites, systems, accounts, and business data with practical safeguards suited to your scale.",
               },
             ],
           },
