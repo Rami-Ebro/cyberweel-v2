@@ -11,16 +11,11 @@ type LogoProps = {
   size?: number;
 };
 
-/**
- * CyberWeel final logo (transparent background).
- * The arch represents the system, the keystone the critical catalyst,
- * and the vertical white channel inside it represents activation and
- * knowledge flow. Do not redesign — used as-is, fully transparent.
- */
+/** CyberWeel final updated logo, used everywhere through the shared Logo component. */
 export function Logo({ className, size = 40 }: LogoProps) {
   return (
     <Image
-      src="/logo-transparent.png"
+      src="/cyberweel-logo-final.svg"
       alt="CyberWeel"
       width={size}
       height={size}
@@ -65,4 +60,3 @@ export function LogoLockup({
     </span>
   );
 }
-
