@@ -25,7 +25,7 @@ export default async function AdminLoginPage() {
             <Link href="/" aria-label="CyberWeel" className="mx-auto">
               <span className="grid size-20 place-items-center rounded-2xl border border-border bg-floral p-3 shadow-sm">
                 <Image
-                  src="/cyberweel-logo-final.svg?v=uploaded-final-20260720-2"
+                  src="/cyberweel-logo-20260720.svg"
                   alt=""
                   width={64}
                   height={64}
