@@ -52,11 +52,11 @@ export default async function SmartLinksAdminPage() {
         <div className="cw-container flex min-h-24 items-center justify-between gap-5 py-4">
           <Link href="/" className="flex items-center gap-3" aria-label="CyberWeel">
             <Image
-              src="/logo-transparent.png"
-              alt=""
-              width={52}
-              height={52}
-              className="object-contain"
+              src="/qr-logo.svg"
+              alt="شعار CyberWeel"
+              width={66}
+              height={56}
+              className="h-14 w-auto object-contain"
               priority
             />
             <span>
