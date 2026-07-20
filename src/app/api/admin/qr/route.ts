@@ -8,6 +8,8 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const logoPanelRatio = 0.2;
+const logoRatioWithinPanel = 0.82;
 
 function qrSourceUrl(targetUrl: string, format: "png" | "svg") {
   const params = new URLSearchParams({
@@ -27,7 +29,7 @@ function fileName(slug: string, format: "png" | "svg") {
 }
 
 async function loadLogo() {
-  return readFile(path.join(process.cwd(), "public", "logo-transparent.png"));
+  return readFile(path.join(process.cwd(), "public", "qr-logo.svg"));
 }
 
 function svgCanvasSize(svg: string) {
@@ -80,14 +82,14 @@ export async function GET(request: NextRequest) {
     if (format === "svg") {
       const originalSvg = await qrResponse.text();
       const { width, height } = svgCanvasSize(originalSvg);
-      const panelSize = Math.min(width, height) * 0.2;
-      const logoSize = panelSize * 0.72;
+      const panelSize = Math.min(width, height) * logoPanelRatio;
+      const logoSize = panelSize * logoRatioWithinPanel;
       const panelX = (width - panelSize) / 2;
       const panelY = (height - panelSize) / 2;
       const logoX = (width - logoSize) / 2;
       const logoY = (height - logoSize) / 2;
       const radius = panelSize * 0.14;
-      const logoData = `data:image/png;base64,${logo.toString("base64")}`;
+      const logoData = `data:image/svg+xml;base64,${logo.toString("base64")}`;
       const overlay = `<rect x="${panelX}" y="${panelY}" width="${panelSize}" height="${panelSize}" rx="${radius}" fill="#ffffff"/><image href="${logoData}" x="${logoX}" y="${logoY}" width="${logoSize}" height="${logoSize}" preserveAspectRatio="xMidYMid meet"/>`;
       const brandedSvg = originalSvg.replace(/<\/svg>\s*$/i, `${overlay}</svg>`);
 
@@ -99,8 +101,8 @@ export async function GET(request: NextRequest) {
     const metadata = await sharp(qrBuffer).metadata();
     const width = metadata.width ?? 1200;
     const height = metadata.height ?? 1200;
-    const panelSize = Math.round(Math.min(width, height) * 0.2);
-    const logoSize = Math.round(panelSize * 0.72);
+    const panelSize = Math.round(Math.min(width, height) * logoPanelRatio);
+    const logoSize = Math.round(panelSize * logoRatioWithinPanel);
     const left = Math.round((width - panelSize) / 2);
     const top = Math.round((height - panelSize) / 2);
     const logoLeft = Math.round((width - logoSize) / 2);
