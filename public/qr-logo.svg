@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+  width="648" height="555"
+  viewBox="75 42 648 555"
+  role="img"
+  aria-label="CyberWeel arch mark"
+  shape-rendering="geometricPrecision">
+
+  <defs>
+    <linearGradient id="stone" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#111827"/>
+      <stop offset="55%" stop-color="#1C2533"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E7C15E"/>
+      <stop offset="55%" stop-color="#C39A45"/>
+      <stop offset="100%" stop-color="#A77D2E"/>
+    </linearGradient>
+  </defs>
+
+  <g fill="url(#stone)"
+     stroke="#536071"
+     stroke-width="0.55"
+     stroke-linejoin="round"
+     vector-effect="non-scaling-stroke">
+    <path d="M 442.979 113.075 A 316 316 0 0 1 539.999 143.201 L 496.271 230.904 A 218 218 0 0 0 429.340 210.122 Z"/><path d="M 554.606 150.968 A 316 316 0 0 1 633.834 214.555 L 561.006 280.130 A 218 218 0 0 0 506.348 236.262 Z"/><path d="M 644.578 227.135 A 316 316 0 0 1 694.988 315.334 L 603.195 349.655 A 218 218 0 0 0 568.418 288.808 Z"/><path d="M 700.375 330.977 A 316 316 0 0 1 714.952 431.515 L 616.967 429.805 A 218 218 0 0 0 606.910 360.446 Z"/><path d="M 258.001 143.201 A 316 316 0 0 1 355.021 113.075 L 368.660 210.122 A 218 218 0 0 0 301.729 230.904 Z"/><path d="M 164.166 214.555 A 316 316 0 0 1 243.394 150.968 L 291.652 236.262 A 218 218 0 0 0 236.994 280.130 Z"/><path d="M 103.012 315.334 A 316 316 0 0 1 153.422 227.135 L 229.582 288.808 A 218 218 0 0 0 194.805 349.655 Z"/><path d="M 83.048 431.515 A 316 316 0 0 1 97.625 330.977 L 191.090 360.446 A 218 218 0 0 0 181.033 429.805 Z"/>
+    <path d="M 83 444 H 181 V 520 H 83 Z"/><path d="M 83 533 H 181 V 590 H 83 Z"/><path d="M 617 444 H 715 V 520 H 617 Z"/><path d="M 617 533 H 715 V 590 H 617 Z"/>
+  </g>
+
+  <path d="M 357 58 C 378 48, 418 48, 439 58 L 422 158 C 416.4138 156.2812, 409.3504 155.3009, 402.0000 155.0593 L 402 71 C 402 67.134, 395 67.134, 395 71 L 395 155.0510 C 387.4986 155.2777, 380.0876 156.2607, 374.0000 158.0000 L 357 58 Z"
+        fill="url(#gold)"
+        stroke="#C6A044"
+        stroke-width="0.35"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+        vector-effect="non-scaling-stroke"/>
+</svg>
