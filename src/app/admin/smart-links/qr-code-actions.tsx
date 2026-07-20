@@ -3,9 +3,12 @@
 import { Download, ExternalLink, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const qrBrandVersion = "cyberweel-final-20260720";
+
 export function QrCodeActions({ slug }: { slug: string }) {
-  const pngUrl = `/api/admin/qr?slug=${encodeURIComponent(slug)}&format=png`;
-  const svgUrl = `/api/admin/qr?slug=${encodeURIComponent(slug)}&format=svg`;
+  const encodedSlug = encodeURIComponent(slug);
+  const pngUrl = `/api/admin/qr?slug=${encodedSlug}&format=png&v=${qrBrandVersion}`;
+  const svgUrl = `/api/admin/qr?slug=${encodedSlug}&format=svg&v=${qrBrandVersion}`;
   const targetUrl = `https://www.cyberweel.com/r/${slug}`;
 
   return (
