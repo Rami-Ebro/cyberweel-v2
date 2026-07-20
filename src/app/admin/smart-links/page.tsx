@@ -50,24 +50,26 @@ export default async function SmartLinksAdminPage() {
     <main className="min-h-screen bg-background pb-16 text-foreground">
       <header className="border-b border-border bg-ink text-floral">
         <div className="cw-container flex min-h-24 items-center justify-between gap-5 py-4">
-          <Link href="/" className="flex items-center gap-3" aria-label="CyberWeel">
+          <Link href="/" className="flex flex-col items-center gap-1.5" aria-label="CyberWeel">
             <Image
-              src="/qr-logo.svg"
-              alt="شعار CyberWeel"
-              width={66}
-              height={56}
-              className="h-14 w-auto object-contain"
+              src="/cyberweel-wordmark-white.svg?v=20260720"
+              alt="CyberWeel"
+              width={218}
+              height={62}
+              className="h-auto w-[170px] object-contain sm:w-[218px]"
               priority
             />
-            <span>
-              <span className="block font-display text-2xl font-bold">CyberWeel</span>
-              <span className="mt-1 block text-xs font-bold tracking-[0.12em] text-bone/80">
-                لوحة الإدارة
-              </span>
+            <span className="text-xs font-bold tracking-[0.12em] text-bone/80">
+              لوحة الإدارة
             </span>
           </Link>
+
           <div className="flex items-center gap-3">
-            <Button asChild variant="outline" className="border-bone/40 bg-transparent text-floral hover:bg-floral hover:text-ink">
+            <Button
+              asChild
+              variant="outline"
+              className="border-bone/40 bg-transparent text-floral hover:bg-floral hover:text-ink"
+            >
               <Link href="/">العودة إلى الموقع</Link>
             </Button>
             <LogoutButton />
@@ -110,6 +112,7 @@ export default async function SmartLinksAdminPage() {
               </span>
             </div>
           </CardHeader>
+
           <CardContent className="px-0">
             {smartLinks.length === 0 ? (
               <div className="px-6 py-14 text-center">
@@ -131,27 +134,28 @@ export default async function SmartLinksAdminPage() {
                       <TableHead className="text-left">الإجراء</TableHead>
                     </TableRow>
                   </TableHeader>
+
                   <TableBody>
                     {smartLinks.map((smartLink) => (
                       <TableRow key={smartLink.id}>
                         <TableCell className="min-w-48 align-top">
                           <p className="font-bold text-ink">{smartLink.title}</p>
-                          <span
-                            className="mt-1 inline-flex text-sm font-semibold text-camel"
-                            dir="ltr"
-                          >
+                          <span className="mt-1 inline-flex text-sm font-semibold text-camel" dir="ltr">
                             /r/{smartLink.slug}
                           </span>
                         </TableCell>
+
                         <TableCell className="align-top">
                           <EditDestinationForm
                             id={smartLink.id}
                             destinationUrl={smartLink.destinationUrl}
                           />
                         </TableCell>
+
                         <TableCell className="align-top">
                           <QrCodeActions slug={smartLink.slug} />
                         </TableCell>
+
                         <TableCell className="align-top">
                           <Badge
                             variant="outline"
@@ -164,12 +168,15 @@ export default async function SmartLinksAdminPage() {
                             {smartLink.isActive ? "نشط" : "متوقف"}
                           </Badge>
                         </TableCell>
+
                         <TableCell className="align-top text-lg font-bold text-ink">
                           {smartLink._count.scans.toLocaleString("ar")}
                         </TableCell>
+
                         <TableCell className="whitespace-nowrap align-top text-sm text-muted-foreground">
                           {formatDate(smartLink.createdAt)}
                         </TableCell>
+
                         <TableCell className="align-top text-left">
                           <div className="flex min-w-max flex-wrap justify-end gap-2">
                             <form action={toggleSmartLink}>
@@ -188,6 +195,7 @@ export default async function SmartLinksAdminPage() {
                                 {smartLink.isActive ? "تعطيل" : "تفعيل"}
                               </Button>
                             </form>
+
                             {!smartLink.isActive ? (
                               <DeleteSmartLinkButton
                                 id={smartLink.id}
