@@ -24,14 +24,39 @@ const PROCESS_EN = [
 
 const SERVICES_AR = [
   {
-    title: "المواقع والمنصات الرقمية",
-    text: "نصمّم ونطوّر المواقع، المتاجر الإلكترونية، منصات الخدمات، وتطبيقات الموبايل بما يوضّح قيمة عملك ويسهّل وصول العميل إلى الخطوة التالية",
-    result: "النتيجة: حضور رقمي احترافي يحوّل الاهتمام إلى تواصل أو طلب أو استخدام فعلي",
+    title: "المواقع والمتاجر والمنصات",
+    text: "نصمّم ونطوّر مواقع الشركات، المتاجر الإلكترونية، المنصات الرقمية، وصفحات الهبوط حول هدف واضح يخدم مشروعك",
+    result: "النتيجة: حضور رقمي احترافي يساعد الزائر على فهم قيمتك واتخاذ خطوة فعلية",
   },
   {
-    title: "أنظمة الأعمال والأتمتة الذكية",
-    text: "نبني أنظمة SaaS وحلولًا مخصّصة، ونربط الأدوات والبيانات، ونؤتمت العمليات، ونوظّف الذكاء الاصطناعي حيث يحقق أثرًا عمليًا حقيقيًا",
-    result: "النتيجة: عمل أكثر تنظيمًا، أخطاء أقل، قرارات أوضح، وقدرة أفضل على النمو",
+    title: "أنظمة SaaS والأنظمة المخصصة",
+    text: "نبني أنظمة قابلة للنمو، لوحات إدارة، بوابات عملاء، وحلولًا مخصّصة تتوافق مع طريقة عمل مشروعك",
+    result: "النتيجة: عمليات أكثر تنظيمًا، ورؤية أوضح، ونظام ينمو مع احتياجك",
+  },
+  {
+    title: "تطبيقات الموبايل",
+    text: "نطوّر تطبيقات عملية للهواتف تربط خدمتك بالمستخدم وتبسّط الوصول والاستخدام والمتابعة",
+    result: "النتيجة: تجربة أسهل للمستخدم وقناة رقمية أقرب إلى العميل",
+  },
+  {
+    title: "التحليل المالي ودعم القرار",
+    text: "نقرأ الربحية والتكاليف والتدفقات والبيانات المالية، ونحوّل الأرقام إلى مؤشرات وقرارات قابلة للتنفيذ",
+    result: "النتيجة: قرارات مالية أوضح، واكتشاف مبكر للهدر والفرص والمخاطر",
+  },
+  {
+    title: "أتمتة العمليات والذكاء الاصطناعي",
+    text: "نربط الأدوات والأنظمة، ونؤتمت المهام المتكررة، ونوظّف الذكاء الاصطناعي حيث يحقق فائدة عملية حقيقية",
+    result: "النتيجة: وقت أقل في العمل الروتيني، أخطاء أقل، وسرعة أكبر في التنفيذ",
+  },
+  {
+    title: "رموز QR الديناميكية والروابط الذكية",
+    text: "نبني روابط ورموز QR قابلة للإدارة وتغيير الوجهة والتتبّع دون الحاجة إلى إعادة الطباعة",
+    result: "النتيجة: حملات ومواد مطبوعة أكثر مرونة مع بيانات أوضح عن التفاعل",
+  },
+  {
+    title: "الهوية والتموضع ومسارات التحويل",
+    text: "نوضّح هوية العلامة ورسائلها، ونبني الصفحات والحملات والمسارات التي تساعد العميل على فهم القيمة والتحرّك",
+    result: "النتيجة: علامة أوضح، رسالة أقوى، وتجربة تقود الزائر نحو القرار المناسب",
   },
   {
     title: "الأمن السيبراني وحماية الأعمال الرقمية",
@@ -42,14 +67,39 @@ const SERVICES_AR = [
 
 const SERVICES_EN = [
   {
-    title: "Websites and digital platforms",
-    text: "We design and build websites, online stores, service platforms, and mobile applications that communicate value clearly and guide customers toward the next step",
-    result: "Result: a professional digital presence that turns attention into contact, orders, or real use",
+    title: "Websites, stores, and platforms",
+    text: "We design and build business websites, ecommerce stores, digital platforms, and landing pages around a clear business outcome",
+    result: "Result: a professional digital presence that helps visitors understand your value and take action",
   },
   {
-    title: "Business systems and smart automation",
-    text: "We build SaaS and tailored systems, connect tools and data, automate operations, and apply AI where it creates practical value",
-    result: "Result: better-organized work, fewer errors, clearer decisions, and stronger capacity to grow",
+    title: "SaaS and custom systems",
+    text: "We build scalable systems, admin dashboards, client portals, and tailored solutions around how your business works",
+    result: "Result: better-organized operations, clearer visibility, and systems that grow with your needs",
+  },
+  {
+    title: "Mobile applications",
+    text: "We develop practical mobile applications that connect your service with users and simplify access, use, and follow-up",
+    result: "Result: an easier user experience and a digital channel closer to the customer",
+  },
+  {
+    title: "Financial analysis and decision support",
+    text: "We analyze profitability, costs, cash flow, and financial data and turn numbers into practical decision signals",
+    result: "Result: clearer financial decisions and earlier visibility into waste, opportunities, and risks",
+  },
+  {
+    title: "Process automation and AI",
+    text: "We connect tools and systems, automate repetitive tasks, and apply AI where it creates genuine practical value",
+    result: "Result: less routine work, fewer errors, and faster execution",
+  },
+  {
+    title: "Dynamic QR codes and smart links",
+    text: "We build manageable and trackable links and QR codes whose destination can change without reprinting",
+    result: "Result: more flexible campaigns and print materials with clearer engagement data",
+  },
+  {
+    title: "Identity, positioning, and conversion journeys",
+    text: "We clarify brand identity and messaging and build pages, campaigns, and journeys that help customers understand value and move forward",
+    result: "Result: a clearer brand, stronger messaging, and a journey that guides visitors toward the right decision",
   },
   {
     title: "Cybersecurity and digital protection",
@@ -99,7 +149,7 @@ export function HowWeHelpStreamlinedView() {
         actions={<ShareAction view={view} />}
       />
 
-      <Section tone="floral" className="!pt-0">
+      <Section tone="floral" className="!pt-20 sm:!pt-24">
         <SectionHeading
           align="center"
           eyebrow={isArabic ? "كيف نعمل" : "How we work"}
@@ -146,14 +196,14 @@ export function HowWeHelpStreamlinedView() {
           }
           className="mx-auto"
         />
-        <div className="mx-auto mt-16 grid max-w-6xl gap-6 lg:grid-cols-3">
+        <div className="mx-auto mt-16 grid max-w-6xl gap-6 md:grid-cols-2 lg:grid-cols-3">
           {services.map((service, index) => (
             <motion.article
               key={service.title}
               initial={{ opacity: 0, y: 18 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-60px" }}
-              transition={{ duration: 0.55, delay: index * 0.06 }}
+              transition={{ duration: 0.55, delay: index * 0.05 }}
               className="group rounded-xl border border-border bg-white p-8 transition-all duration-300 hover:-translate-y-1 hover:border-camel/50 hover:shadow-lg"
             >
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-camel/10 font-display text-sm font-semibold text-accent">
