@@ -58,6 +58,9 @@ const DELIVERY_EN = [
   ["Development", "We measure performance, address weaknesses, and improve the solution for the next stage"],
 ] as const;
 
+const PROJECT_STEPS_AR = ["تنظيم أقسام المتجر", "تحسين تجربة التصفح", "تبسيط رحلة الشراء", "معالجة نقاط الاحتكاك"] as const;
+const PROJECT_STEPS_EN = ["Store structure", "Browsing experience", "Checkout journey", "Friction points"] as const;
+
 const CARD_HOVER = "group transition-all duration-300 hover:-translate-y-1 hover:border-camel/50 hover:shadow-lg";
 const NUMBER_HOVER = "transition-colors duration-300 group-hover:bg-camel";
 
@@ -69,6 +72,7 @@ export function HowWeHelpStreamlinedView() {
   const process = isArabic ? PROCESS_AR : PROCESS_EN;
   const services = isArabic ? SERVICES_AR : SERVICES_EN;
   const delivery = isArabic ? DELIVERY_AR : DELIVERY_EN;
+  const projectSteps = isArabic ? PROJECT_STEPS_AR : PROJECT_STEPS_EN;
 
   return (
     <div>
@@ -105,6 +109,49 @@ export function HowWeHelpStreamlinedView() {
             </motion.article>
           ))}
         </div>
+      </Section>
+
+      <Section tone="floral">
+        <motion.article
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.6 }}
+          className="mx-auto max-w-5xl rounded-2xl border border-camel/25 bg-white p-8 shadow-sm sm:p-10"
+        >
+          <p className="eyebrow text-accent">{isArabic ? "من أعمالنا" : "From our work"}</p>
+          <div className="mt-6 grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+            <div>
+              <h2 className="font-display text-3xl font-semibold leading-snug text-ink sm:text-4xl">
+                {isArabic ? "SelaMaro — متجر إلكتروني عربي قيد الإنشاء" : "SelaMaro — an Arabic ecommerce store in progress"}
+              </h2>
+              <p className="mt-5 text-base leading-relaxed text-muted-foreground sm:text-lg">
+                {isArabic
+                  ? "نعمل على تطوير تجربة متجر SelaMaro وإعادة تنظيم بنيته، بدءًا من تصفح المنتجات وحتى إتمام الطلب، بهدف جعل رحلة العميل أوضح وأسهل وأكثر استعدادًا للتطوير والتسويق لاحقًا"
+                  : "We are improving SelaMaro's store experience and structure, from product browsing through checkout, to create a clearer, easier customer journey ready for future development and marketing"}
+              </p>
+            </div>
+            <div className="rounded-xl bg-floral p-6">
+              <p className="text-sm font-semibold text-ink">{isArabic ? "ما نعمل عليه" : "What we are working on"}</p>
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-sm font-medium text-ink/75">
+                {projectSteps.map((step, index) => (
+                  <div key={step} className="flex items-center gap-2">
+                    <span>{step}</span>
+                    {index < projectSteps.length - 1 && <ArrowRight className="h-4 w-4 text-accent rtl:rotate-180" aria-hidden />}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate("about")}
+            className="focus-ring mt-8 inline-flex items-center gap-2 text-base font-semibold text-ink transition-colors hover:text-accent"
+          >
+            {isArabic ? "اطّلع على المشروع" : "View the project"}
+            <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+          </button>
+        </motion.article>
       </Section>
 
       <Section tone="background">
