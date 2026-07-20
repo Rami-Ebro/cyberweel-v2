@@ -53,7 +53,7 @@ export default async function SmartLinksAdminPage() {
           <Link href="/" className="flex items-center gap-3" aria-label="CyberWeel">
             <span className="grid size-16 place-items-center rounded-xl border border-floral/20 bg-floral p-2 shadow-sm">
               <Image
-                src="/cyberweel-logo-final.svg"
+                src="/cyberweel-logo-20260720.svg"
                 alt=""
                 width={52}
                 height={52}
