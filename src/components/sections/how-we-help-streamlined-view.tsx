@@ -58,7 +58,7 @@ const DELIVERY_EN = [
   ["Development", "We measure performance, address weaknesses, and improve the solution for the next stage"],
 ] as const;
 
-const CARD_HOVER = "group transition-all duration-300 hover:-translate-y-1 hover:border-camel hover:bg-camel hover:shadow-lg";
+const CARD_HOVER = "transition-all duration-300 hover:-translate-y-1 hover:bg-camel hover:shadow-lg";
 
 export function HowWeHelpStreamlinedView() {
   const { navigate, view } = useNav();
@@ -83,10 +83,10 @@ export function HowWeHelpStreamlinedView() {
         <div className="mx-auto mt-14 grid max-w-5xl gap-5 md:grid-cols-2">
           {process.map((item, index) => (
             <motion.article key={item.title} initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.55, delay: index * 0.06 }} className={`${CARD_HOVER} rounded-xl border border-border bg-white p-7`}>
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-camel/10 font-display text-sm font-semibold text-accent transition-colors duration-300 group-hover:bg-ink/10 group-hover:text-ink">{String(index + 1).padStart(2, "0")}</span>
-              <h3 className="mt-5 font-display text-2xl font-semibold text-ink transition-colors duration-300 group-hover:text-ink">{item.title}</h3>
-              <p className="mt-3 text-base leading-relaxed text-muted-foreground transition-colors duration-300 group-hover:text-ink/80">{item.text}</p>
-              <div className="mt-5 border-t border-border/70 pt-4 transition-colors duration-300 group-hover:border-ink/20"><span className="block h-px w-10 bg-accent/50 transition-all duration-300 group-hover:w-16 group-hover:bg-ink/50" aria-hidden /></div>
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-camel/10 font-display text-sm font-semibold text-accent">{String(index + 1).padStart(2, "0")}</span>
+              <h3 className="mt-5 font-display text-2xl font-semibold text-ink">{item.title}</h3>
+              <p className="mt-3 text-base leading-relaxed text-muted-foreground">{item.text}</p>
+              <div className="mt-5 border-t border-border/70 pt-4"><span className="block h-px w-10 bg-accent/50 transition-all duration-300 hover:w-16" aria-hidden /></div>
             </motion.article>
           ))}
         </div>
@@ -97,10 +97,10 @@ export function HowWeHelpStreamlinedView() {
         <div className="mx-auto mt-16 grid max-w-6xl gap-6 md:grid-cols-2 lg:grid-cols-3">
           {services.map((service, index) => (
             <motion.article key={service.title} initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.55, delay: index * 0.05 }} className={`${CARD_HOVER} rounded-xl border border-border bg-white p-8`}>
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-camel/10 font-display text-sm font-semibold text-accent transition-colors duration-300 group-hover:bg-ink/10 group-hover:text-ink">{String(index + 1).padStart(2, "0")}</span>
-              <h3 className="mt-5 font-display text-2xl font-semibold leading-snug text-ink transition-colors duration-300 group-hover:text-ink">{service.title}</h3>
-              <p className="mt-4 text-base leading-relaxed text-muted-foreground transition-colors duration-300 group-hover:text-ink/80">{service.text}</p>
-              <p className="mt-6 border-t border-border/70 pt-5 text-sm font-semibold leading-relaxed text-ink/75 transition-colors duration-300 group-hover:border-ink/20 group-hover:text-ink">{service.result}</p>
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-camel/10 font-display text-sm font-semibold text-accent">{String(index + 1).padStart(2, "0")}</span>
+              <h3 className="mt-5 font-display text-2xl font-semibold leading-snug text-ink">{service.title}</h3>
+              <p className="mt-4 text-base leading-relaxed text-muted-foreground">{service.text}</p>
+              <p className="mt-6 border-t border-border/70 pt-5 text-sm font-semibold leading-relaxed text-ink/75">{service.result}</p>
             </motion.article>
           ))}
         </div>
@@ -110,10 +110,10 @@ export function HowWeHelpStreamlinedView() {
         <SectionHeading align="center" eyebrow={isArabic ? "من التقييم إلى التطوير" : "From assessment to improvement"} title={isArabic ? "من الفكرة إلى نتيجة قابلة للقياس" : "From an idea to a measurable outcome"} intro={isArabic ? "قد تحتاج إلى بناء حل جديد، أو تحسين ما لديك، أو اكتشاف أن المشكلة ليست تقنية من الأساس. مهمتنا ليست بيعك أكبر مشروع، بل مساعدتك على اتخاذ القرار الصحيح وتنفيذه بطريقة تخدم تقدّمك" : "You may need a new solution, an improvement to what you have, or the realization that the problem is not technical at all. Our role is not to sell the largest project, but to identify and execute the right decision for your progress"} className="mx-auto" />
         <div className="mx-auto mt-12 grid max-w-6xl gap-5 md:grid-cols-2 lg:grid-cols-4">
           {delivery.map(([title, text], index) => (
-            <motion.article key={title} initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.55, delay: index * 0.06 }} className={`${CARD_HOVER} rounded-xl border border-camel/25 bg-floral p-7 text-center shadow-sm`}>
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-camel/10 font-display text-sm font-semibold text-accent transition-colors duration-300 group-hover:bg-ink/10 group-hover:text-ink">{String(index + 1).padStart(2, "0")}</span>
-              <h3 className="mt-5 font-display text-2xl font-semibold text-ink transition-colors duration-300 group-hover:text-ink">{title}</h3>
-              <p className="mt-3 text-base leading-relaxed text-muted-foreground transition-colors duration-300 group-hover:text-ink/80">{text}</p>
+            <motion.article key={title} initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.55, delay: index * 0.06 }} className={`${CARD_HOVER} rounded-xl border border-camel/25 bg-white p-7 text-center shadow-sm`}>
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-camel/10 font-display text-sm font-semibold text-accent">{String(index + 1).padStart(2, "0")}</span>
+              <h3 className="mt-5 font-display text-2xl font-semibold text-ink">{title}</h3>
+              <p className="mt-3 text-base leading-relaxed text-muted-foreground">{text}</p>
             </motion.article>
           ))}
         </div>
