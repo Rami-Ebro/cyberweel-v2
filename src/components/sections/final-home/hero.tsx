@@ -19,7 +19,8 @@ export function FinalHero({ copy, methodology }: { copy: any; methodology: strin
             <span className="mt-1 block text-accent">{copy.title2}</span>
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl">{copy.promise}</p>
-          <p className="mt-7 text-base font-semibold leading-relaxed text-ink">{copy.note}</p>
+          <p className="mt-5 max-w-2xl border-s-2 border-camel ps-4 text-base font-semibold leading-relaxed text-ink/85 sm:text-lg">{copy.execution}</p>
+          <p className="mt-6 text-base font-semibold leading-relaxed text-ink">{copy.note}</p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <a href={BRAND.social.whatsapp} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex min-h-12 items-center justify-center rounded-md bg-camel px-6 text-base font-semibold text-ink transition hover:bg-camel/90">
               {copy.primary}
