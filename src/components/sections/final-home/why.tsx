@@ -1,12 +1,15 @@
-import { ArchMotif } from "@/components/brand/motif";
 import { Logo } from "@/components/brand/logo";
 import { Section } from "@/components/site/section-primitives";
 
 export function WhySection({ copy }: { copy: any }) {
   return (
     <Section tone="ink" id="why" className="section-texture-dark relative overflow-hidden">
-      <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.12]">
-        <ArchMotif size={520} onDark />
+      <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.08]">
+        <img
+          src="/cyberweel-logo-final.svg"
+          alt=""
+          className="h-[520px] w-[520px] object-contain brightness-0 invert"
+        />
       </div>
       <div className="relative mx-auto max-w-3xl text-center">
         <div className="flex items-center justify-center gap-2.5">
