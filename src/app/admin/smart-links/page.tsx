@@ -51,14 +51,16 @@ export default async function SmartLinksAdminPage() {
       <header className="border-b border-border bg-ink text-floral">
         <div className="cw-container flex min-h-24 items-center justify-between gap-5 py-4">
           <Link href="/" className="flex items-center gap-3" aria-label="CyberWeel">
-            <Image
-              src="/logo-transparent.png"
-              alt=""
-              width={52}
-              height={52}
-              className="object-contain"
-              priority
-            />
+            <span className="grid size-16 place-items-center rounded-xl border border-floral/20 bg-floral p-2 shadow-sm">
+              <Image
+                src="/cyberweel-logo-final.svg"
+                alt=""
+                width={52}
+                height={52}
+                className="h-full w-full object-contain"
+                priority
+              />
+            </span>
             <span>
               <span className="block font-display text-2xl font-bold">CyberWeel</span>
               <span className="mt-1 block text-xs font-bold tracking-[0.12em] text-bone/80">
