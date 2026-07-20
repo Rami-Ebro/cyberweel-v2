@@ -35,7 +35,7 @@ export function FinalHero({ copy, methodology }: { copy: any; methodology: strin
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="relative mx-auto hidden h-[500px] w-[500px] lg:block">
           <ArchGateway className="absolute inset-0" />
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <img src="/logo-transparent.png" alt="CyberWeel" className="h-[230px] w-[230px] object-contain drop-shadow-[0_8px_24px_rgba(17,24,39,0.18)]" />
+            <img src="/cyberweel-logo-final.svg" alt="CyberWeel" className="h-[230px] w-[230px] object-contain drop-shadow-[0_8px_24px_rgba(17,24,39,0.18)]" />
             <p dir="ltr" className="mt-4 text-sm font-semibold tracking-wide text-ink/70">
               {methodology}
             </p>
