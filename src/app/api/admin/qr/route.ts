@@ -9,9 +9,9 @@ export const revalidate = 0;
 
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const panelWidthRatio = 0.33;
-const panelHeightRatio = 0.24;
-const logoWidthRatio = 0.72;
-const logoHeightRatio = 0.72;
+const panelHeightRatio = 0.33;
+const logoWidthRatio = 0.58;
+const logoHeightRatio = 0.58;
 
 function qrSourceUrl(targetUrl: string, format: "png" | "svg") {
   const params = new URLSearchParams({
