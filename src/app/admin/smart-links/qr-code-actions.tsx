@@ -3,7 +3,7 @@
 import { Download, ExternalLink, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const qrBrandVersion = "arch-final-20260720";
+const qrBrandVersion = "cyberweel-qr-balanced-panel-20260721";
 
 export function QrCodeActions({ slug }: { slug: string }) {
   const encodedSlug = encodeURIComponent(slug);
@@ -29,7 +29,7 @@ export function QrCodeActions({ slug }: { slug: string }) {
           width={224}
           height={224}
           className="mx-auto aspect-square w-full rounded-lg border border-border bg-white object-contain"
-          loading="eager"
+          loading="lazy"
         />
 
         <p className="mt-3 truncate text-xs font-semibold text-muted-foreground" dir="ltr" title={targetUrl}>

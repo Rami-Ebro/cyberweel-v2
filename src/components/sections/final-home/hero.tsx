@@ -19,7 +19,8 @@ export function FinalHero({ copy, methodology }: { copy: any; methodology: strin
             <span className="mt-1 block text-accent">{copy.title2}</span>
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl">{copy.promise}</p>
-          <p className="mt-7 text-base font-semibold leading-relaxed text-ink">{copy.note}</p>
+          <p className="mt-5 max-w-2xl border-s-2 border-camel ps-4 text-base font-semibold leading-relaxed text-ink/85 sm:text-lg">{copy.execution}</p>
+          <p className="mt-6 text-base font-semibold leading-relaxed text-ink">{copy.note}</p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <a href={BRAND.social.whatsapp} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex min-h-12 items-center justify-center rounded-md bg-camel px-6 text-base font-semibold text-ink transition hover:bg-camel/90">
               {copy.primary}
@@ -34,7 +35,7 @@ export function FinalHero({ copy, methodology }: { copy: any; methodology: strin
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="relative mx-auto hidden h-[500px] w-[500px] lg:block">
           <ArchGateway className="absolute inset-0" />
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <img src="/logo-transparent.png" alt="CyberWeel" className="h-[230px] w-[230px] object-contain drop-shadow-[0_8px_24px_rgba(17,24,39,0.18)]" />
+            <img src="/cyberweel-logo-final.svg" alt="CyberWeel" className="h-[230px] w-[230px] object-contain drop-shadow-[0_8px_24px_rgba(17,24,39,0.18)]" />
             <p dir="ltr" className="mt-4 text-sm font-semibold tracking-wide text-ink/70">
               {methodology}
             </p>

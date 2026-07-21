@@ -6,21 +6,14 @@ import { useI18n } from "@/components/site/i18n";
 
 type LogoProps = {
   className?: string;
-  /** Kept for API compatibility; the transparent logo blends on any background. */
   onDark?: boolean;
   size?: number;
 };
 
-/**
- * CyberWeel final logo (transparent background).
- * The arch represents the system, the keystone the critical catalyst,
- * and the vertical white channel inside it represents activation and
- * knowledge flow. Do not redesign — used as-is, fully transparent.
- */
 export function Logo({ className, size = 40 }: LogoProps) {
   return (
     <Image
-      src="/logo-transparent.png"
+      src="/cyberweel-logo-final.svg"
       alt="CyberWeel"
       width={size}
       height={size}
@@ -30,7 +23,6 @@ export function Logo({ className, size = 40 }: LogoProps) {
   );
 }
 
-/** Lockup: logo + wordmark, used in header & footer. */
 export function LogoLockup({
   onDark = false,
   size = 40,
@@ -45,7 +37,7 @@ export function LogoLockup({
           className={cn(
             "font-display text-3xl font-bold tracking-tight",
             onDark ? "text-floral" : "text-ink",
-            lang === "ar" && "tracking-normal"
+            lang === "ar" && "tracking-normal",
           )}
         >
           CyberWeel
@@ -54,9 +46,7 @@ export function LogoLockup({
           className={cn(
             "mt-2 text-base font-bold uppercase",
             onDark ? "text-bone/80" : "text-muted-foreground",
-            lang === "ar"
-              ? "tracking-[0.14em]"
-              : "tracking-[0.32em]"
+            lang === "ar" ? "tracking-[0.14em]" : "tracking-[0.32em]",
           )}
         >
           {t.progressPartner}
@@ -65,4 +55,3 @@ export function LogoLockup({
     </span>
   );
 }
-
