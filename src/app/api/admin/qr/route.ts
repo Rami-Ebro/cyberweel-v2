@@ -8,8 +8,10 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const logoPanelRatio = 0.24;
-const logoRatioWithinPanel = 0.66;
+const panelWidthRatio = 0.33;
+const panelHeightRatio = 0.24;
+const logoWidthRatio = 0.72;
+const logoHeightRatio = 0.72;
 
 function qrSourceUrl(targetUrl: string, format: "png" | "svg") {
   const params = new URLSearchParams({
@@ -82,15 +84,18 @@ export async function GET(request: NextRequest) {
     if (format === "svg") {
       const originalSvg = await qrResponse.text();
       const { width, height } = svgCanvasSize(originalSvg);
-      const panelSize = Math.min(width, height) * logoPanelRatio;
-      const logoSize = panelSize * logoRatioWithinPanel;
-      const panelX = (width - panelSize) / 2;
-      const panelY = (height - panelSize) / 2;
-      const logoX = (width - logoSize) / 2;
-      const logoY = (height - logoSize) / 2;
-      const radius = panelSize * 0.14;
+      const base = Math.min(width, height);
+      const panelWidth = base * panelWidthRatio;
+      const panelHeight = base * panelHeightRatio;
+      const logoWidth = panelWidth * logoWidthRatio;
+      const logoHeight = panelHeight * logoHeightRatio;
+      const panelX = (width - panelWidth) / 2;
+      const panelY = (height - panelHeight) / 2;
+      const logoX = (width - logoWidth) / 2;
+      const logoY = (height - logoHeight) / 2;
+      const radius = panelHeight * 0.14;
       const logoData = `data:image/svg+xml;base64,${logo.toString("base64")}`;
-      const overlay = `<rect x="${panelX}" y="${panelY}" width="${panelSize}" height="${panelSize}" rx="${radius}" fill="#ffffff"/><image href="${logoData}" x="${logoX}" y="${logoY}" width="${logoSize}" height="${logoSize}" preserveAspectRatio="xMidYMid meet"/>`;
+      const overlay = `<rect x="${panelX}" y="${panelY}" width="${panelWidth}" height="${panelHeight}" rx="${radius}" fill="#ffffff"/><image href="${logoData}" x="${logoX}" y="${logoY}" width="${logoWidth}" height="${logoHeight}" preserveAspectRatio="xMidYMid meet"/>`;
       const brandedSvg = originalSvg.replace(/<\/svg>\s*$/i, `${overlay}</svg>`);
 
       headers.set("Content-Type", "image/svg+xml; charset=utf-8");
@@ -101,18 +106,21 @@ export async function GET(request: NextRequest) {
     const metadata = await sharp(qrBuffer).metadata();
     const width = metadata.width ?? 1200;
     const height = metadata.height ?? 1200;
-    const panelSize = Math.round(Math.min(width, height) * logoPanelRatio);
-    const logoSize = Math.round(panelSize * logoRatioWithinPanel);
-    const left = Math.round((width - panelSize) / 2);
-    const top = Math.round((height - panelSize) / 2);
-    const logoLeft = Math.round((width - logoSize) / 2);
-    const logoTop = Math.round((height - logoSize) / 2);
+    const base = Math.min(width, height);
+    const panelWidth = Math.round(base * panelWidthRatio);
+    const panelHeight = Math.round(base * panelHeightRatio);
+    const logoWidth = Math.round(panelWidth * logoWidthRatio);
+    const logoHeight = Math.round(panelHeight * logoHeightRatio);
+    const left = Math.round((width - panelWidth) / 2);
+    const top = Math.round((height - panelHeight) / 2);
+    const logoLeft = Math.round((width - logoWidth) / 2);
+    const logoTop = Math.round((height - logoHeight) / 2);
 
     const panel = Buffer.from(
-      `<svg width="${panelSize}" height="${panelSize}" xmlns="http://www.w3.org/2000/svg"><rect width="${panelSize}" height="${panelSize}" rx="${Math.round(panelSize * 0.14)}" fill="#ffffff"/></svg>`,
+      `<svg width="${panelWidth}" height="${panelHeight}" xmlns="http://www.w3.org/2000/svg"><rect width="${panelWidth}" height="${panelHeight}" rx="${Math.round(panelHeight * 0.14)}" fill="#ffffff"/></svg>`,
     );
     const resizedLogo = await sharp(logo)
-      .resize(logoSize, logoSize, { fit: "contain" })
+      .resize(logoWidth, logoHeight, { fit: "contain" })
       .png()
       .toBuffer();
 
