@@ -23,14 +23,16 @@ export default async function AdminLoginPage() {
         <Card className="w-full max-w-md">
           <CardHeader className="border-b text-center">
             <Link href="/" aria-label="CyberWeel" className="mx-auto">
-              <Image
-                src="/logo-transparent.png"
-                alt=""
-                width={64}
-                height={64}
-                className="mx-auto object-contain"
-                priority
-              />
+              <span className="grid size-20 place-items-center rounded-2xl border border-border bg-floral p-3 shadow-sm">
+                <Image
+                  src="/cyberweel-logo-20260720.svg"
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="h-full w-full object-contain"
+                  priority
+                />
+              </span>
             </Link>
             <CardTitle className="mt-4 font-display text-3xl text-ink">
               دخول المالك

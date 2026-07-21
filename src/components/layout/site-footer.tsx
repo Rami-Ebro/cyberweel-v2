@@ -13,7 +13,9 @@ const FOOTER_ITEMS = NAV_ITEMS.filter((item) => item.id !== "share-challenge");
 function FooterWordmark() {
   return (
     <span className="flex items-center gap-3">
-      <Logo size={52} />
+      <span className="inline-flex rounded-xl border border-white/15 bg-white/95 p-2.5 shadow-sm">
+        <Logo size={52} />
+      </span>
       <span className="flex flex-col">
         <span
           aria-label="CyberWeel"
