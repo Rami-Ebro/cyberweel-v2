@@ -3,7 +3,7 @@
 import { Download, ExternalLink, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const qrBrandVersion = "cyberweel-qr-vertical-clearance-20260721";
+const qrBrandVersion = "cyberweel-qr-direct-mark-20260721";
 
 export function QrCodeActions({ slug }: { slug: string }) {
   const encodedSlug = encodeURIComponent(slug);
