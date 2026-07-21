@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const panelRatio = 0.34;
-const markRatio = 0.64;
+const panelRatio = 0.27;
+const markRatio = 0.82;
 
 function qrSourceUrl(targetUrl: string, format: "png" | "svg") {
   const params = new URLSearchParams({
