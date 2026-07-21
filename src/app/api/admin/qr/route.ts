@@ -29,7 +29,7 @@ function fileName(slug: string, format: "png" | "svg") {
 }
 
 async function loadLogo() {
-  return readFile(path.join(process.cwd(), "public", "cyberweel-logo-20260720.svg"));
+  return readFile(path.join(process.cwd(), "public", "cyberweel-logo-qr.svg"));
 }
 
 function svgCanvasSize(svg: string) {
