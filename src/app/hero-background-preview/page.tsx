@@ -1,3 +1,5 @@
+import { SegmentedHeroArch } from "@/components/brand/segmented-hero-arch";
+
 export const metadata = {
   title: "Hero Arch Preview | CyberWeel",
   robots: { index: false, follow: false },
@@ -20,96 +22,8 @@ export default function HeroBackgroundPreviewPage() {
           dir="ltr"
           className="relative z-10 mx-auto grid min-h-screen w-full max-w-7xl grid-cols-1 items-center gap-12 px-6 py-20 lg:grid-cols-[0.95fr_1.05fr] lg:px-10"
         >
-          <div className="relative hidden min-h-[620px] items-center justify-center lg:flex" aria-hidden>
-            <svg
-              viewBox="0 0 640 720"
-              className="h-[620px] w-full max-w-[560px] overflow-visible"
-              role="presentation"
-            >
-              <defs>
-                <linearGradient id="stoneFace" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stopColor="#2a3950" />
-                  <stop offset="0.48" stopColor="#1a2639" />
-                  <stop offset="1" stopColor="#0b111c" />
-                </linearGradient>
-                <linearGradient id="stoneEdge" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor="#49658d" stopOpacity="0.78" />
-                  <stop offset="1" stopColor="#111827" stopOpacity="0.08" />
-                </linearGradient>
-                <linearGradient id="goldStone" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stopColor="#f0ce7f" />
-                  <stop offset="0.45" stopColor="#c29b4d" />
-                  <stop offset="1" stopColor="#7b5723" />
-                </linearGradient>
-                <filter id="archShadow" x="-40%" y="-30%" width="180%" height="180%">
-                  <feDropShadow dx="0" dy="24" stdDeviation="20" floodColor="#000000" floodOpacity="0.48" />
-                </filter>
-                <filter id="goldGlow" x="-100%" y="-100%" width="300%" height="300%">
-                  <feGaussianBlur stdDeviation="8" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-
-              <ellipse cx="310" cy="365" rx="255" ry="280" fill="#35527b" opacity="0.12" />
-
-              <g filter="url(#archShadow)">
-                <path
-                  d="M112 660V392C112 194 199 90 310 90s198 104 198 302v268"
-                  fill="none"
-                  stroke="#05080e"
-                  strokeWidth="176"
-                  strokeLinecap="butt"
-                />
-                <path
-                  d="M112 660V392C112 194 199 90 310 90s198 104 198 302v268"
-                  fill="none"
-                  stroke="url(#stoneFace)"
-                  strokeWidth="148"
-                  strokeLinecap="butt"
-                />
-                <path
-                  d="M112 660V392C112 194 199 90 310 90s198 104 198 302v268"
-                  fill="none"
-                  stroke="url(#stoneEdge)"
-                  strokeWidth="5"
-                  strokeLinecap="butt"
-                  opacity="0.8"
-                />
-
-                <g stroke="#070b13" strokeWidth="11">
-                  <path d="M104 566 L187 534" />
-                  <path d="M104 470 L193 449" />
-                  <path d="M122 365 L208 386" />
-                  <path d="M163 270 L235 323" />
-                  <path d="M224 178 L271 278" />
-                  <path d="M349 178 L328 278" />
-                  <path d="M421 254 L365 323" />
-                  <path d="M493 354 L410 386" />
-                  <path d="M516 463 L426 449" />
-                  <path d="M516 566 L433 534" />
-                </g>
-
-                <path
-                  d="M274 76 L346 76 L364 175 L310 216 L256 175 Z"
-                  fill="url(#goldStone)"
-                  stroke="#f2d697"
-                  strokeOpacity="0.72"
-                  strokeWidth="3"
-                  filter="url(#goldGlow)"
-                />
-                <path d="M279 174 L310 216 L341 174" fill="none" stroke="#6e4c1d" strokeWidth="3" opacity="0.65" />
-
-                <path
-                  d="M185 660V406C185 264 239 192 310 192s125 72 125 214v254"
-                  fill="none"
-                  stroke="#03060b"
-                  strokeWidth="20"
-                />
-              </g>
-            </svg>
+          <div className="relative hidden min-h-[620px] items-center justify-center lg:flex">
+            <SegmentedHeroArch />
           </div>
 
           <div className="max-w-2xl justify-self-end text-right" dir="rtl">
