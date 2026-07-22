@@ -1,3 +1,16 @@
+const stones = [
+  "M 95 360 A 255 255 0 0 1 101.5 302.6 L 184.4 321.8 A 170 170 0 0 0 180 360 Z",
+  "M 104.9 289.7 A 255 255 0 0 1 127 236.4 L 201.3 277.6 A 170 170 0 0 0 186.6 313.1 Z",
+  "M 133.7 224.9 A 255 255 0 0 1 169.7 179.7 L 229.8 239.8 A 170 170 0 0 0 205.8 269.9 Z",
+  "M 179.4 170.5 A 255 255 0 0 1 226.4 137 L 267.6 211.3 A 170 170 0 0 0 236.2 233.7 Z",
+  "M 238.2 130.8 A 255 255 0 0 1 292.6 111.5 L 311.8 194.4 A 170 170 0 0 0 275.5 207.2 Z",
+  "M 394.3 108.9 A 255 255 0 0 1 449.6 125.3 L 416.4 203.5 A 170 170 0 0 0 379.5 192.6 Z",
+  "M 461.8 130.8 A 255 255 0 0 1 510.5 161.8 L 457 227.9 A 170 170 0 0 0 424.5 207.2 Z",
+  "M 520.6 170.5 A 255 255 0 0 1 558.9 213.7 L 489.3 262.5 A 170 170 0 0 0 463.8 233.7 Z",
+  "M 566.3 224.9 A 255 255 0 0 1 591.1 277 L 510.7 304.7 A 170 170 0 0 0 494.2 269.9 Z",
+  "M 595.1 289.7 A 255 255 0 0 1 604.7 346.7 L 519.8 351.1 A 170 170 0 0 0 513.4 313.1 Z",
+];
+
 export function SegmentedHeroArch() {
   return (
     <svg
@@ -7,28 +20,21 @@ export function SegmentedHeroArch() {
       aria-hidden
     >
       <defs>
-        <linearGradient id="blockFace" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#25324a" />
-          <stop offset="0.55" stopColor="#172238" />
+        <linearGradient id="archStoneFace" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#26354f" />
+          <stop offset="0.55" stopColor="#18243a" />
           <stop offset="1" stopColor="#0b111c" />
         </linearGradient>
-        <linearGradient id="goldStone" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id="archGoldStone" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#f3d57e" />
           <stop offset="0.5" stopColor="#c79b3d" />
           <stop offset="1" stopColor="#7f581a" />
         </linearGradient>
-        <filter id="blockShadow" x="-40%" y="-40%" width="180%" height="200%">
-          <feDropShadow dx="0" dy="18" stdDeviation="14" floodColor="#000000" floodOpacity="0.46" />
+        <filter id="archBlockShadow" x="-40%" y="-40%" width="180%" height="200%">
+          <feDropShadow dx="0" dy="16" stdDeviation="13" floodColor="#000" floodOpacity="0.45" />
         </filter>
-        <filter id="blueGlow" x="-80%" y="-80%" width="260%" height="260%">
-          <feGaussianBlur stdDeviation="5" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-        <filter id="goldGlow" x="-100%" y="-100%" width="300%" height="300%">
-          <feGaussianBlur stdDeviation="8" result="blur" />
+        <filter id="archGoldGlow" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="7" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
@@ -36,41 +42,29 @@ export function SegmentedHeroArch() {
         </filter>
       </defs>
 
-      <ellipse cx="350" cy="650" rx="245" ry="26" fill="#2357ff" opacity="0.12" />
+      <ellipse cx="350" cy="650" rx="248" ry="25" fill="#2357ff" opacity="0.1" />
 
-      <g filter="url(#blockShadow)">
-        <rect x="82" y="520" width="102" height="122" rx="2" fill="url(#blockFace)" stroke="#284fd8" strokeWidth="2" />
-        <rect x="82" y="388" width="102" height="116" rx="2" fill="url(#blockFace)" stroke="#284fd8" strokeWidth="2" />
-        <path d="M88 269 L192 303 L184 375 L82 340 Z" fill="url(#blockFace)" stroke="#284fd8" strokeWidth="2" />
-        <path d="M132 181 L228 243 L196 296 L102 235 Z" fill="url(#blockFace)" stroke="#284fd8" strokeWidth="2" />
-        <path d="M215 112 L292 206 L239 239 L162 150 Z" fill="url(#blockFace)" stroke="#284fd8" strokeWidth="2" />
-        <path d="M306 79 L339 192 L281 207 L248 96 Z" fill="url(#blockFace)" stroke="#284fd8" strokeWidth="2" />
+      <g filter="url(#archBlockShadow)">
+        <rect x="95" y="360" width="85" height="132" rx="2" fill="url(#archStoneFace)" stroke="#315ce7" strokeWidth="2" />
+        <rect x="95" y="500" width="85" height="142" rx="2" fill="url(#archStoneFace)" stroke="#315ce7" strokeWidth="2" />
+        <rect x="520" y="360" width="85" height="132" rx="2" fill="url(#archStoneFace)" stroke="#315ce7" strokeWidth="2" />
+        <rect x="520" y="500" width="85" height="142" rx="2" fill="url(#archStoneFace)" stroke="#315ce7" strokeWidth="2" />
 
-        <path d="M394 79 L361 192 L419 207 L452 96 Z" fill="url(#blockFace)" stroke="#284fd8" strokeWidth="2" />
-        <path d="M485 112 L408 206 L461 239 L538 150 Z" fill="url(#blockFace)" stroke="#284fd8" strokeWidth="2" />
-        <path d="M568 181 L472 243 L504 296 L598 235 Z" fill="url(#blockFace)" stroke="#284fd8" strokeWidth="2" />
-        <path d="M612 269 L508 303 L516 375 L618 340 Z" fill="url(#blockFace)" stroke="#284fd8" strokeWidth="2" />
-        <rect x="516" y="388" width="102" height="116" rx="2" fill="url(#blockFace)" stroke="#284fd8" strokeWidth="2" />
-        <rect x="516" y="520" width="102" height="122" rx="2" fill="url(#blockFace)" stroke="#284fd8" strokeWidth="2" />
+        {stones.map((stone) => (
+          <path key={stone} d={stone} fill="url(#archStoneFace)" stroke="#315ce7" strokeWidth="2" />
+        ))}
 
         <path
-          d="M315 29 L385 29 L397 124 L350 167 L303 124 Z"
-          fill="url(#goldStone)"
+          d="M 318 52 L 382 52 L 392 126 L 350 173 L 308 126 Z"
+          fill="url(#archGoldStone)"
           stroke="#f4d78b"
           strokeWidth="3"
-          filter="url(#goldGlow)"
+          filter="url(#archGoldGlow)"
         />
-        <path d="M350 56 V137" stroke="#111827" strokeWidth="7" strokeLinecap="round" opacity="0.9" />
+        <path d="M350 74 V139" stroke="#111827" strokeWidth="7" strokeLinecap="round" opacity="0.9" />
       </g>
 
-      <g filter="url(#blueGlow)" opacity="0.75">
-        <path d="M89 646 H184" stroke="#2a63ff" strokeWidth="2" />
-        <path d="M516 646 H611" stroke="#2a63ff" strokeWidth="2" />
-        <path d="M192 303 L184 375" stroke="#2a63ff" strokeWidth="2" />
-        <path d="M508 303 L516 375" stroke="#2a63ff" strokeWidth="2" />
-      </g>
-
-      <path d="M68 660 H632" stroke="#1448d8" strokeWidth="2" opacity="0.38" />
+      <path d="M72 660 H628" stroke="#1448d8" strokeWidth="2" opacity="0.34" />
     </svg>
   );
 }
