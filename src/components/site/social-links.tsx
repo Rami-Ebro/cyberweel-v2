@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { BRAND } from "@/lib/site-data";
 
 /**
- * Social links — Facebook, Telegram, WhatsApp.
+ * Social links — Facebook, Instagram, WhatsApp.
  * Branded icons in a quiet row, consistent with the calm identity.
  */
 export function SocialLinks({
@@ -21,7 +21,7 @@ export function SocialLinks({
 
   const links = [
     { href: BRAND.social.facebook, label: "Facebook", icon: FacebookIcon },
-    { href: BRAND.social.telegram, label: "Telegram", icon: TelegramIcon },
+    { href: "https://www.instagram.com/cyberweel.co/", label: "Instagram", icon: InstagramIcon },
     { href: BRAND.social.whatsapp, label: "WhatsApp", icon: WhatsAppGlyph },
   ];
 
@@ -57,10 +57,12 @@ function FacebookIcon({ className }: { className?: string }) {
   );
 }
 
-function TelegramIcon({ className }: { className?: string }) {
+function InstagramIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <path d="M9.2 14.3 9 18.4c.4 0 .6-.2.8-.4l2-1.9 4.1 3c.8.4 1.3.2 1.5-.7l2.7-12.6v-.1c.2-1.1-.4-1.5-1.2-1.2L4.4 10.5c-1.1.4-1.1 1-.2 1.3l3.9 1.2 9.1-5.7c.4-.3.8-.1.5.2l-7.5 6.8z" />
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
     </svg>
   );
 }
