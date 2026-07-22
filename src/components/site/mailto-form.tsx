@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Paperclip, Send } from "lucide-react";
+import { CheckCircle2, Paperclip, Send, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/components/site/i18n";
 
@@ -106,6 +106,27 @@ export function MailtoForm({
     }
   };
 
+  const handleShare = async () => {
+    const shareData = {
+      title: document.title,
+      text: isArabic ? "تعرّف على CyberWeel" : "Discover CyberWeel",
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success(isArabic ? "تم نسخ رابط المشاركة" : "Share link copied");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast.error(isArabic ? "تعذرت المشاركة الآن" : "Sharing is unavailable right now");
+    }
+  };
+
   if (submitted) {
     return (
       <div
@@ -130,10 +151,11 @@ export function MailtoForm({
         </p>
         <button
           type="button"
-          onClick={() => setSubmitted(false)}
-          className="focus-ring mt-8 rounded-md border border-border bg-white px-5 py-3 text-sm font-semibold text-ink transition hover:border-camel/50 hover:bg-muted/40"
+          onClick={handleShare}
+          className="focus-ring mt-8 inline-flex items-center gap-2 rounded-md bg-ink px-5 py-3 text-sm font-semibold text-floral transition hover:bg-ink/90"
         >
-          {isArabic ? "إرسال رسالة أخرى" : "Send another message"}
+          <Share2 className="size-4" />
+          {isArabic ? "مشاركة" : "Share"}
         </button>
       </div>
     );
