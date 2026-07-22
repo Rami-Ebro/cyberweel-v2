@@ -16,11 +16,14 @@ export default function HeroBackgroundPreviewPage() {
           }}
         />
 
-        <div className="relative z-10 mx-auto grid min-h-screen w-full max-w-7xl grid-cols-1 items-center gap-12 px-6 py-20 lg:grid-cols-[0.95fr_1.05fr] lg:px-10">
+        <div
+          dir="ltr"
+          className="relative z-10 mx-auto grid min-h-screen w-full max-w-7xl grid-cols-1 items-center gap-12 px-6 py-20 lg:grid-cols-[0.95fr_1.05fr] lg:px-10"
+        >
           {/* المساحة اليسرى محجوزة للقوس، ولن نبنيه قبل اعتماد النص. */}
           <div className="hidden min-h-[620px] lg:block" aria-hidden />
 
-          <div className="max-w-2xl text-right" dir="rtl">
+          <div className="max-w-2xl justify-self-end text-right" dir="rtl">
             <p className="text-sm font-semibold tracking-[0.18em] text-[#b89a5a] sm:text-base">
               سايبر ويل
             </p>
