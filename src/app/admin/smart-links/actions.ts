@@ -83,34 +83,6 @@ export async function createSmartLink(
   }
 }
 
-export async function updateSmartLinkSlug(
-  _previousState: SmartLinkActionState,
-  formData: FormData,
-): Promise<SmartLinkActionState> {
-  await requireOwner();
-
-  const id = text(formData, "id");
-  const slug = text(formData, "slug").toLowerCase();
-
-  if (!id || !slugPattern.test(slug)) {
-    return {
-      status: "error",
-      message: "المعرّف يقبل أحرفًا إنجليزية صغيرة وأرقامًا وشرطات فقط.",
-    };
-  }
-
-  try {
-    await db.smartLink.update({
-      where: { id },
-      data: { slug },
-    });
-    revalidatePath("/admin/smart-links");
-    return { status: "success", message: "تم تحديث اسم الرابط." };
-  } catch (error) {
-    return actionError(error);
-  }
-}
-
 export async function updateSmartLinkDestination(
   _previousState: SmartLinkActionState,
   formData: FormData,

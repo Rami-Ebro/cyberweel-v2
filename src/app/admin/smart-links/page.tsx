@@ -18,11 +18,7 @@ import { toggleSmartLink } from "./actions";
 import { DeleteSmartLinkButton } from "./delete-smart-link-button";
 import { LogoutButton } from "./logout-button";
 import { QrCodeActions } from "./qr-code-actions";
-import {
-  CreateSmartLinkForm,
-  EditDestinationForm,
-  EditSlugForm,
-} from "./smart-link-forms";
+import { CreateSmartLinkForm, EditDestinationForm } from "./smart-link-forms";
 
 export const dynamic = "force-dynamic";
 
@@ -88,7 +84,7 @@ export default async function SmartLinksAdminPage() {
             إدارة الروابط الذكية
           </h1>
           <p className="mt-4 leading-8 text-muted-foreground">
-            أنشئ الروابط المختصرة، غيّر أسماءها ووجهاتها، حمّل رمز QR، وتابع الزيارات من مكان واحد.
+            أنشئ الروابط المختصرة، غيّر وجهاتها، حمّل رمز QR، وتابع الزيارات من مكان واحد.
           </p>
         </div>
 
@@ -141,8 +137,16 @@ export default async function SmartLinksAdminPage() {
                     {smartLinks.map((smartLink) => (
                       <TableRow key={smartLink.id}>
                         <TableCell className="min-w-56 align-top">
-                          <p className="mb-2 font-bold text-ink">{smartLink.title}</p>
-                          <EditSlugForm id={smartLink.id} slug={smartLink.slug} />
+                          <p className="font-bold text-ink">{smartLink.title}</p>
+                          <span
+                            className="mt-1 inline-flex text-sm font-semibold text-camel"
+                            dir="ltr"
+                          >
+                            /r/{smartLink.slug}
+                          </span>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            ثابت بعد الإنشاء
+                          </p>
                         </TableCell>
                         <TableCell className="align-top">
                           <EditDestinationForm
@@ -151,7 +155,10 @@ export default async function SmartLinksAdminPage() {
                           />
                         </TableCell>
                         <TableCell className="align-top">
-                          <QrCodeActions slug={smartLink.slug} />
+                          <QrCodeActions
+                            slug={smartLink.slug}
+                            destinationUrl={smartLink.destinationUrl}
+                          />
                         </TableCell>
                         <TableCell className="align-top">
                           <Badge

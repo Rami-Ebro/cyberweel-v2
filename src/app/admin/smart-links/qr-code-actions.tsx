@@ -5,7 +5,13 @@ import { Button } from "@/components/ui/button";
 
 const qrBrandVersion = "cyberweel-qr-balanced-panel-20260721";
 
-export function QrCodeActions({ slug }: { slug: string }) {
+export function QrCodeActions({
+  slug,
+  destinationUrl,
+}: {
+  slug: string;
+  destinationUrl: string;
+}) {
   const encodedSlug = encodeURIComponent(slug);
   const pngUrl = `/api/admin/qr?slug=${encodedSlug}&format=png&v=${qrBrandVersion}`;
   const svgUrl = `/api/admin/qr?slug=${encodedSlug}&format=svg&v=${qrBrandVersion}`;
@@ -22,7 +28,7 @@ export function QrCodeActions({ slug }: { slug: string }) {
         </Button>
       </summary>
 
-      <div className="mt-3 w-64 rounded-xl border border-border bg-white p-4 text-right shadow-lg">
+      <div className="mt-3 w-72 rounded-xl border border-border bg-white p-4 text-right shadow-lg">
         <img
           src={pngUrl}
           alt={`رمز QR للرابط ${slug}`}
@@ -32,9 +38,29 @@ export function QrCodeActions({ slug }: { slug: string }) {
           loading="lazy"
         />
 
-        <p className="mt-3 truncate text-xs font-semibold text-muted-foreground" dir="ltr" title={targetUrl}>
-          {targetUrl}
-        </p>
+        <div className="mt-3 space-y-3">
+          <div>
+            <p className="text-xs font-bold text-ink">الوجهة الحالية</p>
+            <p
+              className="mt-1 truncate text-xs font-semibold text-muted-foreground"
+              dir="ltr"
+              title={destinationUrl}
+            >
+              {destinationUrl}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-bold text-ink">الرابط الثابت داخل QR</p>
+            <p
+              className="mt-1 truncate text-xs font-semibold text-muted-foreground"
+              dir="ltr"
+              title={targetUrl}
+            >
+              {targetUrl}
+            </p>
+          </div>
+        </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Button asChild size="sm">
