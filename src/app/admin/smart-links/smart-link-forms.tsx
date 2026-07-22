@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import {
   createSmartLink,
   updateSmartLinkDestination,
+  updateSmartLinkSlug,
   type SmartLinkActionState,
 } from "./actions";
 
@@ -122,6 +123,55 @@ export function CreateSmartLinkForm() {
           إنشاء الرابط
         </Button>
       </div>
+    </form>
+  );
+}
+
+export function EditSlugForm({
+  id,
+  slug,
+}: {
+  id: string;
+  slug: string;
+}) {
+  const [state, action, pending] = useActionState(
+    updateSmartLinkSlug,
+    initialSmartLinkActionState,
+  );
+
+  return (
+    <form action={action} className="grid gap-2">
+      <input type="hidden" name="id" value={id} />
+      <div
+        dir="ltr"
+        className="flex min-w-[12rem] items-center rounded-md border border-input bg-white focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50"
+      >
+        <span className="border-r border-border px-3 text-sm text-muted-foreground">
+          /r/
+        </span>
+        <Input
+          name="slug"
+          dir="ltr"
+          defaultValue={slug}
+          aria-label="اسم الرابط المختصر"
+          className="border-0 bg-transparent shadow-none focus-visible:ring-0"
+          pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+          autoComplete="off"
+          required
+        />
+        <Button
+          type="submit"
+          size="icon"
+          variant="ghost"
+          disabled={pending}
+          aria-label="حفظ اسم الرابط"
+          title="حفظ اسم الرابط"
+          className="shrink-0"
+        >
+          {pending ? <Loader2 className="animate-spin" /> : <Save />}
+        </Button>
+      </div>
+      <FormMessage state={state} />
     </form>
   );
 }

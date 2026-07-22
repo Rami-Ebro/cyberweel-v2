@@ -18,7 +18,11 @@ import { toggleSmartLink } from "./actions";
 import { DeleteSmartLinkButton } from "./delete-smart-link-button";
 import { LogoutButton } from "./logout-button";
 import { QrCodeActions } from "./qr-code-actions";
-import { CreateSmartLinkForm, EditDestinationForm } from "./smart-link-forms";
+import {
+  CreateSmartLinkForm,
+  EditDestinationForm,
+  EditSlugForm,
+} from "./smart-link-forms";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +88,7 @@ export default async function SmartLinksAdminPage() {
             إدارة الروابط الذكية
           </h1>
           <p className="mt-4 leading-8 text-muted-foreground">
-            أنشئ الروابط المختصرة، غيّر وجهاتها، حمّل رمز QR، وتابع الزيارات من مكان واحد.
+            أنشئ الروابط المختصرة، غيّر أسماءها ووجهاتها، حمّل رمز QR، وتابع الزيارات من مكان واحد.
           </p>
         </div>
 
@@ -136,14 +140,9 @@ export default async function SmartLinksAdminPage() {
                   <TableBody>
                     {smartLinks.map((smartLink) => (
                       <TableRow key={smartLink.id}>
-                        <TableCell className="min-w-48 align-top">
-                          <p className="font-bold text-ink">{smartLink.title}</p>
-                          <span
-                            className="mt-1 inline-flex text-sm font-semibold text-camel"
-                            dir="ltr"
-                          >
-                            /r/{smartLink.slug}
-                          </span>
+                        <TableCell className="min-w-56 align-top">
+                          <p className="mb-2 font-bold text-ink">{smartLink.title}</p>
+                          <EditSlugForm id={smartLink.id} slug={smartLink.slug} />
                         </TableCell>
                         <TableCell className="align-top">
                           <EditDestinationForm
