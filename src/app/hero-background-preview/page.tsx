@@ -3,11 +3,73 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
+function ArchCircuitDetails() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 620 640"
+      className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+    >
+      <defs>
+        <filter id="circuitDotGlow" x="-240%" y="-240%" width="580%" height="580%">
+          <feGaussianBlur stdDeviation="3.2" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
+      <g
+        fill="none"
+        stroke="#b89a5a"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1"
+        opacity="0.34"
+      >
+        <path d="M46 234 H119 L151 266" />
+        <path d="M66 278 H133 L158 303" />
+        <path d="M51 333 H130" />
+        <path d="M74 382 H137 L159 360" />
+        <path d="M574 234 H501 L469 266" />
+        <path d="M554 278 H487 L462 303" />
+        <path d="M569 333 H490" />
+        <path d="M546 382 H483 L461 360" />
+      </g>
+
+      <g fill="#d8d2c4" opacity="0.54">
+        <circle cx="46" cy="234" r="2.2" />
+        <circle cx="66" cy="278" r="1.8" />
+        <circle cx="51" cy="333" r="2" />
+        <circle cx="74" cy="382" r="1.8" />
+        <circle cx="574" cy="234" r="2.2" />
+        <circle cx="554" cy="278" r="1.8" />
+        <circle cx="569" cy="333" r="2" />
+        <circle cx="546" cy="382" r="1.8" />
+      </g>
+
+      <g fill="#6aa8ff" filter="url(#circuitDotGlow)" opacity="0.76">
+        <circle cx="119" cy="234" r="2" />
+        <circle cx="133" cy="278" r="1.8" />
+        <circle cx="130" cy="333" r="1.8" />
+        <circle cx="137" cy="382" r="2" />
+        <circle cx="501" cy="234" r="2" />
+        <circle cx="487" cy="278" r="1.8" />
+        <circle cx="490" cy="333" r="1.8" />
+        <circle cx="483" cy="382" r="2" />
+      </g>
+    </svg>
+  );
+}
+
 function HeroArchStage() {
   return (
     <div className="relative flex flex-col items-center justify-center">
       <div className="relative h-[640px] w-[620px]">
         <div aria-hidden className="pointer-events-none absolute left-1/2 top-[292px] h-[420px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(160,208,255,0.08) 0%, rgba(122,184,255,0.045) 46%, rgba(122,184,255,0) 76%)" }} />
+
+        <ArchCircuitDetails />
 
         <svg aria-hidden viewBox="0 0 220 390" className="pointer-events-none absolute left-1/2 top-[86px] h-[390px] w-[220px] -translate-x-1/2 overflow-visible">
           <defs>
