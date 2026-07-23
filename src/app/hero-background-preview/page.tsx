@@ -68,46 +68,79 @@ function HeroArchStage() {
           className="pointer-events-none absolute left-1/2 top-[292px] h-[420px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl"
           style={{
             background:
-              "radial-gradient(circle, rgba(160,208,255,0.10) 0%, rgba(122,184,255,0.06) 46%, rgba(122,184,255,0) 76%)",
+              "radial-gradient(circle, rgba(160,208,255,0.08) 0%, rgba(122,184,255,0.045) 46%, rgba(122,184,255,0) 76%)",
           }}
         />
 
+        <svg
+          aria-hidden
+          viewBox="0 0 220 390"
+          className="pointer-events-none absolute left-1/2 top-[86px] h-[390px] w-[220px] -translate-x-1/2 overflow-visible"
+        >
+          <defs>
+            <linearGradient id="mistBeam" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#fff9e8" stopOpacity="0.58" />
+              <stop offset="15%" stopColor="#e8f4ff" stopOpacity="0.50" />
+              <stop offset="52%" stopColor="#abd7ff" stopOpacity="0.30" />
+              <stop offset="82%" stopColor="#80bcf5" stopOpacity="0.10" />
+              <stop offset="100%" stopColor="#80bcf5" stopOpacity="0" />
+            </linearGradient>
+            <filter id="mistFilter" x="-70%" y="-20%" width="240%" height="150%">
+              <feTurbulence
+                type="fractalNoise"
+                baseFrequency="0.012 0.045"
+                numOctaves="2"
+                seed="7"
+                result="noise"
+              />
+              <feDisplacementMap
+                in="SourceGraphic"
+                in2="noise"
+                scale="18"
+                xChannelSelector="R"
+                yChannelSelector="B"
+              />
+              <feGaussianBlur stdDeviation="13" />
+            </filter>
+            <filter id="mistCore" x="-80%" y="-20%" width="260%" height="150%">
+              <feTurbulence
+                type="fractalNoise"
+                baseFrequency="0.016 0.052"
+                numOctaves="2"
+                seed="11"
+                result="noise"
+              />
+              <feDisplacementMap
+                in="SourceGraphic"
+                in2="noise"
+                scale="10"
+                xChannelSelector="R"
+                yChannelSelector="G"
+              />
+              <feGaussianBlur stdDeviation="5" />
+            </filter>
+          </defs>
+
+          <path
+            d="M108 0 C87 52 74 108 76 166 C78 226 89 282 110 365 C131 282 142 226 144 166 C146 108 133 52 112 0 Z"
+            fill="url(#mistBeam)"
+            filter="url(#mistFilter)"
+            opacity="0.92"
+          />
+          <path
+            d="M109 0 C99 64 96 118 98 174 C100 230 103 278 110 342 C117 278 120 230 122 174 C124 118 121 64 111 0 Z"
+            fill="url(#mistBeam)"
+            filter="url(#mistCore)"
+            opacity="0.82"
+          />
+        </svg>
+
         <div
           aria-hidden
-          className="pointer-events-none absolute left-1/2 top-[96px] h-[360px] w-[132px] -translate-x-1/2 rounded-full blur-[30px]"
+          className="pointer-events-none absolute left-1/2 top-[91px] h-16 w-16 -translate-x-1/2 rounded-full blur-2xl"
           style={{
             background:
-              "linear-gradient(180deg, rgba(245,232,196,0.24) 0%, rgba(205,230,255,0.20) 20%, rgba(153,207,255,0.16) 55%, rgba(122,184,255,0.04) 82%, transparent 100%)",
-            maskImage:
-              "linear-gradient(180deg, black 0%, black 60%, rgba(0,0,0,0.55) 78%, transparent 100%)",
-            WebkitMaskImage:
-              "linear-gradient(180deg, black 0%, black 60%, rgba(0,0,0,0.55) 78%, transparent 100%)",
-          }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-[104px] h-[340px] w-[66px] -translate-x-1/2 rounded-full blur-[11px]"
-          style={{
-            background:
-              "linear-gradient(180deg, rgba(255,247,225,0.56) 0%, rgba(224,240,255,0.54) 16%, rgba(172,216,255,0.42) 52%, rgba(142,198,255,0.16) 78%, transparent 100%)",
-            boxShadow:
-              "0 0 34px rgba(179,220,255,0.22), 0 0 68px rgba(128,190,255,0.12)",
-            maskImage:
-              "linear-gradient(180deg, black 0%, black 64%, rgba(0,0,0,0.72) 78%, transparent 100%)",
-            WebkitMaskImage:
-              "linear-gradient(180deg, black 0%, black 64%, rgba(0,0,0,0.72) 78%, transparent 100%)",
-          }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-[112px] h-[300px] w-[24px] -translate-x-1/2 rounded-full blur-[5px]"
-          style={{
-            background:
-              "linear-gradient(180deg, rgba(255,253,246,0.76) 0%, rgba(226,242,255,0.70) 22%, rgba(183,222,255,0.50) 58%, rgba(146,204,255,0.14) 82%, transparent 100%)",
-            maskImage:
-              "linear-gradient(180deg, black 0%, black 66%, rgba(0,0,0,0.6) 82%, transparent 100%)",
-            WebkitMaskImage:
-              "linear-gradient(180deg, black 0%, black 66%, rgba(0,0,0,0.6) 82%, transparent 100%)",
+              "radial-gradient(circle, rgba(255,248,226,0.35) 0%, rgba(218,235,255,0.18) 46%, transparent 76%)",
           }}
         />
 
