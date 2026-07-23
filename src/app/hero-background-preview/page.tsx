@@ -20,12 +20,18 @@ export default function HeroBackgroundPreviewPage() {
           dir="ltr"
           className="relative z-10 mx-auto grid min-h-screen w-full max-w-7xl grid-cols-1 items-center gap-12 px-6 py-20 lg:grid-cols-[0.95fr_1.05fr] lg:px-10"
         >
-          <div className="relative hidden min-h-[620px] items-center justify-center lg:flex">
+          <div className="relative hidden min-h-[620px] flex-col items-center justify-center lg:flex">
             <img
               src="/cyberweel-logo-20260720.svg"
               alt=""
               className="h-auto w-full max-w-[590px] object-contain drop-shadow-[0_18px_36px_rgba(0,0,0,0.35)]"
             />
+            <p
+              dir="rtl"
+              className="mt-3 text-center text-sm font-semibold tracking-[0.08em] text-[#d8d2c4]/65 sm:text-base"
+            >
+              وضوح ← قرار ← تنفيذ ← تقدّم
+            </p>
           </div>
 
           <div className="max-w-2xl justify-self-end text-right" dir="rtl">
@@ -64,11 +70,6 @@ export default function HeroBackgroundPreviewPage() {
               >
                 شاركنا مشكلتك
               </a>
-            </div>
-
-            <div className="mt-9 flex items-center gap-3 text-sm font-semibold text-[#d8d2c4]/65 sm:text-base">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#b89a5a]" />
-              <span>وضوح ← قرار ← تنفيذ ← تقدّم</span>
             </div>
           </div>
         </div>
