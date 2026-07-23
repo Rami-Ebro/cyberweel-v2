@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 
-const referralUrl = "https://cyberweel.com/ref/rami";
+const referralUrl = "https://cyberweel.com/ref/hamdo";
 
 const stats = [
   { label: "العملاء المحالون", value: "24", note: "+3 هذا الشهر", icon: UsersRound },
@@ -162,7 +162,7 @@ export default function PartnerDashboardPage() {
               </div>
               <div>
                 <p className="text-xs font-bold text-[#B89A5A]">لوحة تحكم الشريك</p>
-                <h1 className="mt-1 text-xl font-extrabold sm:text-2xl">صباح الخير، رامي</h1>
+                <h1 className="mt-1 text-xl font-extrabold sm:text-2xl">صباح الخير، حمدو</h1>
                 <p className="mt-1 text-xs text-slate-500 sm:text-sm">تابع العملاء والمشاريع والعمولات من مكان واحد</p>
               </div>
             </div>
@@ -173,7 +173,7 @@ export default function PartnerDashboardPage() {
               <button type="button" className="hidden items-center gap-2 rounded-xl border border-[#D8D2C4] px-4 py-2 text-sm font-bold transition-all duration-300 hover:-translate-y-0.5 hover:border-[#B89A5A] hover:bg-[#F7F3EB] sm:flex">
                 <Settings className="h-4 w-4" /> الإعدادات
               </button>
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-[#111827] text-sm font-extrabold text-white shadow-sm transition-transform duration-300 hover:scale-105">ر</div>
+              <div className="grid h-10 w-10 place-items-center rounded-full bg-[#111827] text-sm font-extrabold text-white shadow-sm transition-transform duration-300 hover:scale-105">ح</div>
             </div>
           </header>
 
@@ -225,7 +225,7 @@ export default function PartnerDashboardPage() {
                 <h2 className="mt-2 text-xl font-extrabold">شارك الرابط وابدأ الإحالة</h2>
                 <p className="mt-2 text-sm leading-7 text-white/60">كل عميل يسجل عبر هذا الرابط سيظهر تلقائيًا داخل حسابك</p>
                 <div className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 transition-colors duration-300 group-hover:border-[#B89A5A]/40">
-                  <code dir="ltr" className="min-w-0 flex-1 truncate px-2 text-xs text-white/75">cyberweel.com/ref/rami</code>
+                  <code dir="ltr" className="min-w-0 flex-1 truncate px-2 text-xs text-white/75">cyberweel.com/ref/hamdo</code>
                   <button type="button" onClick={copyReferralLink} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#B89A5A] text-[#111827] transition-all duration-300 hover:scale-110 hover:bg-[#C9AA67]" aria-label="نسخ رابط الإحالة">
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </button>
