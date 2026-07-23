@@ -1,5 +1,3 @@
-import { ArchGateway } from "@/components/brand/motif";
-
 export const metadata = {
   title: "Hero Arch Preview | CyberWeel",
   robots: { index: false, follow: false },
@@ -23,9 +21,11 @@ export default function HeroBackgroundPreviewPage() {
           className="relative z-10 mx-auto grid min-h-screen w-full max-w-7xl grid-cols-1 items-center gap-12 px-6 py-20 lg:grid-cols-[0.95fr_1.05fr] lg:px-10"
         >
           <div className="relative hidden min-h-[620px] items-center justify-center lg:flex">
-            <div className="h-[590px] w-[590px]">
-              <ArchGateway onDark className="h-full w-full" />
-            </div>
+            <img
+              src="/cyberweel-logo-20260720.svg"
+              alt=""
+              className="h-auto w-full max-w-[590px] object-contain drop-shadow-[0_18px_36px_rgba(0,0,0,0.35)]"
+            />
           </div>
 
           <div className="max-w-2xl justify-self-end text-right" dir="rtl">
