@@ -74,22 +74,26 @@ function HeroArchStage() {
 
         <div
           aria-hidden
-          className="pointer-events-none absolute left-1/2 top-[92px] h-[370px] -translate-x-1/2 rounded-full blur-[18px]"
+          className="pointer-events-none absolute left-1/2 top-[92px] h-[390px] w-[190px] -translate-x-1/2 rounded-full blur-[48px]"
           style={{
-            width: "108px",
             background:
-              "linear-gradient(180deg, rgba(231,193,94,0.58) 0%, rgba(231,193,94,0.26) 24%, rgba(166,214,255,0.14) 62%, rgba(166,214,255,0) 100%)",
-            clipPath: "polygon(44% 0%, 56% 0%, 76% 100%, 24% 100%)",
+              "radial-gradient(ellipse at 50% 0%, rgba(255,245,218,0.52) 0%, rgba(231,193,94,0.26) 22%, rgba(177,218,255,0.13) 52%, rgba(177,218,255,0.04) 70%, transparent 100%)",
           }}
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute left-1/2 top-[106px] h-[320px] -translate-x-1/2 rounded-full blur-[10px]"
+          className="pointer-events-none absolute left-1/2 top-[112px] h-[330px] w-[110px] -translate-x-1/2 rounded-full blur-[34px]"
           style={{
-            width: "52px",
             background:
-              "linear-gradient(180deg, rgba(255,246,220,0.72) 0%, rgba(231,193,94,0.26) 34%, rgba(173,221,255,0.10) 76%, rgba(173,221,255,0) 100%)",
-            clipPath: "polygon(46% 0%, 54% 0%, 68% 100%, 32% 100%)",
+              "radial-gradient(ellipse at 50% 0%, rgba(255,251,238,0.58) 0%, rgba(237,210,141,0.28) 28%, rgba(192,226,255,0.10) 62%, transparent 100%)",
+          }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-[122px] h-[250px] w-[54px] -translate-x-1/2 rounded-full blur-[24px] opacity-80"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(255,249,229,0.48) 0%, rgba(231,193,94,0.18) 38%, rgba(182,221,255,0.06) 72%, transparent 100%)",
           }}
         />
 
