@@ -11,18 +11,13 @@ function ArchCircuitDetails() {
       className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
     >
       <defs>
-        <linearGradient id="circuitFadeLeft" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#b89a5a" stopOpacity="0" />
-          <stop offset="22%" stopColor="#b89a5a" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#b89a5a" stopOpacity="0.5" />
+        <linearGradient id="haloGold" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#b89a5a" stopOpacity="0.18" />
+          <stop offset="48%" stopColor="#b89a5a" stopOpacity="0.46" />
+          <stop offset="100%" stopColor="#b89a5a" stopOpacity="0.12" />
         </linearGradient>
-        <linearGradient id="circuitFadeRight" x1="1" y1="0" x2="0" y2="0">
-          <stop offset="0%" stopColor="#b89a5a" stopOpacity="0" />
-          <stop offset="22%" stopColor="#b89a5a" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#b89a5a" stopOpacity="0.5" />
-        </linearGradient>
-        <filter id="circuitDotGlow" x="-260%" y="-260%" width="620%" height="620%">
-          <feGaussianBlur stdDeviation="2.8" result="blur" />
+        <filter id="haloDotGlow" x="-260%" y="-260%" width="620%" height="620%">
+          <feGaussianBlur stdDeviation="2.7" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
@@ -30,68 +25,73 @@ function ArchCircuitDetails() {
         </filter>
       </defs>
 
-      <g fill="none" stroke="url(#circuitFadeLeft)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1">
-        <path d="M18 174 H92 L128 202 H166" />
-        <path d="M36 204 H105 L139 230 H181" />
-        <path d="M12 238 H94 L123 258 H171" />
-        <path d="M34 270 H118 L145 288 H184" />
-        <path d="M16 305 H108 L139 321 H181" />
-        <path d="M28 342 H112 L143 342 H183" />
-        <path d="M10 378 H102 L132 365 H176" />
-        <path d="M34 414 H112 L142 392 H182" />
-        <path d="M18 450 H91 L128 422 H170" />
-        <path d="M42 482 H100 L136 449 H166" />
+      <g
+        fill="none"
+        stroke="url(#haloGold)"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.15"
+      >
+        <path d="M248 116 C156 137 93 230 84 338 C79 409 95 477 132 531" />
+        <path d="M372 116 C464 137 527 230 536 338 C541 409 525 477 488 531" />
+
+        <path d="M217 143 L181 130 H118" />
+        <path d="M177 169 L141 154 H78" />
+        <path d="M143 205 L111 192 H52" />
+        <path d="M116 246 L84 238 H30" />
+        <path d="M98 292 L67 288 H22" />
+        <path d="M88 342 H46 L26 329" />
+        <path d="M89 391 H48 L26 406" />
+        <path d="M99 440 H61 L39 462" />
+        <path d="M115 481 H82 L60 510" />
+
+        <path d="M403 143 L439 130 H502" />
+        <path d="M443 169 L479 154 H542" />
+        <path d="M477 205 L509 192 H568" />
+        <path d="M504 246 L536 238 H590" />
+        <path d="M522 292 L553 288 H598" />
+        <path d="M532 342 H574 L594 329" />
+        <path d="M531 391 H572 L594 406" />
+        <path d="M521 440 H559 L581 462" />
+        <path d="M505 481 H538 L560 510" />
       </g>
 
-      <g fill="none" stroke="url(#circuitFadeRight)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1">
-        <path d="M602 174 H528 L492 202 H454" />
-        <path d="M584 204 H515 L481 230 H439" />
-        <path d="M608 238 H526 L497 258 H449" />
-        <path d="M586 270 H502 L475 288 H436" />
-        <path d="M604 305 H512 L481 321 H439" />
-        <path d="M592 342 H508 L477 342 H437" />
-        <path d="M610 378 H518 L488 365 H444" />
-        <path d="M586 414 H508 L478 392 H438" />
-        <path d="M602 450 H529 L492 422 H450" />
-        <path d="M578 482 H520 L484 449 H454" />
+      <g fill="#d8d2c4" opacity="0.42">
+        <circle cx="217" cy="143" r="1.6" /><circle cx="181" cy="130" r="1.4" />
+        <circle cx="177" cy="169" r="1.5" /><circle cx="141" cy="154" r="1.4" />
+        <circle cx="143" cy="205" r="1.6" /><circle cx="111" cy="192" r="1.4" />
+        <circle cx="116" cy="246" r="1.5" /><circle cx="84" cy="238" r="1.4" />
+        <circle cx="98" cy="292" r="1.6" /><circle cx="67" cy="288" r="1.4" />
+        <circle cx="88" cy="342" r="1.5" /><circle cx="46" cy="342" r="1.4" />
+        <circle cx="89" cy="391" r="1.6" /><circle cx="48" cy="391" r="1.4" />
+        <circle cx="99" cy="440" r="1.5" /><circle cx="61" cy="440" r="1.4" />
+        <circle cx="115" cy="481" r="1.6" /><circle cx="82" cy="481" r="1.4" />
+
+        <circle cx="403" cy="143" r="1.6" /><circle cx="439" cy="130" r="1.4" />
+        <circle cx="443" cy="169" r="1.5" /><circle cx="479" cy="154" r="1.4" />
+        <circle cx="477" cy="205" r="1.6" /><circle cx="509" cy="192" r="1.4" />
+        <circle cx="504" cy="246" r="1.5" /><circle cx="536" cy="238" r="1.4" />
+        <circle cx="522" cy="292" r="1.6" /><circle cx="553" cy="288" r="1.4" />
+        <circle cx="532" cy="342" r="1.5" /><circle cx="574" cy="342" r="1.4" />
+        <circle cx="531" cy="391" r="1.6" /><circle cx="572" cy="391" r="1.4" />
+        <circle cx="521" cy="440" r="1.5" /><circle cx="559" cy="440" r="1.4" />
+        <circle cx="505" cy="481" r="1.6" /><circle cx="538" cy="481" r="1.4" />
       </g>
 
-      <g fill="#d8d2c4" opacity="0.34">
-        <circle cx="92" cy="174" r="1.7" /><circle cx="128" cy="202" r="1.5" />
-        <circle cx="105" cy="204" r="1.5" /><circle cx="139" cy="230" r="1.7" />
-        <circle cx="94" cy="238" r="1.4" /><circle cx="123" cy="258" r="1.5" />
-        <circle cx="118" cy="270" r="1.7" /><circle cx="145" cy="288" r="1.4" />
-        <circle cx="108" cy="305" r="1.5" /><circle cx="139" cy="321" r="1.7" />
-        <circle cx="112" cy="342" r="1.5" /><circle cx="143" cy="342" r="1.4" />
-        <circle cx="102" cy="378" r="1.7" /><circle cx="132" cy="365" r="1.5" />
-        <circle cx="112" cy="414" r="1.4" /><circle cx="142" cy="392" r="1.7" />
-        <circle cx="91" cy="450" r="1.5" /><circle cx="128" cy="422" r="1.4" />
-        <circle cx="100" cy="482" r="1.6" /><circle cx="136" cy="449" r="1.5" />
+      <g fill="#4b82ff" filter="url(#haloDotGlow)" opacity="0.72">
+        <circle cx="248" cy="116" r="1.8" />
+        <circle cx="177" cy="169" r="1.8" />
+        <circle cx="116" cy="246" r="1.8" />
+        <circle cx="88" cy="342" r="1.8" />
+        <circle cx="99" cy="440" r="1.8" />
+        <circle cx="132" cy="531" r="1.8" />
 
-        <circle cx="528" cy="174" r="1.7" /><circle cx="492" cy="202" r="1.5" />
-        <circle cx="515" cy="204" r="1.5" /><circle cx="481" cy="230" r="1.7" />
-        <circle cx="526" cy="238" r="1.4" /><circle cx="497" cy="258" r="1.5" />
-        <circle cx="502" cy="270" r="1.7" /><circle cx="475" cy="288" r="1.4" />
-        <circle cx="512" cy="305" r="1.5" /><circle cx="481" cy="321" r="1.7" />
-        <circle cx="508" cy="342" r="1.5" /><circle cx="477" cy="342" r="1.4" />
-        <circle cx="518" cy="378" r="1.7" /><circle cx="488" cy="365" r="1.5" />
-        <circle cx="508" cy="414" r="1.4" /><circle cx="478" cy="392" r="1.7" />
-        <circle cx="529" cy="450" r="1.5" /><circle cx="492" cy="422" r="1.4" />
-        <circle cx="520" cy="482" r="1.6" /><circle cx="484" cy="449" r="1.5" />
-      </g>
-
-      <g fill="#4b82ff" filter="url(#circuitDotGlow)" opacity="0.68">
-        <circle cx="166" cy="202" r="1.8" /><circle cx="181" cy="230" r="1.6" />
-        <circle cx="171" cy="258" r="1.7" /><circle cx="184" cy="288" r="1.5" />
-        <circle cx="181" cy="321" r="1.8" /><circle cx="183" cy="342" r="1.5" />
-        <circle cx="176" cy="365" r="1.7" /><circle cx="182" cy="392" r="1.6" />
-        <circle cx="170" cy="422" r="1.8" /><circle cx="166" cy="449" r="1.5" />
-
-        <circle cx="454" cy="202" r="1.8" /><circle cx="439" cy="230" r="1.6" />
-        <circle cx="449" cy="258" r="1.7" /><circle cx="436" cy="288" r="1.5" />
-        <circle cx="439" cy="321" r="1.8" /><circle cx="437" cy="342" r="1.5" />
-        <circle cx="444" cy="365" r="1.7" /><circle cx="438" cy="392" r="1.6" />
-        <circle cx="450" cy="422" r="1.8" /><circle cx="454" cy="449" r="1.5" />
+        <circle cx="372" cy="116" r="1.8" />
+        <circle cx="443" cy="169" r="1.8" />
+        <circle cx="504" cy="246" r="1.8" />
+        <circle cx="532" cy="342" r="1.8" />
+        <circle cx="521" cy="440" r="1.8" />
+        <circle cx="488" cy="531" r="1.8" />
       </g>
     </svg>
   );
