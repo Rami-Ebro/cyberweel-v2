@@ -7,54 +7,14 @@ function HeroArchStage() {
   return (
     <div className="relative flex flex-col items-center justify-center">
       <div className="relative h-[640px] w-[620px]">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#6ea8ff]/10"
-          style={{ transform: "translate(-50%, -50%) rotate(8deg)" }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-1/2 h-[470px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#7fb7ff]/8"
-          style={{ transform: "translate(-50%, -50%) rotate(-14deg)" }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#8bc1ff]/10"
-          style={{ transform: "translate(-50%, -50%) rotate(18deg)" }}
-        />
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#6ea8ff]/10" style={{ transform: "translate(-50%, -50%) rotate(8deg)" }} />
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 h-[470px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#7fb7ff]/8" style={{ transform: "translate(-50%, -50%) rotate(-14deg)" }} />
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#8bc1ff]/10" style={{ transform: "translate(-50%, -50%) rotate(18deg)" }} />
 
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-[34px] top-[90px] h-[180px] w-[300px] rounded-full border border-[#76b0ff]/12"
-          style={{
-            clipPath: "inset(0 0 48% 0)",
-            transform: "rotate(-10deg)",
-          }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute right-[26px] top-[120px] h-[170px] w-[260px] rounded-full border border-[#76b0ff]/10"
-          style={{
-            clipPath: "inset(45% 0 0 0)",
-            transform: "rotate(18deg)",
-          }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-[48px] bottom-[120px] h-[160px] w-[260px] rounded-full border border-[#76b0ff]/10"
-          style={{
-            clipPath: "inset(0 0 50% 0)",
-            transform: "rotate(12deg)",
-          }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute right-[52px] bottom-[110px] h-[150px] w-[270px] rounded-full border border-[#76b0ff]/12"
-          style={{
-            clipPath: "inset(52% 0 0 0)",
-            transform: "rotate(-14deg)",
-          }}
-        />
+        <div aria-hidden className="pointer-events-none absolute left-[34px] top-[90px] h-[180px] w-[300px] rounded-full border border-[#76b0ff]/12" style={{ clipPath: "inset(0 0 48% 0)", transform: "rotate(-10deg)" }} />
+        <div aria-hidden className="pointer-events-none absolute right-[26px] top-[120px] h-[170px] w-[260px] rounded-full border border-[#76b0ff]/10" style={{ clipPath: "inset(45% 0 0 0)", transform: "rotate(18deg)" }} />
+        <div aria-hidden className="pointer-events-none absolute left-[48px] bottom-[120px] h-[160px] w-[260px] rounded-full border border-[#76b0ff]/10" style={{ clipPath: "inset(0 0 50% 0)", transform: "rotate(12deg)" }} />
+        <div aria-hidden className="pointer-events-none absolute right-[52px] bottom-[110px] h-[150px] w-[270px] rounded-full border border-[#76b0ff]/12" style={{ clipPath: "inset(52% 0 0 0)", transform: "rotate(-14deg)" }} />
 
         <span className="pointer-events-none absolute left-[88px] top-[138px] h-2.5 w-2.5 rounded-full bg-[#9ecbff]/20" />
         <span className="pointer-events-none absolute left-[120px] top-[182px] h-1.5 w-1.5 rounded-full bg-[#9ecbff]/25" />
@@ -63,20 +23,9 @@ function HeroArchStage() {
         <span className="pointer-events-none absolute left-[104px] bottom-[170px] h-2 w-2 rounded-full bg-[#9ecbff]/18" />
         <span className="pointer-events-none absolute right-[116px] bottom-[162px] h-2.5 w-2.5 rounded-full bg-[#9ecbff]/16" />
 
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-[292px] h-[420px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(160,208,255,0.08) 0%, rgba(122,184,255,0.045) 46%, rgba(122,184,255,0) 76%)",
-          }}
-        />
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-[292px] h-[420px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(160,208,255,0.08) 0%, rgba(122,184,255,0.045) 46%, rgba(122,184,255,0) 76%)" }} />
 
-        <svg
-          aria-hidden
-          viewBox="0 0 220 390"
-          className="pointer-events-none absolute left-1/2 top-[86px] h-[390px] w-[220px] -translate-x-1/2 overflow-visible"
-        >
+        <svg aria-hidden viewBox="0 0 220 390" className="pointer-events-none absolute left-1/2 top-[86px] h-[390px] w-[220px] -translate-x-1/2 overflow-visible">
           <defs>
             <linearGradient id="mistBeam" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#fff9e8" stopOpacity="0.58" />
@@ -86,77 +35,66 @@ function HeroArchStage() {
               <stop offset="100%" stopColor="#80bcf5" stopOpacity="0" />
             </linearGradient>
             <filter id="mistFilter" x="-70%" y="-20%" width="240%" height="150%">
-              <feTurbulence
-                type="fractalNoise"
-                baseFrequency="0.012 0.045"
-                numOctaves="2"
-                seed="7"
-                result="noise"
-              />
-              <feDisplacementMap
-                in="SourceGraphic"
-                in2="noise"
-                scale="18"
-                xChannelSelector="R"
-                yChannelSelector="B"
-              />
+              <feTurbulence type="fractalNoise" baseFrequency="0.012 0.045" numOctaves="2" seed="7" result="noise" />
+              <feDisplacementMap in="SourceGraphic" in2="noise" scale="18" xChannelSelector="R" yChannelSelector="B" />
               <feGaussianBlur stdDeviation="13" />
             </filter>
             <filter id="mistCore" x="-80%" y="-20%" width="260%" height="150%">
-              <feTurbulence
-                type="fractalNoise"
-                baseFrequency="0.016 0.052"
-                numOctaves="2"
-                seed="11"
-                result="noise"
-              />
-              <feDisplacementMap
-                in="SourceGraphic"
-                in2="noise"
-                scale="10"
-                xChannelSelector="R"
-                yChannelSelector="G"
-              />
+              <feTurbulence type="fractalNoise" baseFrequency="0.016 0.052" numOctaves="2" seed="11" result="noise" />
+              <feDisplacementMap in="SourceGraphic" in2="noise" scale="10" xChannelSelector="R" yChannelSelector="G" />
               <feGaussianBlur stdDeviation="5" />
             </filter>
           </defs>
-
-          <path
-            d="M108 0 C87 52 74 108 76 166 C78 226 89 282 110 365 C131 282 142 226 144 166 C146 108 133 52 112 0 Z"
-            fill="url(#mistBeam)"
-            filter="url(#mistFilter)"
-            opacity="0.92"
-          />
-          <path
-            d="M109 0 C99 64 96 118 98 174 C100 230 103 278 110 342 C117 278 120 230 122 174 C124 118 121 64 111 0 Z"
-            fill="url(#mistBeam)"
-            filter="url(#mistCore)"
-            opacity="0.82"
-          />
+          <path d="M108 0 C87 52 74 108 76 166 C78 226 89 282 110 365 C131 282 142 226 144 166 C146 108 133 52 112 0 Z" fill="url(#mistBeam)" filter="url(#mistFilter)" opacity="0.92" />
+          <path d="M109 0 C99 64 96 118 98 174 C100 230 103 278 110 342 C117 278 120 230 122 174 C124 118 121 64 111 0 Z" fill="url(#mistBeam)" filter="url(#mistCore)" opacity="0.82" />
         </svg>
 
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-[91px] h-16 w-16 -translate-x-1/2 rounded-full blur-2xl"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(255,248,226,0.35) 0%, rgba(218,235,255,0.18) 46%, transparent 76%)",
-          }}
-        />
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-[91px] h-16 w-16 -translate-x-1/2 rounded-full blur-2xl" style={{ background: "radial-gradient(circle, rgba(255,248,226,0.35) 0%, rgba(218,235,255,0.18) 46%, transparent 76%)" }} />
 
-        <img
-          src="/cyberweel-logo-20260720.svg"
-          alt=""
-          className="absolute left-1/2 top-1/2 h-auto w-full max-w-[590px] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_18px_36px_rgba(0,0,0,0.35)]"
-        />
+        <img src="/cyberweel-logo-20260720.svg" alt="" className="absolute left-1/2 top-1/2 h-auto w-full max-w-[590px] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_18px_36px_rgba(0,0,0,0.35)]" />
       </div>
 
-      <p
-        dir="rtl"
-        className="mt-2 text-center text-xl font-bold tracking-[0.04em] text-[#d8d2c4]/72 sm:text-2xl"
-      >
+      <p dir="rtl" className="mt-2 text-center text-xl font-bold tracking-[0.04em] text-[#d8d2c4]/72 sm:text-2xl">
         وضوح ← قرار ← تنفيذ ← تقدّم
       </p>
+    </div>
+  );
+}
+
+function FluidBackdrop() {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <svg viewBox="0 0 1600 900" preserveAspectRatio="none" className="absolute inset-0 h-full w-full opacity-70">
+        <defs>
+          <linearGradient id="flowGold" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#b89a5a" stopOpacity="0" />
+            <stop offset="45%" stopColor="#b89a5a" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="#b89a5a" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="flowBone" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0%" stopColor="#d8d2c4" stopOpacity="0" />
+            <stop offset="50%" stopColor="#d8d2c4" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#d8d2c4" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="flowBlue" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#7fa9d8" stopOpacity="0" />
+            <stop offset="50%" stopColor="#7fa9d8" stopOpacity="0.11" />
+            <stop offset="100%" stopColor="#7fa9d8" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        <path d="M-120 690 C210 500 420 520 690 650 C960 780 1190 770 1710 470" fill="none" stroke="url(#flowGold)" strokeWidth="2" />
+        <path d="M-160 735 C180 555 430 565 720 700 C1010 835 1280 790 1690 520" fill="none" stroke="url(#flowBone)" strokeWidth="1.4" />
+        <path d="M-80 620 C260 430 500 470 770 590 C1040 710 1280 690 1650 430" fill="none" stroke="url(#flowBlue)" strokeWidth="1.2" />
+        <path d="M-220 810 C170 610 470 625 780 760 C1080 890 1370 820 1730 590" fill="none" stroke="url(#flowGold)" strokeWidth="0.9" />
+
+        <ellipse cx="310" cy="510" rx="360" ry="210" fill="none" stroke="#d8d2c4" strokeOpacity="0.055" strokeWidth="1.2" transform="rotate(-12 310 510)" />
+        <ellipse cx="1320" cy="250" rx="300" ry="170" fill="none" stroke="#b89a5a" strokeOpacity="0.06" strokeWidth="1" transform="rotate(16 1320 250)" />
+        <ellipse cx="1080" cy="760" rx="430" ry="150" fill="none" stroke="#7fa9d8" strokeOpacity="0.045" strokeWidth="1" transform="rotate(-8 1080 760)" />
+      </svg>
+
+      <div className="absolute -left-40 bottom-[-18rem] h-[38rem] w-[52rem] rounded-[50%] border border-[#d8d2c4]/[0.05]" />
+      <div className="absolute -right-52 top-[-15rem] h-[34rem] w-[46rem] rounded-[50%] border border-[#b89a5a]/[0.05]" />
     </div>
   );
 }
@@ -165,59 +103,33 @@ export default function HeroBackgroundPreviewPage() {
   return (
     <main className="min-h-screen bg-[#070b13] text-[#f7f3eb]">
       <section className="relative min-h-screen overflow-hidden">
-        <div
-          aria-hidden
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(70% 80% at 18% 50%, rgba(38,58,88,0.28), transparent 70%), linear-gradient(110deg, #070b13 0%, #0b111d 45%, #111827 72%, #080c14 100%)",
-          }}
-        />
+        <div aria-hidden className="absolute inset-0" style={{ background: "radial-gradient(70% 80% at 18% 50%, rgba(38,58,88,0.28), transparent 70%), linear-gradient(110deg, #070b13 0%, #0b111d 45%, #111827 72%, #080c14 100%)" }} />
+        <FluidBackdrop />
 
-        <div
-          dir="ltr"
-          className="relative z-10 mx-auto grid min-h-screen w-full max-w-7xl grid-cols-1 items-center gap-12 px-6 py-20 lg:grid-cols-[0.95fr_1.05fr] lg:px-10"
-        >
+        <div dir="ltr" className="relative z-10 mx-auto grid min-h-screen w-full max-w-7xl grid-cols-1 items-center gap-12 px-6 py-20 lg:grid-cols-[0.95fr_1.05fr] lg:px-10">
           <div className="relative hidden min-h-[620px] items-center justify-center lg:flex">
             <HeroArchStage />
           </div>
 
           <div className="max-w-2xl justify-self-end text-right" dir="rtl">
-            <p className="text-sm font-semibold tracking-[0.18em] text-[#b89a5a] sm:text-base">
-              سايبر ويل
-            </p>
+            <p className="text-sm font-semibold tracking-[0.18em] text-[#b89a5a] sm:text-base">سايبر ويل</p>
 
             <h1 className="mt-7 font-display text-5xl font-light leading-[1.12] tracking-tight text-[#f7f3eb] sm:text-6xl lg:text-7xl">
               <span className="block">من حيث أنت…</span>
-              <span className="mt-3 block text-[#b89a5a]">
-                إلى حيث تريد أن تكون
-              </span>
+              <span className="mt-3 block text-[#b89a5a]">إلى حيث تريد أن تكون</span>
             </h1>
 
             <p className="mt-7 max-w-xl text-lg font-semibold leading-9 text-[#d8d2c4]/90 sm:text-xl">
-              نساعدك على رؤية الصورة بشكل أوضح، واتخاذ القرار المناسب، والانتقال
-              بثقة إلى المرحلة التالية.
+              نساعدك على رؤية الصورة بشكل أوضح، واتخاذ القرار المناسب، والانتقال بثقة إلى المرحلة التالية.
             </p>
 
             <p className="mt-5 max-w-xl text-base font-medium leading-8 text-[#d8d2c4]/70 sm:text-lg">
-              حلول رقمية وأمن سيبراني تبدأ بفهم المشكلة، ثم تحديد الخطوة الصحيحة،
-              ثم تنفيذ ما يحتاجه عملك فعلًا.
+              حلول رقمية وأمن سيبراني تبدأ بفهم المشكلة، ثم تحديد الخطوة الصحيحة، ثم تنفيذ ما يحتاجه عملك فعلًا.
             </p>
 
             <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-start">
-              <a
-                href="#"
-                className="inline-flex min-h-14 items-center justify-center rounded-md bg-[#b89a5a] px-7 text-base font-bold text-[#111827] transition hover:bg-[#c6aa70]"
-              >
-                ابدأ محادثة الآن
-              </a>
-
-              <a
-                href="#"
-                className="inline-flex min-h-14 items-center justify-center rounded-md border border-[#d8d2c4]/25 bg-white/[0.035] px-7 text-base font-bold text-[#f7f3eb] backdrop-blur-sm transition hover:border-[#b89a5a]/50 hover:bg-white/[0.06]"
-              >
-                شاركنا مشكلتك
-              </a>
+              <a href="#" className="inline-flex min-h-14 items-center justify-center rounded-md bg-[#b89a5a] px-7 text-base font-bold text-[#111827] transition hover:bg-[#c6aa70]">ابدأ محادثة الآن</a>
+              <a href="#" className="inline-flex min-h-14 items-center justify-center rounded-md border border-[#d8d2c4]/25 bg-white/[0.035] px-7 text-base font-bold text-[#f7f3eb] backdrop-blur-sm transition hover:border-[#b89a5a]/50 hover:bg-white/[0.06]">شاركنا مشكلتك</a>
             </div>
           </div>
         </div>
