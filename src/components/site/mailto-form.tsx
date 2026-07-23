@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Paperclip, Send } from "lucide-react";
+import { CheckCircle2, Paperclip, Send, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/components/site/i18n";
 
@@ -34,6 +34,7 @@ export function MailtoForm({
   allowAttachments = false,
 }: MailtoFormProps) {
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const { t } = useI18n();
   const isArabic = t.dir === "rtl";
@@ -88,12 +89,9 @@ export function MailtoForm({
         throw new Error(result?.error || "SEND_FAILED");
       }
 
-      toast.success(
-        successMessage ??
-          (isArabic ? "وصلت رسالتك بنجاح" : "Your message was sent successfully"),
-      );
       form.reset();
       setSelectedFiles([]);
+      setSubmitted(true);
     } catch {
       toast.error(
         isArabic ? "تعذر إرسال الرسالة الآن" : "We couldn't send your message right now",
@@ -107,6 +105,61 @@ export function MailtoForm({
       setSubmitting(false);
     }
   };
+
+  const handleShare = async () => {
+    const shareData = {
+      title: document.title,
+      text: isArabic ? "تعرّف على CyberWeel" : "Discover CyberWeel",
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success(isArabic ? "تم نسخ رابط المشاركة" : "Share link copied");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast.error(isArabic ? "تعذرت المشاركة الآن" : "Sharing is unavailable right now");
+    }
+  };
+
+  if (submitted) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className={cn(
+          "flex min-h-80 flex-col items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50/70 px-6 py-12 text-center",
+          className,
+        )}
+      >
+        <span className="grid size-16 place-items-center rounded-full bg-emerald-100 text-emerald-700">
+          <CheckCircle2 className="size-9" strokeWidth={2.2} />
+        </span>
+        <h3 className="mt-5 font-display text-2xl font-semibold text-ink">
+          {isArabic ? "تم إرسال رسالتك بنجاح" : "Your message was sent successfully"}
+        </h3>
+        <p className="mt-3 max-w-md text-base leading-8 text-muted-foreground">
+          {successMessage ??
+            (isArabic
+              ? "سنراجع رسالتك ونتواصل معك في أقرب وقت مناسب."
+              : "We will review your message and get back to you as soon as possible.")}
+        </p>
+        <button
+          type="button"
+          onClick={handleShare}
+          className="focus-ring mt-8 inline-flex items-center gap-2 rounded-md bg-ink px-5 py-3 text-sm font-semibold text-floral transition hover:bg-ink/90"
+        >
+          <Share2 className="size-4" />
+          {isArabic ? "مشاركة" : "Share"}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className={cn("space-y-6", className)}>
