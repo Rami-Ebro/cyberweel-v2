@@ -1,8 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import {
   ArrowLeft,
   Banknote,
   BriefcaseBusiness,
+  Check,
   CircleDollarSign,
   Copy,
   CreditCard,
@@ -13,8 +17,11 @@ import {
   TrendingUp,
   UserRound,
   UsersRound,
+  X,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+
+const referralUrl = "https://cyberweel.com/ref/rami";
 
 const stats = [
   { label: "العملاء المحالون", value: "24", note: "+3 هذا الشهر", icon: UsersRound },
@@ -49,7 +56,9 @@ const statusStyles = {
 function DashboardWordmark() {
   return (
     <span className="flex items-center gap-3">
-      <Logo size={48} />
+      <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white shadow-sm">
+        <Logo size={42} />
+      </span>
       <span className="flex flex-col">
         <span
           aria-label="CyberWeel"
@@ -71,7 +80,45 @@ function DashboardWordmark() {
   );
 }
 
+function Navigation({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <nav className="space-y-1.5">
+      {navigation.map((item) => {
+        const Icon = item.icon;
+        return (
+          <button
+            key={item.label}
+            type="button"
+            onClick={onNavigate}
+            className={`group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm font-semibold transition-all duration-300 ${
+              item.active
+                ? "bg-[#B89A5A] text-[#111827] shadow-lg shadow-black/10"
+                : "text-white/70 hover:translate-x-1 hover:bg-white/7 hover:text-white"
+            }`}
+          >
+            <Icon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
+            <span>{item.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
 export default function PartnerDashboardPage() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function copyReferralLink() {
+    try {
+      await navigator.clipboard.writeText(referralUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2200);
+    } catch {
+      setCopied(false);
+    }
+  }
+
   return (
     <main dir="rtl" className="min-h-screen bg-[#F7F3EB] text-[#111827]">
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
@@ -79,27 +126,7 @@ export default function PartnerDashboardPage() {
           <Link href="/" className="mb-10 rounded-xl px-3 py-1 transition duration-300 hover:-translate-y-0.5 hover:bg-white/5">
             <DashboardWordmark />
           </Link>
-
-          <nav className="space-y-1.5">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.label}
-                  type="button"
-                  className={`group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm font-semibold transition-all duration-300 ${
-                    item.active
-                      ? "bg-[#B89A5A] text-[#111827] shadow-lg shadow-black/10"
-                      : "text-white/70 hover:translate-x-1 hover:bg-white/7 hover:text-white"
-                  }`}
-                >
-                  <Icon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-
+          <Navigation />
           <div className="mt-auto rounded-2xl border border-white/10 bg-white/5 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-[#B89A5A]/40 hover:bg-white/[0.07]">
             <p className="text-sm font-bold">تحتاج إلى مساعدة؟</p>
             <p className="mt-1 text-xs leading-6 text-white/55">فريق CyberWeel جاهز لمتابعة أي استفسار يتعلق بحساب الشريك</p>
@@ -109,11 +136,29 @@ export default function PartnerDashboardPage() {
           </div>
         </aside>
 
+        {menuOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <button type="button" aria-label="إغلاق القائمة" className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
+            <aside className="absolute inset-y-0 right-0 flex w-[86%] max-w-sm animate-[slideIn_.25s_ease-out] flex-col bg-[#111827] px-5 py-6 text-white shadow-2xl">
+              <div className="mb-8 flex items-center justify-between">
+                <Link href="/" onClick={() => setMenuOpen(false)}><DashboardWordmark /></Link>
+                <button type="button" onClick={() => setMenuOpen(false)} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5" aria-label="إغلاق القائمة">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <Navigation onNavigate={() => setMenuOpen(false)} />
+              <Link href="/contact" onClick={() => setMenuOpen(false)} className="mt-auto rounded-xl border border-[#B89A5A]/30 bg-[#B89A5A]/10 px-4 py-3 text-center text-sm font-bold text-[#B89A5A]">
+                تواصل مع الدعم
+              </Link>
+            </aside>
+          </div>
+        )}
+
         <section className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
           <header className="mb-6 flex items-center justify-between rounded-2xl border border-[#D8D2C4]/80 bg-white px-4 py-4 shadow-sm transition-shadow duration-300 hover:shadow-md sm:px-6">
             <div className="flex items-center gap-3">
-              <div className="lg:hidden">
-                <Logo size={42} />
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white shadow-sm ring-1 ring-[#D8D2C4]/70 lg:hidden">
+                <Logo size={34} />
               </div>
               <div>
                 <p className="text-xs font-bold text-[#B89A5A]">لوحة تحكم الشريك</p>
@@ -122,11 +167,11 @@ export default function PartnerDashboardPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button type="button" className="grid h-10 w-10 place-items-center rounded-xl border border-[#D8D2C4] bg-white transition hover:-translate-y-0.5 hover:border-[#B89A5A] lg:hidden" aria-label="فتح القائمة">
+              <button type="button" onClick={() => setMenuOpen(true)} className="grid h-10 w-10 place-items-center rounded-xl border border-[#D8D2C4] bg-white transition hover:-translate-y-0.5 hover:border-[#B89A5A] lg:hidden" aria-label="فتح القائمة">
                 <Menu className="h-5 w-5" />
               </button>
               <button type="button" className="hidden items-center gap-2 rounded-xl border border-[#D8D2C4] px-4 py-2 text-sm font-bold transition-all duration-300 hover:-translate-y-0.5 hover:border-[#B89A5A] hover:bg-[#F7F3EB] sm:flex">
-                <Settings className="h-4 w-4 transition-transform duration-300 hover:rotate-45" /> الإعدادات
+                <Settings className="h-4 w-4" /> الإعدادات
               </button>
               <div className="grid h-10 w-10 place-items-center rounded-full bg-[#111827] text-sm font-extrabold text-white shadow-sm transition-transform duration-300 hover:scale-105">ر</div>
             </div>
@@ -136,24 +181,18 @@ export default function PartnerDashboardPage() {
             {stats.map((stat, index) => {
               const Icon = stat.icon;
               return (
-                <article
-                  key={stat.label}
-                  className="group relative overflow-hidden rounded-2xl border border-[#D8D2C4]/80 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-[#B89A5A]/70 hover:shadow-xl hover:shadow-[#111827]/8"
-                  style={{ animationDelay: `${index * 80}ms` }}
-                >
+                <article key={stat.label} className="group relative animate-[fadeUp_.5s_ease-out_both] overflow-hidden rounded-2xl border border-[#D8D2C4]/80 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-[#B89A5A]/70 hover:shadow-xl hover:shadow-[#111827]/8" style={{ animationDelay: `${index * 90}ms` }}>
                   <div className="absolute inset-x-0 top-0 h-1 origin-right scale-x-0 bg-[#B89A5A] transition-transform duration-300 group-hover:scale-x-100" />
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold text-slate-500">{stat.label}</p>
-                      <p className="mt-3 text-3xl font-black tracking-tight transition-transform duration-300 group-hover:translate-x-0.5">{stat.value}</p>
+                      <p className="mt-3 text-3xl font-black tracking-tight">{stat.value}</p>
                     </div>
-                    <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#F7F3EB] text-[#B89A5A] transition-all duration-300 group-hover:rotate-3 group-hover:scale-110 group-hover:bg-[#111827] group-hover:text-[#B89A5A]">
+                    <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#F7F3EB] text-[#B89A5A] transition-all duration-300 group-hover:rotate-3 group-hover:scale-110 group-hover:bg-[#111827]">
                       <Icon className="h-5 w-5" />
                     </div>
                   </div>
-                  <p className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                    <TrendingUp className="h-3.5 w-3.5 text-emerald-600 transition-transform duration-300 group-hover:-translate-y-0.5" /> {stat.note}
-                  </p>
+                  <p className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-slate-500"><TrendingUp className="h-3.5 w-3.5 text-emerald-600" /> {stat.note}</p>
                 </article>
               );
             })}
@@ -162,36 +201,17 @@ export default function PartnerDashboardPage() {
           <div className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_0.8fr]">
             <section className="overflow-hidden rounded-2xl border border-[#D8D2C4]/80 bg-white shadow-sm transition-all duration-300 hover:shadow-lg">
               <div className="flex items-center justify-between border-b border-[#D8D2C4]/70 px-5 py-4 sm:px-6">
-                <div>
-                  <h2 className="font-extrabold">آخر المشاريع</h2>
-                  <p className="mt-1 text-xs text-slate-500">أحدث المشاريع المسجلة من خلال إحالاتك</p>
-                </div>
+                <div><h2 className="font-extrabold">آخر المشاريع</h2><p className="mt-1 text-xs text-slate-500">أحدث المشاريع المسجلة من خلال إحالاتك</p></div>
                 <button type="button" className="text-sm font-bold text-[#9A7D43] transition hover:-translate-x-1">عرض الكل</button>
               </div>
-
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[720px] text-sm">
-                  <thead className="bg-[#FAF8F3] text-xs text-slate-500">
-                    <tr>
-                      <th className="px-5 py-3 text-right font-bold">العميل</th>
-                      <th className="px-5 py-3 text-right font-bold">المشروع</th>
-                      <th className="px-5 py-3 text-right font-bold">القيمة</th>
-                      <th className="px-5 py-3 text-right font-bold">عمولتك</th>
-                      <th className="px-5 py-3 text-right font-bold">الحالة</th>
-                    </tr>
-                  </thead>
+                  <thead className="bg-[#FAF8F3] text-xs text-slate-500"><tr><th className="px-5 py-3 text-right font-bold">العميل</th><th className="px-5 py-3 text-right font-bold">المشروع</th><th className="px-5 py-3 text-right font-bold">القيمة</th><th className="px-5 py-3 text-right font-bold">عمولتك</th><th className="px-5 py-3 text-right font-bold">الحالة</th></tr></thead>
                   <tbody className="divide-y divide-[#E8E2D8]">
                     {projects.map((row) => (
                       <tr key={`${row.client}-${row.project}`} className="transition-all duration-200 hover:bg-[#FCFAF6]">
-                        <td className="px-5 py-4 font-bold">{row.client}</td>
-                        <td className="px-5 py-4 text-slate-600">{row.project}</td>
-                        <td className="px-5 py-4 font-semibold">{row.value}</td>
-                        <td className="px-5 py-4 font-extrabold text-[#9A7D43]">{row.commission}</td>
-                        <td className="px-5 py-4">
-                          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 transition-transform duration-200 hover:scale-105 ${statusStyles[row.tone as keyof typeof statusStyles]}`}>
-                            {row.status}
-                          </span>
-                        </td>
+                        <td className="px-5 py-4 font-bold">{row.client}</td><td className="px-5 py-4 text-slate-600">{row.project}</td><td className="px-5 py-4 font-semibold">{row.value}</td><td className="px-5 py-4 font-extrabold text-[#9A7D43]">{row.commission}</td>
+                        <td className="px-5 py-4"><span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusStyles[row.tone as keyof typeof statusStyles]}`}>{row.status}</span></td>
                       </tr>
                     ))}
                   </tbody>
@@ -206,21 +226,17 @@ export default function PartnerDashboardPage() {
                 <p className="mt-2 text-sm leading-7 text-white/60">كل عميل يسجل عبر هذا الرابط سيظهر تلقائيًا داخل حسابك</p>
                 <div className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 transition-colors duration-300 group-hover:border-[#B89A5A]/40">
                   <code dir="ltr" className="min-w-0 flex-1 truncate px-2 text-xs text-white/75">cyberweel.com/ref/rami</code>
-                  <button type="button" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#B89A5A] text-[#111827] transition-all duration-300 hover:scale-110 hover:bg-[#C9AA67]" aria-label="نسخ رابط الإحالة">
-                    <Copy className="h-4 w-4" />
+                  <button type="button" onClick={copyReferralLink} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#B89A5A] text-[#111827] transition-all duration-300 hover:scale-110 hover:bg-[#C9AA67]" aria-label="نسخ رابط الإحالة">
+                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </button>
                 </div>
+                <p className={`mt-3 text-xs font-bold text-emerald-300 transition-all duration-300 ${copied ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"}`}>تم نسخ الرابط بنجاح</p>
               </section>
 
               <section className="group rounded-2xl border border-[#D8D2C4]/80 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#B89A5A]/70 hover:shadow-lg">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-500">الدفعة القادمة</p>
-                    <p className="mt-2 text-3xl font-black">$520</p>
-                  </div>
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#F7F3EB] text-[#B89A5A] transition-all duration-300 group-hover:scale-110 group-hover:bg-[#111827]">
-                    <CreditCard className="h-6 w-6" />
-                  </div>
+                  <div><p className="text-sm font-semibold text-slate-500">الدفعة القادمة</p><p className="mt-2 text-3xl font-black">$520</p></div>
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#F7F3EB] text-[#B89A5A] transition-all duration-300 group-hover:scale-110 group-hover:bg-[#111827]"><CreditCard className="h-6 w-6" /></div>
                 </div>
                 <div className="mt-5 border-t border-[#E8E2D8] pt-4 text-sm">
                   <div className="flex justify-between text-slate-500"><span>موعد الاستحقاق</span><strong className="text-[#111827]">01 أغسطس 2026</strong></div>
@@ -231,6 +247,11 @@ export default function PartnerDashboardPage() {
           </div>
         </section>
       </div>
+
+      <style jsx global>{`
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+      `}</style>
     </main>
   );
 }
