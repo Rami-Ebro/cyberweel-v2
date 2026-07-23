@@ -6,6 +6,7 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
+// Approved reference composition: arch on the left, copy on the right.
 function TransparentCircuitMotif() {
   const paths = [
     "M20 72 H130 L168 110 H330",
