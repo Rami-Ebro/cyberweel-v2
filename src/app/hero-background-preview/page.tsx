@@ -153,7 +153,7 @@ function HeroArchStage() {
 
       <p
         dir="rtl"
-        className="mt-2 text-center text-sm font-semibold tracking-[0.08em] text-[#d8d2c4]/65 sm:text-base"
+        className="mt-2 text-center text-xl font-bold tracking-[0.04em] text-[#d8d2c4]/72 sm:text-2xl"
       >
         وضوح ← قرار ← تنفيذ ← تقدّم
       </p>
