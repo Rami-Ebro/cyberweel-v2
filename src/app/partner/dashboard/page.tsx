@@ -167,13 +167,13 @@ export default function PartnerDashboardPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setMenuOpen(true)} className="grid h-10 w-10 place-items-center rounded-xl border border-[#D8D2C4] bg-white transition hover:-translate-y-0.5 hover:border-[#B89A5A] lg:hidden" aria-label="فتح القائمة">
-                <Menu className="h-5 w-5" />
-              </button>
+              <div className="grid h-10 w-10 place-items-center rounded-full bg-[#111827] text-sm font-extrabold text-white shadow-sm transition-transform duration-300 hover:scale-105">ح</div>
               <button type="button" className="hidden items-center gap-2 rounded-xl border border-[#D8D2C4] px-4 py-2 text-sm font-bold transition-all duration-300 hover:-translate-y-0.5 hover:border-[#B89A5A] hover:bg-[#F7F3EB] sm:flex">
                 <Settings className="h-4 w-4" /> الإعدادات
               </button>
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-[#111827] text-sm font-extrabold text-white shadow-sm transition-transform duration-300 hover:scale-105">ح</div>
+              <button type="button" onClick={() => setMenuOpen(true)} className="grid h-10 w-10 place-items-center rounded-xl border border-[#D8D2C4] bg-white transition hover:-translate-y-0.5 hover:border-[#B89A5A] lg:hidden" aria-label="فتح القائمة">
+                <Menu className="h-5 w-5" />
+              </button>
             </div>
           </header>
 
