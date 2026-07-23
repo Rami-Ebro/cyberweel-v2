@@ -13,11 +13,11 @@ function ArchCircuitDetails() {
       <defs>
         <linearGradient id="haloGold" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#b89a5a" stopOpacity="0.18" />
-          <stop offset="48%" stopColor="#b89a5a" stopOpacity="0.46" />
-          <stop offset="100%" stopColor="#b89a5a" stopOpacity="0.12" />
+          <stop offset="46%" stopColor="#b89a5a" stopOpacity="0.44" />
+          <stop offset="100%" stopColor="#b89a5a" stopOpacity="0.16" />
         </linearGradient>
         <filter id="haloDotGlow" x="-260%" y="-260%" width="620%" height="620%">
-          <feGaussianBlur stdDeviation="2.7" result="blur" />
+          <feGaussianBlur stdDeviation="2.6" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
@@ -25,73 +25,71 @@ function ArchCircuitDetails() {
         </filter>
       </defs>
 
-      <g
-        fill="none"
-        stroke="url(#haloGold)"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.15"
-      >
-        <path d="M248 116 C156 137 93 230 84 338 C79 409 95 477 132 531" />
-        <path d="M372 116 C464 137 527 230 536 338 C541 409 525 477 488 531" />
+      <g fill="none" stroke="url(#haloGold)" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M244 111 C154 135 91 225 82 335 C76 414 96 488 137 541" strokeWidth="1.15" />
+        <path d="M376 111 C466 135 529 225 538 335 C544 414 524 488 483 541" strokeWidth="1.15" />
+        <path d="M226 128 C145 157 100 240 96 337 C92 405 109 466 145 515" strokeWidth="0.8" opacity="0.48" />
+        <path d="M394 128 C475 157 520 240 524 337 C528 405 511 466 475 515" strokeWidth="0.8" opacity="0.48" />
 
-        <path d="M217 143 L181 130 H118" />
-        <path d="M177 169 L141 154 H78" />
-        <path d="M143 205 L111 192 H52" />
-        <path d="M116 246 L84 238 H30" />
-        <path d="M98 292 L67 288 H22" />
-        <path d="M88 342 H46 L26 329" />
-        <path d="M89 391 H48 L26 406" />
-        <path d="M99 440 H61 L39 462" />
-        <path d="M115 481 H82 L60 510" />
+        <path d="M213 139 L187 128 L158 128" />
+        <path d="M167 173 L143 158 L113 158" />
+        <path d="M129 220 L104 208 L77 208" />
+        <path d="M103 274 L80 267 L55 267" />
+        <path d="M90 333 L66 333 L48 321" />
+        <path d="M91 394 L67 394 L50 407" />
+        <path d="M105 454 L82 463 L66 483" />
+        <path d="M129 505 L111 521 L101 548" />
+        <path d="M145 515 V560" />
 
-        <path d="M403 143 L439 130 H502" />
-        <path d="M443 169 L479 154 H542" />
-        <path d="M477 205 L509 192 H568" />
-        <path d="M504 246 L536 238 H590" />
-        <path d="M522 292 L553 288 H598" />
-        <path d="M532 342 H574 L594 329" />
-        <path d="M531 391 H572 L594 406" />
-        <path d="M521 440 H559 L581 462" />
-        <path d="M505 481 H538 L560 510" />
+        <path d="M407 139 L433 128 L462 128" />
+        <path d="M453 173 L477 158 L507 158" />
+        <path d="M491 220 L516 208 L543 208" />
+        <path d="M517 274 L540 267 L565 267" />
+        <path d="M530 333 L554 333 L572 321" />
+        <path d="M529 394 L553 394 L570 407" />
+        <path d="M515 454 L538 463 L554 483" />
+        <path d="M491 505 L509 521 L519 548" />
+        <path d="M475 515 V560" />
       </g>
 
       <g fill="#d8d2c4" opacity="0.42">
-        <circle cx="217" cy="143" r="1.6" /><circle cx="181" cy="130" r="1.4" />
-        <circle cx="177" cy="169" r="1.5" /><circle cx="141" cy="154" r="1.4" />
-        <circle cx="143" cy="205" r="1.6" /><circle cx="111" cy="192" r="1.4" />
-        <circle cx="116" cy="246" r="1.5" /><circle cx="84" cy="238" r="1.4" />
-        <circle cx="98" cy="292" r="1.6" /><circle cx="67" cy="288" r="1.4" />
-        <circle cx="88" cy="342" r="1.5" /><circle cx="46" cy="342" r="1.4" />
-        <circle cx="89" cy="391" r="1.6" /><circle cx="48" cy="391" r="1.4" />
-        <circle cx="99" cy="440" r="1.5" /><circle cx="61" cy="440" r="1.4" />
-        <circle cx="115" cy="481" r="1.6" /><circle cx="82" cy="481" r="1.4" />
+        <circle cx="213" cy="139" r="1.5" /><circle cx="187" cy="128" r="1.35" />
+        <circle cx="167" cy="173" r="1.5" /><circle cx="143" cy="158" r="1.35" />
+        <circle cx="129" cy="220" r="1.5" /><circle cx="104" cy="208" r="1.35" />
+        <circle cx="103" cy="274" r="1.5" /><circle cx="80" cy="267" r="1.35" />
+        <circle cx="90" cy="333" r="1.5" /><circle cx="66" cy="333" r="1.35" />
+        <circle cx="91" cy="394" r="1.5" /><circle cx="67" cy="394" r="1.35" />
+        <circle cx="105" cy="454" r="1.5" /><circle cx="82" cy="463" r="1.35" />
+        <circle cx="129" cy="505" r="1.5" /><circle cx="111" cy="521" r="1.35" />
+        <circle cx="145" cy="515" r="1.5" />
 
-        <circle cx="403" cy="143" r="1.6" /><circle cx="439" cy="130" r="1.4" />
-        <circle cx="443" cy="169" r="1.5" /><circle cx="479" cy="154" r="1.4" />
-        <circle cx="477" cy="205" r="1.6" /><circle cx="509" cy="192" r="1.4" />
-        <circle cx="504" cy="246" r="1.5" /><circle cx="536" cy="238" r="1.4" />
-        <circle cx="522" cy="292" r="1.6" /><circle cx="553" cy="288" r="1.4" />
-        <circle cx="532" cy="342" r="1.5" /><circle cx="574" cy="342" r="1.4" />
-        <circle cx="531" cy="391" r="1.6" /><circle cx="572" cy="391" r="1.4" />
-        <circle cx="521" cy="440" r="1.5" /><circle cx="559" cy="440" r="1.4" />
-        <circle cx="505" cy="481" r="1.6" /><circle cx="538" cy="481" r="1.4" />
+        <circle cx="407" cy="139" r="1.5" /><circle cx="433" cy="128" r="1.35" />
+        <circle cx="453" cy="173" r="1.5" /><circle cx="477" cy="158" r="1.35" />
+        <circle cx="491" cy="220" r="1.5" /><circle cx="516" cy="208" r="1.35" />
+        <circle cx="517" cy="274" r="1.5" /><circle cx="540" cy="267" r="1.35" />
+        <circle cx="530" cy="333" r="1.5" /><circle cx="554" cy="333" r="1.35" />
+        <circle cx="529" cy="394" r="1.5" /><circle cx="553" cy="394" r="1.35" />
+        <circle cx="515" cy="454" r="1.5" /><circle cx="538" cy="463" r="1.35" />
+        <circle cx="491" cy="505" r="1.5" /><circle cx="509" cy="521" r="1.35" />
+        <circle cx="475" cy="515" r="1.5" />
       </g>
 
       <g fill="#4b82ff" filter="url(#haloDotGlow)" opacity="0.72">
-        <circle cx="248" cy="116" r="1.8" />
-        <circle cx="177" cy="169" r="1.8" />
-        <circle cx="116" cy="246" r="1.8" />
-        <circle cx="88" cy="342" r="1.8" />
-        <circle cx="99" cy="440" r="1.8" />
-        <circle cx="132" cy="531" r="1.8" />
+        <circle cx="244" cy="111" r="1.8" />
+        <circle cx="167" cy="173" r="1.75" />
+        <circle cx="103" cy="274" r="1.75" />
+        <circle cx="90" cy="333" r="1.75" />
+        <circle cx="105" cy="454" r="1.75" />
+        <circle cx="137" cy="541" r="1.8" />
+        <circle cx="145" cy="560" r="1.65" />
 
-        <circle cx="372" cy="116" r="1.8" />
-        <circle cx="443" cy="169" r="1.8" />
-        <circle cx="504" cy="246" r="1.8" />
-        <circle cx="532" cy="342" r="1.8" />
-        <circle cx="521" cy="440" r="1.8" />
-        <circle cx="488" cy="531" r="1.8" />
+        <circle cx="376" cy="111" r="1.8" />
+        <circle cx="453" cy="173" r="1.75" />
+        <circle cx="517" cy="274" r="1.75" />
+        <circle cx="530" cy="333" r="1.75" />
+        <circle cx="515" cy="454" r="1.75" />
+        <circle cx="483" cy="541" r="1.8" />
+        <circle cx="475" cy="560" r="1.65" />
       </g>
     </svg>
   );
