@@ -68,32 +68,46 @@ function HeroArchStage() {
           className="pointer-events-none absolute left-1/2 top-[292px] h-[420px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl"
           style={{
             background:
-              "radial-gradient(circle, rgba(231,193,94,0.12) 0%, rgba(122,184,255,0.08) 46%, rgba(122,184,255,0) 76%)",
+              "radial-gradient(circle, rgba(160,208,255,0.10) 0%, rgba(122,184,255,0.06) 46%, rgba(122,184,255,0) 76%)",
           }}
         />
 
         <div
           aria-hidden
-          className="pointer-events-none absolute left-1/2 top-[92px] h-[390px] w-[190px] -translate-x-1/2 rounded-full blur-[48px]"
+          className="pointer-events-none absolute left-1/2 top-[96px] h-[360px] w-[132px] -translate-x-1/2 rounded-full blur-[30px]"
           style={{
             background:
-              "radial-gradient(ellipse at 50% 0%, rgba(255,245,218,0.52) 0%, rgba(231,193,94,0.26) 22%, rgba(177,218,255,0.13) 52%, rgba(177,218,255,0.04) 70%, transparent 100%)",
+              "linear-gradient(180deg, rgba(245,232,196,0.24) 0%, rgba(205,230,255,0.20) 20%, rgba(153,207,255,0.16) 55%, rgba(122,184,255,0.04) 82%, transparent 100%)",
+            maskImage:
+              "linear-gradient(180deg, black 0%, black 60%, rgba(0,0,0,0.55) 78%, transparent 100%)",
+            WebkitMaskImage:
+              "linear-gradient(180deg, black 0%, black 60%, rgba(0,0,0,0.55) 78%, transparent 100%)",
           }}
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute left-1/2 top-[112px] h-[330px] w-[110px] -translate-x-1/2 rounded-full blur-[34px]"
+          className="pointer-events-none absolute left-1/2 top-[104px] h-[340px] w-[66px] -translate-x-1/2 rounded-full blur-[11px]"
           style={{
             background:
-              "radial-gradient(ellipse at 50% 0%, rgba(255,251,238,0.58) 0%, rgba(237,210,141,0.28) 28%, rgba(192,226,255,0.10) 62%, transparent 100%)",
+              "linear-gradient(180deg, rgba(255,247,225,0.56) 0%, rgba(224,240,255,0.54) 16%, rgba(172,216,255,0.42) 52%, rgba(142,198,255,0.16) 78%, transparent 100%)",
+            boxShadow:
+              "0 0 34px rgba(179,220,255,0.22), 0 0 68px rgba(128,190,255,0.12)",
+            maskImage:
+              "linear-gradient(180deg, black 0%, black 64%, rgba(0,0,0,0.72) 78%, transparent 100%)",
+            WebkitMaskImage:
+              "linear-gradient(180deg, black 0%, black 64%, rgba(0,0,0,0.72) 78%, transparent 100%)",
           }}
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute left-1/2 top-[122px] h-[250px] w-[54px] -translate-x-1/2 rounded-full blur-[24px] opacity-80"
+          className="pointer-events-none absolute left-1/2 top-[112px] h-[300px] w-[24px] -translate-x-1/2 rounded-full blur-[5px]"
           style={{
             background:
-              "linear-gradient(180deg, rgba(255,249,229,0.48) 0%, rgba(231,193,94,0.18) 38%, rgba(182,221,255,0.06) 72%, transparent 100%)",
+              "linear-gradient(180deg, rgba(255,253,246,0.76) 0%, rgba(226,242,255,0.70) 22%, rgba(183,222,255,0.50) 58%, rgba(146,204,255,0.14) 82%, transparent 100%)",
+            maskImage:
+              "linear-gradient(180deg, black 0%, black 66%, rgba(0,0,0,0.6) 82%, transparent 100%)",
+            WebkitMaskImage:
+              "linear-gradient(180deg, black 0%, black 66%, rgba(0,0,0,0.6) 82%, transparent 100%)",
           }}
         />
 
