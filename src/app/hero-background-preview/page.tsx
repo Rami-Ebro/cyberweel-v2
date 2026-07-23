@@ -11,8 +11,18 @@ function ArchCircuitDetails() {
       className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
     >
       <defs>
-        <filter id="circuitDotGlow" x="-240%" y="-240%" width="580%" height="580%">
-          <feGaussianBlur stdDeviation="3.2" result="blur" />
+        <linearGradient id="circuitFadeLeft" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#b89a5a" stopOpacity="0" />
+          <stop offset="22%" stopColor="#b89a5a" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="#b89a5a" stopOpacity="0.5" />
+        </linearGradient>
+        <linearGradient id="circuitFadeRight" x1="1" y1="0" x2="0" y2="0">
+          <stop offset="0%" stopColor="#b89a5a" stopOpacity="0" />
+          <stop offset="22%" stopColor="#b89a5a" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="#b89a5a" stopOpacity="0.5" />
+        </linearGradient>
+        <filter id="circuitDotGlow" x="-260%" y="-260%" width="620%" height="620%">
+          <feGaussianBlur stdDeviation="2.8" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
@@ -20,44 +30,68 @@ function ArchCircuitDetails() {
         </filter>
       </defs>
 
-      <g
-        fill="none"
-        stroke="#b89a5a"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1"
-        opacity="0.34"
-      >
-        <path d="M46 234 H119 L151 266" />
-        <path d="M66 278 H133 L158 303" />
-        <path d="M51 333 H130" />
-        <path d="M74 382 H137 L159 360" />
-        <path d="M574 234 H501 L469 266" />
-        <path d="M554 278 H487 L462 303" />
-        <path d="M569 333 H490" />
-        <path d="M546 382 H483 L461 360" />
+      <g fill="none" stroke="url(#circuitFadeLeft)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1">
+        <path d="M18 174 H92 L128 202 H166" />
+        <path d="M36 204 H105 L139 230 H181" />
+        <path d="M12 238 H94 L123 258 H171" />
+        <path d="M34 270 H118 L145 288 H184" />
+        <path d="M16 305 H108 L139 321 H181" />
+        <path d="M28 342 H112 L143 342 H183" />
+        <path d="M10 378 H102 L132 365 H176" />
+        <path d="M34 414 H112 L142 392 H182" />
+        <path d="M18 450 H91 L128 422 H170" />
+        <path d="M42 482 H100 L136 449 H166" />
       </g>
 
-      <g fill="#d8d2c4" opacity="0.54">
-        <circle cx="46" cy="234" r="2.2" />
-        <circle cx="66" cy="278" r="1.8" />
-        <circle cx="51" cy="333" r="2" />
-        <circle cx="74" cy="382" r="1.8" />
-        <circle cx="574" cy="234" r="2.2" />
-        <circle cx="554" cy="278" r="1.8" />
-        <circle cx="569" cy="333" r="2" />
-        <circle cx="546" cy="382" r="1.8" />
+      <g fill="none" stroke="url(#circuitFadeRight)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1">
+        <path d="M602 174 H528 L492 202 H454" />
+        <path d="M584 204 H515 L481 230 H439" />
+        <path d="M608 238 H526 L497 258 H449" />
+        <path d="M586 270 H502 L475 288 H436" />
+        <path d="M604 305 H512 L481 321 H439" />
+        <path d="M592 342 H508 L477 342 H437" />
+        <path d="M610 378 H518 L488 365 H444" />
+        <path d="M586 414 H508 L478 392 H438" />
+        <path d="M602 450 H529 L492 422 H450" />
+        <path d="M578 482 H520 L484 449 H454" />
       </g>
 
-      <g fill="#6aa8ff" filter="url(#circuitDotGlow)" opacity="0.76">
-        <circle cx="119" cy="234" r="2" />
-        <circle cx="133" cy="278" r="1.8" />
-        <circle cx="130" cy="333" r="1.8" />
-        <circle cx="137" cy="382" r="2" />
-        <circle cx="501" cy="234" r="2" />
-        <circle cx="487" cy="278" r="1.8" />
-        <circle cx="490" cy="333" r="1.8" />
-        <circle cx="483" cy="382" r="2" />
+      <g fill="#d8d2c4" opacity="0.34">
+        <circle cx="92" cy="174" r="1.7" /><circle cx="128" cy="202" r="1.5" />
+        <circle cx="105" cy="204" r="1.5" /><circle cx="139" cy="230" r="1.7" />
+        <circle cx="94" cy="238" r="1.4" /><circle cx="123" cy="258" r="1.5" />
+        <circle cx="118" cy="270" r="1.7" /><circle cx="145" cy="288" r="1.4" />
+        <circle cx="108" cy="305" r="1.5" /><circle cx="139" cy="321" r="1.7" />
+        <circle cx="112" cy="342" r="1.5" /><circle cx="143" cy="342" r="1.4" />
+        <circle cx="102" cy="378" r="1.7" /><circle cx="132" cy="365" r="1.5" />
+        <circle cx="112" cy="414" r="1.4" /><circle cx="142" cy="392" r="1.7" />
+        <circle cx="91" cy="450" r="1.5" /><circle cx="128" cy="422" r="1.4" />
+        <circle cx="100" cy="482" r="1.6" /><circle cx="136" cy="449" r="1.5" />
+
+        <circle cx="528" cy="174" r="1.7" /><circle cx="492" cy="202" r="1.5" />
+        <circle cx="515" cy="204" r="1.5" /><circle cx="481" cy="230" r="1.7" />
+        <circle cx="526" cy="238" r="1.4" /><circle cx="497" cy="258" r="1.5" />
+        <circle cx="502" cy="270" r="1.7" /><circle cx="475" cy="288" r="1.4" />
+        <circle cx="512" cy="305" r="1.5" /><circle cx="481" cy="321" r="1.7" />
+        <circle cx="508" cy="342" r="1.5" /><circle cx="477" cy="342" r="1.4" />
+        <circle cx="518" cy="378" r="1.7" /><circle cx="488" cy="365" r="1.5" />
+        <circle cx="508" cy="414" r="1.4" /><circle cx="478" cy="392" r="1.7" />
+        <circle cx="529" cy="450" r="1.5" /><circle cx="492" cy="422" r="1.4" />
+        <circle cx="520" cy="482" r="1.6" /><circle cx="484" cy="449" r="1.5" />
+      </g>
+
+      <g fill="#4b82ff" filter="url(#circuitDotGlow)" opacity="0.68">
+        <circle cx="166" cy="202" r="1.8" /><circle cx="181" cy="230" r="1.6" />
+        <circle cx="171" cy="258" r="1.7" /><circle cx="184" cy="288" r="1.5" />
+        <circle cx="181" cy="321" r="1.8" /><circle cx="183" cy="342" r="1.5" />
+        <circle cx="176" cy="365" r="1.7" /><circle cx="182" cy="392" r="1.6" />
+        <circle cx="170" cy="422" r="1.8" /><circle cx="166" cy="449" r="1.5" />
+
+        <circle cx="454" cy="202" r="1.8" /><circle cx="439" cy="230" r="1.6" />
+        <circle cx="449" cy="258" r="1.7" /><circle cx="436" cy="288" r="1.5" />
+        <circle cx="439" cy="321" r="1.8" /><circle cx="437" cy="342" r="1.5" />
+        <circle cx="444" cy="365" r="1.7" /><circle cx="438" cy="392" r="1.6" />
+        <circle cx="450" cy="422" r="1.8" /><circle cx="454" cy="449" r="1.5" />
       </g>
     </svg>
   );
