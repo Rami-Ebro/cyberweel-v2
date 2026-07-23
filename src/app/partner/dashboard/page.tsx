@@ -14,6 +14,7 @@ import {
   UserRound,
   UsersRound,
 } from "lucide-react";
+import { Logo } from "@/components/brand/logo";
 
 const stats = [
   { label: "العملاء المحالون", value: "24", note: "+3 هذا الشهر", icon: UsersRound },
@@ -45,17 +46,38 @@ const statusStyles = {
   pending: "bg-amber-50 text-amber-700 ring-amber-100",
 };
 
+function DashboardWordmark() {
+  return (
+    <span className="flex items-center gap-3">
+      <Logo size={48} />
+      <span className="flex flex-col">
+        <span
+          aria-label="CyberWeel"
+          className="block h-[34px] w-[128px] bg-white"
+          style={{
+            WebkitMaskImage: "url('/cyberweel-wordmark.svg')",
+            maskImage: "url('/cyberweel-wordmark.svg')",
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+          }}
+        />
+        <span className="mt-0.5 text-[10px] font-bold tracking-[0.16em] text-white/45">بوابة الشركاء</span>
+      </span>
+    </span>
+  );
+}
+
 export default function PartnerDashboardPage() {
   return (
     <main dir="rtl" className="min-h-screen bg-[#F7F3EB] text-[#111827]">
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
         <aside className="hidden w-72 shrink-0 border-l border-[#D8D2C4]/70 bg-[#111827] px-5 py-7 text-white lg:flex lg:flex-col">
-          <Link href="/" className="mb-10 flex items-center gap-3 px-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-[#B89A5A]/50 bg-white/5 text-lg font-black text-[#B89A5A]">CW</div>
-            <div>
-              <p className="text-xl font-extrabold tracking-tight">CyberWeel</p>
-              <p className="text-xs text-white/55">بوابة الشركاء</p>
-            </div>
+          <Link href="/" className="mb-10 rounded-xl px-3 py-1 transition duration-300 hover:-translate-y-0.5 hover:bg-white/5">
+            <DashboardWordmark />
           </Link>
 
           <nav className="space-y-1.5">
@@ -65,62 +87,72 @@ export default function PartnerDashboardPage() {
                 <button
                   key={item.label}
                   type="button"
-                  className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm font-semibold transition ${
+                  className={`group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm font-semibold transition-all duration-300 ${
                     item.active
-                      ? "bg-[#B89A5A] text-[#111827]"
-                      : "text-white/70 hover:bg-white/7 hover:text-white"
+                      ? "bg-[#B89A5A] text-[#111827] shadow-lg shadow-black/10"
+                      : "text-white/70 hover:translate-x-1 hover:bg-white/7 hover:text-white"
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
                   <span>{item.label}</span>
                 </button>
               );
             })}
           </nav>
 
-          <div className="mt-auto rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="mt-auto rounded-2xl border border-white/10 bg-white/5 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-[#B89A5A]/40 hover:bg-white/[0.07]">
             <p className="text-sm font-bold">تحتاج إلى مساعدة؟</p>
             <p className="mt-1 text-xs leading-6 text-white/55">فريق CyberWeel جاهز لمتابعة أي استفسار يتعلق بحساب الشريك</p>
-            <Link href="/contact" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#B89A5A]">
-              تواصل معنا <ArrowLeft className="h-4 w-4" />
+            <Link href="/contact" className="group mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#B89A5A]">
+              تواصل معنا <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
             </Link>
           </div>
         </aside>
 
         <section className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
-          <header className="mb-6 flex items-center justify-between rounded-2xl border border-[#D8D2C4]/80 bg-white px-4 py-4 shadow-sm sm:px-6">
-            <div>
-              <p className="text-xs font-bold text-[#B89A5A]">لوحة تحكم الشريك</p>
-              <h1 className="mt-1 text-xl font-extrabold sm:text-2xl">صباح الخير، رامي</h1>
-              <p className="mt-1 text-xs text-slate-500 sm:text-sm">تابع العملاء والمشاريع والعمولات من مكان واحد</p>
+          <header className="mb-6 flex items-center justify-between rounded-2xl border border-[#D8D2C4]/80 bg-white px-4 py-4 shadow-sm transition-shadow duration-300 hover:shadow-md sm:px-6">
+            <div className="flex items-center gap-3">
+              <div className="lg:hidden">
+                <Logo size={42} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-[#B89A5A]">لوحة تحكم الشريك</p>
+                <h1 className="mt-1 text-xl font-extrabold sm:text-2xl">صباح الخير، رامي</h1>
+                <p className="mt-1 text-xs text-slate-500 sm:text-sm">تابع العملاء والمشاريع والعمولات من مكان واحد</p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
-              <button type="button" className="grid h-10 w-10 place-items-center rounded-xl border border-[#D8D2C4] bg-white lg:hidden" aria-label="فتح القائمة">
+              <button type="button" className="grid h-10 w-10 place-items-center rounded-xl border border-[#D8D2C4] bg-white transition hover:-translate-y-0.5 hover:border-[#B89A5A] lg:hidden" aria-label="فتح القائمة">
                 <Menu className="h-5 w-5" />
               </button>
-              <button type="button" className="hidden items-center gap-2 rounded-xl border border-[#D8D2C4] px-4 py-2 text-sm font-bold sm:flex">
-                <Settings className="h-4 w-4" /> الإعدادات
+              <button type="button" className="hidden items-center gap-2 rounded-xl border border-[#D8D2C4] px-4 py-2 text-sm font-bold transition-all duration-300 hover:-translate-y-0.5 hover:border-[#B89A5A] hover:bg-[#F7F3EB] sm:flex">
+                <Settings className="h-4 w-4 transition-transform duration-300 hover:rotate-45" /> الإعدادات
               </button>
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-[#111827] text-sm font-extrabold text-white">ر</div>
+              <div className="grid h-10 w-10 place-items-center rounded-full bg-[#111827] text-sm font-extrabold text-white shadow-sm transition-transform duration-300 hover:scale-105">ر</div>
             </div>
           </header>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {stats.map((stat) => {
+            {stats.map((stat, index) => {
               const Icon = stat.icon;
               return (
-                <article key={stat.label} className="rounded-2xl border border-[#D8D2C4]/80 bg-white p-5 shadow-sm">
+                <article
+                  key={stat.label}
+                  className="group relative overflow-hidden rounded-2xl border border-[#D8D2C4]/80 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-[#B89A5A]/70 hover:shadow-xl hover:shadow-[#111827]/8"
+                  style={{ animationDelay: `${index * 80}ms` }}
+                >
+                  <div className="absolute inset-x-0 top-0 h-1 origin-right scale-x-0 bg-[#B89A5A] transition-transform duration-300 group-hover:scale-x-100" />
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold text-slate-500">{stat.label}</p>
-                      <p className="mt-3 text-3xl font-black tracking-tight">{stat.value}</p>
+                      <p className="mt-3 text-3xl font-black tracking-tight transition-transform duration-300 group-hover:translate-x-0.5">{stat.value}</p>
                     </div>
-                    <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#F7F3EB] text-[#B89A5A]">
+                    <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#F7F3EB] text-[#B89A5A] transition-all duration-300 group-hover:rotate-3 group-hover:scale-110 group-hover:bg-[#111827] group-hover:text-[#B89A5A]">
                       <Icon className="h-5 w-5" />
                     </div>
                   </div>
                   <p className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                    <TrendingUp className="h-3.5 w-3.5 text-emerald-600" /> {stat.note}
+                    <TrendingUp className="h-3.5 w-3.5 text-emerald-600 transition-transform duration-300 group-hover:-translate-y-0.5" /> {stat.note}
                   </p>
                 </article>
               );
@@ -128,13 +160,13 @@ export default function PartnerDashboardPage() {
           </div>
 
           <div className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_0.8fr]">
-            <section className="overflow-hidden rounded-2xl border border-[#D8D2C4]/80 bg-white shadow-sm">
+            <section className="overflow-hidden rounded-2xl border border-[#D8D2C4]/80 bg-white shadow-sm transition-all duration-300 hover:shadow-lg">
               <div className="flex items-center justify-between border-b border-[#D8D2C4]/70 px-5 py-4 sm:px-6">
                 <div>
                   <h2 className="font-extrabold">آخر المشاريع</h2>
                   <p className="mt-1 text-xs text-slate-500">أحدث المشاريع المسجلة من خلال إحالاتك</p>
                 </div>
-                <button type="button" className="text-sm font-bold text-[#9A7D43]">عرض الكل</button>
+                <button type="button" className="text-sm font-bold text-[#9A7D43] transition hover:-translate-x-1">عرض الكل</button>
               </div>
 
               <div className="overflow-x-auto">
@@ -150,13 +182,13 @@ export default function PartnerDashboardPage() {
                   </thead>
                   <tbody className="divide-y divide-[#E8E2D8]">
                     {projects.map((row) => (
-                      <tr key={`${row.client}-${row.project}`} className="transition hover:bg-[#FCFAF6]">
+                      <tr key={`${row.client}-${row.project}`} className="transition-all duration-200 hover:bg-[#FCFAF6]">
                         <td className="px-5 py-4 font-bold">{row.client}</td>
                         <td className="px-5 py-4 text-slate-600">{row.project}</td>
                         <td className="px-5 py-4 font-semibold">{row.value}</td>
                         <td className="px-5 py-4 font-extrabold text-[#9A7D43]">{row.commission}</td>
                         <td className="px-5 py-4">
-                          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusStyles[row.tone as keyof typeof statusStyles]}`}>
+                          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 transition-transform duration-200 hover:scale-105 ${statusStyles[row.tone as keyof typeof statusStyles]}`}>
                             {row.status}
                           </span>
                         </td>
@@ -168,25 +200,25 @@ export default function PartnerDashboardPage() {
             </section>
 
             <div className="space-y-6">
-              <section className="rounded-2xl bg-[#111827] p-6 text-white shadow-sm">
+              <section className="group rounded-2xl bg-[#111827] p-6 text-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#111827]/15">
                 <p className="text-xs font-bold text-[#B89A5A]">رابط الإحالة الخاص بك</p>
                 <h2 className="mt-2 text-xl font-extrabold">شارك الرابط وابدأ الإحالة</h2>
                 <p className="mt-2 text-sm leading-7 text-white/60">كل عميل يسجل عبر هذا الرابط سيظهر تلقائيًا داخل حسابك</p>
-                <div className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2">
+                <div className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 transition-colors duration-300 group-hover:border-[#B89A5A]/40">
                   <code dir="ltr" className="min-w-0 flex-1 truncate px-2 text-xs text-white/75">cyberweel.com/ref/rami</code>
-                  <button type="button" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#B89A5A] text-[#111827]" aria-label="نسخ رابط الإحالة">
+                  <button type="button" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#B89A5A] text-[#111827] transition-all duration-300 hover:scale-110 hover:bg-[#C9AA67]" aria-label="نسخ رابط الإحالة">
                     <Copy className="h-4 w-4" />
                   </button>
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-[#D8D2C4]/80 bg-white p-6 shadow-sm">
+              <section className="group rounded-2xl border border-[#D8D2C4]/80 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#B89A5A]/70 hover:shadow-lg">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-slate-500">الدفعة القادمة</p>
                     <p className="mt-2 text-3xl font-black">$520</p>
                   </div>
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#F7F3EB] text-[#B89A5A]">
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#F7F3EB] text-[#B89A5A] transition-all duration-300 group-hover:scale-110 group-hover:bg-[#111827]">
                     <CreditCard className="h-6 w-6" />
                   </div>
                 </div>
