@@ -1,7 +1,8 @@
 import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 export const PARTNER_SESSION_COOKIE = "cyberweel_partner_session";
-const SESSION_MAX_AGE = 60 * 60 * 24 * 30;
+const REMEMBERED_SESSION_MAX_AGE = 60 * 60 * 24 * 30;
+const BROWSER_SESSION_MAX_AGE = 60 * 60 * 12;
 
 function secret() {
   const value = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
@@ -24,8 +25,9 @@ export function verifyPassword(password: string, stored: string): boolean {
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
-export function createPartnerSession(userId: string): string {
-  const expiresAt = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE;
+export function createPartnerSession(userId: string, remember = false): string {
+  const maxAge = remember ? REMEMBERED_SESSION_MAX_AGE : BROWSER_SESSION_MAX_AGE;
+  const expiresAt = Math.floor(Date.now() / 1000) + maxAge;
   const payload = Buffer.from(JSON.stringify({ userId, expiresAt })).toString("base64url");
   const signature = createHmac("sha256", secret()).update(payload).digest("base64url");
   return `${payload}.${signature}`;
@@ -56,13 +58,15 @@ export function safeRedirectPath(value: unknown, fallback = "/partner/dashboard"
   return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") ? value : fallback;
 }
 
-export const partnerSessionCookieOptions = {
-  httpOnly: true,
-  sameSite: "lax" as const,
-  secure: process.env.NODE_ENV === "production",
-  path: "/",
-  maxAge: SESSION_MAX_AGE,
-};
+export function partnerSessionCookieOptions(remember = false) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    ...(remember ? { maxAge: REMEMBERED_SESSION_MAX_AGE } : {}),
+  };
+}
 
 export function fingerprint(value: string): string {
   return createHash("sha256").update(value).digest("hex");
