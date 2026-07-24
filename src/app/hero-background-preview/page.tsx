@@ -31,30 +31,30 @@ function ArchWaterBackdrop() {
       >
         <defs>
           <linearGradient id="waterRing" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#c7e2ff" stopOpacity="0.12" />
-            <stop offset="48%" stopColor="#7eb8ee" stopOpacity="0.075" />
-            <stop offset="100%" stopColor="#4a79aa" stopOpacity="0.015" />
+            <stop offset="0%" stopColor="#c7e2ff" stopOpacity="0.08" />
+            <stop offset="48%" stopColor="#7eb8ee" stopOpacity="0.05" />
+            <stop offset="100%" stopColor="#4a79aa" stopOpacity="0.01" />
           </linearGradient>
           <linearGradient id="waterWave" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="#8ec8ff" stopOpacity="0" />
-            <stop offset="22%" stopColor="#8ec8ff" stopOpacity="0.10" />
-            <stop offset="50%" stopColor="#d9ecff" stopOpacity="0.14" />
-            <stop offset="78%" stopColor="#8ec8ff" stopOpacity="0.10" />
+            <stop offset="22%" stopColor="#8ec8ff" stopOpacity="0.07" />
+            <stop offset="50%" stopColor="#d9ecff" stopOpacity="0.10" />
+            <stop offset="78%" stopColor="#8ec8ff" stopOpacity="0.07" />
             <stop offset="100%" stopColor="#8ec8ff" stopOpacity="0" />
           </linearGradient>
           <filter id="softWater" x="-25%" y="-25%" width="150%" height="150%">
-            <feGaussianBlur stdDeviation="1.6" />
+            <feGaussianBlur stdDeviation="2.2" />
           </filter>
         </defs>
 
-        <ellipse cx="310" cy="326" rx="254" ry="252" fill="none" stroke="url(#waterRing)" strokeWidth="1.3" opacity="0.72" />
-        <ellipse cx="310" cy="326" rx="226" ry="224" fill="none" stroke="url(#waterRing)" strokeWidth="1" opacity="0.52" />
-        <ellipse cx="310" cy="326" rx="196" ry="194" fill="none" stroke="url(#waterRing)" strokeWidth="0.8" opacity="0.32" />
+        <ellipse cx="310" cy="326" rx="254" ry="252" fill="none" stroke="url(#waterRing)" strokeWidth="1.1" opacity="0.46" />
+        <ellipse cx="310" cy="326" rx="226" ry="224" fill="none" stroke="url(#waterRing)" strokeWidth="0.9" opacity="0.34" />
+        <ellipse cx="310" cy="326" rx="196" ry="194" fill="none" stroke="url(#waterRing)" strokeWidth="0.7" opacity="0.20" />
 
-        <path d="M74 242 C168 221 214 245 310 238 C406 231 456 213 546 237" fill="none" stroke="url(#waterWave)" strokeWidth="1.1" filter="url(#softWater)" />
-        <path d="M56 304 C155 286 211 315 310 306 C409 297 465 274 565 300" fill="none" stroke="url(#waterWave)" strokeWidth="0.95" filter="url(#softWater)" opacity="0.82" />
-        <path d="M68 374 C164 356 216 385 310 376 C404 367 458 346 552 370" fill="none" stroke="url(#waterWave)" strokeWidth="0.9" filter="url(#softWater)" opacity="0.64" />
-        <path d="M101 443 C182 427 230 451 310 444 C390 437 440 420 519 440" fill="none" stroke="url(#waterWave)" strokeWidth="0.75" filter="url(#softWater)" opacity="0.45" />
+        <path d="M74 246 C158 207 226 274 310 236 C394 198 470 210 546 242" fill="none" stroke="url(#waterWave)" strokeWidth="0.95" filter="url(#softWater)" opacity="0.72" />
+        <path d="M56 310 C145 268 226 340 310 302 C394 264 480 270 565 306" fill="none" stroke="url(#waterWave)" strokeWidth="0.85" filter="url(#softWater)" opacity="0.56" />
+        <path d="M68 380 C153 342 232 410 310 372 C388 334 468 344 552 376" fill="none" stroke="url(#waterWave)" strokeWidth="0.8" filter="url(#softWater)" opacity="0.42" />
+        <path d="M101 448 C174 417 238 474 310 442 C382 410 447 419 519 445" fill="none" stroke="url(#waterWave)" strokeWidth="0.7" filter="url(#softWater)" opacity="0.28" />
       </svg>
     </>
   );
