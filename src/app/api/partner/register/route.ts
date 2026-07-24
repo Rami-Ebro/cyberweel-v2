@@ -15,15 +15,17 @@ export async function POST(request: NextRequest) {
   const exists = await db.user.findUnique({ where: { email }, select: { id: true } });
   if (exists) return NextResponse.json({ error: "البريد مستخدم مسبقًا" }, { status: 409 });
 
+  const status = process.env.VERCEL_ENV === "preview" ? "ACTIVE" : "PENDING";
+
   await db.user.create({
     data: {
       name,
       email,
       passwordHash: hashPassword(password),
       role: "PARTNER",
-      partner: { create: { status: "PENDING" } },
+      partner: { create: { status } },
     },
   });
 
-  return NextResponse.json({ ok: true, status: "PENDING" }, { status: 201 });
+  return NextResponse.json({ ok: true, status }, { status: 201 });
 }
