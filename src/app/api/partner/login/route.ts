@@ -6,6 +6,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const email = typeof body?.email === "string" ? normalizeEmail(body.email) : "";
   const password = typeof body?.password === "string" ? body.password : "";
+  const remember = body?.remember === true;
 
   const user = await db.user.findUnique({ where: { email }, include: { partner: true } });
   if (!user?.passwordHash || user.role !== "PARTNER" || !verifyPassword(password, user.passwordHash)) {
@@ -16,6 +17,6 @@ export async function POST(request: NextRequest) {
   }
 
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(PARTNER_SESSION_COOKIE, createPartnerSession(user.id), partnerSessionCookieOptions);
+  response.cookies.set(PARTNER_SESSION_COOKIE, createPartnerSession(user.id, remember), partnerSessionCookieOptions(remember));
   return response;
 }
