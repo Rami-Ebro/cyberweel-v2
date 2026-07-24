@@ -1,5 +1,6 @@
 "use client";
 
+import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 
 type Partner = {
@@ -13,6 +14,7 @@ type Partner = {
 
 export default function AdminPartnersPage() {
   const [key, setKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [message, setMessage] = useState("");
 
@@ -40,7 +42,12 @@ export default function AdminPartnersPage() {
       <div className="mx-auto max-w-5xl">
         <h1 className="text-3xl font-black">إدارة الشركاء</h1>
         <div className="mt-6 flex gap-3 rounded-2xl bg-white p-4 shadow-sm">
-          <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="مفتاح الإدارة" className="min-w-0 flex-1 rounded-xl border border-[#D8D2C4] px-4 py-3" />
+          <div className="relative min-w-0 flex-1">
+            <input type={showKey ? "text" : "password"} value={key} onChange={(e) => setKey(e.target.value)} placeholder="مفتاح الإدارة" className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 pl-12" />
+            <button type="button" onClick={() => setShowKey((value) => !value)} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 hover:bg-[#F7F3EB]" aria-label={showKey ? "إخفاء مفتاح الإدارة" : "إظهار مفتاح الإدارة"}>
+              {showKey ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
+          </div>
           <button onClick={load} className="rounded-xl bg-[#111827] px-5 py-3 font-bold text-white">عرض الشركاء</button>
         </div>
         {message && <p className="mt-4 rounded-xl bg-red-50 p-3 text-red-700">{message}</p>}
