@@ -62,32 +62,32 @@ function HeroArchStage() {
       <div className="relative h-[640px] w-[620px]">
         <ArchWaterBackdrop />
 
-        <svg aria-hidden viewBox="0 0 220 410" className="pointer-events-none absolute left-1/2 top-[76px] z-[4] h-[410px] w-[220px] -translate-x-1/2 overflow-visible">
+        <svg aria-hidden viewBox="0 0 240 360" className="pointer-events-none absolute left-1/2 top-[80px] z-[4] h-[360px] w-[240px] -translate-x-1/2 overflow-visible">
           <defs>
             <linearGradient id="whiteBeam" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#ffffff" stopOpacity="0.98" />
-              <stop offset="18%" stopColor="#ffffff" stopOpacity="0.88" />
-              <stop offset="58%" stopColor="#f7f3eb" stopOpacity="0.42" />
-              <stop offset="100%" stopColor="#f7f3eb" stopOpacity="0" />
+              <stop offset="20%" stopColor="#ffffff" stopOpacity="0.86" />
+              <stop offset="62%" stopColor="#ffffff" stopOpacity="0.28" />
+              <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
             </linearGradient>
             <linearGradient id="whiteBeamCore" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-              <stop offset="24%" stopColor="#ffffff" stopOpacity="0.96" />
-              <stop offset="66%" stopColor="#ffffff" stopOpacity="0.48" />
+              <stop offset="28%" stopColor="#ffffff" stopOpacity="0.92" />
+              <stop offset="70%" stopColor="#ffffff" stopOpacity="0.34" />
               <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
             </linearGradient>
-            <filter id="beamSoft" x="-80%" y="-20%" width="260%" height="150%">
-              <feGaussianBlur stdDeviation="9" />
+            <filter id="beamSoft" x="-60%" y="-20%" width="220%" height="150%">
+              <feGaussianBlur stdDeviation="7" />
             </filter>
-            <filter id="beamCoreSoft" x="-100%" y="-20%" width="300%" height="150%">
-              <feGaussianBlur stdDeviation="2.2" />
+            <filter id="beamCoreSoft" x="-80%" y="-20%" width="260%" height="150%">
+              <feGaussianBlur stdDeviation="2.6" />
             </filter>
           </defs>
-          <path d="M109 0 C93 64 90 132 93 202 C96 271 101 334 110 394 C119 334 124 271 127 202 C130 132 127 64 111 0 Z" fill="url(#whiteBeam)" filter="url(#beamSoft)" opacity="0.90" />
-          <path d="M109.5 0 C104 74 103 144 104 214 C105 283 107 342 110 382 C113 342 115 283 116 214 C117 144 116 74 110.5 0 Z" fill="url(#whiteBeamCore)" filter="url(#beamCoreSoft)" opacity="0.98" />
+          <path d="M104 0 C96 38 84 84 70 132 C58 174 48 212 42 244 C68 226 94 216 120 216 C146 216 172 226 198 244 C192 212 182 174 170 132 C156 84 144 38 136 0 Z" fill="url(#whiteBeam)" filter="url(#beamSoft)" opacity="0.82" />
+          <path d="M111 0 C108 44 103 91 96 137 C90 177 85 210 82 232 C95 222 107 217 120 217 C133 217 145 222 158 232 C155 210 150 177 144 137 C137 91 132 44 129 0 Z" fill="url(#whiteBeamCore)" filter="url(#beamCoreSoft)" opacity="0.94" />
         </svg>
 
-        <div aria-hidden className="pointer-events-none absolute left-1/2 top-[84px] z-[5] h-16 w-16 -translate-x-1/2 rounded-full blur-xl" style={{ background: "radial-gradient(circle, rgba(255,255,255,0.98) 0%, rgba(247,243,235,0.72) 44%, rgba(184,154,90,0.18) 66%, transparent 82%)" }} />
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-[84px] z-[5] h-16 w-20 -translate-x-1/2 rounded-full blur-xl" style={{ background: "radial-gradient(circle, rgba(255,255,255,0.98) 0%, rgba(247,243,235,0.72) 52%, rgba(184,154,90,0.14) 72%, transparent 86%)" }} />
 
         <img src="/cyberweel-logo-20260720.svg" alt="" className="absolute left-1/2 top-1/2 z-10 h-auto w-full max-w-[590px] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_22px_40px_rgba(17,24,39,0.22)]" />
       </div>
