@@ -19,7 +19,11 @@ export default function PartnerLoginPage() {
     const response = await fetch("/api/partner/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: form.get("email"), password: form.get("password") }),
+      body: JSON.stringify({
+        email: form.get("email"),
+        password: form.get("password"),
+        remember: form.get("remember") === "on",
+      }),
     });
     const data = await response.json();
     setLoading(false);
@@ -43,6 +47,13 @@ export default function PartnerLoginPage() {
             <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 hover:bg-[#F7F3EB]" aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>
               {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
+          </div>
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <label className="flex cursor-pointer items-center gap-2 text-slate-600">
+              <input name="remember" type="checkbox" className="h-4 w-4 accent-[#111827]" />
+              تذكّرني
+            </label>
+            <Link href="/partner/forgot-password" className="font-bold text-[#9A7D43]">نسيت كلمة المرور؟</Link>
           </div>
           <button disabled={loading} className="w-full rounded-xl bg-[#111827] px-4 py-3 font-extrabold text-white disabled:opacity-60">{loading ? "جارٍ الدخول..." : "دخول"}</button>
         </form>
