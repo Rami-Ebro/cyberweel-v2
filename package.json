@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "prisma generate && (prisma migrate resolve --applied 20260704184924_init_smart_links || true) && prisma migrate deploy && next build",
+    "build": "prisma generate && (prisma migrate resolve --applied 20260704184924_init_smart_links || true) && (prisma migrate resolve --applied 20260713110839_init_smart_links || true) && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint .",
     "db:push": "prisma db push",
