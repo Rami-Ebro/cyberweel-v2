@@ -31,7 +31,9 @@ export async function GET(
     return NextResponse.redirect(new URL("/", request.url), 302);
   }
 
-  const response = NextResponse.redirect(new URL("/share-challenge", request.url), 302);
+  const destination = new URL("/", request.url);
+  destination.hash = "/share-challenge";
+  const response = NextResponse.redirect(destination, 302);
 
   response.cookies.set(REFERRAL_COOKIE, partner.id, {
     httpOnly: true,
