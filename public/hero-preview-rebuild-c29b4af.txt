@@ -1,0 +1,2 @@
+Force a fresh Vercel preview build for the card-inspired hero circuit update.
+Source commit: c29b4af4d758d84efcbdf2501e728f97335b6d06
