@@ -62,37 +62,32 @@ function HeroArchStage() {
       <div className="relative h-[640px] w-[620px]">
         <ArchWaterBackdrop />
 
-        <svg aria-hidden viewBox="0 0 260 420" className="pointer-events-none absolute left-1/2 top-[72px] z-[4] h-[420px] w-[260px] -translate-x-1/2 overflow-visible">
+        <svg aria-hidden viewBox="0 0 220 410" className="pointer-events-none absolute left-1/2 top-[76px] z-[4] h-[410px] w-[220px] -translate-x-1/2 overflow-visible">
           <defs>
-            <linearGradient id="mistBeam" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#fffdf7" stopOpacity="0.98" />
-              <stop offset="12%" stopColor="#f7f3eb" stopOpacity="0.92" />
-              <stop offset="42%" stopColor="#d8d2c4" stopOpacity="0.62" />
-              <stop offset="72%" stopColor="#b89a5a" stopOpacity="0.34" />
-              <stop offset="100%" stopColor="#b89a5a" stopOpacity="0" />
+            <linearGradient id="whiteBeam" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.98" />
+              <stop offset="18%" stopColor="#ffffff" stopOpacity="0.88" />
+              <stop offset="58%" stopColor="#f7f3eb" stopOpacity="0.42" />
+              <stop offset="100%" stopColor="#f7f3eb" stopOpacity="0" />
             </linearGradient>
-            <linearGradient id="mistCoreGradient" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id="whiteBeamCore" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-              <stop offset="18%" stopColor="#f7f3eb" stopOpacity="0.96" />
-              <stop offset="58%" stopColor="#b89a5a" stopOpacity="0.58" />
-              <stop offset="100%" stopColor="#b89a5a" stopOpacity="0" />
+              <stop offset="24%" stopColor="#ffffff" stopOpacity="0.96" />
+              <stop offset="66%" stopColor="#ffffff" stopOpacity="0.48" />
+              <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
             </linearGradient>
-            <filter id="mistFilter" x="-70%" y="-20%" width="240%" height="150%">
-              <feTurbulence type="fractalNoise" baseFrequency="0.012 0.045" numOctaves="2" seed="7" result="noise" />
-              <feDisplacementMap in="SourceGraphic" in2="noise" scale="12" xChannelSelector="R" yChannelSelector="B" />
-              <feGaussianBlur stdDeviation="8" />
+            <filter id="beamSoft" x="-80%" y="-20%" width="260%" height="150%">
+              <feGaussianBlur stdDeviation="9" />
             </filter>
-            <filter id="mistCore" x="-80%" y="-20%" width="260%" height="150%">
-              <feTurbulence type="fractalNoise" baseFrequency="0.016 0.052" numOctaves="2" seed="11" result="noise" />
-              <feDisplacementMap in="SourceGraphic" in2="noise" scale="6" xChannelSelector="R" yChannelSelector="G" />
-              <feGaussianBlur stdDeviation="2.8" />
+            <filter id="beamCoreSoft" x="-100%" y="-20%" width="300%" height="150%">
+              <feGaussianBlur stdDeviation="2.2" />
             </filter>
           </defs>
-          <path d="M128 0 C101 58 88 121 90 188 C92 254 106 323 130 400 C154 323 168 254 170 188 C172 121 159 58 132 0 Z" fill="url(#mistBeam)" filter="url(#mistFilter)" opacity="0.96" />
-          <path d="M129 0 C117 72 114 136 116 202 C118 268 121 326 130 382 C139 326 142 268 144 202 C146 136 143 72 131 0 Z" fill="url(#mistCoreGradient)" filter="url(#mistCore)" opacity="0.98" />
+          <path d="M109 0 C93 64 90 132 93 202 C96 271 101 334 110 394 C119 334 124 271 127 202 C130 132 127 64 111 0 Z" fill="url(#whiteBeam)" filter="url(#beamSoft)" opacity="0.90" />
+          <path d="M109.5 0 C104 74 103 144 104 214 C105 283 107 342 110 382 C113 342 115 283 116 214 C117 144 116 74 110.5 0 Z" fill="url(#whiteBeamCore)" filter="url(#beamCoreSoft)" opacity="0.98" />
         </svg>
 
-        <div aria-hidden className="pointer-events-none absolute left-1/2 top-[82px] z-[5] h-20 w-20 -translate-x-1/2 rounded-full blur-xl" style={{ background: "radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(247,243,235,0.72) 35%, rgba(184,154,90,0.34) 62%, transparent 80%)" }} />
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-[84px] z-[5] h-16 w-16 -translate-x-1/2 rounded-full blur-xl" style={{ background: "radial-gradient(circle, rgba(255,255,255,0.98) 0%, rgba(247,243,235,0.72) 44%, rgba(184,154,90,0.18) 66%, transparent 82%)" }} />
 
         <img src="/cyberweel-logo-20260720.svg" alt="" className="absolute left-1/2 top-1/2 z-10 h-auto w-full max-w-[590px] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_22px_40px_rgba(17,24,39,0.22)]" />
       </div>
