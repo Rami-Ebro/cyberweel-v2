@@ -5,67 +5,20 @@ export const metadata = {
 
 function ArchCircuitDetails() {
   return (
-    <svg aria-hidden viewBox="0 0 620 640" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
-      <defs>
-        <linearGradient id="haloGold" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#b89a5a" stopOpacity="0.16" />
-          <stop offset="48%" stopColor="#b89a5a" stopOpacity="0.42" />
-          <stop offset="100%" stopColor="#b89a5a" stopOpacity="0.12" />
-        </linearGradient>
-        <filter id="haloDotGlow" x="-260%" y="-260%" width="620%" height="620%">
-          <feGaussianBlur stdDeviation="2.5" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-
-      <g fill="none" stroke="url(#haloGold)" strokeLinecap="round">
-        <path d="M238 108 C145 136 82 229 78 342 C75 431 99 505 143 558" strokeWidth="1.15" />
-        <path d="M382 108 C475 136 538 229 542 342 C545 431 521 505 477 558" strokeWidth="1.15" />
-        <path d="M224 126 C144 156 96 239 92 340 C89 416 109 484 149 535" strokeWidth="0.75" opacity="0.5" />
-        <path d="M396 126 C476 156 524 239 528 340 C531 416 511 484 471 535" strokeWidth="0.75" opacity="0.5" />
-      </g>
-
-      <g fill="#d8d2c4" opacity="0.46">
-        <circle cx="207" cy="121" r="1.45" />
-        <circle cx="170" cy="143" r="1.35" />
-        <circle cx="137" cy="177" r="1.45" />
-        <circle cx="111" cy="222" r="1.35" />
-        <circle cx="92" cy="277" r="1.45" />
-        <circle cx="80" cy="341" r="1.35" />
-        <circle cx="84" cy="410" r="1.45" />
-        <circle cx="101" cy="475" r="1.35" />
-        <circle cx="127" cy="529" r="1.45" />
-
-        <circle cx="413" cy="121" r="1.45" />
-        <circle cx="450" cy="143" r="1.35" />
-        <circle cx="483" cy="177" r="1.45" />
-        <circle cx="509" cy="222" r="1.35" />
-        <circle cx="528" cy="277" r="1.45" />
-        <circle cx="540" cy="341" r="1.35" />
-        <circle cx="536" cy="410" r="1.45" />
-        <circle cx="519" cy="475" r="1.35" />
-        <circle cx="493" cy="529" r="1.45" />
-      </g>
-
-      <g fill="#4b82ff" filter="url(#haloDotGlow)" opacity="0.72">
-        <circle cx="238" cy="108" r="1.8" />
-        <circle cx="137" cy="177" r="1.75" />
-        <circle cx="92" cy="277" r="1.75" />
-        <circle cx="80" cy="341" r="1.75" />
-        <circle cx="101" cy="475" r="1.75" />
-        <circle cx="143" cy="558" r="1.8" />
-
-        <circle cx="382" cy="108" r="1.8" />
-        <circle cx="483" cy="177" r="1.75" />
-        <circle cx="528" cy="277" r="1.75" />
-        <circle cx="540" cy="341" r="1.75" />
-        <circle cx="519" cy="475" r="1.75" />
-        <circle cx="477" cy="558" r="1.8" />
-      </g>
-    </svg>
+    <>
+      <img
+        aria-hidden
+        src="/cyberweel-card-circuits-left.svg"
+        alt=""
+        className="pointer-events-none absolute -left-[72px] top-[94px] z-20 h-[470px] w-[305px] object-contain opacity-80"
+      />
+      <img
+        aria-hidden
+        src="/cyberweel-card-circuits-right.svg"
+        alt=""
+        className="pointer-events-none absolute -right-[72px] top-[94px] z-20 h-[470px] w-[305px] object-contain opacity-80"
+      />
+    </>
   );
 }
 
@@ -103,7 +56,7 @@ function HeroArchStage() {
 
         <div aria-hidden className="pointer-events-none absolute left-1/2 top-[91px] h-16 w-16 -translate-x-1/2 rounded-full blur-2xl" style={{ background: "radial-gradient(circle, rgba(255,248,226,0.35) 0%, rgba(218,235,255,0.18) 46%, transparent 76%)" }} />
 
-        <img src="/cyberweel-logo-20260720.svg" alt="" className="absolute left-1/2 top-1/2 h-auto w-full max-w-[590px] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_18px_36px_rgba(0,0,0,0.35)]" />
+        <img src="/cyberweel-logo-20260720.svg" alt="" className="absolute left-1/2 top-1/2 z-10 h-auto w-full max-w-[590px] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_18px_36px_rgba(0,0,0,0.35)]" />
       </div>
 
       <p dir="rtl" className="mt-2 text-center text-xl font-bold tracking-[0.04em] text-[#d8d2c4]/72 sm:text-2xl">
