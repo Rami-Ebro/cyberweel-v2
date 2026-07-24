@@ -3,56 +3,60 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
-function ArchCircuitDetails() {
+function ArchWaterBackdrop() {
   return (
-    <svg aria-hidden viewBox="0 0 620 640" className="pointer-events-none absolute inset-0 z-20 h-full w-full overflow-visible">
-      <defs>
-        <filter id="cardDotGlow" x="-300%" y="-300%" width="700%" height="700%">
-          <feGaussianBlur stdDeviation="2.2" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
+    <>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-[318px] z-0 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl"
+        style={{
+          background:
+            "radial-gradient(circle, rgba(74,126,187,0.18) 0%, rgba(52,91,143,0.11) 34%, rgba(20,40,70,0.05) 58%, transparent 76%)",
+        }}
+      />
 
-      <g fill="#b89a5a" opacity="0.34">
-        <g transform="translate(88 120) scale(0.82)">
-          <path d="M58 122 L88 149 L107 149 L88 149 Z" />
-          <path d="M42 181 L49 187 L98 187 L117 205 L97 186 L49 186 L43 180 Z" />
-        </g>
-        <g transform="translate(28 235) scale(0.78)">
-          <path d="M71 209 L75 210 L96 229 L118 229 L118 227 L96 228 L75 209 Z" />
-          <path d="M69 228 L74 230 L88 243 L106 243 L88 243 L73 228 Z" />
-        </g>
-        <g transform="translate(42 338) scale(0.76)">
-          <path d="M123 267 L88 268 L69 285 L89 268 L123 269 Z" />
-          <path d="M63 299 L42 318 Z" />
-        </g>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-[118px] z-0 h-36 w-36 -translate-x-1/2 rounded-full blur-3xl"
+        style={{
+          background:
+            "radial-gradient(circle, rgba(184,154,90,0.22) 0%, rgba(184,154,90,0.09) 38%, transparent 72%)",
+        }}
+      />
 
-        <g transform="translate(532 120) scale(-0.82 0.82)">
-          <path d="M58 122 L88 149 L107 149 L88 149 Z" />
-          <path d="M42 181 L49 187 L98 187 L117 205 L97 186 L49 186 L43 180 Z" />
-        </g>
-        <g transform="translate(592 235) scale(-0.78 0.78)">
-          <path d="M71 209 L75 210 L96 229 L118 229 L118 227 L96 228 L75 209 Z" />
-          <path d="M69 228 L74 230 L88 243 L106 243 L88 243 L73 228 Z" />
-        </g>
-        <g transform="translate(578 338) scale(-0.76 0.76)">
-          <path d="M123 267 L88 268 L69 285 L89 268 L123 269 Z" />
-          <path d="M63 299 L42 318 Z" />
-        </g>
-      </g>
+      <svg
+        aria-hidden
+        viewBox="0 0 620 640"
+        className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible"
+      >
+        <defs>
+          <linearGradient id="waterRing" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#c7e2ff" stopOpacity="0.12" />
+            <stop offset="48%" stopColor="#7eb8ee" stopOpacity="0.075" />
+            <stop offset="100%" stopColor="#4a79aa" stopOpacity="0.015" />
+          </linearGradient>
+          <linearGradient id="waterWave" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#8ec8ff" stopOpacity="0" />
+            <stop offset="22%" stopColor="#8ec8ff" stopOpacity="0.10" />
+            <stop offset="50%" stopColor="#d9ecff" stopOpacity="0.14" />
+            <stop offset="78%" stopColor="#8ec8ff" stopOpacity="0.10" />
+            <stop offset="100%" stopColor="#8ec8ff" stopOpacity="0" />
+          </linearGradient>
+          <filter id="softWater" x="-25%" y="-25%" width="150%" height="150%">
+            <feGaussianBlur stdDeviation="1.6" />
+          </filter>
+        </defs>
 
-      <g fill="#4b82ff" filter="url(#cardDotGlow)" opacity="0.68">
-        <circle cx="177" cy="238" r="1.7" />
-        <circle cx="140" cy="333" r="1.55" />
-        <circle cx="128" cy="460" r="1.65" />
-        <circle cx="443" cy="238" r="1.7" />
-        <circle cx="480" cy="333" r="1.55" />
-        <circle cx="492" cy="460" r="1.65" />
-      </g>
-    </svg>
+        <ellipse cx="310" cy="326" rx="254" ry="252" fill="none" stroke="url(#waterRing)" strokeWidth="1.3" opacity="0.72" />
+        <ellipse cx="310" cy="326" rx="226" ry="224" fill="none" stroke="url(#waterRing)" strokeWidth="1" opacity="0.52" />
+        <ellipse cx="310" cy="326" rx="196" ry="194" fill="none" stroke="url(#waterRing)" strokeWidth="0.8" opacity="0.32" />
+
+        <path d="M74 242 C168 221 214 245 310 238 C406 231 456 213 546 237" fill="none" stroke="url(#waterWave)" strokeWidth="1.1" filter="url(#softWater)" />
+        <path d="M56 304 C155 286 211 315 310 306 C409 297 465 274 565 300" fill="none" stroke="url(#waterWave)" strokeWidth="0.95" filter="url(#softWater)" opacity="0.82" />
+        <path d="M68 374 C164 356 216 385 310 376 C404 367 458 346 552 370" fill="none" stroke="url(#waterWave)" strokeWidth="0.9" filter="url(#softWater)" opacity="0.64" />
+        <path d="M101 443 C182 427 230 451 310 444 C390 437 440 420 519 440" fill="none" stroke="url(#waterWave)" strokeWidth="0.75" filter="url(#softWater)" opacity="0.45" />
+      </svg>
+    </>
   );
 }
 
@@ -60,11 +64,9 @@ function HeroArchStage() {
   return (
     <div className="relative flex flex-col items-center justify-center">
       <div className="relative h-[640px] w-[620px]">
-        <div aria-hidden className="pointer-events-none absolute left-1/2 top-[292px] h-[420px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(160,208,255,0.08) 0%, rgba(122,184,255,0.045) 46%, rgba(122,184,255,0) 76%)" }} />
+        <ArchWaterBackdrop />
 
-        <ArchCircuitDetails />
-
-        <svg aria-hidden viewBox="0 0 220 390" className="pointer-events-none absolute left-1/2 top-[86px] h-[390px] w-[220px] -translate-x-1/2 overflow-visible">
+        <svg aria-hidden viewBox="0 0 220 390" className="pointer-events-none absolute left-1/2 top-[86px] z-[2] h-[390px] w-[220px] -translate-x-1/2 overflow-visible">
           <defs>
             <linearGradient id="mistBeam" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#fff9e8" stopOpacity="0.58" />
@@ -88,7 +90,7 @@ function HeroArchStage() {
           <path d="M109 0 C99 64 96 118 98 174 C100 230 103 278 110 342 C117 278 120 230 122 174 C124 118 121 64 111 0 Z" fill="url(#mistBeam)" filter="url(#mistCore)" opacity="0.82" />
         </svg>
 
-        <div aria-hidden className="pointer-events-none absolute left-1/2 top-[91px] h-16 w-16 -translate-x-1/2 rounded-full blur-2xl" style={{ background: "radial-gradient(circle, rgba(255,248,226,0.35) 0%, rgba(218,235,255,0.18) 46%, transparent 76%)" }} />
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-[91px] z-[3] h-16 w-16 -translate-x-1/2 rounded-full blur-2xl" style={{ background: "radial-gradient(circle, rgba(255,248,226,0.35) 0%, rgba(218,235,255,0.18) 46%, transparent 76%)" }} />
 
         <img src="/cyberweel-logo-20260720.svg" alt="" className="absolute left-1/2 top-1/2 z-10 h-auto w-full max-w-[590px] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_18px_36px_rgba(0,0,0,0.35)]" />
       </div>
