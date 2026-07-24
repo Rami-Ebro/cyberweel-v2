@@ -5,20 +5,54 @@ export const metadata = {
 
 function ArchCircuitDetails() {
   return (
-    <>
-      <img
-        aria-hidden
-        src="/cyberweel-card-circuits-left.svg"
-        alt=""
-        className="pointer-events-none absolute -left-[72px] top-[94px] z-20 h-[470px] w-[305px] object-contain opacity-80"
-      />
-      <img
-        aria-hidden
-        src="/cyberweel-card-circuits-right.svg"
-        alt=""
-        className="pointer-events-none absolute -right-[72px] top-[94px] z-20 h-[470px] w-[305px] object-contain opacity-80"
-      />
-    </>
+    <svg aria-hidden viewBox="0 0 620 640" className="pointer-events-none absolute inset-0 z-20 h-full w-full overflow-visible">
+      <defs>
+        <filter id="cardDotGlow" x="-300%" y="-300%" width="700%" height="700%">
+          <feGaussianBlur stdDeviation="2.2" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
+      <g fill="#b89a5a" opacity="0.34">
+        <g transform="translate(88 120) scale(0.82)">
+          <path d="M58 122 L88 149 L107 149 L88 149 Z" />
+          <path d="M42 181 L49 187 L98 187 L117 205 L97 186 L49 186 L43 180 Z" />
+        </g>
+        <g transform="translate(28 235) scale(0.78)">
+          <path d="M71 209 L75 210 L96 229 L118 229 L118 227 L96 228 L75 209 Z" />
+          <path d="M69 228 L74 230 L88 243 L106 243 L88 243 L73 228 Z" />
+        </g>
+        <g transform="translate(42 338) scale(0.76)">
+          <path d="M123 267 L88 268 L69 285 L89 268 L123 269 Z" />
+          <path d="M63 299 L42 318 Z" />
+        </g>
+
+        <g transform="translate(532 120) scale(-0.82 0.82)">
+          <path d="M58 122 L88 149 L107 149 L88 149 Z" />
+          <path d="M42 181 L49 187 L98 187 L117 205 L97 186 L49 186 L43 180 Z" />
+        </g>
+        <g transform="translate(592 235) scale(-0.78 0.78)">
+          <path d="M71 209 L75 210 L96 229 L118 229 L118 227 L96 228 L75 209 Z" />
+          <path d="M69 228 L74 230 L88 243 L106 243 L88 243 L73 228 Z" />
+        </g>
+        <g transform="translate(578 338) scale(-0.76 0.76)">
+          <path d="M123 267 L88 268 L69 285 L89 268 L123 269 Z" />
+          <path d="M63 299 L42 318 Z" />
+        </g>
+      </g>
+
+      <g fill="#4b82ff" filter="url(#cardDotGlow)" opacity="0.68">
+        <circle cx="177" cy="238" r="1.7" />
+        <circle cx="140" cy="333" r="1.55" />
+        <circle cx="128" cy="460" r="1.65" />
+        <circle cx="443" cy="238" r="1.7" />
+        <circle cx="480" cy="333" r="1.55" />
+        <circle cx="492" cy="460" r="1.65" />
+      </g>
+    </svg>
   );
 }
 
