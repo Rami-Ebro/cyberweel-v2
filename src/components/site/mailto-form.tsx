@@ -18,6 +18,7 @@ type MailtoFormProps = {
   successMessage?: string;
   className?: string;
   allowAttachments?: boolean;
+  trackReferral?: boolean;
 };
 
 const MAX_FILES = 3;
@@ -32,6 +33,7 @@ export function MailtoForm({
   successMessage,
   className,
   allowAttachments = false,
+  trackReferral = false,
 }: MailtoFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -86,6 +88,30 @@ export function MailtoForm({
 
       if (!response.ok || !result?.ok) {
         throw new Error(result?.error || "SEND_FAILED");
+      }
+
+      if (trackReferral) {
+        const organization = String(data.get("organization") ?? "").trim();
+        const details = fields
+          .filter((field) => !["name", "email", "phone", "organization"].includes(field.name))
+          .map((field) => {
+            const value = String(data.get(field.name) ?? "").trim();
+            return value ? `${field.label}: ${value}` : "";
+          })
+          .filter(Boolean);
+
+        if (organization) details.unshift(`${isArabic ? "المؤسسة" : "Organization"}: ${organization}`);
+
+        await fetch("/api/referrals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: String(data.get("name") ?? organization).trim(),
+            email: String(data.get("email") ?? "").trim(),
+            phone: String(data.get("phone") ?? "").trim(),
+            notes: details.join("\n\n"),
+          }),
+        }).catch(() => null);
       }
 
       toast.success(
