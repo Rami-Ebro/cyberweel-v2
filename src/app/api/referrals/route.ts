@@ -11,8 +11,8 @@ export async function POST(request: NextRequest) {
   const notes = typeof body?.notes === "string" ? body.notes.trim() : "";
   const partnerId = request.cookies.get(REFERRAL_COOKIE)?.value;
 
-  if (!name || (!email && !phone)) {
-    return NextResponse.json({ error: "أدخل الاسم ووسيلة تواصل واحدة على الأقل" }, { status: 400 });
+  if (!name || !email || !phone) {
+    return NextResponse.json({ error: "أدخل الاسم والبريد الإلكتروني ورقم الهاتف" }, { status: 400 });
   }
 
   if (!partnerId) {
@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
     data: {
       partnerId: partner.id,
       name,
-      email: email || null,
-      phone: phone || null,
+      email,
+      phone,
       notes: notes || null,
       sourcePath: "/share-challenge",
     },
