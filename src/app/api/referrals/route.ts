@@ -15,14 +15,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "أدخل الاسم ووسيلة تواصل واحدة على الأقل" }, { status: 400 });
   }
 
-  if (partnerId) {
-    const partner = await db.partner.findFirst({ where: { id: partnerId, status: "ACTIVE" }, select: { id: true } });
-    if (partner) {
-      await db.partnerReferral.create({
-        data: { partnerId: partner.id, name, email: email || null, phone: phone || null, notes: notes || null, sourcePath: "/share-challenge" },
-      });
-    }
+  if (!partnerId) {
+    return NextResponse.json({ ok: true, attributed: false });
   }
 
-  return NextResponse.json({ ok: true });
+  const partner = await db.partner.findFirst({
+    where: { id: partnerId, status: "ACTIVE" },
+    select: { id: true },
+  });
+
+  if (!partner) {
+    return NextResponse.json({ ok: true, attributed: false });
+  }
+
+  const referral = await db.partnerReferral.create({
+    data: {
+      partnerId: partner.id,
+      name,
+      email: email || null,
+      phone: phone || null,
+      notes: notes || null,
+      sourcePath: "/share-challenge",
+    },
+    select: { id: true },
+  });
+
+  return NextResponse.json({ ok: true, attributed: true, referralId: referral.id }, { status: 201 });
 }
