@@ -1,22 +1,48 @@
 import { db } from "@/lib/db";
+import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
 import { NextRequest, NextResponse } from "next/server";
 
-function authorized(request: NextRequest) {
+async function authorized(request: NextRequest) {
   const key = request.headers.get("x-admin-key");
-  return Boolean(process.env.PARTNER_ADMIN_KEY && key === process.env.PARTNER_ADMIN_KEY);
+  if (process.env.PARTNER_ADMIN_KEY && key === process.env.PARTNER_ADMIN_KEY) return true;
+
+  const session = readPartnerSession(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
+  if (!session) return false;
+
+  const user = await db.user.findUnique({ where: { id: session.userId }, select: { role: true } });
+  return user?.role === "ADMIN";
 }
 
 export async function GET(request: NextRequest) {
-  if (!authorized(request)) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
-  const partners = await db.partner.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { user: { select: { name: true, email: true } }, _count: { select: { referrals: true } } },
-  });
-  return NextResponse.json({ partners });
+  if (!(await authorized(request))) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+
+  const [partners, referrals, users] = await Promise.all([
+    db.partner.findMany({
+      orderBy: { createdAt: "desc" },
+      include: { user: { select: { name: true, email: true } }, _count: { select: { referrals: true } } },
+    }),
+    db.partnerReferral.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      include: { partner: { include: { user: { select: { name: true, email: true } } } } },
+    }),
+    db.user.count(),
+  ]);
+
+  const stats = {
+    users,
+    partners: partners.length,
+    activePartners: partners.filter((item) => item.status === "ACTIVE").length,
+    pendingPartners: partners.filter((item) => item.status === "PENDING").length,
+    referrals: referrals.length,
+    newReferrals: referrals.filter((item) => item.status === "NEW").length,
+  };
+
+  return NextResponse.json({ partners, referrals, stats });
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!authorized(request)) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+  if (!(await authorized(request))) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   const body = await request.json().catch(() => null);
   const id = typeof body?.id === "string" ? body.id : "";
   const status = body?.status;
