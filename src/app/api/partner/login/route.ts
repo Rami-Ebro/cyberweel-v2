@@ -9,14 +9,20 @@ export async function POST(request: NextRequest) {
   const remember = body?.remember === true;
 
   const user = await db.user.findUnique({ where: { email }, include: { partner: true } });
-  if (!user?.passwordHash || user.role !== "PARTNER" || !verifyPassword(password, user.passwordHash)) {
+  if (!user?.passwordHash || !verifyPassword(password, user.passwordHash)) {
     return NextResponse.json({ error: "بيانات الدخول غير صحيحة" }, { status: 401 });
   }
-  if (!user.partner || user.partner.status !== "ACTIVE") {
-    return NextResponse.json({ error: user.partner?.status === "SUSPENDED" ? "الحساب معلّق" : "الحساب بانتظار موافقة الإدارة" }, { status: 403 });
+
+  if (user.role === "PARTNER") {
+    if (!user.partner || user.partner.status !== "ACTIVE") {
+      return NextResponse.json({ error: user.partner?.status === "SUSPENDED" ? "الحساب معلّق" : "الحساب بانتظار موافقة الإدارة" }, { status: 403 });
+    }
+  } else if (user.role !== "ADMIN") {
+    return NextResponse.json({ error: "لوحة هذا الحساب غير متاحة بعد" }, { status: 403 });
   }
 
-  const response = NextResponse.json({ ok: true, role: user.role, redirectTo: "/partner/dashboard" });
+  const redirectTo = user.role === "ADMIN" ? "/admin/partners" : "/partner/dashboard";
+  const response = NextResponse.json({ ok: true, role: user.role, redirectTo });
   response.cookies.set(PARTNER_SESSION_COOKIE, createPartnerSession(user.id, remember), partnerSessionCookieOptions(remember));
   return response;
 }
