@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { parsePartnerReferralCode } from "@/lib/partner-referral";
+import { formatPartnerReferralCode, parsePartnerReferralCode } from "@/lib/partner-referral";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -20,10 +20,7 @@ export async function GET(
   }
 
   const partner = await db.partner.findFirst({
-    where: {
-      referralNumber,
-      status: "ACTIVE",
-    },
+    where: { referralNumber, status: "ACTIVE" },
     select: { id: true },
   });
 
@@ -32,6 +29,7 @@ export async function GET(
   }
 
   const destination = new URL("/", request.url);
+  destination.searchParams.set("ref", formatPartnerReferralCode(referralNumber));
   destination.hash = "/share-challenge";
   const response = NextResponse.redirect(destination, 302);
 
