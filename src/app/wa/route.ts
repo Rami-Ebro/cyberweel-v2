@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { formatPartnerReferralCode } from "@/lib/partner-referral";
+import { formatPartnerReferralCode, parsePartnerReferralCode } from "@/lib/partner-referral";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -23,12 +23,34 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  if (!referralCode) {
+    const referer = request.headers.get("referer");
+
+    if (referer) {
+      const code = new URL(referer).searchParams.get("ref");
+      const referralNumber = code ? parsePartnerReferralCode(code) : null;
+
+      if (referralNumber) {
+        const partner = await db.partner.findFirst({
+          where: { referralNumber, status: "ACTIVE" },
+          select: { referralNumber: true },
+        });
+
+        if (partner) {
+          referralCode = formatPartnerReferralCode(partner.referralNumber);
+        }
+      }
+    }
+  }
+
   const message = referralCode
     ? `مرحبًا، أرغب في مناقشة مشروعي مع CyberWeel.\nرمز الإحالة: ${referralCode}`
     : "مرحبًا، أرغب في مناقشة مشروعي مع CyberWeel.";
 
-  const whatsappUrl = new URL(`https://wa.me/${WHATSAPP_NUMBER}`);
+  const whatsappUrl = new URL("https://api.whatsapp.com/send");
+  whatsappUrl.searchParams.set("phone", WHATSAPP_NUMBER);
   whatsappUrl.searchParams.set("text", message);
+  whatsappUrl.searchParams.set("app_absent", "0");
 
   const response = NextResponse.redirect(whatsappUrl, 302);
   response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
