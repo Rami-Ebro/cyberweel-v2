@@ -143,7 +143,6 @@ export function MailtoForm({
         }).catch(() => null);
       }
 
-      toast.success(resolvedSuccessMessage);
       setShowSuccess(true);
       form.reset();
       setSelectedFiles([]);
