@@ -64,7 +64,7 @@ export function ShareChallengeView() {
                 to={BRAND.email}
                 subject={`${isArabic ? "مشروع أو تحدٍ جديد" : s.eyebrow} — CyberWeel`}
                 submitLabel={s.submitLabel}
-                successMessage={isArabic ? "وصل تحديك بنجاح، وسنراجعه ونتواصل معك قريبًا" : "Your challenge was sent successfully. We will review it and get back to you soon."}
+                successMessage={isArabic ? "وصل طلبك بنجاح، وسنراجعه ونتواصل معك قريبًا" : "Your request was sent successfully. We will review it and get back to you soon."}
                 allowAttachments
                 trackReferral
                 fields={s.fields.map((f) => ({ ...f, kind: f.rows ? "textarea" : "text" }))}
