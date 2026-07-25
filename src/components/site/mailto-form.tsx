@@ -102,7 +102,8 @@ export function MailtoForm({
 
         if (organization) details.unshift(`${isArabic ? "المؤسسة" : "Organization"}: ${organization}`);
 
-        await fetch("/api/referrals", {
+        const referralCode = new URLSearchParams(window.location.search).get("ref")?.trim() || "";
+        const referralResponse = await fetch("/api/referrals", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -110,23 +111,37 @@ export function MailtoForm({
             email: String(data.get("email") ?? "").trim(),
             phone: String(data.get("phone") ?? "").trim(),
             notes: details.join("\n\n"),
+            referralCode,
           }),
-        }).catch(() => null);
+        });
+
+        const referralResult = (await referralResponse.json().catch(() => null)) as
+          | { ok?: boolean; attributed?: boolean; error?: string }
+          | null;
+
+        if (!referralResponse.ok || !referralResult?.ok) {
+          throw new Error(referralResult?.error || "REFERRAL_FAILED");
+        }
+
+        if (referralCode && referralResult.attributed !== true) {
+          throw new Error("REFERRAL_NOT_ATTRIBUTED");
+        }
       }
 
       toast.success(
         successMessage ??
-          (isArabic ? "وصلت رسالتك بنجاح" : "Your message was sent successfully"),
+          (isArabic ? "وصل طلبك بنجاح" : "Your request was sent successfully"),
       );
       form.reset();
       setSelectedFiles([]);
-    } catch {
+    } catch (error) {
+      console.error("[mailto-form] Submission failed", error);
       toast.error(
-        isArabic ? "تعذر إرسال الرسالة الآن" : "We couldn't send your message right now",
+        isArabic ? "تعذر إرسال الطلب كاملًا الآن" : "We couldn't complete your request right now",
         {
           description: isArabic
-            ? `يمكنك مراسلتنا مباشرة على ${to}`
-            : `You can email us directly at ${to}`,
+            ? `لم نؤكد تسجيل الطلب. يمكنك مراسلتنا مباشرة على ${to}`
+            : `We could not confirm the request. You can email us directly at ${to}`,
         },
       );
     } finally {
