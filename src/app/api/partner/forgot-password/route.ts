@@ -1,0 +1,55 @@
+import { db } from "@/lib/db";
+import { fingerprint, normalizeEmail } from "@/lib/partner-auth";
+import { randomBytes } from "node:crypto";
+import { NextRequest, NextResponse } from "next/server";
+
+const GENERIC_MESSAGE = "إذا كان البريد مسجلًا، فستصلك رسالة إعادة تعيين كلمة المرور";
+
+export async function POST(request: NextRequest) {
+  const body = await request.json().catch(() => null);
+  const email = typeof body?.email === "string" ? normalizeEmail(body.email) : "";
+
+  if (!email.includes("@")) {
+    return NextResponse.json({ error: "أدخل بريدًا إلكترونيًا صحيحًا" }, { status: 400 });
+  }
+
+  const user = await db.user.findUnique({ where: { email }, select: { id: true, role: true } });
+  if (!user || user.role !== "PARTNER") {
+    return NextResponse.json({ ok: true, message: GENERIC_MESSAGE });
+  }
+
+  await db.passwordResetToken.updateMany({
+    where: { userId: user.id, usedAt: null },
+    data: { usedAt: new Date() },
+  });
+
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+  await db.passwordResetToken.create({
+    data: { userId: user.id, tokenHash: fingerprint(token), expiresAt },
+  });
+
+  const resetUrl = `${request.nextUrl.origin}/partner/reset-password?token=${token}`;
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM || "CyberWeel <noreply@cyberweel.com>";
+
+  if (apiKey) {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from,
+        to: email,
+        subject: "إعادة تعيين كلمة مرور CyberWeel",
+        html: `<div dir="rtl" style="font-family:Arial,sans-serif"><h2>إعادة تعيين كلمة المرور</h2><p>اضغط على الرابط التالي لإنشاء كلمة مرور جديدة. الرابط صالح لمدة 30 دقيقة ويُستخدم مرة واحدة فقط.</p><p><a href="${resetUrl}">إعادة تعيين كلمة المرور</a></p><p>إذا لم تطلب ذلك، تجاهل الرسالة.</p></div>`,
+      }),
+    });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    message: GENERIC_MESSAGE,
+    ...(process.env.VERCEL_ENV === "preview" ? { resetUrl } : {}),
+  });
+}

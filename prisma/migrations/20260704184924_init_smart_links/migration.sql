@@ -1,0 +1,3 @@
+-- Baseline migration for the existing PostgreSQL database.
+-- The SmartLink and SmartLinkScan tables already existed before Prisma Migrate was introduced.
+-- This migration is intentionally empty and is marked as applied during deployment.

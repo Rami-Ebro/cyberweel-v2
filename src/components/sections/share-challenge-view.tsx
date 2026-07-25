@@ -66,6 +66,7 @@ export function ShareChallengeView() {
                 submitLabel={s.submitLabel}
                 successMessage={isArabic ? "وصل تحديك بنجاح، وسنراجعه ونتواصل معك قريبًا" : "Your challenge was sent successfully. We will review it and get back to you soon."}
                 allowAttachments
+                trackReferral
                 fields={s.fields.map((f) => ({ ...f, kind: f.rows ? "textarea" : "text" }))}
               />
             </div>

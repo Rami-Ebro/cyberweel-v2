@@ -4,17 +4,10 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
-/**
- * Floating WhatsApp button — premium, non-intrusive.
- * Branded with Ink + Camel (not generic bright green).
- * Appears after a short scroll. Opens WhatsApp directly.
- */
 export function WhatsAppButton({
-  number,
-  message,
   className,
 }: {
-  number: string;
+  number?: string;
   message?: string;
   className?: string;
 }) {
@@ -27,15 +20,11 @@ export function WhatsAppButton({
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const href = `https://wa.me/${number.replace(/[^0-9]/g, "")}${
-    message ? `?text=${encodeURIComponent(message)}` : ""
-  }`;
-
   return (
     <AnimatePresence>
       {show && (
         <motion.a
-          href={href}
+          href="/wa"
           target="_blank"
           rel="noopener noreferrer"
           initial={{ opacity: 0, scale: 0.85, y: 10 }}
@@ -44,7 +33,7 @@ export function WhatsAppButton({
           transition={{ duration: 0.25 }}
           className={cn(
             "fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-camel/40 bg-ink text-camel shadow-lg transition-colors hover:bg-ink/90",
-            className
+            className,
           )}
           aria-label="WhatsApp"
         >
@@ -55,15 +44,9 @@ export function WhatsAppButton({
   );
 }
 
-/** Branded WhatsApp glyph — matches the calm Ink + Camel identity. */
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className={className}
-      aria-hidden
-    >
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
       <path
         d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.5A10 10 0 1 0 12 2Z"
         stroke="currentColor"
