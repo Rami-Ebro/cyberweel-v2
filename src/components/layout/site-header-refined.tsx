@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Menu } from "lucide-react";
+import { LogIn, Menu } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS, BRAND, type ViewId } from "@/lib/site-data";
+import { NAV_ITEMS, type ViewId } from "@/lib/site-data";
 import { useNav } from "@/components/site/nav-context";
 import { useI18n } from "@/components/site/i18n";
 import { LanguageSwitcher } from "@/components/site/language-switcher";
@@ -38,7 +38,7 @@ export function SiteHeaderRefined() {
     return t.nav[id];
   };
   const menuLabel = dir === "rtl" ? "فتح القائمة" : "Open menu";
-  const ctaLabel = dir === "rtl" ? "ابدأ محادثة الآن" : "Start a conversation";
+  const loginLabel = dir === "rtl" ? "تسجيل الدخول" : "Sign in";
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/70 bg-background/90 backdrop-blur-md">
@@ -60,7 +60,7 @@ export function SiteHeaderRefined() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <LanguageSwitcher />
-          <a href={BRAND.social.whatsapp} target="_blank" rel="noopener noreferrer" className="focus-ring hidden items-center rounded-md bg-ink px-5 py-2.5 text-sm font-semibold text-floral transition-colors hover:bg-ink/90 sm:inline-flex">{ctaLabel}</a>
+          <a href="/login" className="focus-ring hidden items-center gap-2 rounded-md bg-ink px-5 py-2.5 text-sm font-semibold text-floral transition-colors hover:bg-ink/90 sm:inline-flex"><LogIn className="h-4 w-4" />{loginLabel}</a>
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild><button type="button" className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-md text-ink lg:hidden" aria-label={menuLabel}><Menu className="h-6 w-6" /></button></SheetTrigger>
             <SheetContent side={dir === "rtl" ? "left" : "right"} className="flex w-full max-w-sm flex-col border-border bg-background p-0">
@@ -79,7 +79,7 @@ export function SiteHeaderRefined() {
               </nav>
               <div className="mt-auto space-y-3 border-t border-border px-6 py-6">
                 <button type="button" onClick={() => go("share-challenge")} className="focus-ring flex w-full items-center justify-center rounded-md border border-border px-5 py-3 text-sm font-semibold text-ink transition-colors hover:bg-muted">{dir === "rtl" ? "شاركنا مشكلتك" : "Share your challenge"}</button>
-                <a href={BRAND.social.whatsapp} target="_blank" rel="noopener noreferrer" className="focus-ring flex w-full items-center justify-center rounded-md bg-ink px-5 py-3 text-sm font-semibold text-floral transition-colors hover:bg-ink/90">{ctaLabel}</a>
+                <a href="/login" className="focus-ring flex w-full items-center justify-center gap-2 rounded-md bg-ink px-5 py-3 text-sm font-semibold text-floral transition-colors hover:bg-ink/90"><LogIn className="h-4 w-4" />{loginLabel}</a>
               </div>
             </SheetContent>
           </Sheet>
