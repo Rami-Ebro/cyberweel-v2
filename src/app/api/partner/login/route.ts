@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: user.partner?.status === "SUSPENDED" ? "الحساب معلّق" : "الحساب بانتظار موافقة الإدارة" }, { status: 403 });
   }
 
-  const response = NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true, role: user.role, redirectTo: "/partner/dashboard" });
   response.cookies.set(PARTNER_SESSION_COOKIE, createPartnerSession(user.id, remember), partnerSessionCookieOptions(remember));
   return response;
 }
