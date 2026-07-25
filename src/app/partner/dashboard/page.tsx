@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   BriefcaseBusiness,
+  CalendarDays,
   Check,
   CircleDollarSign,
   Copy,
@@ -13,8 +14,10 @@ import {
   Home,
   Link2,
   LogOut,
+  Mail,
   Menu,
   Moon,
+  Phone,
   Sun,
   UserRound,
   UsersRound,
@@ -50,6 +53,18 @@ const referralStatus: Record<string, string> = {
   CONVERTED: "تحوّل إلى مشروع",
   REJECTED: "غير مناسب",
 };
+
+const referralStatusClass: Record<string, string> = {
+  NEW: "bg-sky-100 text-sky-800",
+  CONTACTED: "bg-amber-100 text-amber-800",
+  QUALIFIED: "bg-violet-100 text-violet-800",
+  CONVERTED: "bg-emerald-100 text-emerald-800",
+  REJECTED: "bg-rose-100 text-rose-800",
+};
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("ar", { year: "numeric", month: "short", day: "numeric" }).format(new Date(value));
+}
 
 function DashboardWordmark() {
   return (
@@ -136,11 +151,38 @@ export default function PartnerDashboardPage() {
     return <section className={`rounded-2xl border p-8 text-center shadow-sm ${card}`}><h2 className="text-xl font-extrabold">{title}</h2><p className={`mt-3 text-sm ${muted}`}>{text}</p></section>;
   }
 
+  function referralCard(item: Referral) {
+    return (
+      <article key={item.id} className={`rounded-2xl border border-current/10 p-5 ${soft}`}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h3 className="text-lg font-extrabold">{item.name || "عميل دون اسم"}</h3>
+            <div className={`mt-3 space-y-2 text-sm ${muted}`}>
+              {item.email && <a href={`mailto:${item.email}`} className="flex items-center gap-2 break-all hover:text-[#B89A5A]"><Mail className="h-4 w-4 shrink-0" /><span dir="ltr">{item.email}</span></a>}
+              {item.phone && <a href={`tel:${item.phone}`} className="flex items-center gap-2 hover:text-[#B89A5A]"><Phone className="h-4 w-4 shrink-0" /><span dir="ltr">{item.phone}</span></a>}
+              {!item.email && !item.phone && <p>لا توجد وسيلة تواصل</p>}
+              <p className="flex items-center gap-2"><CalendarDays className="h-4 w-4 shrink-0" />تاريخ الإحالة: {formatDate(item.createdAt)}</p>
+            </div>
+          </div>
+          <span className={`w-fit rounded-full px-3 py-1.5 text-xs font-extrabold ${referralStatusClass[item.status] || "bg-slate-100 text-slate-700"}`}>{referralStatus[item.status] || item.status}</span>
+        </div>
+      </article>
+    );
+  }
+
   function renderContent() {
     if (!data) return null;
 
     if (activeSection === "referrals") {
-      return <section className={`rounded-2xl border p-6 shadow-sm ${card}`}><h2 className="text-xl font-extrabold">العملاء المحالون</h2>{data.referrals.length === 0 ? <p className={`mt-5 text-sm ${muted}`}>لم تُسجل أي إحالة بعد.</p> : <div className="mt-5 space-y-3">{data.referrals.map((item) => <div key={item.id} className={`flex flex-col justify-between gap-2 rounded-xl p-4 sm:flex-row ${soft}`}><div><p className="font-bold">{item.name || "عميل دون اسم"}</p><p className={`text-sm ${muted}`}>{item.email || item.phone || "لا توجد وسيلة تواصل"}</p></div><span className="text-sm font-bold text-[#B89A5A]">{referralStatus[item.status] || item.status}</span></div>)}</div>}</section>;
+      return (
+        <section className={`rounded-2xl border p-6 shadow-sm ${card}`}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div><p className="text-xs font-bold text-[#B89A5A]">سجل الإحالات</p><h2 className="mt-1 text-2xl font-extrabold">العملاء المحالون</h2><p className={`mt-2 text-sm ${muted}`}>تفاصيل التواصل، تاريخ الإحالة، والحالة الحالية لكل عميل.</p></div>
+            <div className={`w-fit rounded-xl px-4 py-2 text-sm font-bold ${soft}`}>الإجمالي: {data.referrals.length}</div>
+          </div>
+          {data.referrals.length === 0 ? <p className={`mt-6 text-sm ${muted}`}>لم تُسجل أي إحالة بعد.</p> : <div className="mt-6 grid gap-4 xl:grid-cols-2">{data.referrals.map(referralCard)}</div>}
+        </section>
+      );
     }
 
     if (activeSection === "projects") return empty("المشاريع", "لا توجد مشاريع مرتبطة بالإحالات حتى الآن.");
@@ -158,7 +200,7 @@ export default function PartnerDashboardPage() {
       ["الرصيد المستحق", `$${data.stats.dueBalance}`],
     ];
 
-    return <><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{stats.map(([label, value]) => <article key={String(label)} className={`rounded-2xl border p-5 shadow-sm ${card}`}><p className={`text-sm font-semibold ${muted}`}>{label}</p><p className="mt-3 text-3xl font-black">{value}</p></article>)}</div><div className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_0.8fr]"><section className={`rounded-2xl border p-6 shadow-sm ${card}`}><div className="flex items-center justify-between"><h2 className="font-extrabold">آخر الإحالات</h2><button type="button" onClick={() => navigate("referrals")} className="cursor-pointer font-bold text-[#B89A5A]">عرض الكل</button></div>{data.referrals.length === 0 ? <p className={`mt-5 text-sm ${muted}`}>لم تُسجل أي إحالة بعد.</p> : <div className="mt-5 space-y-3">{data.referrals.slice(0, 3).map((item) => <div key={item.id} className={`flex justify-between rounded-xl p-4 ${soft}`}><div><p className="font-bold">{item.name || "عميل دون اسم"}</p><p className={`text-sm ${muted}`}>{item.email || item.phone || "لا توجد وسيلة تواصل"}</p></div><span className="font-bold text-[#B89A5A]">{referralStatus[item.status] || item.status}</span></div>)}</div>}</section><section className="rounded-2xl bg-[#111827] p-6 text-white"><p className="text-xs font-bold text-[#B89A5A]">رابط الإحالة</p><div className="mt-4 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2"><code dir="ltr" title={data.partner.referralUrl} className="min-w-0 flex-1 truncate px-2 text-xs text-white/80">{data.partner.referralUrl}</code><button type="button" onClick={copyReferralLink} aria-label="نسخ رابط الإحالة" className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-lg bg-[#B89A5A] text-[#111827]">{copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}</button></div>{copied && <p className="mt-3 text-sm font-bold text-emerald-300">تم نسخ الرابط</p>}</section></div></>;
+    return <><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{stats.map(([label, value]) => <article key={String(label)} className={`rounded-2xl border p-5 shadow-sm ${card}`}><p className={`text-sm font-semibold ${muted}`}>{label}</p><p className="mt-3 text-3xl font-black">{value}</p></article>)}</div><div className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_0.8fr]"><section className={`rounded-2xl border p-6 shadow-sm ${card}`}><div className="flex items-center justify-between"><h2 className="font-extrabold">آخر الإحالات</h2><button type="button" onClick={() => navigate("referrals")} className="cursor-pointer font-bold text-[#B89A5A]">عرض الكل</button></div>{data.referrals.length === 0 ? <p className={`mt-5 text-sm ${muted}`}>لم تُسجل أي إحالة بعد.</p> : <div className="mt-5 space-y-3">{data.referrals.slice(0, 3).map((item) => <div key={item.id} className={`flex flex-col gap-3 rounded-xl p-4 sm:flex-row sm:items-center sm:justify-between ${soft}`}><div><p className="font-bold">{item.name || "عميل دون اسم"}</p><p className={`text-sm ${muted}`}>{item.email || item.phone || "لا توجد وسيلة تواصل"}</p><p className={`mt-1 text-xs ${muted}`}>{formatDate(item.createdAt)}</p></div><span className={`w-fit rounded-full px-3 py-1 text-xs font-extrabold ${referralStatusClass[item.status] || "bg-slate-100 text-slate-700"}`}>{referralStatus[item.status] || item.status}</span></div>)}</div>}</section><section className="rounded-2xl bg-[#111827] p-6 text-white"><p className="text-xs font-bold text-[#B89A5A]">رابط الإحالة</p><div className="mt-4 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2"><code dir="ltr" title={data.partner.referralUrl} className="min-w-0 flex-1 truncate px-2 text-xs text-white/80">{data.partner.referralUrl}</code><button type="button" onClick={copyReferralLink} aria-label="نسخ رابط الإحالة" className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-lg bg-[#B89A5A] text-[#111827]">{copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}</button></div>{copied && <p className="mt-3 text-sm font-bold text-emerald-300">تم نسخ الرابط</p>}</section></div></>;
   }
 
   if (error) return <main dir="rtl" className="grid min-h-screen place-items-center bg-[#F7F3EB] p-4"><div className="max-w-md rounded-2xl bg-white p-7 text-center shadow-xl"><h1 className="text-xl font-extrabold">تعذر تحميل لوحة الشريك</h1><p className="mt-3 text-sm text-red-700">{error}</p><button type="button" onClick={() => location.reload()} className="mt-5 rounded-xl bg-[#111827] px-5 py-3 font-bold text-white">إعادة المحاولة</button></div></main>;
