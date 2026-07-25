@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Paperclip, Send } from "lucide-react";
+import { CheckCircle2, Paperclip, Send, Share2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/components/site/i18n";
 
@@ -37,8 +37,36 @@ export function MailtoForm({
 }: MailtoFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [showSuccess, setShowSuccess] = useState(false);
   const { t } = useI18n();
   const isArabic = t.dir === "rtl";
+
+  const resolvedSuccessMessage =
+    successMessage ??
+    (isArabic ? "وصلت رسالتك بنجاح" : "Your message was sent successfully");
+
+  const handleShare = async () => {
+    const shareData = {
+      title: "CyberWeel",
+      text: isArabic
+        ? "شارك مشكلتك مع CyberWeel"
+        : "Share your challenge with CyberWeel",
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success(isArabic ? "تم نسخ الرابط" : "Link copied");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast.error(isArabic ? "تعذرت المشاركة الآن" : "Unable to share right now");
+    }
+  };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -58,6 +86,7 @@ export function MailtoForm({
     }
 
     setSubmitting(true);
+    setShowSuccess(false);
     const data = new FormData(form);
     const requestData = new FormData();
 
@@ -114,10 +143,8 @@ export function MailtoForm({
         }).catch(() => null);
       }
 
-      toast.success(
-        successMessage ??
-          (isArabic ? "وصلت رسالتك بنجاح" : "Your message was sent successfully"),
-      );
+      toast.success(resolvedSuccessMessage);
+      setShowSuccess(true);
       form.reset();
       setSelectedFiles([]);
     } catch {
@@ -227,6 +254,43 @@ export function MailtoForm({
           <Send className="h-4 w-4" />
         </button>
       </div>
+
+      {showSuccess && (
+        <div
+          role="status"
+          className="relative flex flex-col gap-4 rounded-lg border border-emerald-300 bg-emerald-50 p-5 text-emerald-950 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+        >
+          <button
+            type="button"
+            onClick={() => setShowSuccess(false)}
+            className="focus-ring absolute end-3 top-3 rounded-md p-1 text-emerald-800 transition hover:bg-emerald-100"
+            aria-label={isArabic ? "إغلاق رسالة النجاح" : "Close success message"}
+          >
+            <X className="h-4 w-4" />
+          </button>
+
+          <div className="flex items-start gap-3 pe-8">
+            <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-emerald-600" />
+            <div>
+              <p className="font-semibold">{resolvedSuccessMessage}</p>
+              <p className="mt-1 text-sm text-emerald-800">
+                {isArabic
+                  ? "شكرًا لمشاركتنا التفاصيل. سنراجعها ونتواصل معك قريبًا."
+                  : "Thank you for sharing the details. We'll review them and get back to you soon."}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleShare}
+            className="focus-ring inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-emerald-400 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-100"
+          >
+            <Share2 className="h-4 w-4" />
+            {isArabic ? "مشاركة" : "Share"}
+          </button>
+        </div>
+      )}
     </form>
   );
 }
