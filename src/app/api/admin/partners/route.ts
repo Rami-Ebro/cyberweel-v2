@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     }),
     db.partnerReferral.findMany({
       orderBy: { createdAt: "desc" },
-      take: 100,
+      take: 250,
       include: { partner: { include: { user: { select: { name: true, email: true } } } } },
     }),
     db.user.count(),
@@ -36,6 +36,8 @@ export async function GET(request: NextRequest) {
     pendingPartners: partners.filter((item) => item.status === "PENDING").length,
     referrals: referrals.length,
     newReferrals: referrals.filter((item) => item.status === "NEW").length,
+    qualifiedReferrals: referrals.filter((item) => item.status === "QUALIFIED").length,
+    projects: referrals.filter((item) => item.status === "CONVERTED").length,
   };
 
   return NextResponse.json({ partners, referrals, stats });
@@ -46,8 +48,20 @@ export async function PATCH(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const id = typeof body?.id === "string" ? body.id : "";
   const status = body?.status;
-  if (!id || !["ACTIVE", "PENDING", "SUSPENDED"].includes(status)) {
-    return NextResponse.json({ error: "طلب غير صالح" }, { status: 400 });
+  const entity = body?.entity === "referral" ? "referral" : "partner";
+
+  if (!id) return NextResponse.json({ error: "طلب غير صالح" }, { status: 400 });
+
+  if (entity === "referral") {
+    if (!["NEW", "CONTACTED", "QUALIFIED", "CONVERTED", "REJECTED"].includes(status)) {
+      return NextResponse.json({ error: "حالة الإحالة غير صالحة" }, { status: 400 });
+    }
+    const referral = await db.partnerReferral.update({ where: { id }, data: { status } });
+    return NextResponse.json({ referral });
+  }
+
+  if (!["ACTIVE", "PENDING", "SUSPENDED"].includes(status)) {
+    return NextResponse.json({ error: "حالة الشريك غير صالحة" }, { status: 400 });
   }
   const partner = await db.partner.update({ where: { id }, data: { status } });
   return NextResponse.json({ partner });
