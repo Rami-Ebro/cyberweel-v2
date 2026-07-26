@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Eye, EyeOff, LogIn } from "lucide-react";
+import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
@@ -38,7 +38,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.replace(data.redirectTo || "/partner/dashboard");
+      router.replace(data.redirectTo || "/dashboard");
       router.refresh();
     } catch {
       setMessage("تعذر الاتصال بالخادم. حاول مرة أخرى.");
@@ -53,11 +53,24 @@ export default function LoginPage() {
           <Logo size={52} />
           <span className="text-xl font-black">CyberWeel</span>
         </Link>
+
+        <div className="mt-7 grid grid-cols-2 gap-2 rounded-2xl bg-[#F7F3EB] p-1.5">
+          <span className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#111827] px-3 font-black text-white shadow-sm">
+            <LogIn className="h-4 w-4" />
+            تسجيل الدخول
+          </span>
+          <Link href="/partner/register" className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 font-black text-[#111827] transition hover:bg-white">
+            <UserPlus className="h-4 w-4" />
+            تسجيل حساب
+          </Link>
+        </div>
+
         <div className="mt-7 text-center">
           <p className="text-sm font-bold text-[#B89A5A]">بوابة CyberWeel</p>
           <h1 className="mt-2 text-3xl font-black">تسجيل الدخول</h1>
-          <p className="mt-2 text-sm text-slate-500">سيتم فتح اللوحة المناسبة بحسب صلاحية حسابك.</p>
+          <p className="mt-2 text-sm text-slate-500">سيتم فتح لوحة التحكم المناسبة بحسب صلاحية حسابك.</p>
         </div>
+
         <form onSubmit={submit} className="mt-7 space-y-4">
           <input name="identifier" type="text" autoComplete="username" required disabled={loading} placeholder="أدخل الإيميل أو رقم واتساب" className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 outline-none transition focus:border-[#B89A5A] disabled:bg-slate-50" />
           <div className="relative">
@@ -79,7 +92,6 @@ export default function LoginPage() {
           </button>
         </form>
         {message && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">{message}</p>}
-        <p className="mt-6 text-center text-sm text-slate-600">ترغب بالانضمام كشريك؟ <Link href="/partner/register" className="font-bold text-[#9A7D43]">إنشاء طلب شراكة</Link></p>
       </div>
     </main>
   );
