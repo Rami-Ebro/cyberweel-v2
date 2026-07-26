@@ -4,6 +4,7 @@ import {
   PARTNER_SESSION_COOKIE,
   hashPassword,
   normalizeEmail,
+  normalizePhone,
   readPartnerSession,
   verifyPassword,
 } from "@/lib/partner-auth";
@@ -39,6 +40,7 @@ export async function PATCH(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const emailInput = typeof body?.email === "string" ? body.email.trim() : "";
+  const phoneInput = typeof body?.phone === "string" ? body.phone.trim() : "";
   const currentPassword = typeof body?.currentPassword === "string" ? body.currentPassword : "";
   const newPassword = typeof body?.newPassword === "string" ? body.newPassword : "";
 
@@ -50,6 +52,15 @@ export async function PATCH(request: NextRequest) {
     if (!email.includes("@")) return NextResponse.json({ error: "البريد الإلكتروني غير صالح" }, { status: 400 });
     const duplicate = await db.user.findFirst({ where: { email, NOT: { id: user.id } }, select: { id: true } });
     if (duplicate) return NextResponse.json({ error: "البريد الإلكتروني مستخدم مسبقًا" }, { status: 409 });
+  }
+
+  const phone = phoneInput ? normalizePhone(phoneInput) : null;
+  if (phoneInput && phone.replace(/\D/g, "").length < 8) {
+    return NextResponse.json({ error: "رقم واتساب غير صالح. أضف رمز الدولة" }, { status: 400 });
+  }
+  if (phone) {
+    const duplicate = await db.user.findFirst({ where: { phone, NOT: { id: user.id } }, select: { id: true } });
+    if (duplicate) return NextResponse.json({ error: "رقم واتساب مستخدم مسبقًا" }, { status: 409 });
   }
 
   if (newPassword) {
@@ -64,6 +75,7 @@ export async function PATCH(request: NextRequest) {
     data: {
       name,
       email,
+      phone,
       ...(newPassword ? { passwordHash: hashPassword(newPassword) } : {}),
     },
     select: { id: true, name: true, email: true, phone: true, role: true },
