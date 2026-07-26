@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, CheckCircle2, KeyRound, LogOut, RefreshCw, ShieldCheck, UserCog, UsersRound } from "lucide-react";
+import { BarChart3, CheckCircle2, Eye, EyeOff, KeyRound, LogOut, RefreshCw, ShieldCheck, UserCog, UsersRound } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 
 type Partner = { id: string; referralNumber: number; status: "PENDING" | "ACTIVE" | "SUSPENDED"; createdAt: string; user: { name: string | null; email: string }; _count: { referrals: number } };
@@ -24,6 +24,8 @@ export default function AdminPartnersPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -77,6 +79,8 @@ export default function AdminPartnersPage() {
     setAdmin(data.admin);
     setMessage("تم حفظ بيانات حساب الإدارة");
     event.currentTarget.reset();
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
   }
 
   async function logout() {
@@ -116,7 +120,7 @@ export default function AdminPartnersPage() {
 
           {!loading && section === "referrals" && <section className="mt-7 rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><h2 className="text-2xl font-black">كل الإحالات</h2><div className="mt-6 overflow-x-auto"><table className="w-full min-w-[760px] text-right text-sm"><thead><tr className="border-b"><th className="p-3">العميل</th><th className="p-3">الشريك</th><th className="p-3">التواصل</th><th className="p-3">الحالة</th><th className="p-3">التاريخ</th></tr></thead><tbody>{referrals.map((item) => <tr key={item.id} className="border-b border-slate-100"><td className="p-3 font-bold">{item.name || "دون اسم"}</td><td className="p-3">{item.partner.user.name || item.partner.user.email}</td><td className="p-3">{item.email || item.phone || "—"}</td><td className="p-3">{referralLabel[item.status] || item.status}</td><td className="p-3">{new Date(item.createdAt).toLocaleDateString("ar")}</td></tr>)}</tbody></table></div></section>}
 
-          {!loading && section === "account" && <section className="mt-7 max-w-2xl rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-xl bg-[#111827] text-white"><ShieldCheck className="h-6 w-6" /></span><div><h2 className="text-2xl font-black">حساب الإدارة</h2><p className="text-sm text-slate-500">تعديل الاسم والبريد وكلمة المرور</p></div></div><form onSubmit={saveAccount} className="mt-7 grid gap-4"><label className="grid gap-2 font-bold">الاسم<input name="name" defaultValue={admin?.name || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><label className="grid gap-2 font-bold">البريد الإلكتروني<input name="email" type="email" defaultValue={admin?.email || ""} required className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><div className="mt-3 flex items-center gap-2 font-black"><KeyRound className="h-5 w-5" />تغيير كلمة المرور</div><label className="grid gap-2 font-bold">كلمة المرور الحالية<input name="currentPassword" type="password" className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><label className="grid gap-2 font-bold">كلمة المرور الجديدة<input name="newPassword" type="password" minLength={8} className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><button className="mt-2 rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white">حفظ التعديلات</button></form></section>}
+          {!loading && section === "account" && <section className="mt-7 max-w-2xl rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-xl bg-[#111827] text-white"><ShieldCheck className="h-6 w-6" /></span><div><h2 className="text-2xl font-black">حساب الإدارة</h2><p className="text-sm text-slate-500">تعديل الاسم والبريد وكلمة المرور</p></div></div><form onSubmit={saveAccount} className="mt-7 grid gap-4"><label className="grid gap-2 font-bold">الاسم<input name="name" defaultValue={admin?.name || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><label className="grid gap-2 font-bold">البريد الإلكتروني<input name="email" type="email" defaultValue={admin?.email || ""} required className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><div className="mt-3 flex items-center gap-2 font-black"><KeyRound className="h-5 w-5" />تغيير كلمة المرور</div><label className="grid gap-2 font-bold">كلمة المرور الحالية<div className="relative"><input name="currentPassword" type={showCurrentPassword ? "text" : "password"} className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 pl-12" /><button type="button" onClick={() => setShowCurrentPassword((value) => !value)} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 hover:bg-[#F7F3EB]" aria-label={showCurrentPassword ? "إخفاء كلمة المرور الحالية" : "إظهار كلمة المرور الحالية"}>{showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button></div></label><label className="grid gap-2 font-bold">كلمة المرور الجديدة<div className="relative"><input name="newPassword" type={showNewPassword ? "text" : "password"} minLength={8} className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 pl-12" /><button type="button" onClick={() => setShowNewPassword((value) => !value)} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 hover:bg-[#F7F3EB]" aria-label={showNewPassword ? "إخفاء كلمة المرور الجديدة" : "إظهار كلمة المرور الجديدة"}>{showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button></div></label><button className="mt-2 rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white">حفظ التعديلات</button></form></section>}
         </section>
       </div>
     </main>
