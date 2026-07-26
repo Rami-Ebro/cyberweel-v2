@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
   const user = await db.user.findFirst({
     where: isEmail ? { email } : { phone },
-    include: { partner: true },
+    include: { partner: true, adminProfile: true },
   });
   if (!user?.passwordHash || !verifyPassword(password, user.passwordHash)) {
     return NextResponse.json({ error: "بيانات الدخول غير صحيحة" }, { status: 401 });
@@ -23,6 +23,14 @@ export async function POST(request: NextRequest) {
     if (!user.partner || user.partner.status !== "ACTIVE") {
       return NextResponse.json({ error: user.partner?.status === "SUSPENDED" ? "الحساب معلّق" : "الحساب بانتظار موافقة الإدارة" }, { status: 403 });
     }
+  }
+
+  if (user.role === "ADMIN" && user.adminProfile && !user.adminProfile.isActive) {
+    return NextResponse.json({ error: "الحساب الإداري موقوف" }, { status: 403 });
+  }
+
+  if (user.role === "ADMIN" && user.adminProfile) {
+    await db.adminProfile.update({ where: { userId: user.id }, data: { lastLoginAt: new Date() } });
   }
 
   const redirectTo = user.role === "ADMIN"
