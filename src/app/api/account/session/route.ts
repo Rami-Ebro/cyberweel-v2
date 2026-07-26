@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       identifier: user.phone || user.email,
       role: user.role,
       dashboardUrl,
-      settingsUrl: dashboardUrl,
+      settingsUrl: "/account/settings",
     },
   });
 }
