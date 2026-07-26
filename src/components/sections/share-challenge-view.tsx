@@ -56,7 +56,7 @@ export function ShareChallengeView() {
             </h2>
             <p className="mt-2 text-base text-muted-foreground">
               {isArabic
-                ? "لا تحتاج إلى معرفة الحل. أخبرنا بما يحدث، وما النتيجة التي تريد الوصول إليها"
+                ? "صف لنا ما يحدث الآن، وما النتيجة التي تريد الوصول إليها. سنساعدك على توضيح الصورة وتحديد الخطوة التالية."
                 : s.formHint}
             </p>
             <div className="mt-8">
