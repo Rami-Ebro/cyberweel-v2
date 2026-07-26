@@ -6,6 +6,8 @@ import {
 } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
+import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
 
 export const ADMIN_SESSION_COOKIE = "cw_admin_session";
 
@@ -64,12 +66,17 @@ export function verifySessionToken(token: string | undefined): boolean {
 
 export async function isOwnerSession(): Promise<boolean> {
   const cookieStore = await cookies();
-  return verifySessionToken(cookieStore.get(ADMIN_SESSION_COOKIE)?.value);
+  if (verifySessionToken(cookieStore.get(ADMIN_SESSION_COOKIE)?.value)) return true;
+
+  const unifiedSession = readPartnerSession(cookieStore.get(PARTNER_SESSION_COOKIE)?.value);
+  if (!unifiedSession) return false;
+  const user = await db.user.findUnique({ where: { id: unifiedSession.userId }, select: { role: true } });
+  return user?.role === "ADMIN";
 }
 
 export async function requireOwner(): Promise<void> {
   if (!(await isOwnerSession())) {
-    redirect("/admin/login");
+    redirect("/login");
   }
 }
 
