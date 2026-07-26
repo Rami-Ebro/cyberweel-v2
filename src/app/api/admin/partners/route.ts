@@ -1,32 +1,31 @@
 import { db } from "@/lib/db";
-import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
+import { canAdmin } from "@/lib/admin-permissions";
 import { NextRequest, NextResponse } from "next/server";
 
-async function authorized(request: NextRequest) {
-  const key = request.headers.get("x-admin-key");
-  if (process.env.PARTNER_ADMIN_KEY && key === process.env.PARTNER_ADMIN_KEY) return true;
-
-  const session = readPartnerSession(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
-  if (!session) return false;
-
-  const user = await db.user.findUnique({ where: { id: session.userId }, select: { role: true } });
-  return user?.role === "ADMIN";
-}
-
 export async function GET(request: NextRequest) {
-  if (!(await authorized(request))) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+  const canView = await Promise.all([
+    canAdmin(request, "overview"),
+    canAdmin(request, "partners"),
+    canAdmin(request, "referrals"),
+    canAdmin(request, "projects"),
+  ]);
+  if (!canView.some(Boolean)) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
   const [partners, referrals, users] = await Promise.all([
-    db.partner.findMany({
-      orderBy: { createdAt: "desc" },
-      include: { user: { select: { name: true, email: true } }, _count: { select: { referrals: true } } },
-    }),
-    db.partnerReferral.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 250,
-      include: { partner: { include: { user: { select: { name: true, email: true } } } } },
-    }),
-    db.user.count(),
+    canView[1]
+      ? db.partner.findMany({
+          orderBy: { createdAt: "desc" },
+          include: { user: { select: { name: true, email: true } }, _count: { select: { referrals: true } } },
+        })
+      : [],
+    canView[2] || canView[3] || canView[0]
+      ? db.partnerReferral.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 250,
+          include: { partner: { include: { user: { select: { name: true, email: true } } } } },
+        })
+      : [],
+    canView[0] ? db.user.count() : 0,
   ]);
 
   const stats = {
@@ -40,11 +39,15 @@ export async function GET(request: NextRequest) {
     projects: referrals.filter((item) => item.status === "CONVERTED").length,
   };
 
-  return NextResponse.json({ partners, referrals, stats });
+  return NextResponse.json({
+    partners,
+    referrals,
+    stats,
+    access: { overview: canView[0], partners: canView[1], referrals: canView[2], projects: canView[3] },
+  });
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!(await authorized(request))) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   const body = await request.json().catch(() => null);
   const id = typeof body?.id === "string" ? body.id : "";
   const status = body?.status;
@@ -53,6 +56,8 @@ export async function PATCH(request: NextRequest) {
   if (!id) return NextResponse.json({ error: "طلب غير صالح" }, { status: 400 });
 
   if (entity === "referral") {
+    const permission = status === "CONVERTED" ? "projects" : "referrals";
+    if (!(await canAdmin(request, permission))) return NextResponse.json({ error: "لا تملك هذه الصلاحية" }, { status: 403 });
     if (!["NEW", "CONTACTED", "QUALIFIED", "CONVERTED", "REJECTED"].includes(status)) {
       return NextResponse.json({ error: "حالة الإحالة غير صالحة" }, { status: 400 });
     }
@@ -60,6 +65,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ referral });
   }
 
+  if (!(await canAdmin(request, "partners"))) return NextResponse.json({ error: "لا تملك صلاحية إدارة الشركاء" }, { status: 403 });
   if (!["ACTIVE", "PENDING", "SUSPENDED"].includes(status)) {
     return NextResponse.json({ error: "حالة الشريك غير صالحة" }, { status: 400 });
   }
