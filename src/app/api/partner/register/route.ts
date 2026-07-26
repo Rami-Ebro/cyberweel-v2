@@ -1,26 +1,46 @@
 import { db } from "@/lib/db";
-import { hashPassword, normalizeEmail } from "@/lib/partner-auth";
+import { hashPassword, normalizeEmail, normalizePhone } from "@/lib/partner-auth";
 import { NextRequest, NextResponse } from "next/server";
+
+function internalPhoneEmail(phone: string) {
+  return `phone.${phone.replace(/\D/g, "")}@accounts.cyberweel.local`;
+}
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
-  const email = typeof body?.email === "string" ? normalizeEmail(body.email) : "";
+  const identifier = typeof body?.identifier === "string" ? body.identifier.trim() : "";
   const password = typeof body?.password === "string" ? body.password : "";
+  const isEmail = identifier.includes("@");
+  const email = isEmail ? normalizeEmail(identifier) : "";
+  const phone = isEmail ? "" : normalizePhone(identifier);
 
-  if (name.length < 2 || !email.includes("@") || password.length < 8) {
-    return NextResponse.json({ error: "بيانات التسجيل غير مكتملة" }, { status: 400 });
+  if (
+    name.length < 2 ||
+    password.length < 8 ||
+    (isEmail ? !email.includes("@") : phone.replace(/\D/g, "").length < 8)
+  ) {
+    return NextResponse.json({ error: "أدخل بريدًا إلكترونيًا صحيحًا أو رقم واتساب مع رمز الدولة" }, { status: 400 });
   }
 
-  const exists = await db.user.findUnique({ where: { email }, select: { id: true } });
-  if (exists) return NextResponse.json({ error: "البريد مستخدم مسبقًا" }, { status: 409 });
+  const exists = await db.user.findFirst({
+    where: {
+      OR: [
+        ...(email ? [{ email }] : []),
+        ...(phone ? [{ phone }] : []),
+      ],
+    },
+    select: { id: true },
+  });
+  if (exists) return NextResponse.json({ error: "البريد أو رقم واتساب مستخدم مسبقًا" }, { status: 409 });
 
   const status = process.env.VERCEL_ENV === "preview" ? "ACTIVE" : "PENDING";
 
   await db.user.create({
     data: {
       name,
-      email,
+      email: email || internalPhoneEmail(phone),
+      phone: phone || null,
       passwordHash: hashPassword(password),
       role: "PARTNER",
       partner: { create: { status } },
