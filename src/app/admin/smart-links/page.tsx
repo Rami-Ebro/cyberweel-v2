@@ -50,7 +50,7 @@ export default async function SmartLinksAdminPage() {
     <main className="min-h-screen bg-background pb-16 text-foreground">
       <header className="border-b border-border bg-ink text-floral">
         <div className="cw-container flex min-h-24 items-center justify-between gap-5 py-4">
-          <Link href="/" className="flex items-center gap-3" aria-label="CyberWeel">
+          <Link href="/admin/partners" className="flex items-center gap-3" aria-label="العودة إلى لوحة الإدارة">
             <span className="grid size-16 place-items-center rounded-xl border border-floral/20 bg-floral p-2 shadow-sm">
               <Image
                 src="/cyberweel-logo-20260720.svg"
@@ -70,7 +70,7 @@ export default async function SmartLinksAdminPage() {
           </Link>
           <div className="flex items-center gap-3">
             <Button asChild variant="outline" className="border-bone/40 bg-transparent text-floral hover:bg-floral hover:text-ink">
-              <Link href="/">العودة إلى الموقع</Link>
+              <Link href="/admin/partners">العودة إلى لوحة الإدارة</Link>
             </Button>
             <LogoutButton />
           </div>
