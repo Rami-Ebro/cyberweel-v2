@@ -35,7 +35,7 @@ export default function PartnerRegisterPage() {
       response.ok
         ? data.status === "ACTIVE"
           ? "تم إنشاء حسابك وتفعيله. يمكنك تسجيل الدخول الآن"
-          : "تم إنشاء طلبك. حسابك الآن بانتظار موافقة الإدارة"
+          : "تم إنشاء حسابك. الحساب الآن بانتظار موافقة الإدارة"
         : data.error || "تعذر التسجيل",
     );
     if (response.ok) event.currentTarget.reset();
@@ -45,8 +45,8 @@ export default function PartnerRegisterPage() {
     <main dir="rtl" className="min-h-screen bg-[#F7F3EB] px-4 py-12 text-[#111827]">
       <div className="mx-auto max-w-md rounded-3xl border border-[#D8D2C4] bg-white p-7 shadow-xl">
         <p className="text-sm font-bold text-[#B89A5A]">بوابة شركاء CyberWeel</p>
-        <h1 className="mt-2 text-3xl font-black">انضم كشريك</h1>
-        <p className="mt-3 text-sm leading-7 text-slate-600">أنشئ طلبك بالبريد الإلكتروني أو رقم واتساب، وبعد موافقة الإدارة تحصل على رابط إحالة خاص بك</p>
+        <h1 className="mt-2 text-3xl font-black">تسجيل حساب شريك</h1>
+        <p className="mt-3 text-sm leading-7 text-slate-600">سجّل حسابك بالبريد الإلكتروني أو رقم واتساب، وبعد موافقة الإدارة تحصل على رابط إحالة خاص بك</p>
         <form onSubmit={submit} className="mt-7 space-y-4">
           <input name="name" required minLength={2} placeholder="الاسم الكامل" className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 outline-none focus:border-[#B89A5A]" />
           <input name="identifier" type="text" inputMode="text" autoComplete="username" required placeholder="أدخل الإيميل أو رقم واتساب" className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 outline-none focus:border-[#B89A5A]" />
@@ -66,7 +66,7 @@ export default function PartnerRegisterPage() {
             </button>
           </div>
 
-          <button disabled={loading} className="w-full rounded-xl bg-[#111827] px-4 py-3 font-extrabold text-white disabled:opacity-60">{loading ? "جارٍ الإرسال..." : "إنشاء طلب الشراكة"}</button>
+          <button disabled={loading} className="w-full rounded-xl bg-[#111827] px-4 py-3 font-extrabold text-white disabled:opacity-60">{loading ? "جارٍ التسجيل..." : "تسجيل الحساب"}</button>
         </form>
         {message && <p className="mt-4 rounded-xl bg-[#F7F3EB] p-3 text-sm font-semibold">{message}</p>}
         <p className="mt-6 text-sm text-slate-600">لديك حساب؟ <Link href="/login" className="font-bold text-[#9A7D43]">تسجيل الدخول</Link></p>
