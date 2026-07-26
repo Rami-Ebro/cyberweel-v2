@@ -8,6 +8,13 @@ async function requireOwner(request: NextRequest) {
   return access?.isOwner ? access : null;
 }
 
+function validPermissions(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (item) => typeof item === "string" && ADMIN_PERMISSIONS.includes(item as (typeof ADMIN_PERMISSIONS)[number]),
+  ) as string[];
+}
+
 export async function GET(request: NextRequest) {
   if (!(await requireOwner(request))) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
@@ -34,9 +41,7 @@ export async function POST(request: NextRequest) {
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const identifier = typeof body?.identifier === "string" ? body.identifier.trim() : "";
   const password = typeof body?.password === "string" ? body.password : "";
-  const permissions = Array.isArray(body?.permissions)
-    ? body.permissions.filter((value: unknown): value is string => typeof value === "string" && ADMIN_PERMISSIONS.includes(value as never))
-    : [];
+  const permissions = validPermissions(body?.permissions);
 
   if (name.length < 2 || !identifier || password.length < 8) {
     return NextResponse.json({ error: "الاسم وبيانات الدخول وكلمة مرور من 8 أحرف مطلوبة" }, { status: 400 });
@@ -47,7 +52,7 @@ export async function POST(request: NextRequest) {
   const phone = isEmail ? null : normalizePhone(identifier);
   if (!isEmail && phone.length < 8) return NextResponse.json({ error: "رقم واتساب غير صالح" }, { status: 400 });
 
-  const exists = await db.user.findFirst({ where: { OR: [{ email }, ...(phone ? [{ phone }] : []) } }, select: { id: true } });
+  const exists = await db.user.findFirst({ where: { OR: [{ email }, ...(phone ? [{ phone }] : [])] }, select: { id: true } });
   if (exists) return NextResponse.json({ error: "البريد أو رقم واتساب مستخدم مسبقًا" }, { status: 409 });
 
   const member = await db.user.create({
@@ -73,9 +78,7 @@ export async function PATCH(request: NextRequest) {
   const userId = typeof body?.userId === "string" ? body.userId : "";
   if (!userId || userId === owner.userId) return NextResponse.json({ error: "لا يمكن تعديل حساب المالك الرئيسي هنا" }, { status: 400 });
 
-  const permissions = Array.isArray(body?.permissions)
-    ? body.permissions.filter((value: unknown): value is string => typeof value === "string" && ADMIN_PERMISSIONS.includes(value as never))
-    : undefined;
+  const permissions = Array.isArray(body?.permissions) ? validPermissions(body.permissions) : undefined;
   const isActive = typeof body?.isActive === "boolean" ? body.isActive : undefined;
   const password = typeof body?.password === "string" ? body.password : "";
 
