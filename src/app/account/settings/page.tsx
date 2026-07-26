@@ -63,6 +63,7 @@ export default function AccountSettingsPage() {
       body: JSON.stringify({
         name: form.get("name"),
         email: form.get("email"),
+        phone: form.get("phone"),
         currentPassword: form.get("currentPassword"),
         newPassword: form.get("newPassword"),
       }),
@@ -127,7 +128,7 @@ export default function AccountSettingsPage() {
 
               <div className="mt-7 space-y-3 border-t border-white/10 pt-6 text-sm">
                 {account.email && <div className="flex items-start gap-3 rounded-2xl bg-white/5 p-3"><Mail className="mt-0.5 h-5 w-5 shrink-0 text-[#B89A5A]" /><span className="break-all text-white/75" dir="ltr">{account.email}</span></div>}
-                {account.phone && <div className="flex items-center gap-3 rounded-2xl bg-white/5 p-3"><Phone className="h-5 w-5 text-[#B89A5A]" /><span className="text-white/75" dir="ltr">{account.phone}</span></div>}
+                <div className="flex items-center gap-3 rounded-2xl bg-white/5 p-3"><Phone className="h-5 w-5 text-[#B89A5A]" /><span className="text-white/75" dir="ltr">{account.phone || "غير مضاف"}</span></div>
               </div>
 
               <div className="mt-6 flex items-center gap-3 rounded-2xl border border-white/10 p-4 text-right">
@@ -148,16 +149,15 @@ export default function AccountSettingsPage() {
                     <label className="mb-2 block text-sm font-black">الاسم الكامل</label>
                     <input name="name" defaultValue={account.name || ""} required className="w-full rounded-2xl border border-[#D8D2C4] bg-white px-4 py-3.5 outline-none transition focus:border-[#B89A5A] focus:ring-4 focus:ring-[#B89A5A]/10" />
                   </div>
-                  <div className={account.phone ? "" : "sm:col-span-2"}>
+                  <div>
                     <label className="mb-2 block text-sm font-black">البريد الإلكتروني</label>
-                    <input name="email" type="email" defaultValue={account.email} placeholder={account.phone ? "يمكنك إضافة بريد إلكتروني" : "البريد الإلكتروني"} className="w-full rounded-2xl border border-[#D8D2C4] bg-white px-4 py-3.5 outline-none transition focus:border-[#B89A5A] focus:ring-4 focus:ring-[#B89A5A]/10" />
+                    <input name="email" type="email" defaultValue={account.email} placeholder="البريد الإلكتروني" className="w-full rounded-2xl border border-[#D8D2C4] bg-white px-4 py-3.5 outline-none transition focus:border-[#B89A5A] focus:ring-4 focus:ring-[#B89A5A]/10" />
                   </div>
-                  {account.phone && (
-                    <div>
-                      <label className="mb-2 block text-sm font-black">رقم واتساب</label>
-                      <input value={account.phone} readOnly className="w-full rounded-2xl border border-[#D8D2C4] bg-slate-50 px-4 py-3.5 text-slate-500" />
-                    </div>
-                  )}
+                  <div>
+                    <label className="mb-2 block text-sm font-black">رقم واتساب</label>
+                    <input name="phone" type="tel" defaultValue={account.phone || ""} placeholder="مثال: +963 9xx xxx xxx" dir="ltr" className="w-full rounded-2xl border border-[#D8D2C4] bg-white px-4 py-3.5 text-right outline-none transition focus:border-[#B89A5A] focus:ring-4 focus:ring-[#B89A5A]/10" />
+                    <p className="mt-2 text-xs text-slate-500">أدخل الرقم مع رمز الدولة.</p>
+                  </div>
                 </div>
               </section>
 
