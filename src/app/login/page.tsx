@@ -70,9 +70,9 @@ export default function LoginPage() {
           <section className="hidden max-w-2xl lg:block">
             <p className="text-sm font-black uppercase tracking-[0.22em] text-[#9A7D43]">CyberWeel Account</p>
             <h1 className="mt-5 text-5xl font-black leading-[1.15] tracking-tight xl:text-6xl">
-              دخول واحد.
+              دخول واحد
               <br />
-              تجربة أعمال متكاملة.
+              تجربة أعمال متكاملة
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-9 text-slate-600">
               ادخل إلى مساحة عملك لإدارة المشاريع، الملفات، الإحالات والفواتير من مكان واحد، بهوية واضحة وتجربة مصممة للتركيز.
@@ -96,41 +96,17 @@ export default function LoginPage() {
             <form onSubmit={submit} className="mt-8 space-y-5">
               <div>
                 <label className="mb-2 block text-sm font-black">البريد الإلكتروني أو رقم واتساب</label>
-                <input
-                  name="identifier"
-                  type="text"
-                  autoComplete="username"
-                  required
-                  disabled={loading}
-                  placeholder="name@example.com أو +963..."
-                  className="w-full rounded-2xl border border-[#D9D4C9] bg-[#FCFBF8] px-4 py-3.5 outline-none transition placeholder:text-slate-400 focus:border-[#111827] focus:bg-white focus:ring-4 focus:ring-black/5 disabled:bg-slate-50"
-                />
+                <input name="identifier" type="text" autoComplete="username" required disabled={loading} placeholder="name@example.com أو +963..." className="w-full rounded-2xl border border-[#D9D4C9] bg-[#FCFBF8] px-4 py-3.5 outline-none transition placeholder:text-slate-400 focus:border-[#111827] focus:bg-white focus:ring-4 focus:ring-black/5 disabled:bg-slate-50" />
               </div>
 
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <label className="block text-sm font-black">كلمة المرور</label>
-                  <Link href="/partner/forgot-password" className="text-xs font-black text-[#9A7D43] transition hover:text-[#111827]">
-                    نسيت كلمة المرور؟
-                  </Link>
+                  <Link href="/partner/forgot-password" className="text-xs font-black text-[#9A7D43] transition hover:text-[#111827]">نسيت كلمة المرور؟</Link>
                 </div>
                 <div className="relative">
-                  <input
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    required
-                    disabled={loading}
-                    placeholder="أدخل كلمة المرور"
-                    className="w-full rounded-2xl border border-[#D9D4C9] bg-[#FCFBF8] px-4 py-3.5 pl-12 outline-none transition placeholder:text-slate-400 focus:border-[#111827] focus:bg-white focus:ring-4 focus:ring-black/5 disabled:bg-slate-50"
-                  />
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={() => setShowPassword((value) => !value)}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 rounded-xl p-2 text-slate-400 transition hover:bg-black/5 hover:text-[#111827] disabled:opacity-50"
-                    aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
-                  >
+                  <input name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required disabled={loading} placeholder="أدخل كلمة المرور" className="w-full rounded-2xl border border-[#D9D4C9] bg-[#FCFBF8] px-4 py-3.5 pl-12 outline-none transition placeholder:text-slate-400 focus:border-[#111827] focus:bg-white focus:ring-4 focus:ring-black/5 disabled:bg-slate-50" />
+                  <button type="button" disabled={loading} onClick={() => setShowPassword((value) => !value)} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-xl p-2 text-slate-400 transition hover:bg-black/5 hover:text-[#111827] disabled:opacity-50" aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
@@ -141,11 +117,7 @@ export default function LoginPage() {
                 تذكّرني على هذا الجهاز
               </label>
 
-              <button
-                disabled={loading}
-                aria-busy={loading}
-                className="flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-[#111827] px-5 py-3.5 font-black text-white shadow-[0_12px_30px_rgba(17,24,39,0.18)] transition hover:-translate-y-0.5 hover:bg-[#202837] disabled:cursor-wait disabled:opacity-75"
-              >
+              <button disabled={loading} aria-busy={loading} className="flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-[#111827] px-5 py-3.5 font-black text-white shadow-[0_12px_30px_rgba(17,24,39,0.18)] transition hover:-translate-y-0.5 hover:bg-[#202837] disabled:cursor-wait disabled:opacity-75">
                 <LogIn className={`h-5 w-5 ${loading ? "animate-pulse" : ""}`} />
                 {loading ? "جارٍ تسجيل الدخول..." : "تسجيل الدخول"}
               </button>
@@ -154,12 +126,7 @@ export default function LoginPage() {
             {message && <p role="alert" className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">{message}</p>}
 
             <div className="mt-7 border-t border-[#ECE8DF] pt-6 text-center">
-              <p className="text-sm text-slate-500">
-                ليس لديك حساب؟{" "}
-                <Link href="/partner/register" className="font-black text-[#111827] underline decoration-[#B89A5A] decoration-2 underline-offset-4">
-                  إنشاء حساب جديد
-                </Link>
-              </p>
+              <p className="text-sm text-slate-500">ليس لديك حساب؟ <Link href="/partner/register" className="font-black text-[#111827] underline decoration-[#B89A5A] decoration-2 underline-offset-4">إنشاء حساب جديد</Link></p>
             </div>
           </section>
         </div>
