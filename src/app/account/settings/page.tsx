@@ -162,9 +162,14 @@ export default function AccountSettingsPage() {
               </section>
 
               <section className="rounded-3xl border border-[#D8D2C4] bg-white p-6 shadow-sm sm:p-8">
-                <div className="flex items-center gap-3 border-b border-[#EEE8DC] pb-5">
-                  <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#F7F3EB] text-[#9A7D43]"><KeyRound className="h-5 w-5" /></span>
-                  <div><h2 className="text-xl font-black">الأمان وكلمة المرور</h2><p className="mt-1 text-sm text-slate-500">اترك الحقول فارغة إن لم ترغب بتغيير كلمة المرور.</p></div>
+                <div className="flex flex-col gap-4 border-b border-[#EEE8DC] pb-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#F7F3EB] text-[#9A7D43]"><KeyRound className="h-5 w-5" /></span>
+                    <div><h2 className="text-xl font-black">الأمان وكلمة المرور</h2><p className="mt-1 text-sm text-slate-500">اترك الحقول فارغة إن لم ترغب بتغيير كلمة المرور.</p></div>
+                  </div>
+                  <Link href="/partner/forgot-password" className="w-fit rounded-xl border border-[#D8D2C4] bg-[#F7F3EB] px-4 py-2.5 text-sm font-black text-[#9A7D43] transition hover:border-[#B89A5A] hover:bg-white">
+                    نسيت كلمة المرور؟
+                  </Link>
                 </div>
 
                 <div className="mt-6 grid gap-5 sm:grid-cols-2">
