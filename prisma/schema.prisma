@@ -51,11 +51,26 @@ model User {
   passwordHash        String?
   role                UserRole             @default(CLIENT)
   partner             Partner?
+  adminProfile        AdminProfile?
   clientProjects      ClientProject[]
   clientMessages      ClientMessage[]
   passwordResetTokens PasswordResetToken[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+}
+
+model AdminProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isOwner     Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  permissions String[] @default([])
+  lastLoginAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
 }
 
 model PasswordResetToken {
