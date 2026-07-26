@@ -17,11 +17,14 @@ export async function POST(request: NextRequest) {
     if (!user.partner || user.partner.status !== "ACTIVE") {
       return NextResponse.json({ error: user.partner?.status === "SUSPENDED" ? "الحساب معلّق" : "الحساب بانتظار موافقة الإدارة" }, { status: 403 });
     }
-  } else if (user.role !== "ADMIN") {
-    return NextResponse.json({ error: "لوحة هذا الحساب غير متاحة بعد" }, { status: 403 });
   }
 
-  const redirectTo = user.role === "ADMIN" ? "/admin/partners" : "/partner/dashboard";
+  const redirectTo = user.role === "ADMIN"
+    ? "/admin/partners"
+    : user.role === "CLIENT"
+      ? "/client/dashboard"
+      : "/partner/dashboard";
+
   const response = NextResponse.json({ ok: true, role: user.role, redirectTo });
   response.cookies.set(PARTNER_SESSION_COOKIE, createPartnerSession(user.id, remember), partnerSessionCookieOptions(remember));
   return response;
