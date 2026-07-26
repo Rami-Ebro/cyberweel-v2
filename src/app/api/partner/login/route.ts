@@ -1,14 +1,20 @@
 import { db } from "@/lib/db";
-import { createPartnerSession, normalizeEmail, partnerSessionCookieOptions, verifyPassword, PARTNER_SESSION_COOKIE } from "@/lib/partner-auth";
+import { createPartnerSession, normalizeEmail, normalizePhone, partnerSessionCookieOptions, verifyPassword, PARTNER_SESSION_COOKIE } from "@/lib/partner-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
-  const email = typeof body?.email === "string" ? normalizeEmail(body.email) : "";
+  const identifier = typeof body?.identifier === "string" ? body.identifier.trim() : "";
   const password = typeof body?.password === "string" ? body.password : "";
   const remember = body?.remember === true;
+  const isEmail = identifier.includes("@");
+  const email = isEmail ? normalizeEmail(identifier) : "";
+  const phone = isEmail ? "" : normalizePhone(identifier);
 
-  const user = await db.user.findUnique({ where: { email }, include: { partner: true } });
+  const user = await db.user.findFirst({
+    where: isEmail ? { email } : { phone },
+    include: { partner: true },
+  });
   if (!user?.passwordHash || !verifyPassword(password, user.passwordHash)) {
     return NextResponse.json({ error: "بيانات الدخول غير صحيحة" }, { status: 401 });
   }
