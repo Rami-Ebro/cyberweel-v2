@@ -54,6 +54,13 @@ export function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
 }
 
+export function normalizePhone(value: string): string {
+  const trimmed = value.trim();
+  const hasPlus = trimmed.startsWith("+");
+  const digits = trimmed.replace(/\D/g, "");
+  return digits ? `${hasPlus ? "+" : ""}${digits}` : "";
+}
+
 export function safeRedirectPath(value: unknown, fallback = "/partner/dashboard"): string {
   return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") ? value : fallback;
 }
