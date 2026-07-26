@@ -25,7 +25,7 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: form.get("email"),
+          identifier: form.get("identifier"),
           password: form.get("password"),
           remember: form.get("remember") === "on",
         }),
@@ -59,7 +59,7 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-slate-500">سيتم فتح اللوحة المناسبة بحسب صلاحية حسابك.</p>
         </div>
         <form onSubmit={submit} className="mt-7 space-y-4">
-          <input name="email" type="email" autoComplete="email" required disabled={loading} placeholder="البريد الإلكتروني" className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 outline-none transition focus:border-[#B89A5A] disabled:bg-slate-50" />
+          <input name="identifier" type="text" autoComplete="username" required disabled={loading} placeholder="أدخل الإيميل أو رقم واتساب" className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 outline-none transition focus:border-[#B89A5A] disabled:bg-slate-50" />
           <div className="relative">
             <input name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required disabled={loading} placeholder="كلمة المرور" className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 pl-12 outline-none transition focus:border-[#B89A5A] disabled:bg-slate-50" />
             <button type="button" disabled={loading} onClick={() => setShowPassword((value) => !value)} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 hover:bg-[#F7F3EB] disabled:opacity-50" aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>
