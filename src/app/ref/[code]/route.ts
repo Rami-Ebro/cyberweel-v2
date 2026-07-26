@@ -30,7 +30,6 @@ export async function GET(
 
   const destination = new URL("/", request.url);
   destination.searchParams.set("ref", formatPartnerReferralCode(referralNumber));
-  destination.hash = "/share-challenge";
   const response = NextResponse.redirect(destination, 302);
 
   response.cookies.set(REFERRAL_COOKIE, partner.id, {
