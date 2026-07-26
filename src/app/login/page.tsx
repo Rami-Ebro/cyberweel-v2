@@ -68,7 +68,6 @@ export default function LoginPage() {
         <div className="mt-7 text-center">
           <p className="text-sm font-bold text-[#B89A5A]">بوابة CyberWeel</p>
           <h1 className="mt-2 text-3xl font-black">تسجيل الدخول</h1>
-          <p className="mt-2 text-sm text-slate-500">سيتم فتح لوحة التحكم المناسبة بحسب صلاحية حسابك.</p>
         </div>
 
         <form onSubmit={submit} className="mt-7 space-y-4">
