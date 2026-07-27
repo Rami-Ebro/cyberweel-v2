@@ -18,6 +18,9 @@ export async function POST(request: NextRequest) {
   if (!user?.passwordHash || !verifyPassword(password, user.passwordHash)) {
     return NextResponse.json({ error: "بيانات الدخول غير صحيحة" }, { status: 401 });
   }
+  if (!user.isActive) {
+    return NextResponse.json({ error: "الحساب معلّق. تواصل مع الإدارة." }, { status: 403 });
+  }
 
   if (user.role === "PARTNER") {
     if (!user.partner || user.partner.status !== "ACTIVE") {
