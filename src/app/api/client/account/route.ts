@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 async function currentClient(request: NextRequest) {
   const session = readPartnerSession(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
   if (!session) return null;
-  return db.user.findFirst({ where: { id: session.userId, role: "CLIENT" }, select: { id: true, name: true, email: true, passwordHash: true, createdAt: true } });
+  return db.user.findFirst({ where: { id: session.userId, role: "CLIENT", isActive: true }, select: { id: true, name: true, email: true, passwordHash: true, createdAt: true } });
 }
 
 export async function PATCH(request: NextRequest) {
