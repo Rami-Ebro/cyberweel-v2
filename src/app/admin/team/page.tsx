@@ -31,6 +31,7 @@ export default function AdminTeamPage() {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   async function load() {
@@ -52,17 +53,25 @@ export default function AdminTeamPage() {
     const form = event.currentTarget;
     const data = new FormData(form);
     const selected = permissions.filter((permission) => data.get(permission) === "on");
-    const response = await fetch("/api/admin/team", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: data.get("name"), identifier: data.get("identifier"), password: data.get("password"), permissions: selected }),
-    });
-    const result = await response.json();
-    setMessage(response.ok ? "تم إنشاء حساب عضو الفريق" : result.error || "تعذر إنشاء الحساب");
-    if (response.ok) {
-      form.reset();
-      setShowPassword(false);
-      await load();
+    setCreating(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: data.get("name"), identifier: data.get("identifier"), password: data.get("password"), permissions: selected }),
+      });
+      const result = await response.json().catch(() => null);
+      setMessage(response.ok ? "تم إنشاء حساب عضو الفريق" : result?.error || "تعذر إنشاء الحساب");
+      if (response.ok) {
+        form.reset();
+        setShowPassword(false);
+        await load();
+      }
+    } catch {
+      setMessage("تعذر الاتصال بالخادم. أعد المحاولة.");
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -101,7 +110,9 @@ export default function AdminTeamPage() {
               <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute left-3 top-1/2 -translate-y-1/2 p-2">{showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>
             </div>
             <PermissionGrid permissions={permissions} selected={[]} />
-            <button className="w-fit rounded-xl bg-[#B89A5A] px-6 py-3 font-black text-[#111827]">إنشاء الحساب</button>
+            <button type="submit" disabled={creating} className="w-fit cursor-pointer rounded-xl bg-[#B89A5A] px-6 py-3 font-black text-[#111827] transition hover:bg-[#C7AA68] disabled:cursor-not-allowed disabled:opacity-60">
+              {creating ? "جارٍ إنشاء الحساب..." : "إنشاء الحساب"}
+            </button>
           </form>
         </section>
 
