@@ -113,16 +113,38 @@ export default function ClientDashboardPage() {
 
   async function openNotification(notification: Notification) {
     if (!notification.readAt) {
-      await fetch("/api/client/notifications", {
+      const response = await fetch("/api/client/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notificationId: notification.id }),
       });
+      if (!response.ok) return setNotice("تعذر تحديث حالة الإشعار");
       setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item));
       setStats((value) => value ? { ...value, unreadNotifications: Math.max(0, value.unreadNotifications - 1) } : value);
     }
     setSection(notification.section);
     setNotificationsOpen(false);
+  }
+
+  async function toggleNotifications() {
+    if (notificationsOpen) {
+      setNotificationsOpen(false);
+      return;
+    }
+
+    setNotificationsOpen(true);
+    if (!stats?.unreadNotifications) return;
+
+    const response = await fetch("/api/client/notifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (!response.ok) return setNotice("تعذر تحديث حالة الإشعارات");
+
+    const readAt = new Date().toISOString();
+    setNotifications((items) => items.map((item) => item.readAt ? item : { ...item, readAt }));
+    setStats((value) => value ? { ...value, unreadNotifications: 0 } : value);
   }
 
   const nav = [
@@ -164,7 +186,7 @@ export default function ClientDashboardPage() {
           <header className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div><p className="text-sm font-bold text-[#9A7D43]">مساحة العميل</p><h1 className="mt-1 text-3xl font-black">مرحبًا {client?.name || "بك"}</h1></div>
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => setNotificationsOpen((value) => !value)} className="relative flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
+              <button onClick={() => void toggleNotifications()} className="relative flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
                 <Bell className="h-5 w-5" />الإشعارات
                 {!!stats?.unreadNotifications && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{stats.unreadNotifications}</span>}
               </button>
