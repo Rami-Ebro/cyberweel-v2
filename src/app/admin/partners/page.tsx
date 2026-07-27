@@ -16,6 +16,7 @@ import {
   RefreshCw,
   ShieldCheck,
   UserCog,
+  UserRound,
   UsersRound,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
@@ -150,6 +151,7 @@ export default function AdminPartnersPage() {
           </Link>
           <nav className="mt-6 grid gap-2">
             {visibleNav.map(([key, label, Icon]) => <button key={key} onClick={() => setSection(key)} className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${section === key ? "bg-[#B89A5A] text-[#111827]" : "text-white/70 hover:bg-white/10 hover:text-white"}`}><Icon className="h-5 w-5" />{label}</button>)}
+            {(admin?.isOwner || admin?.permissions.includes("clients")) && <Link href="/admin/clients" className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-white/70 transition hover:bg-white/10 hover:text-white"><UserRound className="h-5 w-5" />إدارة العملاء</Link>}
             {admin?.isOwner && <Link href="/admin/team" className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-white/70 transition hover:bg-white/10 hover:text-white"><ShieldCheck className="h-5 w-5" />إدارة الفريق والصلاحيات</Link>}
             {(admin?.isOwner || admin?.permissions.includes("smart_links")) && <Link href="/admin/smart-links" className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-white/70 transition hover:bg-white/10 hover:text-white"><Link2 className="h-5 w-5" />الروابط الذكية</Link>}
           </nav>
