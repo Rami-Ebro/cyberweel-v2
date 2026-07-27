@@ -38,13 +38,10 @@ export async function currentAdminAccess(request: NextRequest) {
 
   if (user.adminProfile && !user.adminProfile.isActive) return null;
 
-  const configuredOwnerEmail = process.env.ADMIN_OWNER_EMAIL?.trim().toLowerCase();
-  const isConfiguredOwner = Boolean(
-    configuredOwnerEmail && user.email.toLowerCase() === configuredOwnerEmail,
-  );
+  const configuredOwnerEmail = "owner@cyberweel.com";
+  const isConfiguredOwner = user.email.toLowerCase() === configuredOwnerEmail;
 
-  // ADMIN_OWNER_EMAIL is the authoritative identity of the main owner.
-  // Repair its profile when upgrading from the legacy owner login.
+  // Repair the confirmed main owner's profile when upgrading from the legacy login.
   if (isConfiguredOwner) {
     if (!user.adminProfile?.isOwner) {
       await db.adminProfile.upsert({
