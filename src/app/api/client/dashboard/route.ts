@@ -32,7 +32,11 @@ export async function GET(request: NextRequest) {
     project.invoices.map((invoice) => ({ ...invoice, amount: Number(invoice.amount), projectTitle: project.title })),
   );
   const files = client.clientProjects.flatMap((project) =>
-    project.files.map((file) => ({ ...file, projectTitle: project.title })),
+    project.files.map((file) => ({
+      ...file,
+      url: file.storageProvider === "VERCEL_BLOB" ? `/api/client/files/${file.id}` : file.url,
+      projectTitle: project.title,
+    })),
   );
   const unreadMessages = client.clientMessages.filter((message) => message.fromAdmin && !message.readAt).length;
   const notifications = client.clientNotifications;
@@ -47,7 +51,27 @@ export async function GET(request: NextRequest) {
       unreadMessages,
       unreadNotifications: notifications.filter((notification) => !notification.readAt).length,
     },
-    projects: client.clientProjects.map((project) => ({ ...project, invoices: project.invoices.map((invoice) => ({ ...invoice, amount: Number(invoice.amount) })) })),
+    projects: client.clientProjects.map((project) => ({
+      id: project.id,
+      title: project.title,
+      description: project.description,
+      agreementDetails: project.agreementDetails,
+      financialPlan: project.financialPlan,
+      currency: project.currency,
+      stages: project.stages,
+      links: project.links,
+      status: project.status,
+      progress: project.progress,
+      startsAt: project.startsAt,
+      dueAt: project.dueAt,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      files: project.files.map((file) => ({
+        ...file,
+        url: file.storageProvider === "VERCEL_BLOB" ? `/api/client/files/${file.id}` : file.url,
+      })),
+      invoices: project.invoices.map((invoice) => ({ ...invoice, amount: Number(invoice.amount) })),
+    })),
     files,
     invoices,
     payments: invoices.filter((invoice) => invoice.status === "PAID" || invoice.paidAt),
