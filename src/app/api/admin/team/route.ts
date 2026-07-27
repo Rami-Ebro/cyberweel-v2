@@ -16,10 +16,11 @@ function validPermissions(value: unknown): string[] {
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await requireOwner(request))) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
+  const owner = await requireOwner(request);
+  if (!owner) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
   const members = await db.user.findMany({
-    where: { role: "ADMIN", adminProfile: { isNot: null } },
+    where: { role: "ADMIN" },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  return NextResponse.json({ members, permissions: ADMIN_PERMISSIONS });
+  return NextResponse.json({ members, permissions: ADMIN_PERMISSIONS, currentUserId: owner.userId });
 }
 
 export async function POST(request: NextRequest) {
@@ -77,6 +78,15 @@ export async function PATCH(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const userId = typeof body?.userId === "string" ? body.userId : "";
   if (!userId || userId === owner.userId) return NextResponse.json({ error: "لا يمكن تعديل حساب المالك الرئيسي هنا" }, { status: 400 });
+
+  const target = await db.user.findFirst({
+    where: { id: userId, role: "ADMIN" },
+    select: { id: true, adminProfile: { select: { isOwner: true } } },
+  });
+  if (!target) return NextResponse.json({ error: "حساب الإدارة غير موجود" }, { status: 404 });
+  if (target.adminProfile?.isOwner) {
+    return NextResponse.json({ error: "لا يمكن تعديل حساب مالك آخر" }, { status: 400 });
+  }
 
   const permissions = Array.isArray(body?.permissions) ? validPermissions(body.permissions) : undefined;
   const isActive = typeof body?.isActive === "boolean" ? body.isActive : undefined;
