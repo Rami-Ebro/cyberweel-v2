@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
-import { Eye, EyeOff, PauseCircle, PlayCircle, UserPlus, UsersRound } from "lucide-react";
+import { ChevronDown, Eye, EyeOff, PauseCircle, PlayCircle, UserPlus, UsersRound } from "lucide-react";
 
 type Referral = { id: string; name: string | null; email: string | null; phone: string | null };
 type Client = {
@@ -16,6 +16,7 @@ export default function AdminClientsPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [selectedReferralId, setSelectedReferralId] = useState("");
   const [visiblePasswords, setVisiblePasswords] = useState<string[]>([]);
@@ -55,6 +56,7 @@ export default function AdminClientsPage() {
         form.reset();
         setShowCreatePassword(false);
         setSelectedReferralId("");
+        setCreateOpen(false);
         await load(false);
       }
     } finally { setCreating(false); }
@@ -92,48 +94,6 @@ export default function AdminClientsPage() {
         </header>
         {message && <p role="status" className="mt-5 rounded-xl border border-[#D8D2C4] bg-white p-4 font-bold">{message}</p>}
 
-        <section className="mt-7 rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-3"><UserPlus className="h-6 w-6" /><h2 className="text-2xl font-black">إنشاء حساب عميل</h2></div>
-          <p className="mt-2 text-sm text-slate-500">أنشئ الحساب منفردًا أو اربطه بإحالة محوّلة إلى مشروع.</p>
-          <form onSubmit={createClient} className="mt-6 grid gap-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <input name="name" required minLength={2} placeholder="اسم العميل" className="rounded-xl border border-[#D8D2C4] px-4 py-3" />
-              <input name="identifier" required placeholder="البريد الإلكتروني أو رقم واتساب" className="rounded-xl border border-[#D8D2C4] px-4 py-3" />
-            </div>
-            <div className="relative max-w-xl">
-              <input name="password" required minLength={8} autoComplete="new-password" type={showCreatePassword ? "text" : "password"} placeholder="كلمة مرور مؤقتة — 8 أحرف على الأقل" className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 pl-12" />
-              <button type="button" onClick={() => setShowCreatePassword((value) => !value)} className="absolute left-3 top-1/2 -translate-y-1/2 p-2">{showCreatePassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>
-            </div>
-            <div className={`grid gap-4 ${selectedReferralId ? "md:grid-cols-2" : ""}`}>
-              <div>
-              <select
-                name="referralId"
-                value={selectedReferralId}
-                onChange={(event) => setSelectedReferralId(event.target.value)}
-                className="w-full rounded-xl border border-[#D8D2C4] bg-white px-4 py-3"
-              >
-                <option value="">دون إحالة مرتبطة</option>
-                {referrals.map((item) => <option key={item.id} value={item.id}>{item.name || item.email || item.phone || "إحالة دون اسم"}</option>)}
-              </select>
-              {!referrals.length && (
-                <p className="mt-2 text-sm text-slate-500">
-                  لا توجد إحالات محوّلة إلى مشروع ومتاحة للربط حاليًا.
-                </p>
-              )}
-              </div>
-              {selectedReferralId && (
-                <input
-                  name="projectTitle"
-                  required
-                  placeholder="اسم المشروع المرتبط بالإحالة"
-                  className="rounded-xl border border-[#D8D2C4] px-4 py-3"
-                />
-              )}
-            </div>
-            <button disabled={creating} className="w-fit rounded-xl bg-[#B89A5A] px-6 py-3 font-black disabled:opacity-60">{creating ? "جارٍ الإنشاء..." : "إنشاء حساب العميل"}</button>
-          </form>
-        </section>
-
         <section className="mt-7 grid gap-5">
           <div className="flex items-center gap-3"><UsersRound className="h-6 w-6" /><h2 className="text-2xl font-black">حسابات العملاء</h2></div>
           {loading ? <p className="rounded-2xl bg-white p-8 text-center">جارٍ التحميل...</p> : clients.length ? clients.map((client) => (
@@ -157,6 +117,52 @@ export default function AdminClientsPage() {
               </div>
             </form>
           )) : <p className="rounded-2xl bg-white p-8 text-center">لا توجد حسابات عملاء بعد.</p>}
+        </section>
+
+        <section className="mt-7 rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
+          <button
+            type="button"
+            aria-expanded={createOpen}
+            aria-controls="create-client-form"
+            onClick={() => setCreateOpen((value) => !value)}
+            className="flex w-full items-center justify-between gap-4 p-6 text-right"
+          >
+            <span>
+              <span className="flex items-center gap-3"><UserPlus className="h-6 w-6" /><span className="text-2xl font-black">إنشاء حساب عميل</span></span>
+              <span className="mt-2 block text-sm text-slate-500">أنشئ الحساب منفردًا أو اربطه بإحالة محوّلة إلى مشروع.</span>
+            </span>
+            <ChevronDown className={`h-6 w-6 shrink-0 transition-transform ${createOpen ? "rotate-180" : ""}`} />
+          </button>
+          {createOpen && (
+            <form id="create-client-form" onSubmit={createClient} className="grid gap-4 border-t border-[#D8D2C4] p-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <input name="name" required minLength={2} placeholder="اسم العميل" className="rounded-xl border border-[#D8D2C4] px-4 py-3" />
+                <input name="identifier" required placeholder="البريد الإلكتروني أو رقم واتساب" className="rounded-xl border border-[#D8D2C4] px-4 py-3" />
+              </div>
+              <div className="relative max-w-xl">
+                <input name="password" required minLength={8} autoComplete="new-password" type={showCreatePassword ? "text" : "password"} placeholder="كلمة مرور مؤقتة — 8 أحرف على الأقل" className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 pl-12" />
+                <button type="button" onClick={() => setShowCreatePassword((value) => !value)} className="absolute left-3 top-1/2 -translate-y-1/2 p-2">{showCreatePassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>
+              </div>
+              <div className={`grid gap-4 ${selectedReferralId ? "md:grid-cols-2" : ""}`}>
+                <div>
+                  <select
+                    name="referralId"
+                    value={selectedReferralId}
+                    onChange={(event) => setSelectedReferralId(event.target.value)}
+                    className="w-full rounded-xl border border-[#D8D2C4] bg-white px-4 py-3"
+                  >
+                    <option value="">دون إحالة مرتبطة</option>
+                    {referrals.map((item) => <option key={item.id} value={item.id}>{item.name || item.email || item.phone || "إحالة دون اسم"}</option>)}
+                  </select>
+                  {!referrals.length && <p className="mt-2 text-sm text-slate-500">لا توجد إحالات محوّلة إلى مشروع ومتاحة للربط حاليًا.</p>}
+                </div>
+                {selectedReferralId && (
+                  <input name="projectTitle" required placeholder="اسم المشروع المرتبط بالإحالة" className="rounded-xl border border-[#D8D2C4] px-4 py-3" />
+                )}
+              </div>
+              <button disabled={creating} className="w-fit rounded-xl bg-[#B89A5A] px-6 py-3 font-black disabled:opacity-60">{creating ? "جارٍ الإنشاء..." : "إنشاء حساب العميل"}</button>
+            </form>
+          )}
         </section>
       </div>
     </main>
