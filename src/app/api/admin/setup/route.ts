@@ -19,8 +19,24 @@ export async function POST(request: NextRequest) {
 
   const admin = await db.user.upsert({
     where: { email },
-    update: { name, role: "ADMIN", passwordHash: hashPassword(password) },
-    create: { name, email, role: "ADMIN", passwordHash: hashPassword(password) },
+    update: {
+      name,
+      role: "ADMIN",
+      passwordHash: hashPassword(password),
+      adminProfile: {
+        upsert: {
+          create: { isOwner: true, isActive: true },
+          update: { isOwner: true, isActive: true },
+        },
+      },
+    },
+    create: {
+      name,
+      email,
+      role: "ADMIN",
+      passwordHash: hashPassword(password),
+      adminProfile: { create: { isOwner: true, isActive: true } },
+    },
     select: { id: true, name: true, email: true, role: true },
   });
 
