@@ -14,12 +14,14 @@ export async function GET(request: NextRequest) {
       email: true,
       phone: true,
       role: true,
+      isActive: true,
       partner: { select: { status: true } },
       adminProfile: { select: { isActive: true } },
     },
   });
 
   if (!user) return NextResponse.json({ authenticated: false });
+  if (!user.isActive) return NextResponse.json({ authenticated: false });
   if (user.role === "PARTNER" && user.partner?.status !== "ACTIVE") {
     return NextResponse.json({ authenticated: false });
   }
