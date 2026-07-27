@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
-import { Eye, EyeOff, ShieldCheck, UserPlus } from "lucide-react";
+import { Eye, EyeOff, PauseCircle, PlayCircle, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 
 const labels: Record<string, string> = {
   overview: "عرض النظرة العامة",
@@ -36,9 +36,12 @@ export default function AdminTeamPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [visibleMemberPasswords, setVisibleMemberPasswords] = useState<string[]>([]);
+  const [updatingMemberId, setUpdatingMemberId] = useState("");
 
-  async function load() {
+  async function load(clearMessage = true) {
     setLoading(true);
+    if (clearMessage) setMessage("");
     const response = await fetch("/api/admin/team", { cache: "no-store" });
     const data = await response.json();
     if (!response.ok) setMessage(data.error || "تعذر تحميل الفريق");
@@ -73,7 +76,7 @@ export default function AdminTeamPage() {
       if (response.ok) {
         form.reset();
         setShowPassword(false);
-        await load();
+        await load(false);
       }
     } catch {
       const resultMessage = "تعذر الاتصال بالخادم. أعد المحاولة.";
@@ -87,14 +90,58 @@ export default function AdminTeamPage() {
   async function saveMember(member: Member, form: HTMLFormElement) {
     const data = new FormData(form);
     const selected = permissions.filter((permission) => data.get(permission) === "on");
-    const response = await fetch("/api/admin/team", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: member.id, isActive: data.get("isActive") === "on", permissions: selected, password: data.get("password") }),
-    });
-    const result = await response.json();
-    setMessage(response.ok ? "تم حفظ الصلاحيات" : result.error || "تعذر حفظ الصلاحيات");
-    if (response.ok) await load();
+    setUpdatingMemberId(member.id);
+    try {
+      const response = await fetch("/api/admin/team", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: member.id, isActive: member.adminProfile?.isActive ?? true, permissions: selected, password: data.get("password") }),
+      });
+      const result = await response.json();
+      setMessage(response.ok ? "تم حفظ الصلاحيات وكلمة المرور" : result.error || "تعذر حفظ الصلاحيات");
+      if (response.ok) {
+        const passwordInput = form.elements.namedItem("password") as HTMLInputElement | null;
+        if (passwordInput) passwordInput.value = "";
+        setVisibleMemberPasswords((items) => items.filter((id) => id !== member.id));
+        await load(false);
+      }
+    } finally {
+      setUpdatingMemberId("");
+    }
+  }
+
+  async function toggleMember(member: Member) {
+    setUpdatingMemberId(member.id);
+    const nextActive = !(member.adminProfile?.isActive ?? true);
+    try {
+      const response = await fetch("/api/admin/team", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: member.id, isActive: nextActive }),
+      });
+      const result = await response.json();
+      setMessage(response.ok ? (nextActive ? "تم تفعيل الحساب" : "تم تعليق الحساب") : result.error || "تعذر تحديث الحساب");
+      if (response.ok) await load(false);
+    } finally {
+      setUpdatingMemberId("");
+    }
+  }
+
+  async function deleteMember(member: Member) {
+    if (!window.confirm(`حذف حساب ${member.name || member.email} نهائيًا؟ لا يمكن التراجع عن ذلك.`)) return;
+    setUpdatingMemberId(member.id);
+    try {
+      const response = await fetch("/api/admin/team", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: member.id }),
+      });
+      const result = await response.json();
+      setMessage(response.ok ? "تم حذف حساب الإدارة" : result.error || "تعذر حذف الحساب");
+      if (response.ok) await load(false);
+    } finally {
+      setUpdatingMemberId("");
+    }
   }
 
   return (
@@ -142,11 +189,27 @@ export default function AdminTeamPage() {
                   <p className="mt-1 text-xs text-slate-400">أُنشئ: {new Date(member.createdAt).toLocaleString("ar")}</p>
                   <p className="mt-1 text-xs text-slate-400">آخر دخول: {member.adminProfile?.lastLoginAt ? new Date(member.adminProfile.lastLoginAt).toLocaleString("ar") : "لم يسجل الدخول بعد"}</p>
                 </div>
-                <label className="flex items-center gap-2 font-bold"><input name="isActive" type="checkbox" defaultChecked={member.adminProfile?.isActive ?? true} /> الحساب فعال</label>
+                <span className={`rounded-full px-3 py-1 text-xs font-black ${(member.adminProfile?.isActive ?? true) ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
+                  {(member.adminProfile?.isActive ?? true) ? "الحساب فعال" : "الحساب معلّق"}
+                </span>
               </div>
               <div className="mt-5"><PermissionGrid permissions={permissions} selected={member.adminProfile?.permissions || []} /></div>
-              <input name="password" type="password" minLength={8} placeholder="كلمة مرور جديدة — اختياري" className="mt-5 w-full max-w-xl rounded-xl border border-[#D8D2C4] px-4 py-3" />
-              <button className="mt-5 rounded-xl bg-[#111827] px-5 py-3 font-black text-white">حفظ الصلاحيات</button>
+              {!member.adminProfile?.isOwner && member.id !== currentUserId && <>
+                <div className="relative mt-5 w-full max-w-xl">
+                  <input name="password" type={visibleMemberPasswords.includes(member.id) ? "text" : "password"} minLength={8} placeholder="كلمة مرور جديدة — اختياري" className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 pl-12" />
+                  <button type="button" onClick={() => setVisibleMemberPasswords((items) => items.includes(member.id) ? items.filter((id) => id !== member.id) : [...items, member.id])} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 hover:bg-[#F7F3EB]" aria-label="إظهار أو إخفاء كلمة المرور">
+                    {visibleMemberPasswords.includes(member.id) ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <button disabled={updatingMemberId === member.id} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50">{updatingMemberId === member.id ? "جارٍ الحفظ..." : "حفظ التعديلات"}</button>
+                  <button type="button" disabled={updatingMemberId === member.id} onClick={() => void toggleMember(member)} className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 font-black text-amber-800 disabled:opacity-50">
+                    {(member.adminProfile?.isActive ?? true) ? <PauseCircle className="h-5 w-5" /> : <PlayCircle className="h-5 w-5" />}
+                    {(member.adminProfile?.isActive ?? true) ? "تعليق الحساب" : "تفعيل الحساب"}
+                  </button>
+                  <button type="button" disabled={updatingMemberId === member.id} onClick={() => void deleteMember(member)} className="flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-5 py-3 font-black text-red-700 disabled:opacity-50"><Trash2 className="h-5 w-5" />حذف الحساب</button>
+                </div>
+              </>}
             </form>
           )) : <p className="rounded-2xl bg-white p-8 text-center text-slate-500">لا توجد حسابات فريق بعد.</p>}
         </section>
