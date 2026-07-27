@@ -3,15 +3,17 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { BarChart3, Bell, BriefcaseBusiness, CreditCard, FileText, Mail, ReceiptText, RefreshCw, UserCog } from "lucide-react";
+import { BarChart3, Bell, BriefcaseBusiness, ChevronDown, FileText, Mail, ReceiptText, RefreshCw, UserCog } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 
-type Section = "overview" | "projects" | "files" | "invoices" | "payments" | "messages" | "account";
+type Section = "overview" | "projects" | "files" | "invoices" | "messages" | "account";
 type Project = {
   id: string; title: string; description: string | null; status: string; progress: number;
+  agreementDetails: string | null; financialPlan: string | null; stages: string | null;
+  links: string[]; notes: string | null;
   dueAt: string | null; updatedAt: string;
   files: Array<{ id: string; name: string; url: string; kind: string | null; createdAt: string }>;
-  invoices: Array<{ id: string; number: string; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null }>;
+  invoices: Array<{ id: string; number: string; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; createdAt: string }>;
 };
 type Message = { id: string; subject: string | null; body: string; fromAdmin: boolean; createdAt: string; projectId: string | null };
 type Notification = { id: string; title: string; body: string | null; section: string; readAt: string | null; createdAt: string };
@@ -34,6 +36,10 @@ export default function AdminClientWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [projectFormOpen, setProjectFormOpen] = useState(false);
+  const [invoiceFormOpen, setInvoiceFormOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
 
   async function load(clearNotice = true) {
     setLoading(true);
@@ -51,6 +57,13 @@ export default function AdminClientWorkspacePage() {
   }
 
   useEffect(() => { void load(); }, [params.clientId]);
+  useEffect(() => {
+    const projects = client?.clientProjects || [];
+    if (!projects.length) return setSelectedProjectId("");
+    if (!projects.some((project) => project.id === selectedProjectId)) {
+      setSelectedProjectId(projects[0].id);
+    }
+  }, [client, selectedProjectId]);
 
   async function submit(event: FormEvent<HTMLFormElement>, method: "POST" | "PATCH", success: string) {
     event.preventDefault();
@@ -68,6 +81,8 @@ export default function AdminClientWorkspacePage() {
       if (!response.ok) return setNotice(data?.error || "تعذر حفظ العملية");
       if (method === "POST") formElement.reset();
       await load(false);
+      if (values.action === "project") setProjectFormOpen(false);
+      if (values.action === "invoice") setInvoiceFormOpen(false);
       setNotice(success);
     } finally {
       setSaving(false);
@@ -77,11 +92,15 @@ export default function AdminClientWorkspacePage() {
   const projects = client?.clientProjects || [];
   const files = projects.flatMap((project) => project.files.map((file) => ({ ...file, projectId: project.id, projectTitle: project.title })));
   const invoices = projects.flatMap((project) => project.invoices.map((invoice) => ({ ...invoice, projectId: project.id, projectTitle: project.title })));
-  const payments = invoices.filter((invoice) => invoice.status === "PAID" || invoice.paidAt);
+  const sortedInvoices = [...invoices].sort((a, b) => {
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+  const selectedProject = projects.find((project) => project.id === selectedProjectId) || null;
+  const selectedInvoices = sortedInvoices.filter((invoice) => invoice.projectId === selectedProjectId);
   const nav = [
     ["overview", "نظرة عامة", BarChart3], ["projects", "المشاريع", BriefcaseBusiness],
     ["files", "الملفات والتسليمات", FileText], ["invoices", "الفواتير", ReceiptText],
-    ["payments", "المدفوعات", CreditCard], ["messages", "الرسائل والتحديثات", Mail],
+    ["messages", "الرسائل والتحديثات", Mail],
     ["account", "الحساب", UserCog],
   ] as const;
 
@@ -100,38 +119,56 @@ export default function AdminClientWorkspacePage() {
         </aside>
 
         <section className="p-4 sm:p-7 lg:p-10">
-          <header className="flex flex-wrap items-center justify-between gap-4">
+          <header className="relative flex flex-wrap items-center justify-between gap-4">
             <div><p className="text-sm font-bold text-[#9A7D43]">عرض الإدارة — التعديلات تظهر للعميل مباشرة</p><h1 className="mt-1 text-3xl font-black">{client?.name || "لوحة العميل"}</h1></div>
-            <button onClick={() => void load()} disabled={loading} className="flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</button>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={() => setNotificationsOpen((value) => !value)} className="relative flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
+                <Bell className="h-5 w-5" />الإشعارات
+                {!!client?.clientNotifications.filter((item) => !item.readAt).length && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{client.clientNotifications.filter((item) => !item.readAt).length}</span>}
+              </button>
+              <button onClick={() => void load()} disabled={loading} className="flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</button>
+            </div>
+            {notificationsOpen && client && <div className="absolute left-0 top-full z-20 mt-3 w-full max-w-md rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl"><div className="flex items-center justify-between px-2 py-2"><strong>إشعارات العميل</strong><button onClick={() => setNotificationsOpen(false)} className="text-xs text-slate-500">إغلاق</button></div><div className="max-h-96 space-y-2 overflow-y-auto">{client.clientNotifications.slice(0, 10).map((item) => <div key={item.id} className={`rounded-xl p-3 ${item.readAt ? "bg-slate-50" : "bg-amber-50"}`}><strong className="text-sm">{item.title}</strong>{item.body && <p className="mt-1 text-xs leading-5 text-slate-500">{item.body}</p>}</div>)}{!client.clientNotifications.length && <p className="p-5 text-center text-sm text-slate-500">لا توجد إشعارات بعد.</p>}</div></div>}
           </header>
           {notice && <p role="status" className="mt-5 rounded-xl border border-[#D8D2C4] bg-white p-4 font-bold shadow-sm">{notice}</p>}
           {loading && <div className="mt-8 rounded-2xl bg-white p-10 text-center">جارٍ تحميل لوحة العميل...</div>}
 
           {!loading && client && section === "overview" && <div className="mt-7">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              {[["المشاريع", projects.length], ["الملفات", files.length], ["الفواتير", invoices.length], ["المدفوعات", payments.length], ["الإشعارات غير المقروءة", client.clientNotifications.filter((item) => !item.readAt).length]].map(([label, value]) => <article key={String(label)} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><p className="text-sm font-bold text-slate-500">{label}</p><p className="mt-3 text-4xl font-black">{value}</p></article>)}
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                ["المشاريع", projects.length, "projects"],
+                ["الفواتير", invoices.length, "invoices"],
+                ["الملفات", files.length, "files"],
+                ["الإشعارات", client.clientNotifications.filter((item) => !item.readAt).length, "notifications"],
+              ].map(([label, value, target]) => <button key={String(label)} onClick={() => target === "notifications" ? setNotificationsOpen(true) : setSection(target as Section)} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 text-right shadow-sm transition hover:-translate-y-1 hover:border-[#B89A5A] hover:shadow-md"><p className="text-sm font-bold text-slate-500">{label}</p><p className="mt-3 text-4xl font-black">{value}</p><p className="mt-3 text-xs font-bold text-[#9A7D43]">فتح القسم</p></button>)}
             </div>
-            <section className="mt-6 rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><div className="flex items-center gap-2"><Bell className="h-5 w-5" /><h2 className="text-xl font-black">آخر الإشعارات المرسلة للعميل</h2></div><div className="mt-4 grid gap-2">{client.clientNotifications.slice(0, 8).map((item) => <div key={item.id} className="rounded-xl bg-[#F7F3EB] p-4"><strong>{item.title}</strong>{item.body && <p className="mt-1 text-sm text-slate-500">{item.body}</p>}</div>)}{!client.clientNotifications.length && <p className="text-slate-500">لا توجد إشعارات بعد.</p>}</div></section>
+            <section className="mt-6 rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><Bell className="h-5 w-5" /><h2 className="text-xl font-black">آخر الإشعارات</h2></div><button onClick={() => setNotificationsOpen(true)} className="text-sm font-bold text-[#9A7D43]">عرض من الجرس</button></div><div className="mt-4 grid gap-2">{client.clientNotifications.slice(0, 5).map((item) => <div key={item.id} className="rounded-xl bg-[#F7F3EB] p-4"><strong>{item.title}</strong>{item.body && <p className="mt-1 text-sm text-slate-500">{item.body}</p>}</div>)}{!client.clientNotifications.length && <p className="text-slate-500">لا توجد إشعارات بعد.</p>}</div></section>
           </div>}
 
           {!loading && client && section === "projects" && <div className="mt-7 grid gap-5">
-            <Editor title="إضافة مشروع"><form onSubmit={(event) => void submit(event, "POST", "تمت إضافة المشروع وإشعار العميل")} className="grid gap-3"><input type="hidden" name="action" value="project" /><input name="title" required placeholder="اسم المشروع" className="field" /><textarea name="description" placeholder="وصف مختصر للمشروع" rows={3} className="field" /><SaveButton saving={saving} label="إضافة المشروع" /></form></Editor>
-            {projects.map((project) => <Editor key={project.id} title={project.title}><form onSubmit={(event) => void submit(event, "PATCH", "تم تحديث المشروع وإشعار العميل")} className="grid gap-3"><input type="hidden" name="action" value="project" /><input type="hidden" name="projectId" value={project.id} /><input name="title" defaultValue={project.title} required className="field" /><textarea name="description" defaultValue={project.description || ""} rows={3} className="field" /><div className="grid gap-3 md:grid-cols-3"><select name="status" defaultValue={project.status} className="field">{projectStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><input name="progress" type="number" min={0} max={100} defaultValue={project.progress} className="field" /><input name="dueAt" type="date" defaultValue={project.dueAt?.slice(0, 10) || ""} className="field" /></div><SaveButton saving={saving} label="حفظ تحديث المشروع" /></form></Editor>)}
+            <section className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
+              <button onClick={() => setProjectFormOpen((value) => !value)} className="flex w-full items-center justify-between gap-3 p-6 text-right"><div><h2 className="text-xl font-black">إضافة مشروع جديد</h2><p className="mt-1 text-sm text-slate-500">افتح البطاقة عند الحاجة فقط.</p></div><ChevronDown className={`h-5 w-5 transition ${projectFormOpen ? "rotate-180" : ""}`} /></button>
+              {projectFormOpen && <form onSubmit={(event) => void submit(event, "POST", "تمت إضافة المشروع وإشعار العميل")} className="grid gap-3 border-t border-[#D8D2C4] p-6"><input type="hidden" name="action" value="project" /><input name="title" required placeholder="اسم المشروع" className="field" /><textarea name="description" placeholder="وصف مختصر للمشروع" rows={3} className="field" /><textarea name="agreementDetails" placeholder="تفاصيل الاتفاق ونطاق العمل" rows={4} className="field" /><textarea name="financialPlan" placeholder="الخطة المالية المتفق عليها" rows={4} className="field" /><textarea name="stages" placeholder="مراحل المشروع — مرحلة في كل سطر" rows={4} className="field" /><textarea name="links" placeholder={"روابط المشروع — رابط في كل سطر\nhttps://..."} rows={3} className="field" /><textarea name="notes" placeholder="ملاحظات داخلية أو اختيارية" rows={3} className="field" /><SaveButton saving={saving} label="إضافة المشروع" /></form>}
+            </section>
+            {projects.map((project) => <details key={project.id} className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><summary className="cursor-pointer list-none p-6"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-black">{project.title}</h2><p className="mt-1 text-sm text-slate-500">{project.description || "لا يوجد وصف مختصر."}</p></div><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-sm font-bold text-[#9A7D43]">{project.progress}%</span></div></summary><form onSubmit={(event) => void submit(event, "PATCH", "تم تحديث المشروع وإشعار العميل")} className="grid gap-3 border-t border-[#D8D2C4] p-6"><input type="hidden" name="action" value="project" /><input type="hidden" name="projectId" value={project.id} /><input name="title" defaultValue={project.title} required className="field" /><textarea name="description" defaultValue={project.description || ""} rows={3} className="field" /><textarea name="agreementDetails" defaultValue={project.agreementDetails || ""} placeholder="تفاصيل الاتفاق ونطاق العمل" rows={4} className="field" /><textarea name="financialPlan" defaultValue={project.financialPlan || ""} placeholder="الخطة المالية المتفق عليها" rows={4} className="field" /><textarea name="stages" defaultValue={project.stages || ""} placeholder="مراحل المشروع" rows={4} className="field" /><textarea name="links" defaultValue={(project.links || []).join("\n")} placeholder="روابط المشروع — رابط في كل سطر" rows={3} className="field" /><textarea name="notes" defaultValue={project.notes || ""} placeholder="ملاحظات اختيارية" rows={3} className="field" /><div className="grid gap-3 md:grid-cols-3"><select name="status" defaultValue={project.status} className="field">{projectStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><input name="progress" type="number" min={0} max={100} defaultValue={project.progress} className="field" /><input name="dueAt" type="date" defaultValue={project.dueAt?.slice(0, 10) || ""} className="field" /></div><SaveButton saving={saving} label="حفظ بيانات المشروع" /></form></details>)}
           </div>}
 
           {!loading && client && section === "files" && <div className="mt-7 grid gap-5">
-            <Editor title="إضافة ملف أو تسليم"><form onSubmit={(event) => void submit(event, "POST", "تمت إضافة الملف وإشعار العميل")} className="grid gap-3"><input type="hidden" name="action" value="file" /><ProjectSelect projects={projects} /><input name="name" required placeholder="اسم الملف أو التسليم" className="field" /><input name="url" type="url" required placeholder="رابط الملف https://..." className="field" /><input name="kind" placeholder="التصنيف — اختياري" className="field" /><SaveButton saving={saving} label="إضافة الملف" /></form></Editor>
+            <Editor title="إضافة ملف أو تسليم"><form onSubmit={(event) => void submit(event, "POST", "تمت إضافة الملف وإشعار العميل")} className="grid gap-3"><input type="hidden" name="action" value="file" /><ProjectSelect projects={projects} /><input name="name" required placeholder="اسم الملف أو التسليم" className="field" /><input name="url" type="url" required placeholder="رابط الملف https://..." className="field" /><select name="kind" className="field"><option value="DELIVERABLE">تسليم نهائي</option><option value="WORKING">ملف عمل</option><option value="REFERENCE">مرجع</option><option value="CONTRACT">اتفاق أو عقد</option><option value="OTHER">أخرى</option></select><SaveButton saving={saving} label="إضافة الملف" /></form></Editor>
             <ListEmpty empty={!files.length} text="لا توجد ملفات بعد.">{files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></a>)}</ListEmpty>
           </div>}
 
           {!loading && client && section === "invoices" && <div className="mt-7 grid gap-5">
-            <Editor title="إصدار فاتورة"><form onSubmit={(event) => void submit(event, "POST", "تم إصدار الفاتورة وإشعار العميل")} className="grid gap-3"><input type="hidden" name="action" value="invoice" /><ProjectSelect projects={projects} /><div className="grid gap-3 md:grid-cols-2"><input name="number" required placeholder="رقم الفاتورة" className="field" /><input name="amount" type="number" min="0.01" step="0.01" required placeholder="المبلغ" className="field" /></div><div className="grid gap-3 md:grid-cols-3"><input name="currency" defaultValue="USD" className="field" /><select name="status" defaultValue="DUE" className="field">{invoiceStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><input name="dueAt" type="date" className="field" /></div><SaveButton saving={saving} label="إصدار الفاتورة" /></form></Editor>
-            <ListEmpty empty={!invoices.length} text="لا توجد فواتير بعد.">{invoices.map((invoice) => <div key={invoice.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap justify-between gap-3"><strong>{invoice.number}</strong><span>{invoice.amount.toLocaleString("ar")} {invoice.currency}</span></div><p className="mt-2 text-sm text-slate-500">{invoice.projectTitle} — {invoice.status}</p></div>)}</ListEmpty>
-          </div>}
+            {!projects.length ? <ListEmpty empty text="أنشئ مشروعًا أولًا؛ الفواتير لا تُنشأ دون مشروع." children={null} /> : <>
+              {projects.length > 1 && <label className="grid gap-2 font-bold">المشروع<select value={selectedProjectId} onChange={(event) => setSelectedProjectId(event.target.value)} className="field">{projects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}</select></label>}
+              {projects.length === 1 && <p className="rounded-xl bg-white p-4 text-sm font-bold shadow-sm">المشروع المحدد تلقائيًا: {projects[0].title}</p>}
 
-          {!loading && client && section === "payments" && <div className="mt-7 grid gap-5">
-            <Editor title="تسجيل دفعة كاملة"><form onSubmit={(event) => void submit(event, "POST", "تم تسجيل الدفعة وإشعار العميل")} className="grid gap-3"><input type="hidden" name="action" value="payment" /><select name="invoiceId" required className="field"><option value="">اختر فاتورة غير مدفوعة</option>{invoices.filter((invoice) => invoice.status !== "PAID").map((invoice) => <option key={invoice.id} value={invoice.id}>{invoice.number} — {invoice.amount} {invoice.currency}</option>)}</select><input name="paidAt" type="date" className="field" /><SaveButton saving={saving} label="تسجيل الدفعة" /></form></Editor>
-            <ListEmpty empty={!payments.length} text="لا توجد مدفوعات بعد.">{payments.map((payment) => <div key={payment.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><strong>{payment.number}</strong><p className="mt-1 text-sm text-slate-500">{payment.amount.toLocaleString("ar")} {payment.currency} — {payment.paidAt ? new Date(payment.paidAt).toLocaleDateString("ar") : "مدفوعة"}</p></div>)}</ListEmpty>
+              {selectedProject && <details className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><summary className="cursor-pointer list-none p-6"><div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-black">ملخص اتفاق المشروع</h2><p className="mt-1 text-sm text-slate-500">{selectedProject.title} — للعرض فقط</p></div><ChevronDown className="h-5 w-5" /></div></summary><div className="grid gap-4 border-t border-[#D8D2C4] p-6 text-sm"><ReadOnly label="نطاق المشروع" value={selectedProject.agreementDetails || selectedProject.description} /><ReadOnly label="الخطة المالية" value={selectedProject.financialPlan} /><ReadOnly label="المراحل" value={selectedProject.stages} /><ReadOnly label="الملاحظات" value={selectedProject.notes} />{!!selectedProject.links?.length && <div><p className="font-black">روابط المشروع</p><div className="mt-2 grid gap-1">{selectedProject.links.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer" className="text-[#9A7D43] underline">{link}</a>)}</div></div>}<p className="text-xs text-slate-500">لتعديل هذه البيانات انتقل إلى صفحة المشاريع.</p></div></details>}
+
+              <section><h2 className="text-xl font-black">سجل الفواتير</h2><div className="mt-4"><ListEmpty empty={!selectedInvoices.length} text="لا توجد فواتير لهذا المشروع.">{selectedInvoices.map((invoice) => <div key={invoice.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap justify-between gap-3"><strong>{invoice.number}</strong><span>{invoice.amount.toLocaleString("ar")} {invoice.currency}</span></div><p className="mt-2 text-sm text-slate-500">{invoice.status} — {invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("ar") : "دون تاريخ استحقاق"}</p>{invoice.status !== "PAID" && <form onSubmit={(event) => void submit(event, "POST", "تم تسجيل الفاتورة كمدفوعة وإشعار العميل")} className="mt-3"><input type="hidden" name="action" value="payment" /><input type="hidden" name="invoiceId" value={invoice.id} /><button disabled={saving} className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800">تسجيلها كمدفوعة</button></form>}</div>)}</ListEmpty></div></section>
+
+              <section className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><button onClick={() => setInvoiceFormOpen((value) => !value)} className="flex w-full items-center justify-between gap-3 p-6 text-right"><div><h2 className="text-xl font-black">إصدار فاتورة</h2><p className="mt-1 text-sm text-slate-500">تُسحب بيانات الاتفاق من المشروع ولا تُكرر هنا.</p></div><ChevronDown className={`h-5 w-5 transition ${invoiceFormOpen ? "rotate-180" : ""}`} /></button>{invoiceFormOpen && <form onSubmit={(event) => void submit(event, "POST", "تم إصدار الفاتورة وإشعار العميل")} className="grid gap-3 border-t border-[#D8D2C4] p-6"><input type="hidden" name="action" value="invoice" /><input type="hidden" name="projectId" value={selectedProjectId} /><div className="grid gap-3 md:grid-cols-2"><input name="number" required placeholder="رقم الفاتورة" className="field" /><input name="amount" type="number" min="0.01" step="0.01" required placeholder="المبلغ" className="field" /></div><div className="grid gap-3 md:grid-cols-3"><input name="currency" defaultValue="USD" className="field" /><select name="status" defaultValue="DUE" className="field">{invoiceStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><input name="dueAt" type="date" className="field" /></div><SaveButton saving={saving} label="إصدار الفاتورة" /></form>}</section>
+            </>}
           </div>}
 
           {!loading && client && section === "messages" && <div className="mt-7 grid gap-5">
@@ -160,4 +197,8 @@ function SaveButton({ saving, label }: { saving: boolean; label: string }) {
 
 function ListEmpty({ empty, text, children }: { empty: boolean; text: string; children: React.ReactNode }) {
   return <div className="grid gap-3">{empty ? <div className="rounded-2xl border border-dashed border-[#D8D2C4] bg-white p-8 text-center text-slate-500">{text}</div> : children}</div>;
+}
+
+function ReadOnly({ label, value }: { label: string; value: string | null | undefined }) {
+  return <div><p className="font-black">{label}</p><p className="mt-1 whitespace-pre-wrap leading-6 text-slate-600">{value || "لم تُضف هذه البيانات بعد."}</p></div>;
 }
