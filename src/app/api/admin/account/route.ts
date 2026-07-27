@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
       email: admin.email,
       createdAt: admin.createdAt,
       isOwner: access.isOwner,
+      permissions: access.permissions,
     },
   });
 }
@@ -73,6 +74,7 @@ export async function PATCH(request: NextRequest) {
         email: updated.email,
         createdAt: updated.createdAt,
         isOwner: access.isOwner,
+        permissions: access.permissions,
       },
     });
   } catch {
