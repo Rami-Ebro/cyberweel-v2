@@ -24,7 +24,7 @@ type Partner = { id: string; referralNumber: number; status: "PENDING" | "ACTIVE
 type ReferralStatus = "NEW" | "CONTACTED" | "QUALIFIED" | "CONVERTED" | "REJECTED";
 type Referral = { id: string; name: string | null; email: string | null; phone: string | null; status: ReferralStatus; createdAt: string; partner: { user: { name: string | null; email: string } } };
 type Stats = { users: number; partners: number; activePartners: number; pendingPartners: number; referrals: number; newReferrals: number; qualifiedReferrals: number; projects: number };
-type Admin = { id: string; name: string | null; email: string; createdAt: string; isOwner: boolean };
+type Admin = { id: string; name: string | null; email: string; createdAt: string; isOwner: boolean; permissions: string[] };
 type Section = "overview" | "partners" | "referrals" | "projects" | "account";
 
 const partnerLabel: Record<Partner["status"], string> = { ACTIVE: "نشط", PENDING: "بانتظار الموافقة", SUSPENDED: "معلّق" };
@@ -57,13 +57,22 @@ export default function AdminPartnersPage() {
     }
     const dashboard = await dashboardResponse.json();
     const account = await accountResponse.json();
-    if (!dashboardResponse.ok) setMessage(dashboard.error || "تعذر تحميل لوحة الإدارة");
+    if (!dashboardResponse.ok && dashboardResponse.status !== 403) setMessage(dashboard.error || "تعذر تحميل لوحة الإدارة");
     else {
       setPartners(dashboard.partners || []);
       setReferrals(dashboard.referrals || []);
       setStats(dashboard.stats || null);
     }
-    if (accountResponse.ok) setAdmin(account.admin);
+    if (accountResponse.ok) {
+      setAdmin(account.admin);
+      const allowedSections = ["overview", "partners", "referrals", "projects"].filter(
+        (key) => account.admin.isOwner || account.admin.permissions?.includes(key),
+      ) as Section[];
+      setSection((current) => {
+        if (current === "account" || allowedSections.includes(current)) return current;
+        return allowedSections[0] || "account";
+      });
+    }
     setLoading(false);
   }
 
@@ -127,8 +136,9 @@ export default function AdminPartnersPage() {
     ["partners", "إدارة الشركاء", UsersRound],
     ["referrals", "إدارة الإحالات", CheckCircle2],
     ["projects", "المشاريع", FolderKanban],
-    ["account", "حساب المالك", UserCog],
+    ["account", "حساب الإدارة", UserCog],
   ] as const;
+  const visibleNav = nav.filter(([key]) => key === "account" || admin?.isOwner || admin?.permissions.includes(key));
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#F7F3EB] text-[#111827]">
@@ -136,12 +146,12 @@ export default function AdminPartnersPage() {
         <aside className="flex flex-col bg-[#111827] p-5 text-white lg:sticky lg:top-0 lg:h-screen">
           <Link href="/" className="flex items-center gap-3 border-b border-white/10 pb-5" aria-label="العودة إلى موقع CyberWeel">
             <span className="grid h-12 w-12 place-items-center rounded-xl bg-white"><Logo size={36} /></span>
-            <div><p className="font-black">CyberWeel</p><p className="text-xs text-white/50">لوحة المالك</p></div>
+            <div><p className="font-black">CyberWeel</p><p className="text-xs text-white/50">لوحة الإدارة</p></div>
           </Link>
           <nav className="mt-6 grid gap-2">
-            {nav.map(([key, label, Icon]) => <button key={key} onClick={() => setSection(key)} className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${section === key ? "bg-[#B89A5A] text-[#111827]" : "text-white/70 hover:bg-white/10 hover:text-white"}`}><Icon className="h-5 w-5" />{label}</button>)}
+            {visibleNav.map(([key, label, Icon]) => <button key={key} onClick={() => setSection(key)} className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${section === key ? "bg-[#B89A5A] text-[#111827]" : "text-white/70 hover:bg-white/10 hover:text-white"}`}><Icon className="h-5 w-5" />{label}</button>)}
             {admin?.isOwner && <Link href="/admin/team" className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-white/70 transition hover:bg-white/10 hover:text-white"><ShieldCheck className="h-5 w-5" />إدارة الفريق والصلاحيات</Link>}
-            <Link href="/admin/smart-links" className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-white/70 transition hover:bg-white/10 hover:text-white"><Link2 className="h-5 w-5" />الروابط الذكية</Link>
+            {(admin?.isOwner || admin?.permissions.includes("smart_links")) && <Link href="/admin/smart-links" className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-white/70 transition hover:bg-white/10 hover:text-white"><Link2 className="h-5 w-5" />الروابط الذكية</Link>}
           </nav>
           <div className="mt-auto grid gap-2 pt-8">
             <Link href="/" className="flex items-center gap-3 rounded-xl bg-[#B89A5A] px-4 py-3 font-black text-[#111827]"><Home className="h-5 w-5" />العودة إلى الموقع</Link>
@@ -150,7 +160,7 @@ export default function AdminPartnersPage() {
         </aside>
 
         <section className="p-4 sm:p-7 lg:p-10">
-          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold text-[#9A7D43]">مركز التحكم</p><h1 className="mt-1 text-3xl font-black">مرحبًا {admin?.name || "بالمالك"}</h1></div><button onClick={load} disabled={loading} className="flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث البيانات</button></header>
+          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold text-[#9A7D43]">مركز التحكم</p><h1 className="mt-1 text-3xl font-black">مرحبًا {admin?.name || "بك"}</h1></div><button onClick={load} disabled={loading} className="flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث البيانات</button></header>
           {message && <p className="mt-5 rounded-xl border border-[#D8D2C4] bg-white p-4 font-bold shadow-sm">{message}</p>}
           {loading && <div className="mt-10 rounded-2xl bg-white p-10 text-center shadow-sm">جارٍ تحميل لوحة الإدارة...</div>}
 
@@ -164,7 +174,7 @@ export default function AdminPartnersPage() {
 
           {!loading && section === "projects" && <section className="mt-7 rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><div className="flex items-center justify-between"><div><h2 className="text-2xl font-black">المشاريع</h2><p className="mt-2 text-sm text-slate-500">كل إحالة تم تحويلها إلى مشروع. يمكن إعادتها لأي مرحلة من قائمة الحالة.</p></div><span className="rounded-xl bg-[#F7F3EB] px-4 py-2 font-bold">{projects.length} مشروع</span></div><div className="mt-6 grid gap-4">{projects.length ? projects.map((item) => <article key={item.id} className="rounded-2xl border border-[#D8D2C4] p-5"><div className="flex flex-col justify-between gap-4 md:flex-row md:items-center"><div><h3 className="font-black">{item.name || "مشروع دون اسم"}</h3><p className="mt-1 text-sm text-slate-500">الشريك: {item.partner.user.name || item.partner.user.email}</p><p className="mt-1 text-sm text-slate-500">{item.email || item.phone || "لا توجد وسيلة تواصل"}</p></div><select value={item.status} onChange={(event) => changeReferralStatus(item.id, event.target.value as ReferralStatus)} className="rounded-xl border border-[#D8D2C4] px-4 py-3 font-bold">{referralStatuses.map((status) => <option key={status} value={status}>{referralLabel[status]}</option>)}</select></div></article>) : <p className="rounded-xl bg-[#F7F3EB] p-5 text-slate-500">لا توجد مشاريع محوّلة بعد.</p>}</div></section>}
 
-          {!loading && section === "account" && <section className="mt-7 max-w-2xl rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-xl bg-[#111827] text-white"><ShieldCheck className="h-6 w-6" /></span><div><h2 className="text-2xl font-black">حساب المالك</h2><p className="text-sm text-slate-500">تعديل الاسم والبريد وكلمة المرور</p></div></div><form onSubmit={saveAccount} className="mt-7 grid gap-4"><label className="grid gap-2 font-bold">الاسم<input name="name" defaultValue={admin?.name || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><label className="grid gap-2 font-bold">البريد الإلكتروني<input name="email" type="email" defaultValue={admin?.email || ""} required className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><div className="mt-3 flex items-center gap-2 font-black"><KeyRound className="h-5 w-5" />تغيير كلمة المرور</div><PasswordField name="currentPassword" label="كلمة المرور الحالية" visible={showCurrentPassword} toggle={() => setShowCurrentPassword((value) => !value)} /><PasswordField name="newPassword" label="كلمة المرور الجديدة" visible={showNewPassword} toggle={() => setShowNewPassword((value) => !value)} minLength={8} /><button className="mt-2 rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white">حفظ التعديلات</button></form></section>}
+          {!loading && section === "account" && <section className="mt-7 max-w-2xl rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-xl bg-[#111827] text-white"><ShieldCheck className="h-6 w-6" /></span><div><h2 className="text-2xl font-black">حساب الإدارة</h2><p className="text-sm text-slate-500">تعديل الاسم والبريد وكلمة المرور</p></div></div><form onSubmit={saveAccount} className="mt-7 grid gap-4"><label className="grid gap-2 font-bold">الاسم<input name="name" defaultValue={admin?.name || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><label className="grid gap-2 font-bold">البريد الإلكتروني<input name="email" type="email" defaultValue={admin?.email || ""} required className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><div className="mt-3 flex items-center gap-2 font-black"><KeyRound className="h-5 w-5" />تغيير كلمة المرور</div><PasswordField name="currentPassword" label="كلمة المرور الحالية" visible={showCurrentPassword} toggle={() => setShowCurrentPassword((value) => !value)} /><PasswordField name="newPassword" label="كلمة المرور الجديدة" visible={showNewPassword} toggle={() => setShowNewPassword((value) => !value)} minLength={8} /><button className="mt-2 rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white">حفظ التعديلات</button></form></section>}
         </section>
       </div>
     </main>
