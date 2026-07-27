@@ -55,6 +55,7 @@ model User {
   adminProfile        AdminProfile?
   clientProjects      ClientProject[]
   clientMessages      ClientMessage[]
+  clientNotifications ClientNotification[]
   passwordResetTokens PasswordResetToken[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -186,6 +187,20 @@ model ClientMessage {
   @@index([clientId])
   @@index([clientId, readAt])
   @@index([projectId])
+}
+
+model ClientNotification {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    User     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title     String
+  body      String?
+  section   String
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([clientId, readAt])
+  @@index([clientId, createdAt])
 }
 
 model SmartLink {
