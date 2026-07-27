@@ -130,6 +130,7 @@ model ClientProject {
   description String?
   agreementDetails String?
   financialPlan    String?
+  currency         String               @default("USD")
   stages           String?
   links            String[]             @default([])
   notes            String?
@@ -155,6 +156,7 @@ model ClientFile {
   url       String
   kind      String?
   size      Int?
+  storageProvider String?
   createdAt DateTime      @default(now())
 
   @@index([projectId])
