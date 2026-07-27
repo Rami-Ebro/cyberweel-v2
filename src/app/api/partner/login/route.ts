@@ -33,7 +33,12 @@ export async function POST(request: NextRequest) {
     await db.adminProfile.update({ where: { userId: user.id }, data: { lastLoginAt: new Date() } });
   }
 
-  const response = NextResponse.json({ ok: true, role: user.role, redirectTo: "/" });
+  const redirectTo = user.role === "ADMIN"
+    ? "/admin/partners"
+    : user.role === "CLIENT"
+      ? "/client/dashboard"
+      : "/partner/dashboard";
+  const response = NextResponse.json({ ok: true, role: user.role, redirectTo });
   response.cookies.set(PARTNER_SESSION_COOKIE, createPartnerSession(user.id, remember), partnerSessionCookieOptions(remember));
   return response;
 }
