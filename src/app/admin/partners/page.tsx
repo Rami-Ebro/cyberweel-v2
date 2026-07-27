@@ -24,7 +24,7 @@ type Partner = { id: string; referralNumber: number; status: "PENDING" | "ACTIVE
 type ReferralStatus = "NEW" | "CONTACTED" | "QUALIFIED" | "CONVERTED" | "REJECTED";
 type Referral = { id: string; name: string | null; email: string | null; phone: string | null; status: ReferralStatus; createdAt: string; partner: { user: { name: string | null; email: string } } };
 type Stats = { users: number; partners: number; activePartners: number; pendingPartners: number; referrals: number; newReferrals: number; qualifiedReferrals: number; projects: number };
-type Admin = { id: string; name: string | null; email: string; createdAt: string };
+type Admin = { id: string; name: string | null; email: string; createdAt: string; isOwner: boolean };
 type Section = "overview" | "partners" | "referrals" | "projects" | "account";
 
 const partnerLabel: Record<Partner["status"], string> = { ACTIVE: "نشط", PENDING: "بانتظار الموافقة", SUSPENDED: "معلّق" };
@@ -140,6 +140,7 @@ export default function AdminPartnersPage() {
           </Link>
           <nav className="mt-6 grid gap-2">
             {nav.map(([key, label, Icon]) => <button key={key} onClick={() => setSection(key)} className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${section === key ? "bg-[#B89A5A] text-[#111827]" : "text-white/70 hover:bg-white/10 hover:text-white"}`}><Icon className="h-5 w-5" />{label}</button>)}
+            {admin?.isOwner && <Link href="/admin/team" className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-white/70 transition hover:bg-white/10 hover:text-white"><ShieldCheck className="h-5 w-5" />إدارة الفريق والصلاحيات</Link>}
             <Link href="/admin/smart-links" className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-white/70 transition hover:bg-white/10 hover:text-white"><Link2 className="h-5 w-5" />الروابط الذكية</Link>
           </nav>
           <div className="mt-auto grid gap-2 pt-8">
