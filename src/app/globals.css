@@ -201,6 +201,12 @@
   }
 }
 
+@layer components {
+  .field {
+    @apply w-full rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 outline-none transition focus:border-[#B89A5A] focus:ring-2 focus:ring-[#B89A5A]/20;
+  }
+}
+
 /* ─────────────────────────────────────────────────────────────
    Print styles — calm, readable hard copy for the consultancy
    ───────────────────────────────────────────────────────────── */
