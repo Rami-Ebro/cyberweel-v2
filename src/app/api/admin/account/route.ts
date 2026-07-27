@@ -5,13 +5,31 @@ import { NextRequest, NextResponse } from "next/server";
 async function currentAdmin(request: NextRequest) {
   const session = readPartnerSession(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
   if (!session) return null;
-  return db.user.findFirst({ where: { id: session.userId, role: "ADMIN" }, select: { id: true, name: true, email: true, passwordHash: true, createdAt: true } });
+  return db.user.findFirst({
+    where: { id: session.userId, role: "ADMIN" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      passwordHash: true,
+      createdAt: true,
+      adminProfile: { select: { isOwner: true } },
+    },
+  });
 }
 
 export async function GET(request: NextRequest) {
   const admin = await currentAdmin(request);
   if (!admin) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
-  return NextResponse.json({ admin: { id: admin.id, name: admin.name, email: admin.email, createdAt: admin.createdAt } });
+  return NextResponse.json({
+    admin: {
+      id: admin.id,
+      name: admin.name,
+      email: admin.email,
+      createdAt: admin.createdAt,
+      isOwner: admin.adminProfile?.isOwner ?? true,
+    },
+  });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -39,9 +57,23 @@ export async function PATCH(request: NextRequest) {
         ...(email ? { email } : {}),
         ...(newPassword ? { passwordHash: hashPassword(newPassword) } : {}),
       },
-      select: { id: true, name: true, email: true, createdAt: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+        adminProfile: { select: { isOwner: true } },
+      },
     });
-    return NextResponse.json({ admin: updated });
+    return NextResponse.json({
+      admin: {
+        id: updated.id,
+        name: updated.name,
+        email: updated.email,
+        createdAt: updated.createdAt,
+        isOwner: updated.adminProfile?.isOwner ?? true,
+      },
+    });
   } catch {
     return NextResponse.json({ error: "تعذر حفظ بيانات الحساب، وقد يكون البريد مستخدمًا" }, { status: 409 });
   }
