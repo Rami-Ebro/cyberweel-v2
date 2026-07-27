@@ -30,6 +30,7 @@ export default function AdminTeamPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [message, setMessage] = useState("");
+  const [createMessage, setCreateMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -55,6 +56,7 @@ export default function AdminTeamPage() {
     const selected = permissions.filter((permission) => data.get(permission) === "on");
     setCreating(true);
     setMessage("");
+    setCreateMessage("");
     try {
       const response = await fetch("/api/admin/team", {
         method: "POST",
@@ -62,14 +64,18 @@ export default function AdminTeamPage() {
         body: JSON.stringify({ name: data.get("name"), identifier: data.get("identifier"), password: data.get("password"), permissions: selected }),
       });
       const result = await response.json().catch(() => null);
-      setMessage(response.ok ? "تم إنشاء حساب عضو الفريق" : result?.error || "تعذر إنشاء الحساب");
+      const resultMessage = response.ok ? "تم إنشاء حساب عضو الفريق بنجاح" : result?.error || "تعذر إنشاء الحساب";
+      setMessage(resultMessage);
+      setCreateMessage(resultMessage);
       if (response.ok) {
         form.reset();
         setShowPassword(false);
         await load();
       }
     } catch {
-      setMessage("تعذر الاتصال بالخادم. أعد المحاولة.");
+      const resultMessage = "تعذر الاتصال بالخادم. أعد المحاولة.";
+      setMessage(resultMessage);
+      setCreateMessage(resultMessage);
     } finally {
       setCreating(false);
     }
@@ -110,9 +116,10 @@ export default function AdminTeamPage() {
               <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute left-3 top-1/2 -translate-y-1/2 p-2">{showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>
             </div>
             <PermissionGrid permissions={permissions} selected={[]} />
-            <button type="submit" disabled={creating} className="w-fit cursor-pointer rounded-xl bg-[#B89A5A] px-6 py-3 font-black text-[#111827] transition hover:bg-[#C7AA68] disabled:cursor-not-allowed disabled:opacity-60">
+            <button type="submit" disabled={creating} className="w-fit cursor-pointer rounded-xl bg-[#B89A5A] px-6 py-3 font-black text-[#111827] transition hover:bg-[#C7AA68] disabled:cursor-wait disabled:opacity-60">
               {creating ? "جارٍ إنشاء الحساب..." : "إنشاء الحساب"}
             </button>
+            {createMessage && <p role="status" className="w-fit rounded-xl border border-[#D8D2C4] bg-[#F7F3EB] px-4 py-3 font-bold">{createMessage}</p>}
           </form>
         </section>
 
