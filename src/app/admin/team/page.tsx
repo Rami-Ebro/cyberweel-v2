@@ -23,12 +23,14 @@ type Member = {
   name: string | null;
   email: string;
   phone: string | null;
+  createdAt: string;
   adminProfile: { isOwner: boolean; isActive: boolean; permissions: string[]; lastLoginAt: string | null } | null;
 };
 
 export default function AdminTeamPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [permissions, setPermissions] = useState<string[]>([]);
+  const [currentUserId, setCurrentUserId] = useState("");
   const [message, setMessage] = useState("");
   const [createMessage, setCreateMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -43,6 +45,7 @@ export default function AdminTeamPage() {
     else {
       setMembers(data.members || []);
       setPermissions(data.permissions || []);
+      setCurrentUserId(data.currentUserId || "");
     }
     setLoading(false);
   }
@@ -128,7 +131,17 @@ export default function AdminTeamPage() {
           {loading ? <p className="rounded-2xl bg-white p-8 text-center">جارٍ التحميل...</p> : members.length ? members.map((member) => (
             <form key={member.id} onSubmit={(event) => { event.preventDefault(); void saveMember(member, event.currentTarget); }} className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-4">
-                <div><h3 className="text-xl font-black">{member.name || "دون اسم"}</h3><p className="mt-1 text-sm text-slate-500">{member.phone || member.email}</p><p className="mt-1 text-xs text-slate-400">آخر دخول: {member.adminProfile?.lastLoginAt ? new Date(member.adminProfile.lastLoginAt).toLocaleString("ar") : "لم يسجل الدخول بعد"}</p></div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-xl font-black">{member.name || "دون اسم"}</h3>
+                    {member.id === currentUserId && <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">حسابك الحالي</span>}
+                    {member.adminProfile?.isOwner && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">المالك الرئيسي</span>}
+                    {!member.adminProfile && <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-black text-red-800">حساب إدارة قديم</span>}
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">{member.phone || member.email}</p>
+                  <p className="mt-1 text-xs text-slate-400">أُنشئ: {new Date(member.createdAt).toLocaleString("ar")}</p>
+                  <p className="mt-1 text-xs text-slate-400">آخر دخول: {member.adminProfile?.lastLoginAt ? new Date(member.adminProfile.lastLoginAt).toLocaleString("ar") : "لم يسجل الدخول بعد"}</p>
+                </div>
                 <label className="flex items-center gap-2 font-bold"><input name="isActive" type="checkbox" defaultChecked={member.adminProfile?.isActive ?? true} /> الحساب فعال</label>
               </div>
               <div className="mt-5"><PermissionGrid permissions={permissions} selected={member.adminProfile?.permissions || []} /></div>
