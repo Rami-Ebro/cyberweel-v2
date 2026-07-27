@@ -38,7 +38,9 @@ export default function AdminClientWorkspacePage() {
   const [notice, setNotice] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [projectFormOpen, setProjectFormOpen] = useState(false);
+  const [fileFormOpen, setFileFormOpen] = useState(false);
   const [invoiceFormOpen, setInvoiceFormOpen] = useState(false);
+  const [messageFormOpen, setMessageFormOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
 
   async function load(clearNotice = true) {
@@ -82,7 +84,9 @@ export default function AdminClientWorkspacePage() {
       if (method === "POST") formElement.reset();
       await load(false);
       if (values.action === "project") setProjectFormOpen(false);
+      if (values.action === "file") setFileFormOpen(false);
       if (values.action === "invoice") setInvoiceFormOpen(false);
+      if (values.action === "message") setMessageFormOpen(false);
       setNotice(success);
     } finally {
       setSaving(false);
@@ -90,7 +94,9 @@ export default function AdminClientWorkspacePage() {
   }
 
   const projects = client?.clientProjects || [];
-  const files = projects.flatMap((project) => project.files.map((file) => ({ ...file, projectId: project.id, projectTitle: project.title })));
+  const files = projects
+    .flatMap((project) => project.files.map((file) => ({ ...file, projectId: project.id, projectTitle: project.title })))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const invoices = projects.flatMap((project) => project.invoices.map((invoice) => ({ ...invoice, projectId: project.id, projectTitle: project.title })));
   const sortedInvoices = [...invoices].sort((a, b) => {
     return b.createdAt.localeCompare(a.createdAt);
@@ -146,16 +152,18 @@ export default function AdminClientWorkspacePage() {
           </div>}
 
           {!loading && client && section === "projects" && <div className="mt-7 grid gap-5">
-            <section className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
-              <button onClick={() => setProjectFormOpen((value) => !value)} className="flex w-full items-center justify-between gap-3 p-6 text-right"><div><h2 className="text-xl font-black">إضافة مشروع جديد</h2><p className="mt-1 text-sm text-slate-500">افتح البطاقة عند الحاجة فقط.</p></div><ChevronDown className={`h-5 w-5 transition ${projectFormOpen ? "rotate-180" : ""}`} /></button>
-              {projectFormOpen && <form onSubmit={(event) => void submit(event, "POST", "تمت إضافة المشروع وإشعار العميل")} className="grid gap-3 border-t border-[#D8D2C4] p-6"><input type="hidden" name="action" value="project" /><input name="title" required placeholder="اسم المشروع" className="field" /><textarea name="description" placeholder="وصف مختصر للمشروع" rows={3} className="field" /><textarea name="agreementDetails" placeholder="تفاصيل الاتفاق ونطاق العمل" rows={4} className="field" /><textarea name="financialPlan" placeholder="الخطة المالية المتفق عليها" rows={4} className="field" /><textarea name="stages" placeholder="مراحل المشروع — مرحلة في كل سطر" rows={4} className="field" /><textarea name="links" placeholder={"روابط المشروع — رابط في كل سطر\nhttps://..."} rows={3} className="field" /><textarea name="notes" placeholder="ملاحظات داخلية أو اختيارية" rows={3} className="field" /><SaveButton saving={saving} label="إضافة المشروع" /></form>}
-            </section>
             {projects.map((project) => <details key={project.id} className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><summary className="cursor-pointer list-none p-6"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-black">{project.title}</h2><p className="mt-1 text-sm text-slate-500">{project.description || "لا يوجد وصف مختصر."}</p></div><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-sm font-bold text-[#9A7D43]">{project.progress}%</span></div></summary><form onSubmit={(event) => void submit(event, "PATCH", "تم تحديث المشروع وإشعار العميل")} className="grid gap-3 border-t border-[#D8D2C4] p-6"><input type="hidden" name="action" value="project" /><input type="hidden" name="projectId" value={project.id} /><input name="title" defaultValue={project.title} required className="field" /><textarea name="description" defaultValue={project.description || ""} rows={3} className="field" /><textarea name="agreementDetails" defaultValue={project.agreementDetails || ""} placeholder="تفاصيل الاتفاق ونطاق العمل" rows={4} className="field" /><textarea name="financialPlan" defaultValue={project.financialPlan || ""} placeholder="الخطة المالية المتفق عليها" rows={4} className="field" /><textarea name="stages" defaultValue={project.stages || ""} placeholder="مراحل المشروع" rows={4} className="field" /><textarea name="links" defaultValue={(project.links || []).join("\n")} placeholder="روابط المشروع — رابط في كل سطر" rows={3} className="field" /><textarea name="notes" defaultValue={project.notes || ""} placeholder="ملاحظات اختيارية" rows={3} className="field" /><div className="grid gap-3 md:grid-cols-3"><select name="status" defaultValue={project.status} className="field">{projectStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><input name="progress" type="number" min={0} max={100} defaultValue={project.progress} className="field" /><input name="dueAt" type="date" defaultValue={project.dueAt?.slice(0, 10) || ""} className="field" /></div><SaveButton saving={saving} label="حفظ بيانات المشروع" /></form></details>)}
+            {!projects.length && <ListEmpty empty text="لا توجد مشاريع بعد." children={null} />}
+            <CreationPanel title="إضافة مشروع جديد" description="افتح البطاقة عند الحاجة فقط." open={projectFormOpen} onToggle={() => setProjectFormOpen((value) => !value)}>
+              <form onSubmit={(event) => void submit(event, "POST", "تمت إضافة المشروع وإشعار العميل")} className="grid gap-3"><input type="hidden" name="action" value="project" /><input name="title" required placeholder="اسم المشروع" className="field" /><textarea name="description" placeholder="وصف مختصر للمشروع" rows={3} className="field" /><textarea name="agreementDetails" placeholder="تفاصيل الاتفاق ونطاق العمل" rows={4} className="field" /><textarea name="financialPlan" placeholder="الخطة المالية المتفق عليها" rows={4} className="field" /><textarea name="stages" placeholder="مراحل المشروع — مرحلة في كل سطر" rows={4} className="field" /><textarea name="links" placeholder={"روابط المشروع — رابط في كل سطر\nhttps://..."} rows={3} className="field" /><textarea name="notes" placeholder="ملاحظات داخلية أو اختيارية" rows={3} className="field" /><SaveButton saving={saving} label="إضافة المشروع" /></form>
+            </CreationPanel>
           </div>}
 
           {!loading && client && section === "files" && <div className="mt-7 grid gap-5">
-            <Editor title="إضافة ملف أو تسليم"><form onSubmit={(event) => void submit(event, "POST", "تمت إضافة الملف وإشعار العميل")} className="grid gap-3"><input type="hidden" name="action" value="file" /><ProjectSelect projects={projects} /><input name="name" required placeholder="اسم الملف أو التسليم" className="field" /><input name="url" type="url" required placeholder="رابط الملف https://..." className="field" /><select name="kind" className="field"><option value="DELIVERABLE">تسليم نهائي</option><option value="WORKING">ملف عمل</option><option value="REFERENCE">مرجع</option><option value="CONTRACT">اتفاق أو عقد</option><option value="OTHER">أخرى</option></select><SaveButton saving={saving} label="إضافة الملف" /></form></Editor>
             <ListEmpty empty={!files.length} text="لا توجد ملفات بعد.">{files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></a>)}</ListEmpty>
+            <CreationPanel title="إضافة ملف أو تسليم" description="الملفات الحالية في الأعلى، والإضافة عند الحاجة فقط." open={fileFormOpen} onToggle={() => setFileFormOpen((value) => !value)}>
+              <form onSubmit={(event) => void submit(event, "POST", "تمت إضافة الملف وإشعار العميل")} className="grid gap-3"><input type="hidden" name="action" value="file" /><ProjectSelect projects={projects} /><input name="name" required placeholder="اسم الملف أو التسليم" className="field" /><input name="url" type="url" required placeholder="رابط الملف https://..." className="field" /><select name="kind" className="field"><option value="DELIVERABLE">تسليم نهائي</option><option value="WORKING">ملف عمل</option><option value="REFERENCE">مرجع</option><option value="CONTRACT">اتفاق أو عقد</option><option value="OTHER">أخرى</option></select><SaveButton saving={saving} label="إضافة الملف" /></form>
+            </CreationPanel>
           </div>}
 
           {!loading && client && section === "invoices" && <div className="mt-7 grid gap-5">
@@ -172,8 +180,10 @@ export default function AdminClientWorkspacePage() {
           </div>}
 
           {!loading && client && section === "messages" && <div className="mt-7 grid gap-5">
-            <Editor title="إرسال رسالة أو تحديث"><form onSubmit={(event) => void submit(event, "POST", "تم إرسال الرسالة وإشعار العميل")} className="grid gap-3"><input type="hidden" name="action" value="message" /><ProjectSelect projects={projects} optional /><input name="subject" placeholder="عنوان الرسالة — اختياري" className="field" /><textarea name="body" required minLength={2} maxLength={5000} rows={5} placeholder="اكتب الرسالة أو التحديث..." className="field" /><p className="text-xs text-slate-500">بعد الإرسال لا يمكن تعديل الرسالة أو حذفها من الإدارة أو العميل.</p><SaveButton saving={saving} label="إرسال الرسالة" /></form></Editor>
-            <ListEmpty empty={!client.clientMessages.length} text="لا توجد رسائل بعد.">{client.clientMessages.map((message) => <article key={message.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap justify-between gap-3"><strong>{message.subject || (message.fromAdmin ? "تحديث من الإدارة" : "رسالة العميل")}</strong><span className="text-xs text-slate-500">{new Date(message.createdAt).toLocaleString("ar")}</span></div><span className="mt-2 inline-block rounded-full bg-[#F7F3EB] px-3 py-1 text-xs font-bold">{message.fromAdmin ? "الإدارة" : "العميل"}</span><p className="mt-3 whitespace-pre-wrap leading-7 text-slate-600">{message.body}</p></article>)}</ListEmpty>
+            <ListEmpty empty={!client.clientMessages.length} text="لا توجد رسائل بعد.">{[...client.clientMessages].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((message) => <article key={message.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap justify-between gap-3"><strong>{message.subject || (message.fromAdmin ? "تحديث من الإدارة" : "رسالة العميل")}</strong><span className="text-xs text-slate-500">{new Date(message.createdAt).toLocaleString("ar")}</span></div><span className="mt-2 inline-block rounded-full bg-[#F7F3EB] px-3 py-1 text-xs font-bold">{message.fromAdmin ? "الإدارة" : "العميل"}</span><p className="mt-3 whitespace-pre-wrap leading-7 text-slate-600">{message.body}</p></article>)}</ListEmpty>
+            <CreationPanel title="إرسال رسالة أو تحديث" description="الرسائل الحالية في الأعلى، ونموذج الإرسال مطوي بالأسفل." open={messageFormOpen} onToggle={() => setMessageFormOpen((value) => !value)}>
+              <form onSubmit={(event) => void submit(event, "POST", "تم إرسال الرسالة وإشعار العميل")} className="grid gap-3"><input type="hidden" name="action" value="message" /><ProjectSelect projects={projects} optional /><input name="subject" placeholder="عنوان الرسالة — اختياري" className="field" /><textarea name="body" required minLength={2} maxLength={5000} rows={5} placeholder="اكتب الرسالة أو التحديث..." className="field" /><p className="text-xs text-slate-500">بعد الإرسال لا يمكن تعديل الرسالة أو حذفها من الإدارة أو العميل.</p><SaveButton saving={saving} label="إرسال الرسالة" /></form>
+            </CreationPanel>
           </div>}
 
           {!loading && client && section === "account" && <Editor title="بيانات حساب العميل"><div className="grid gap-3 text-sm"><p><b>الاسم:</b> {client.name || "—"}</p><p><b>البريد:</b> {client.email}</p><p><b>الهاتف:</b> {client.phone || "—"}</p><p><b>الحالة:</b> {client.isActive ? "فعال" : "معلّق"}</p><Link href="/admin/clients" className="mt-3 w-fit rounded-xl bg-[#111827] px-5 py-3 font-black text-white">إدارة الحساب وكلمة المرور</Link></div></Editor>}
@@ -185,6 +195,10 @@ export default function AdminClientWorkspacePage() {
 
 function Editor({ title, children }: { title: string; children: React.ReactNode }) {
   return <section className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><h2 className="mb-5 text-xl font-black">{title}</h2>{children}</section>;
+}
+
+function CreationPanel({ title, description, open, onToggle, children }: { title: string; description: string; open: boolean; onToggle: () => void; children: React.ReactNode }) {
+  return <section className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><button type="button" aria-expanded={open} onClick={onToggle} className="flex w-full items-center justify-between gap-3 p-6 text-right"><div><h2 className="text-xl font-black">{title}</h2><p className="mt-1 text-sm text-slate-500">{description}</p></div><ChevronDown className={`h-5 w-5 shrink-0 transition ${open ? "rotate-180" : ""}`} /></button>{open && <div className="border-t border-[#D8D2C4] p-6">{children}</div>}</section>;
 }
 
 function ProjectSelect({ projects, optional = false }: { projects: Project[]; optional?: boolean }) {
