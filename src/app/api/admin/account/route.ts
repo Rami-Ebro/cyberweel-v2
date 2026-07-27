@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { currentAdminAccess } from "@/lib/admin-permissions";
 import { hashPassword, normalizeEmail, PARTNER_SESSION_COOKIE, readPartnerSession, verifyPassword } from "@/lib/partner-auth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -19,22 +20,22 @@ async function currentAdmin(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const admin = await currentAdmin(request);
-  if (!admin) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+  const [admin, access] = await Promise.all([currentAdmin(request), currentAdminAccess(request)]);
+  if (!admin || !access) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   return NextResponse.json({
     admin: {
       id: admin.id,
       name: admin.name,
       email: admin.email,
       createdAt: admin.createdAt,
-      isOwner: admin.adminProfile?.isOwner ?? true,
+      isOwner: access.isOwner,
     },
   });
 }
 
 export async function PATCH(request: NextRequest) {
-  const admin = await currentAdmin(request);
-  if (!admin) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+  const [admin, access] = await Promise.all([currentAdmin(request), currentAdminAccess(request)]);
+  if (!admin || !access) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
 
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : undefined;
@@ -71,7 +72,7 @@ export async function PATCH(request: NextRequest) {
         name: updated.name,
         email: updated.email,
         createdAt: updated.createdAt,
-        isOwner: updated.adminProfile?.isOwner ?? true,
+        isOwner: access.isOwner,
       },
     });
   } catch {
