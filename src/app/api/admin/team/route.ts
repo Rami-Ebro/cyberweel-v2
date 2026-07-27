@@ -113,3 +113,26 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json({ member: updated });
 }
+
+export async function DELETE(request: NextRequest) {
+  const owner = await requireOwner(request);
+  if (!owner) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
+
+  const body = await request.json().catch(() => null);
+  const userId = typeof body?.userId === "string" ? body.userId : "";
+  if (!userId || userId === owner.userId) {
+    return NextResponse.json({ error: "لا يمكن حذف حساب المالك الرئيسي" }, { status: 400 });
+  }
+
+  const target = await db.user.findFirst({
+    where: { id: userId, role: "ADMIN" },
+    select: { id: true, adminProfile: { select: { isOwner: true } } },
+  });
+  if (!target) return NextResponse.json({ error: "حساب الإدارة غير موجود" }, { status: 404 });
+  if (target.adminProfile?.isOwner) {
+    return NextResponse.json({ error: "لا يمكن حذف حساب مالك" }, { status: 400 });
+  }
+
+  await db.user.delete({ where: { id: target.id } });
+  return NextResponse.json({ ok: true });
+}
