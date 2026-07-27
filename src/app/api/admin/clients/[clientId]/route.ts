@@ -17,9 +17,14 @@ async function notify(clientId: string, title: string, body: string | null, sect
 }
 
 function parseLinks(value: unknown) {
-  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string" && /^https?:\/\//i.test(item));
+  if (Array.isArray(value)) return [...new Set(value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter((item) => /^https?:\/\//i.test(item)))];
   if (typeof value !== "string") return [];
-  return value.split(/\r?\n/).map((item) => item.trim()).filter((item) => /^https?:\/\//i.test(item));
+  return [...new Set(value.split(/\r?\n/).map((item) => item.trim()).filter((item) => /^https?:\/\//i.test(item)))];
+}
+
+function parseCurrency(value: unknown) {
+  const currency = typeof value === "string" ? value.trim().toUpperCase() : "";
+  return /^[A-Z]{3}$/.test(currency) ? currency : "USD";
 }
 
 export async function GET(request: NextRequest, context: RouteContext) {
@@ -75,6 +80,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           description: body.description?.trim() || null,
           agreementDetails: body.agreementDetails?.trim() || null,
           financialPlan: body.financialPlan?.trim() || null,
+          currency: parseCurrency(body.currency),
           stages: body.stages?.trim() || null,
           links: parseLinks(body.links),
           notes: body.notes?.trim() || null,
@@ -88,7 +94,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const projectId = typeof body?.projectId === "string" ? body.projectId : "";
       const name = typeof body?.name === "string" ? body.name.trim() : "";
       const url = typeof body?.url === "string" ? body.url.trim() : "";
-      const project = await db.clientProject.findFirst({ where: { id: projectId, clientId }, select: { id: true, title: true } });
+      const project = await db.clientProject.findFirst({ where: { id: projectId, clientId }, select: { id: true, title: true, currency: true } });
       if (!project || !name || !/^https?:\/\//i.test(url)) return NextResponse.json({ error: "المشروع واسم الملف ورابط صحيح مطلوبة" }, { status: 400 });
       const file = await db.clientFile.create({ data: { projectId, name, url, kind: body.kind?.trim() || null } });
       await notify(clientId, "ملف أو تسليم جديد", `${name} — ${project.title}`, "files");
@@ -99,11 +105,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const projectId = typeof body?.projectId === "string" ? body.projectId : "";
       const number = typeof body?.number === "string" ? body.number.trim() : "";
       const amount = Number(body?.amount);
-      const project = await db.clientProject.findFirst({ where: { id: projectId, clientId }, select: { id: true, title: true } });
+      const project = await db.clientProject.findFirst({ where: { id: projectId, clientId }, select: { id: true, title: true, currency: true } });
       if (!project || !number || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: "بيانات الفاتورة غير مكتملة" }, { status: 400 });
       const invoice = await db.clientInvoice.create({
         data: {
-          projectId, number, amount, currency: body.currency?.trim() || "USD",
+          projectId, number, amount, currency: parseCurrency(body.currency || project.currency),
           status: body.status || "DUE",
           dueAt: body.dueAt ? new Date(body.dueAt) : null,
         },
@@ -167,6 +173,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ...(typeof body.description === "string" ? { description: body.description.trim() || null } : {}),
         ...(typeof body.agreementDetails === "string" ? { agreementDetails: body.agreementDetails.trim() || null } : {}),
         ...(typeof body.financialPlan === "string" ? { financialPlan: body.financialPlan.trim() || null } : {}),
+        ...(body.currency !== undefined ? { currency: parseCurrency(body.currency) } : {}),
         ...(typeof body.stages === "string" ? { stages: body.stages.trim() || null } : {}),
         ...(body.links !== undefined ? { links: parseLinks(body.links) } : {}),
         ...(typeof body.notes === "string" ? { notes: body.notes.trim() || null } : {}),
