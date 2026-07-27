@@ -139,7 +139,7 @@ export default function AdminClientsPage() {
           {loading ? <p className="rounded-2xl bg-white p-8 text-center">جارٍ التحميل...</p> : clients.length ? clients.map((client) => (
             <form key={client.id} onSubmit={(event) => { event.preventDefault(); void resetPassword(client, event.currentTarget); }} className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
               <div className="flex flex-wrap justify-between gap-4">
-                <div><h3 className="text-xl font-black">{client.name || "دون اسم"}</h3><p className="text-sm text-slate-500">{client.phone || client.email}</p></div>
+                <div><Link href={`/admin/clients/${client.id}`} className="text-xl font-black underline decoration-[#B89A5A] decoration-2 underline-offset-4 hover:text-[#9A7D43]">{client.name || "دون اسم"}</Link><p className="mt-1 text-sm text-slate-500">{client.phone || client.email}</p><p className="mt-1 text-xs font-bold text-[#9A7D43]">اضغط على الاسم لفتح لوحة العميل وتحريرها</p></div>
                 <span className={`rounded-full px-3 py-1 text-xs font-black ${client.isActive ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>{client.isActive ? "الحساب فعال" : "الحساب معلّق"}</span>
               </div>
               <div className="mt-5 rounded-xl bg-[#F7F3EB] p-4"><p className="font-black">المشاريع المرتبطة</p>
