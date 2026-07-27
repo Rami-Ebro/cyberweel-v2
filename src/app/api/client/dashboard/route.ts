@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
         },
       },
       clientMessages: { orderBy: { createdAt: "desc" }, take: 30 },
+      clientNotifications: { orderBy: { createdAt: "desc" }, take: 30 },
     },
   });
 
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
     project.files.map((file) => ({ ...file, projectTitle: project.title })),
   );
   const unreadMessages = client.clientMessages.filter((message) => message.fromAdmin && !message.readAt).length;
+  const notifications = client.clientNotifications;
 
   return NextResponse.json({
     client: { id: client.id, name: client.name, email: client.email, createdAt: client.createdAt },
@@ -43,10 +45,13 @@ export async function GET(request: NextRequest) {
       files: files.length,
       dueInvoices: invoices.filter((invoice) => ["DUE", "OVERDUE"].includes(invoice.status)).length,
       unreadMessages,
+      unreadNotifications: notifications.filter((notification) => !notification.readAt).length,
     },
     projects: client.clientProjects.map((project) => ({ ...project, invoices: project.invoices.map((invoice) => ({ ...invoice, amount: Number(invoice.amount) })) })),
     files,
     invoices,
+    payments: invoices.filter((invoice) => invoice.status === "PAID" || invoice.paidAt),
     messages: client.clientMessages,
+    notifications,
   });
 }
