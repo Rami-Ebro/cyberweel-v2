@@ -50,6 +50,7 @@ model User {
   name                String?
   passwordHash        String?
   role                UserRole             @default(CLIENT)
+  isActive            Boolean              @default(true)
   partner             Partner?
   adminProfile        AdminProfile?
   clientProjects      ClientProject[]
@@ -109,6 +110,7 @@ model PartnerReferral {
   status      ReferralStatus @default(NEW)
   sourcePath  String?
   notes       String?
+  clientProject ClientProject?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
@@ -121,6 +123,8 @@ model ClientProject {
   id          String               @id @default(cuid())
   clientId    String
   client      User                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  referralId  String?              @unique
+  referral    PartnerReferral?     @relation(fields: [referralId], references: [id], onDelete: SetNull)
   title       String
   description String?
   status      ClientProjectStatus  @default(PLANNING)
