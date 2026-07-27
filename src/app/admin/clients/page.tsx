@@ -95,7 +95,7 @@ export default function AdminClientsPage() {
               <input name="identifier" required placeholder="البريد الإلكتروني أو رقم واتساب" className="rounded-xl border border-[#D8D2C4] px-4 py-3" />
             </div>
             <div className="relative max-w-xl">
-              <input name="password" required minLength={8} type={showCreatePassword ? "text" : "password"} placeholder="كلمة مرور مؤقتة — 8 أحرف على الأقل" className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 pl-12" />
+              <input name="password" required minLength={8} autoComplete="new-password" type={showCreatePassword ? "text" : "password"} placeholder="كلمة مرور مؤقتة — 8 أحرف على الأقل" className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 pl-12" />
               <button type="button" onClick={() => setShowCreatePassword((value) => !value)} className="absolute left-3 top-1/2 -translate-y-1/2 p-2">{showCreatePassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
@@ -121,7 +121,7 @@ export default function AdminClientsPage() {
                 <div className="mt-3 grid gap-2">{client.clientProjects.length ? client.clientProjects.map((project) => <div key={project.id} className="flex justify-between rounded-lg bg-white px-4 py-3"><b>{project.title}</b><span>{project.progress}%</span></div>) : <p className="text-sm text-slate-500">لا توجد مشاريع مرتبطة.</p>}</div>
               </div>
               <div className="relative mt-5 max-w-xl">
-                <input name="password" type={visiblePasswords.includes(client.id) ? "text" : "password"} minLength={8} placeholder="كلمة مرور جديدة" className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 pl-12" />
+                <input name="password" autoComplete="new-password" type={visiblePasswords.includes(client.id) ? "text" : "password"} minLength={8} placeholder="كلمة مرور جديدة" className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 pl-12" />
                 <button type="button" onClick={() => setVisiblePasswords((items) => items.includes(client.id) ? items.filter((id) => id !== client.id) : [...items, client.id])} className="absolute left-3 top-1/2 -translate-y-1/2 p-2">{visiblePasswords.includes(client.id) ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>
               </div>
               <div className="mt-5 flex flex-wrap gap-3">
