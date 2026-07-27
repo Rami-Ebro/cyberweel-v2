@@ -42,6 +42,31 @@ export async function currentAdminAccess(request: NextRequest) {
 
   if (!user.adminProfile.isActive) return null;
 
+  if (!user.adminProfile.isOwner) {
+    const existingOwner = await db.adminProfile.findFirst({
+      where: { isOwner: true },
+      select: { userId: true },
+    });
+
+    // Repair the original admin account created before owner profiles existed.
+    // If no owner is recorded, only the oldest ADMIN account can become owner.
+    if (!existingOwner) {
+      const oldestAdmin = await db.user.findFirst({
+        where: { role: "ADMIN" },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      });
+
+      if (oldestAdmin?.id === user.id) {
+        await db.adminProfile.update({
+          where: { userId: user.id },
+          data: { isOwner: true },
+        });
+        return { userId: user.id, isOwner: true, permissions: [...ADMIN_PERMISSIONS] as string[] };
+      }
+    }
+  }
+
   return {
     userId: user.id,
     isOwner: user.adminProfile.isOwner,
