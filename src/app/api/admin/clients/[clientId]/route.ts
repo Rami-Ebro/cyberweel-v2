@@ -16,6 +16,12 @@ async function notify(clientId: string, title: string, body: string | null, sect
   return db.clientNotification.create({ data: { clientId, title, body, section } });
 }
 
+function parseLinks(value: unknown) {
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string" && /^https?:\/\//i.test(item));
+  if (typeof value !== "string") return [];
+  return value.split(/\r?\n/).map((item) => item.trim()).filter((item) => /^https?:\/\//i.test(item));
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   const { clientId } = await context.params;
   if (!(await allowedClient(request, clientId))) {
@@ -63,7 +69,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const title = typeof body?.title === "string" ? body.title.trim() : "";
       if (title.length < 2) return NextResponse.json({ error: "اسم المشروع مطلوب" }, { status: 400 });
       const project = await db.clientProject.create({
-        data: { clientId, title, description: body.description?.trim() || null },
+        data: {
+          clientId,
+          title,
+          description: body.description?.trim() || null,
+          agreementDetails: body.agreementDetails?.trim() || null,
+          financialPlan: body.financialPlan?.trim() || null,
+          stages: body.stages?.trim() || null,
+          links: parseLinks(body.links),
+          notes: body.notes?.trim() || null,
+        },
       });
       await notify(clientId, "تمت إضافة مشروع جديد", title, "projects");
       return NextResponse.json({ project }, { status: 201 });
@@ -150,6 +165,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       data: {
         ...(body.title?.trim() ? { title: body.title.trim() } : {}),
         ...(typeof body.description === "string" ? { description: body.description.trim() || null } : {}),
+        ...(typeof body.agreementDetails === "string" ? { agreementDetails: body.agreementDetails.trim() || null } : {}),
+        ...(typeof body.financialPlan === "string" ? { financialPlan: body.financialPlan.trim() || null } : {}),
+        ...(typeof body.stages === "string" ? { stages: body.stages.trim() || null } : {}),
+        ...(body.links !== undefined ? { links: parseLinks(body.links) } : {}),
+        ...(typeof body.notes === "string" ? { notes: body.notes.trim() || null } : {}),
         ...(body.status ? { status: body.status } : {}),
         ...(Number.isFinite(progress) ? { progress: Math.max(0, Math.min(100, progress)) } : {}),
         ...(body.dueAt !== undefined ? { dueAt: body.dueAt ? new Date(body.dueAt) : null } : {}),
