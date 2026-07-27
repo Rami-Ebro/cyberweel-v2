@@ -17,6 +17,7 @@ export default function AdminClientsPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [selectedReferralId, setSelectedReferralId] = useState("");
   const [visiblePasswords, setVisiblePasswords] = useState<string[]>([]);
   const [updatingId, setUpdatingId] = useState("");
 
@@ -50,7 +51,12 @@ export default function AdminClientsPage() {
       });
       const result = await response.json().catch(() => null);
       setMessage(response.ok ? "تم إنشاء حساب العميل بنجاح" : result?.error || "تعذر إنشاء حساب العميل");
-      if (response.ok) { form.reset(); setShowCreatePassword(false); await load(false); }
+      if (response.ok) {
+        form.reset();
+        setShowCreatePassword(false);
+        setSelectedReferralId("");
+        await load(false);
+      }
     } finally { setCreating(false); }
   }
 
@@ -98,12 +104,31 @@ export default function AdminClientsPage() {
               <input name="password" required minLength={8} autoComplete="new-password" type={showCreatePassword ? "text" : "password"} placeholder="كلمة مرور مؤقتة — 8 أحرف على الأقل" className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 pl-12" />
               <button type="button" onClick={() => setShowCreatePassword((value) => !value)} className="absolute left-3 top-1/2 -translate-y-1/2 p-2">{showCreatePassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <select name="referralId" className="rounded-xl border border-[#D8D2C4] bg-white px-4 py-3">
+            <div className={`grid gap-4 ${selectedReferralId ? "md:grid-cols-2" : ""}`}>
+              <div>
+              <select
+                name="referralId"
+                value={selectedReferralId}
+                onChange={(event) => setSelectedReferralId(event.target.value)}
+                className="w-full rounded-xl border border-[#D8D2C4] bg-white px-4 py-3"
+              >
                 <option value="">دون إحالة مرتبطة</option>
                 {referrals.map((item) => <option key={item.id} value={item.id}>{item.name || item.email || item.phone || "إحالة دون اسم"}</option>)}
               </select>
-              <input name="projectTitle" placeholder="اسم المشروع — مطلوب عند اختيار إحالة" className="rounded-xl border border-[#D8D2C4] px-4 py-3" />
+              {!referrals.length && (
+                <p className="mt-2 text-sm text-slate-500">
+                  لا توجد إحالات محوّلة إلى مشروع ومتاحة للربط حاليًا.
+                </p>
+              )}
+              </div>
+              {selectedReferralId && (
+                <input
+                  name="projectTitle"
+                  required
+                  placeholder="اسم المشروع المرتبط بالإحالة"
+                  className="rounded-xl border border-[#D8D2C4] px-4 py-3"
+                />
+              )}
             </div>
             <button disabled={creating} className="w-fit rounded-xl bg-[#B89A5A] px-6 py-3 font-black disabled:opacity-60">{creating ? "جارٍ الإنشاء..." : "إنشاء حساب العميل"}</button>
           </form>
