@@ -2,16 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, BriefcaseBusiness, Eye, EyeOff, FileText, Home, KeyRound, LogOut, Mail, ReceiptText, RefreshCw, UserCog } from "lucide-react";
+import { BarChart3, Bell, BriefcaseBusiness, CreditCard, Eye, EyeOff, FileText, Home, KeyRound, LogOut, Mail, ReceiptText, RefreshCw, Send, UserCog } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 
-type Section = "overview" | "projects" | "files" | "invoices" | "messages" | "account";
+type Section = "overview" | "projects" | "files" | "invoices" | "payments" | "messages" | "account";
 type Client = { id: string; name: string | null; email: string; createdAt: string };
 type Project = { id: string; title: string; description: string | null; status: string; progress: number; startsAt: string | null; dueAt: string | null; updatedAt: string };
 type FileItem = { id: string; name: string; url: string; kind: string | null; size: number | null; createdAt: string; projectTitle: string };
 type Invoice = { id: string; number: string; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; projectTitle: string };
 type Message = { id: string; subject: string | null; body: string; fromAdmin: boolean; readAt: string | null; createdAt: string };
-type Stats = { projects: number; activeProjects: number; files: number; dueInvoices: number; unreadMessages: number };
+type Notification = { id: string; title: string; body: string | null; section: Section; readAt: string | null; createdAt: string };
+type Stats = { projects: number; activeProjects: number; files: number; dueInvoices: number; unreadMessages: number; unreadNotifications: number };
 
 const projectLabel: Record<string, string> = { PLANNING: "التخطيط", IN_PROGRESS: "قيد التنفيذ", REVIEW: "المراجعة", COMPLETED: "مكتمل", ON_HOLD: "متوقف مؤقتًا" };
 const invoiceLabel: Record<string, string> = { DRAFT: "مسودة", DUE: "مستحقة", PAID: "مدفوعة", OVERDUE: "متأخرة", CANCELLED: "ملغاة" };
@@ -25,15 +26,19 @@ export default function ClientDashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [payments, setPayments] = useState<Invoice[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
-  async function load() {
+  async function load(clearNotice = true) {
     setLoading(true);
-    setNotice("");
+    if (clearNotice) setNotice("");
     const response = await fetch("/api/client/dashboard", { cache: "no-store" });
     if (response.status === 401 || response.status === 403) {
       router.replace("/login");
@@ -47,7 +52,9 @@ export default function ClientDashboardPage() {
       setProjects(data.projects || []);
       setFiles(data.files || []);
       setInvoices(data.invoices || []);
+      setPayments(data.payments || []);
       setMessages(data.messages || []);
+      setNotifications(data.notifications || []);
     }
     setLoading(false);
   }
@@ -77,14 +84,66 @@ export default function ClientDashboardPage() {
     router.refresh();
   }
 
+  async function sendMessage(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    setSendingMessage(true);
+    setNotice("");
+    try {
+      const response = await fetch("/api/client/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: form.get("projectId"),
+          subject: form.get("subject"),
+          body: form.get("body"),
+        }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) return setNotice(data?.error || "تعذر إرسال الرسالة");
+      formElement.reset();
+      await load(false);
+      setNotice("تم إرسال رسالتك وحفظها في سجل المشروع");
+      setSection("messages");
+    } finally {
+      setSendingMessage(false);
+    }
+  }
+
+  async function openNotification(notification: Notification) {
+    if (!notification.readAt) {
+      await fetch("/api/client/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notificationId: notification.id }),
+      });
+      setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item));
+      setStats((value) => value ? { ...value, unreadNotifications: Math.max(0, value.unreadNotifications - 1) } : value);
+    }
+    setSection(notification.section);
+    setNotificationsOpen(false);
+  }
+
   const nav = [
     ["overview", "نظرة عامة", BarChart3],
     ["projects", "المشاريع", BriefcaseBusiness],
     ["files", "الملفات والتسليمات", FileText],
-    ["invoices", "الفواتير والدفعات", ReceiptText],
+    ["invoices", "الفواتير", ReceiptText],
+    ["payments", "المدفوعات", CreditCard],
     ["messages", "الرسائل والتحديثات", Mail],
-    ["account", "الملف الشخصي", UserCog],
+    ["account", "الحساب", UserCog],
   ] as const;
+
+  const sectionDescriptions: Record<Section, string> = {
+    overview: "ملخص سريع عن مشاريعك وآخر المستجدات.",
+    projects: "جميع مشاريعك وحالة التنفيذ ونسبة الإنجاز.",
+    files: "هنا ستجد الملفات والتسليمات التي سنسلّمها لك.",
+    invoices: "جميع الفواتير الصادرة وحالة كل فاتورة.",
+    payments: "المبالغ المدفوعة والمسجلة على فواتيرك.",
+    messages: "جميع رسائلنا وتحديثات المشاريع ستجدها هنا. هذا هو سجل التواصل الرسمي.",
+    account: "بيانات حسابك وكلمة المرور وإعدادات الدخول.",
+  };
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#F7F3EB] text-[#111827]">
@@ -102,13 +161,35 @@ export default function ClientDashboardPage() {
         </aside>
 
         <section className="p-4 sm:p-7 lg:p-10">
-          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <header className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div><p className="text-sm font-bold text-[#9A7D43]">مساحة العميل</p><h1 className="mt-1 text-3xl font-black">مرحبًا {client?.name || "بك"}</h1></div>
-            <button onClick={load} disabled={loading} className="flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث البيانات</button>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={() => setNotificationsOpen((value) => !value)} className="relative flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
+                <Bell className="h-5 w-5" />الإشعارات
+                {!!stats?.unreadNotifications && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{stats.unreadNotifications}</span>}
+              </button>
+              <button onClick={() => void load()} disabled={loading} className="flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث البيانات</button>
+            </div>
+            {notificationsOpen && (
+              <div className="absolute left-0 top-full z-20 mt-3 w-full max-w-md rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl">
+                <div className="flex items-center justify-between px-2 py-2"><strong>الإشعارات</strong><span className="text-xs text-slate-500">{stats?.unreadNotifications || 0} غير مقروء</span></div>
+                <div className="max-h-96 space-y-2 overflow-y-auto">
+                  {notifications.map((notification) => (
+                    <button key={notification.id} onClick={() => void openNotification(notification)} className={`w-full rounded-xl p-3 text-right ${notification.readAt ? "bg-slate-50" : "bg-amber-50"}`}>
+                      <div className="flex items-center justify-between gap-3"><strong className="text-sm">{notification.title}</strong>{!notification.readAt && <span className="h-2 w-2 rounded-full bg-red-600" />}</div>
+                      {notification.body && <p className="mt-1 text-xs leading-5 text-slate-500">{notification.body}</p>}
+                    </button>
+                  ))}
+                  {!notifications.length && <p className="p-6 text-center text-sm text-slate-500">لا توجد إشعارات جديدة.</p>}
+                </div>
+              </div>
+            )}
           </header>
 
           {notice && <p className="mt-5 rounded-xl border border-[#D8D2C4] bg-white p-4 font-bold shadow-sm">{notice}</p>}
           {loading && <div className="mt-10 rounded-2xl bg-white p-10 text-center shadow-sm">جارٍ تحميل لوحة العميل...</div>}
+
+          {!loading && <p className="mt-7 text-sm font-semibold text-slate-500">{sectionDescriptions[section]}</p>}
 
           {!loading && section === "overview" && stats && <>
             <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -121,11 +202,31 @@ export default function ClientDashboardPage() {
 
           {!loading && section === "files" && <section className="mt-7"><h2 className="text-2xl font-black">الملفات والتسليمات</h2><div className="mt-5 grid gap-3">{files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="flex flex-col justify-between gap-3 rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm sm:flex-row sm:items-center"><div><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></div><span className="text-sm font-bold text-[#9A7D43]">فتح الملف</span></a>)}{!files.length && <Empty text="لا توجد ملفات أو تسليمات بعد." />}</div></section>}
 
-          {!loading && section === "invoices" && <section className="mt-7"><h2 className="text-2xl font-black">الفواتير والدفعات</h2><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[720px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">رقم الفاتورة</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-4 font-bold">{invoice.number}</td><td className="p-4">{invoice.projectTitle}</td><td className="p-4">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{invoiceLabel[invoice.status] || invoice.status}</td><td className="p-4">{invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("ar") : "—"}</td></tr>)}</tbody></table>{!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}</div></section>}
+          {!loading && section === "invoices" && <section className="mt-7"><h2 className="text-2xl font-black">الفواتير</h2><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[720px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">رقم الفاتورة</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-4 font-bold">{invoice.number}</td><td className="p-4">{invoice.projectTitle}</td><td className="p-4">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{invoiceLabel[invoice.status] || invoice.status}</td><td className="p-4">{invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("ar") : "—"}</td></tr>)}</tbody></table>{!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}</div></section>}
 
-          {!loading && section === "messages" && <section className="mt-7"><h2 className="text-2xl font-black">الرسائل والتحديثات</h2><div className="mt-5 grid gap-3">{messages.map((message) => <article key={message.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex items-center justify-between gap-3"><strong>{message.subject || (message.fromAdmin ? "تحديث من فريق CyberWeel" : "رسالتك")}</strong><span className="text-xs text-slate-500">{new Date(message.createdAt).toLocaleDateString("ar")}</span></div><p className="mt-3 leading-7 text-slate-600">{message.body}</p></article>)}{!messages.length && <Empty text="لا توجد رسائل بعد." />}</div></section>}
+          {!loading && section === "payments" && <section className="mt-7"><h2 className="text-2xl font-black">المدفوعات</h2><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[640px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">الفاتورة</th><th className="p-4">المشروع</th><th className="p-4">المبلغ المدفوع</th><th className="p-4">تاريخ الدفع</th></tr></thead><tbody>{payments.map((payment) => <tr key={payment.id} className="border-b border-slate-100"><td className="p-4 font-bold">{payment.number}</td><td className="p-4">{payment.projectTitle}</td><td className="p-4">{payment.amount.toLocaleString("ar")} {payment.currency}</td><td className="p-4">{payment.paidAt ? new Date(payment.paidAt).toLocaleDateString("ar") : "مسجلة كمدفوعة"}</td></tr>)}</tbody></table>{!payments.length && <div className="p-8 text-center text-slate-500">لا توجد مدفوعات مسجلة بعد.</div>}</div></section>}
 
-          {!loading && section === "account" && <section className="mt-7 max-w-2xl rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><h2 className="text-2xl font-black">الملف الشخصي</h2><p className="mt-2 text-sm text-slate-500">تعديل بيانات الحساب وكلمة المرور.</p><form ref={formRef} onSubmit={saveAccount} className="mt-7 grid gap-4"><label className="grid gap-2 font-bold">الاسم<input name="name" defaultValue={client?.name || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><label className="grid gap-2 font-bold">البريد الإلكتروني<input name="email" type="email" defaultValue={client?.email || ""} required className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><div className="mt-3 flex items-center gap-2 font-black"><KeyRound className="h-5 w-5" />تغيير كلمة المرور</div><PasswordField label="كلمة المرور الحالية" name="currentPassword" visible={showCurrentPassword} onToggle={() => setShowCurrentPassword((value) => !value)} /><PasswordField label="كلمة المرور الجديدة" name="newPassword" visible={showNewPassword} onToggle={() => setShowNewPassword((value) => !value)} minLength={8} /><button className="mt-2 rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white">حفظ التعديلات</button></form></section>}
+          {!loading && section === "messages" && <section className="mt-7">
+            <h2 className="text-2xl font-black">الرسائل والتحديثات</h2>
+            <form onSubmit={sendMessage} className="mt-5 grid gap-4 rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-2 font-black"><Send className="h-5 w-5" />إرسال رسالة</div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <select name="projectId" className="rounded-xl border border-[#D8D2C4] bg-white px-4 py-3">
+                  <option value="">رسالة عامة</option>
+                  {projects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}
+                </select>
+                <input name="subject" maxLength={120} placeholder="عنوان الرسالة — اختياري" className="rounded-xl border border-[#D8D2C4] px-4 py-3" />
+              </div>
+              <textarea name="body" required minLength={2} maxLength={5000} rows={5} placeholder="اكتب رسالتك هنا..." className="rounded-xl border border-[#D8D2C4] px-4 py-3" />
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs text-slate-500">تُحفظ الرسائل كسجل دائم ولا يمكن حذفها أو تعديلها من أي طرف.</p>
+                <button disabled={sendingMessage} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50">{sendingMessage ? "جارٍ الإرسال..." : "إرسال الرسالة"}</button>
+              </div>
+            </form>
+            <div className="mt-5 grid gap-3">{messages.map((message) => <article key={message.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex items-center justify-between gap-3"><strong>{message.subject || (message.fromAdmin ? "تحديث من فريق CyberWeel" : "رسالتك")}</strong><span className="text-xs text-slate-500">{new Date(message.createdAt).toLocaleString("ar")}</span></div><span className={`mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-bold ${message.fromAdmin ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>{message.fromAdmin ? "فريق CyberWeel" : "أنت"}</span><p className="mt-3 whitespace-pre-wrap leading-7 text-slate-600">{message.body}</p></article>)}{!messages.length && <Empty text="لا توجد رسائل بعد." />}</div>
+          </section>}
+
+          {!loading && section === "account" && <section className="mt-7 max-w-2xl rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><h2 className="text-2xl font-black">الحساب</h2><p className="mt-2 text-sm text-slate-500">تعديل بيانات الحساب وكلمة المرور.</p><form ref={formRef} onSubmit={saveAccount} className="mt-7 grid gap-4"><label className="grid gap-2 font-bold">الاسم<input name="name" defaultValue={client?.name || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><label className="grid gap-2 font-bold">البريد الإلكتروني<input name="email" type="email" defaultValue={client?.email || ""} required className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><div className="mt-3 flex items-center gap-2 font-black"><KeyRound className="h-5 w-5" />تغيير كلمة المرور</div><PasswordField label="كلمة المرور الحالية" name="currentPassword" visible={showCurrentPassword} onToggle={() => setShowCurrentPassword((value) => !value)} /><PasswordField label="كلمة المرور الجديدة" name="newPassword" visible={showNewPassword} onToggle={() => setShowNewPassword((value) => !value)} minLength={8} /><button className="mt-2 rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white">حفظ التعديلات</button></form></section>}
         </section>
       </div>
     </main>
