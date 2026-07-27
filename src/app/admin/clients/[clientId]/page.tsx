@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { BarChart3, Bell, BriefcaseBusiness, ChevronDown, FileText, Mail, ReceiptText, RefreshCw, UserCog } from "lucide-react";
+import { upload } from "@vercel/blob/client";
+import { BarChart3, Bell, BriefcaseBusiness, ChevronDown, FileText, Mail, Paperclip, Plus, ReceiptText, RefreshCw, Trash2, UserCog } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 
 type Section = "overview" | "projects" | "files" | "invoices" | "messages" | "account";
 type Project = {
   id: string; title: string; description: string | null; status: string; progress: number;
-  agreementDetails: string | null; financialPlan: string | null; stages: string | null;
+  agreementDetails: string | null; financialPlan: string | null; currency: string; stages: string | null;
   links: string[]; notes: string | null;
   dueAt: string | null; updatedAt: string;
-  files: Array<{ id: string; name: string; url: string; kind: string | null; createdAt: string }>;
+  files: Array<{ id: string; name: string; url: string; kind: string | null; size: number | null; storageProvider: string | null; createdAt: string }>;
   invoices: Array<{ id: string; number: string; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; createdAt: string }>;
 };
 type Message = { id: string; subject: string | null; body: string; fromAdmin: boolean; createdAt: string; projectId: string | null };
@@ -42,6 +43,7 @@ export default function AdminClientWorkspacePage() {
   const [invoiceFormOpen, setInvoiceFormOpen] = useState(false);
   const [messageFormOpen, setMessageFormOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [newProjectFormVersion, setNewProjectFormVersion] = useState(0);
 
   async function load(clearNotice = true) {
     setLoading(true);
@@ -54,23 +56,21 @@ export default function AdminClientWorkspacePage() {
       setNotice(data?.error || "تعذر تحميل لوحة العميل");
     } else {
       setClient(data.client);
+      const loadedProjects = data.client?.clientProjects || [];
+      setSelectedProjectId((current) => loadedProjects.some((project: Project) => project.id === current) ? current : loadedProjects[0]?.id || "");
     }
     setLoading(false);
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [params.clientId]);
-  useEffect(() => {
-    const projects = client?.clientProjects || [];
-    if (!projects.length) return setSelectedProjectId("");
-    if (!projects.some((project) => project.id === selectedProjectId)) {
-      setSelectedProjectId(projects[0].id);
-    }
-  }, [client, selectedProjectId]);
 
   async function submit(event: FormEvent<HTMLFormElement>, method: "POST" | "PATCH", success: string) {
     event.preventDefault();
     const formElement = event.currentTarget;
-    const values = Object.fromEntries(new FormData(formElement));
+    const formData = new FormData(formElement);
+    const values: Record<string, unknown> = Object.fromEntries(formData);
+    if (formData.has("links")) values.links = formData.getAll("links").map(String);
     setSaving(true);
     setNotice("");
     try {
@@ -88,6 +88,69 @@ export default function AdminClientWorkspacePage() {
       if (values.action === "invoice") setInvoiceFormOpen(false);
       if (values.action === "message") setMessageFormOpen(false);
       setNotice(success);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveProject(event: FormEvent<HTMLFormElement>, method: "POST" | "PATCH") {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const formData = new FormData(formElement);
+    const attachments = formData.getAll("attachments").filter((item): item is File => item instanceof File && item.size > 0);
+    const oversized = attachments.find((file) => file.size > 25 * 1024 * 1024);
+    if (oversized) return setNotice(`الملف ${oversized.name} أكبر من 25 ميغابايت`);
+
+    const values: Record<string, unknown> = Object.fromEntries(
+      [...formData.entries()].filter(([key]) => key !== "attachments" && key !== "links"),
+    );
+    values.links = formData.getAll("links").map(String).filter(Boolean);
+
+    setSaving(true);
+    setNotice("");
+    try {
+      const response = await fetch(`/api/admin/clients/${params.clientId}`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) return setNotice(data?.error || "تعذر حفظ المشروع");
+
+      const projectId = data?.project?.id;
+      if (attachments.length && projectId) {
+        try {
+          for (const file of attachments) {
+            const cleanName = file.name.replace(/[^\p{L}\p{N}._-]+/gu, "-");
+            await upload(
+              `clients/${params.clientId}/projects/${projectId}/${crypto.randomUUID()}-${cleanName}`,
+              file,
+              {
+                access: "private",
+                handleUploadUrl: `/api/admin/clients/${params.clientId}/project-files/upload`,
+                clientPayload: JSON.stringify({
+                  clientId: params.clientId,
+                  projectId,
+                  originalName: file.name,
+                  size: file.size,
+                }),
+                multipart: file.size > 5 * 1024 * 1024,
+              },
+            );
+          }
+        } catch {
+          await load(false);
+          return setNotice("تم حفظ المشروع، لكن تعذر رفع بعض المرفقات. تحقق من ربط Vercel Blob ثم أعد رفعها.");
+        }
+      }
+
+      if (method === "POST") {
+        formElement.reset();
+        setNewProjectFormVersion((value) => value + 1);
+        setProjectFormOpen(false);
+      }
+      await load(false);
+      setNotice(method === "POST" ? "تم حفظ المشروع وإشعار العميل" : "تم تحديث المشروع وإشعار العميل");
     } finally {
       setSaving(false);
     }
@@ -152,30 +215,69 @@ export default function AdminClientWorkspacePage() {
           </div>}
 
           {!loading && client && section === "projects" && <div className="mt-7 grid gap-5">
-            {projects.map((project) => <details key={project.id} className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><summary className="cursor-pointer list-none p-6"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-black">{project.title}</h2><p className="mt-1 text-sm text-slate-500">{project.description || "لا يوجد وصف مختصر."}</p></div><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-sm font-bold text-[#9A7D43]">{project.progress}%</span></div></summary><form onSubmit={(event) => void submit(event, "PATCH", "تم تحديث المشروع وإشعار العميل")} className="grid gap-3 border-t border-[#D8D2C4] p-6"><input type="hidden" name="action" value="project" /><input type="hidden" name="projectId" value={project.id} /><input name="title" defaultValue={project.title} required className="field" /><textarea name="description" defaultValue={project.description || ""} rows={3} className="field" /><textarea name="agreementDetails" defaultValue={project.agreementDetails || ""} placeholder="تفاصيل الاتفاق ونطاق العمل" rows={4} className="field" /><textarea name="financialPlan" defaultValue={project.financialPlan || ""} placeholder="الخطة المالية المتفق عليها" rows={4} className="field" /><textarea name="stages" defaultValue={project.stages || ""} placeholder="مراحل المشروع" rows={4} className="field" /><textarea name="links" defaultValue={(project.links || []).join("\n")} placeholder="روابط المشروع — رابط في كل سطر" rows={3} className="field" /><textarea name="notes" defaultValue={project.notes || ""} placeholder="ملاحظات اختيارية" rows={3} className="field" /><div className="grid gap-3 md:grid-cols-3"><select name="status" defaultValue={project.status} className="field">{projectStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><input name="progress" type="number" min={0} max={100} defaultValue={project.progress} className="field" /><input name="dueAt" type="date" defaultValue={project.dueAt?.slice(0, 10) || ""} className="field" /></div><SaveButton saving={saving} label="حفظ بيانات المشروع" /></form></details>)}
-            {!projects.length && <ListEmpty empty text="لا توجد مشاريع بعد." children={null} />}
+            {projects.map((project) => (
+              <details key={project.id} className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
+                <summary className="cursor-pointer list-none p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-xl font-black">{project.title}</h2>
+                      <p className="mt-1 text-sm text-slate-500">{project.description || "لا يوجد وصف مختصر."}</p>
+                    </div>
+                    <span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-sm font-bold text-[#9A7D43]">{project.progress}%</span>
+                  </div>
+                </summary>
+                <form onSubmit={(event) => void saveProject(event, "PATCH")} className="grid gap-4 border-t border-[#D8D2C4] p-6">
+                  <input type="hidden" name="action" value="project" />
+                  <input type="hidden" name="projectId" value={project.id} />
+                  <ProjectCoreFields project={project} />
+                  <ProjectLinksFields initialLinks={project.links} />
+                  <ProjectAttachmentsInput files={project.files} />
+                  <label className="grid gap-2 font-bold">
+                    ملاحظات داخلية اختيارية
+                    <textarea name="notes" defaultValue={project.notes || ""} placeholder="لا تظهر هذه الملاحظات للعميل" rows={3} className="field font-normal" />
+                  </label>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <label className="grid gap-2 font-bold">حالة المشروع<select name="status" defaultValue={project.status} className="field font-normal">{projectStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                    <label className="grid gap-2 font-bold">نسبة الإنجاز<input name="progress" type="number" min={0} max={100} defaultValue={project.progress} className="field font-normal" /></label>
+                    <label className="grid gap-2 font-bold">موعد التسليم<input name="dueAt" type="date" defaultValue={project.dueAt?.slice(0, 10) || ""} className="field font-normal" /></label>
+                  </div>
+                  <SaveButton saving={saving} label="حفظ بيانات المشروع" />
+                </form>
+              </details>
+            ))}
+            {!projects.length && <ListEmpty empty text="لا توجد مشاريع بعد.">{null}</ListEmpty>}
             <CreationPanel title="إضافة مشروع جديد" description="افتح البطاقة عند الحاجة فقط." open={projectFormOpen} onToggle={() => setProjectFormOpen((value) => !value)}>
-              <form onSubmit={(event) => void submit(event, "POST", "تمت إضافة المشروع وإشعار العميل")} className="grid gap-3"><input type="hidden" name="action" value="project" /><input name="title" required placeholder="اسم المشروع" className="field" /><textarea name="description" placeholder="وصف مختصر للمشروع" rows={3} className="field" /><textarea name="agreementDetails" placeholder="تفاصيل الاتفاق ونطاق العمل" rows={4} className="field" /><textarea name="financialPlan" placeholder="الخطة المالية المتفق عليها" rows={4} className="field" /><textarea name="stages" placeholder="مراحل المشروع — مرحلة في كل سطر" rows={4} className="field" /><textarea name="links" placeholder={"روابط المشروع — رابط في كل سطر\nhttps://..."} rows={3} className="field" /><textarea name="notes" placeholder="ملاحظات داخلية أو اختيارية" rows={3} className="field" /><SaveButton saving={saving} label="إضافة المشروع" /></form>
+              <form key={newProjectFormVersion} onSubmit={(event) => void saveProject(event, "POST")} className="grid gap-4">
+                <input type="hidden" name="action" value="project" />
+                <ProjectCoreFields />
+                <ProjectLinksFields />
+                <ProjectAttachmentsInput />
+                <label className="grid gap-2 font-bold">
+                  ملاحظات داخلية اختيارية
+                  <textarea name="notes" placeholder="لا تظهر هذه الملاحظات للعميل" rows={3} className="field font-normal" />
+                </label>
+                <SaveButton saving={saving} label="حفظ المشروع" />
+              </form>
             </CreationPanel>
           </div>}
 
           {!loading && client && section === "files" && <div className="mt-7 grid gap-5">
-            <ListEmpty empty={!files.length} text="لا توجد ملفات بعد.">{files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></a>)}</ListEmpty>
+            <ListEmpty empty={!files.length} text="لا توجد ملفات بعد.">{files.map((file) => <a key={file.id} href={file.storageProvider === "VERCEL_BLOB" ? `/api/client/files/${file.id}` : file.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></a>)}</ListEmpty>
             <CreationPanel title="إضافة ملف أو تسليم" description="الملفات الحالية في الأعلى، والإضافة عند الحاجة فقط." open={fileFormOpen} onToggle={() => setFileFormOpen((value) => !value)}>
               <form onSubmit={(event) => void submit(event, "POST", "تمت إضافة الملف وإشعار العميل")} className="grid gap-3"><input type="hidden" name="action" value="file" /><ProjectSelect projects={projects} /><input name="name" required placeholder="اسم الملف أو التسليم" className="field" /><input name="url" type="url" required placeholder="رابط الملف https://..." className="field" /><select name="kind" className="field"><option value="DELIVERABLE">تسليم نهائي</option><option value="WORKING">ملف عمل</option><option value="REFERENCE">مرجع</option><option value="CONTRACT">اتفاق أو عقد</option><option value="OTHER">أخرى</option></select><SaveButton saving={saving} label="إضافة الملف" /></form>
             </CreationPanel>
           </div>}
 
           {!loading && client && section === "invoices" && <div className="mt-7 grid gap-5">
-            {!projects.length ? <ListEmpty empty text="أنشئ مشروعًا أولًا؛ الفواتير لا تُنشأ دون مشروع." children={null} /> : <>
+            {!projects.length ? <ListEmpty empty text="أنشئ مشروعًا أولًا؛ الفواتير لا تُنشأ دون مشروع.">{null}</ListEmpty> : <>
               {projects.length > 1 && <label className="grid gap-2 font-bold">المشروع<select value={selectedProjectId} onChange={(event) => setSelectedProjectId(event.target.value)} className="field">{projects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}</select></label>}
               {projects.length === 1 && <p className="rounded-xl bg-white p-4 text-sm font-bold shadow-sm">المشروع المحدد تلقائيًا: {projects[0].title}</p>}
 
-              {selectedProject && <details className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><summary className="cursor-pointer list-none p-6"><div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-black">ملخص اتفاق المشروع</h2><p className="mt-1 text-sm text-slate-500">{selectedProject.title} — للعرض فقط</p></div><ChevronDown className="h-5 w-5" /></div></summary><div className="grid gap-4 border-t border-[#D8D2C4] p-6 text-sm"><ReadOnly label="نطاق المشروع" value={selectedProject.agreementDetails || selectedProject.description} /><ReadOnly label="الخطة المالية" value={selectedProject.financialPlan} /><ReadOnly label="المراحل" value={selectedProject.stages} /><ReadOnly label="الملاحظات" value={selectedProject.notes} />{!!selectedProject.links?.length && <div><p className="font-black">روابط المشروع</p><div className="mt-2 grid gap-1">{selectedProject.links.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer" className="text-[#9A7D43] underline">{link}</a>)}</div></div>}<p className="text-xs text-slate-500">لتعديل هذه البيانات انتقل إلى صفحة المشاريع.</p></div></details>}
+              {selectedProject && <details className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><summary className="cursor-pointer list-none p-6"><div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-black">ملخص اتفاق المشروع</h2><p className="mt-1 text-sm text-slate-500">{selectedProject.title} — للعرض فقط</p></div><ChevronDown className="h-5 w-5" /></div></summary><div className="grid gap-4 border-t border-[#D8D2C4] p-6 text-sm"><ReadOnly label="نطاق المشروع" value={selectedProject.agreementDetails || selectedProject.description} /><ReadOnly label={`الخطة المالية — ${selectedProject.currency}`} value={selectedProject.financialPlan} /><ReadOnly label="المراحل" value={selectedProject.stages} /><ReadOnly label="الملاحظات الداخلية" value={selectedProject.notes} />{!!selectedProject.links?.length && <div><p className="font-black">روابط المشروع</p><div className="mt-2 grid gap-1">{selectedProject.links.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer" className="text-[#9A7D43] underline">{link}</a>)}</div></div>}<p className="text-xs text-slate-500">لتعديل هذه البيانات انتقل إلى صفحة المشاريع.</p></div></details>}
 
               <section><h2 className="text-xl font-black">سجل الفواتير</h2><div className="mt-4"><ListEmpty empty={!selectedInvoices.length} text="لا توجد فواتير لهذا المشروع.">{selectedInvoices.map((invoice) => <div key={invoice.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap justify-between gap-3"><strong>{invoice.number}</strong><span>{invoice.amount.toLocaleString("ar")} {invoice.currency}</span></div><p className="mt-2 text-sm text-slate-500">{invoice.status} — {invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("ar") : "دون تاريخ استحقاق"}</p>{invoice.status !== "PAID" && <form onSubmit={(event) => void submit(event, "POST", "تم تسجيل الفاتورة كمدفوعة وإشعار العميل")} className="mt-3"><input type="hidden" name="action" value="payment" /><input type="hidden" name="invoiceId" value={invoice.id} /><button disabled={saving} className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800">تسجيلها كمدفوعة</button></form>}</div>)}</ListEmpty></div></section>
 
-              <section className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><button onClick={() => setInvoiceFormOpen((value) => !value)} className="flex w-full items-center justify-between gap-3 p-6 text-right"><div><h2 className="text-xl font-black">إصدار فاتورة</h2><p className="mt-1 text-sm text-slate-500">تُسحب بيانات الاتفاق من المشروع ولا تُكرر هنا.</p></div><ChevronDown className={`h-5 w-5 transition ${invoiceFormOpen ? "rotate-180" : ""}`} /></button>{invoiceFormOpen && <form onSubmit={(event) => void submit(event, "POST", "تم إصدار الفاتورة وإشعار العميل")} className="grid gap-3 border-t border-[#D8D2C4] p-6"><input type="hidden" name="action" value="invoice" /><input type="hidden" name="projectId" value={selectedProjectId} /><div className="grid gap-3 md:grid-cols-2"><input name="number" required placeholder="رقم الفاتورة" className="field" /><input name="amount" type="number" min="0.01" step="0.01" required placeholder="المبلغ" className="field" /></div><div className="grid gap-3 md:grid-cols-3"><input name="currency" defaultValue="USD" className="field" /><select name="status" defaultValue="DUE" className="field">{invoiceStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><input name="dueAt" type="date" className="field" /></div><SaveButton saving={saving} label="إصدار الفاتورة" /></form>}</section>
+              <section className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><button onClick={() => setInvoiceFormOpen((value) => !value)} className="flex w-full items-center justify-between gap-3 p-6 text-right"><div><h2 className="text-xl font-black">إصدار فاتورة</h2><p className="mt-1 text-sm text-slate-500">تُسحب بيانات الاتفاق من المشروع ولا تُكرر هنا.</p></div><ChevronDown className={`h-5 w-5 transition ${invoiceFormOpen ? "rotate-180" : ""}`} /></button>{invoiceFormOpen && <form onSubmit={(event) => void submit(event, "POST", "تم إصدار الفاتورة وإشعار العميل")} className="grid gap-3 border-t border-[#D8D2C4] p-6"><input type="hidden" name="action" value="invoice" /><input type="hidden" name="projectId" value={selectedProjectId} /><input type="hidden" name="currency" value={selectedProject?.currency || "USD"} /><div className="grid gap-3 md:grid-cols-2"><input name="number" required placeholder="رقم الفاتورة" className="field" /><input name="amount" type="number" min="0.01" step="0.01" required placeholder="المبلغ" className="field" /></div><div className="grid gap-3 md:grid-cols-3"><div className="field bg-slate-50 font-bold">{selectedProject?.currency || "USD"}</div><select name="status" defaultValue="DUE" className="field">{invoiceStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><input name="dueAt" type="date" className="field" /></div><SaveButton saving={saving} label="إصدار الفاتورة" /></form>}</section>
             </>}
           </div>}
 
@@ -199,6 +301,111 @@ function Editor({ title, children }: { title: string; children: React.ReactNode 
 
 function CreationPanel({ title, description, open, onToggle, children }: { title: string; description: string; open: boolean; onToggle: () => void; children: React.ReactNode }) {
   return <section className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><button type="button" aria-expanded={open} onClick={onToggle} className="flex w-full items-center justify-between gap-3 p-6 text-right"><div><h2 className="text-xl font-black">{title}</h2><p className="mt-1 text-sm text-slate-500">{description}</p></div><ChevronDown className={`h-5 w-5 shrink-0 transition ${open ? "rotate-180" : ""}`} /></button>{open && <div className="border-t border-[#D8D2C4] p-6">{children}</div>}</section>;
+}
+
+function ProjectCoreFields({ project }: { project?: Project }) {
+  return <>
+    <label className="grid gap-2 font-bold">
+      اسم المشروع
+      <input name="title" defaultValue={project?.title || ""} required minLength={2} placeholder="اسم المشروع" className="field font-normal" />
+    </label>
+    <label className="grid gap-2 font-bold">
+      الوصف المختصر
+      <textarea name="description" defaultValue={project?.description || ""} placeholder="ملخص سريع يوضح فكرة المشروع" rows={3} className="field font-normal" />
+    </label>
+    <label className="grid gap-2 font-bold">
+      تفاصيل الاتفاق ونطاق العمل
+      <textarea name="agreementDetails" defaultValue={project?.agreementDetails || ""} placeholder="ما الذي يشمله المشروع وما الذي سيتم تنفيذه؟" rows={5} className="field font-normal" />
+    </label>
+    <label className="grid gap-2 font-bold">
+      الخطة المالية
+      <textarea name="financialPlan" defaultValue={project?.financialPlan || ""} placeholder="قيمة الاتفاق، الدفعات، ومواعيدها" rows={4} className="field font-normal" />
+    </label>
+    <label className="grid gap-2 font-bold">
+      العملة
+      <input name="currency" defaultValue={project?.currency || "USD"} list="project-currencies" maxLength={3} required placeholder="USD" className="field font-normal uppercase" />
+      <datalist id="project-currencies">
+        <option value="USD" />
+        <option value="SYP" />
+        <option value="EUR" />
+        <option value="SAR" />
+        <option value="AED" />
+        <option value="TRY" />
+      </datalist>
+    </label>
+    <label className="grid gap-2 font-bold">
+      مراحل المشروع
+      <textarea name="stages" defaultValue={project?.stages || ""} placeholder={"اكتب كل مرحلة في سطر مستقل\nمثال: التحليل\nالتصميم\nالتنفيذ"} rows={5} className="field font-normal" />
+    </label>
+  </>;
+}
+
+function ProjectLinksFields({ initialLinks = [] }: { initialLinks?: string[] }) {
+  const [links, setLinks] = useState(initialLinks.length ? initialLinks : [""]);
+
+  return <fieldset className="grid gap-3 rounded-xl border border-[#D8D2C4] p-4">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <legend className="font-black">روابط المشروع</legend>
+        <p className="mt-1 text-xs text-slate-500">يمكن إضافة أي عدد من روابط الموقع أو Figma أو GitHub أو غيرها.</p>
+      </div>
+      <button type="button" onClick={() => setLinks((items) => [...items, ""])} className="flex items-center gap-2 rounded-lg border border-[#D8D2C4] px-3 py-2 text-sm font-bold">
+        <Plus className="h-4 w-4" />إضافة رابط
+      </button>
+    </div>
+    {links.map((link, index) => (
+      <div key={index} className="flex gap-2">
+        <input
+          name="links"
+          type="url"
+          value={link}
+          onChange={(event) => setLinks((items) => items.map((item, itemIndex) => itemIndex === index ? event.target.value : item))}
+          placeholder="https://..."
+          className="field min-w-0 flex-1 font-normal"
+        />
+        <button
+          type="button"
+          aria-label="حذف الرابط"
+          onClick={() => setLinks((items) => items.length === 1 ? [""] : items.filter((_, itemIndex) => itemIndex !== index))}
+          className="rounded-xl border border-red-200 px-3 text-red-700"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    ))}
+  </fieldset>;
+}
+
+function ProjectAttachmentsInput({ files = [] }: { files?: Project["files"] }) {
+  const attachments = files.filter((file) => file.kind === "PROJECT_ATTACHMENT");
+  const [selectedNames, setSelectedNames] = useState<string[]>([]);
+
+  return <fieldset className="grid gap-3 rounded-xl border border-[#D8D2C4] p-4">
+    <div>
+      <legend className="font-black">مرفقات المشروع</legend>
+      <p className="mt-1 text-xs text-slate-500">يمكن اختيار عدة ملفات. الحد الأقصى 25 ميغابايت لكل ملف.</p>
+    </div>
+    {!!attachments.length && <div className="flex flex-wrap gap-2">
+      {attachments.map((file) => (
+        <a key={file.id} href={`/api/client/files/${file.id}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg bg-[#F7F3EB] px-3 py-2 text-sm font-bold text-[#9A7D43]">
+          <Paperclip className="h-4 w-4" />{file.name}
+        </a>
+      ))}
+    </div>}
+    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[#B89A5A] bg-[#F7F3EB] p-4 font-bold">
+      <Paperclip className="h-5 w-5" />
+      <span>اختيار ملفات من الجهاز</span>
+      <input
+        name="attachments"
+        type="file"
+        multiple
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.png,.jpg,.jpeg,.webp,.txt"
+        onChange={(event) => setSelectedNames(Array.from(event.target.files || []).map((file) => file.name))}
+        className="sr-only"
+      />
+    </label>
+    {!!selectedNames.length && <div className="rounded-lg bg-emerald-50 p-3 text-sm font-bold text-emerald-800">تم اختيار: {selectedNames.join("، ")}</div>}
+  </fieldset>;
 }
 
 function ProjectSelect({ projects, optional = false }: { projects: Project[]; optional?: boolean }) {
