@@ -17,7 +17,7 @@ type Project = {
   invoices: Array<{ id: string; number: string; type: "STANDARD" | "RETURN"; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; createdAt: string }>;
 };
 type Message = { id: string; subject: string | null; body: string; fromAdmin: boolean; createdAt: string; projectId: string | null };
-type Notification = { id: string; title: string; body: string | null; section: string; readAt: string | null; adminReadAt: string | null; createdAt: string };
+type Notification = { id: string; title: string; body: string | null; section: string; readAt: string | null; createdAt: string };
 type Client = {
   id: string; name: string | null; email: string; phone: string | null; isActive: boolean; createdAt: string;
   clientProjects: Project[]; clientMessages: Message[]; clientNotifications: Notification[];
@@ -66,32 +66,6 @@ export default function AdminClientWorkspacePage() {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [params.clientId]);
-
-  async function readAdminNotification(notificationId: string) {
-    if (!client) return;
-    const notification = client.clientNotifications.find((item) => item.id === notificationId);
-    if (!notification || notification.adminReadAt) return;
-
-    const readAt = new Date().toISOString();
-    setClient((current) => current ? {
-      ...current,
-      clientNotifications: current.clientNotifications.map((item) => item.id === notificationId ? { ...item, adminReadAt: readAt } : item),
-    } : current);
-
-    const response = await fetch(`/api/admin/clients/${params.clientId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "notification-read", notificationId }),
-    });
-    if (!response.ok) {
-      setClient((current) => current ? {
-        ...current,
-        clientNotifications: current.clientNotifications.map((item) => item.id === notificationId ? { ...item, adminReadAt: null } : item),
-      } : current);
-      const data = await response.json().catch(() => null);
-      setNotice(data?.error || "تعذر تسجيل قراءة الإشعار");
-    }
-  }
 
   async function submit(event: FormEvent<HTMLFormElement>, method: "POST" | "PATCH", success: string) {
     event.preventDefault();
@@ -194,7 +168,6 @@ export default function AdminClientWorkspacePage() {
   });
   const selectedProject = projects.find((project) => project.id === selectedProjectId) || null;
   const selectedInvoices = sortedInvoices.filter((invoice) => invoice.projectId === selectedProjectId);
-  const adminUnreadCount = client?.clientNotifications.filter((item) => !item.adminReadAt).length || 0;
   const clientUnreadCount = client?.clientNotifications.filter((item) => !item.readAt).length || 0;
   const nav = [
     ["overview", "نظرة عامة", BarChart3], ["projects", "المشاريع", BriefcaseBusiness],
@@ -221,13 +194,13 @@ export default function AdminClientWorkspacePage() {
           <header className="relative flex flex-wrap items-center justify-between gap-4">
             <div><p className="text-sm font-bold text-[#9A7D43]">عرض الإدارة — التعديلات تظهر للعميل مباشرة</p><h1 className="mt-1 text-3xl font-black">{client?.name || "لوحة العميل"}</h1></div>
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => setNotificationsOpen((value) => !value)} title="فتح الجرس لا يقرأ الإشعارات؛ اضغط على إشعار لقراءته" className="relative flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
+              <button onClick={() => setNotificationsOpen((value) => !value)} title="يعرض العداد الإشعارات التي لم يفتحها العميل بعد" className="relative flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
                 <Bell className="h-5 w-5" />إشعارات العميل
-                {!!adminUnreadCount && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{adminUnreadCount}</span>}
+                {!!clientUnreadCount && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{clientUnreadCount}</span>}
               </button>
               <button onClick={() => void load()} disabled={loading} className="flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</button>
             </div>
-            {notificationsOpen && client && <div className="absolute left-0 top-full z-20 mt-3 w-full max-w-md rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl"><div className="flex items-center justify-between px-2 py-2"><div><strong>الإشعارات</strong><p className="mt-1 text-xs text-slate-500">{adminUnreadCount} غير مقروء لدى الإدارة · {clientUnreadCount} لدى العميل</p><p className="mt-1 text-xs text-[#9A7D43]">اضغط على إشعار واحد لتسجيل قراءته في لوحة الإدارة.</p></div><button onClick={() => setNotificationsOpen(false)} className="text-xs text-slate-500">إغلاق</button></div><div className="max-h-96 space-y-2 overflow-y-auto">{client.clientNotifications.slice(0, 10).map((item) => <button type="button" onClick={() => void readAdminNotification(item.id)} key={item.id} className={`w-full rounded-xl p-3 text-right transition ${item.adminReadAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827] hover:bg-amber-100"}`}><div className="flex items-start justify-between gap-3"><strong className="text-sm">{item.title}</strong><time dateTime={item.createdAt} dir="ltr" className="shrink-0 text-xs text-slate-500">{new Date(item.createdAt).toLocaleDateString("ar")}</time></div>{item.body && <p className="mt-1 text-xs leading-5 text-slate-500">{item.body}</p>}</button>)}{!client.clientNotifications.length && <p className="p-5 text-center text-sm text-slate-500">لا توجد إشعارات بعد.</p>}</div></div>}
+            {notificationsOpen && client && <div className="absolute left-0 top-full z-20 mt-3 w-full max-w-md rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl"><div className="flex items-center justify-between px-2 py-2"><div><strong>إشعارات العميل</strong><p className="mt-1 text-xs text-slate-500">{clientUnreadCount} لم يفتحها العميل بعد</p><p className="mt-1 text-xs text-[#9A7D43]">للعرض فقط؛ تتغير الحالة عندما يفتح العميل الإشعار.</p></div><button onClick={() => setNotificationsOpen(false)} className="text-xs text-slate-500">إغلاق</button></div><div className="max-h-96 space-y-2 overflow-y-auto">{client.clientNotifications.slice(0, 10).map((item) => <div key={item.id} className={`rounded-xl p-3 ${item.readAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827]"}`}><div className="flex items-start justify-between gap-3"><strong className="text-sm">{item.title}</strong><time dateTime={item.createdAt} dir="ltr" className="shrink-0 text-xs text-slate-500">{new Date(item.createdAt).toLocaleDateString("ar")}</time></div>{item.body && <p className="mt-1 text-xs leading-5 text-slate-500">{item.body}</p>}</div>)}{!client.clientNotifications.length && <p className="p-5 text-center text-sm text-slate-500">لا توجد إشعارات بعد.</p>}</div></div>}
           </header>
           {notice && <p role="status" className="mt-5 rounded-xl border border-[#D8D2C4] bg-white p-4 font-bold shadow-sm">{notice}</p>}
           {loading && <div className="mt-8 rounded-2xl bg-white p-10 text-center">جارٍ تحميل لوحة العميل...</div>}
@@ -238,10 +211,10 @@ export default function AdminClientWorkspacePage() {
                 ["المشاريع", projects.length, "projects"],
                 ["الفواتير", invoices.length, "invoices"],
                 ["الملفات", files.length, "files"],
-                ["الإشعارات", adminUnreadCount, "notifications"],
+                ["الإشعارات", clientUnreadCount, "notifications"],
               ].map(([label, value, target]) => <button key={String(label)} onClick={() => target === "notifications" ? setNotificationsOpen(true) : setSection(target as Section)} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 text-right shadow-sm transition hover:-translate-y-1 hover:border-[#B89A5A] hover:shadow-md"><p className="text-sm font-bold text-slate-500">{label}</p><p className="mt-3 text-4xl font-black">{value}</p><p className="mt-3 text-xs font-bold text-[#9A7D43]">فتح القسم</p></button>)}
             </div>
-            <section className="mt-6 rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><Bell className="h-5 w-5" /><h2 className="text-xl font-black">آخر الإشعارات</h2></div><button onClick={() => setNotificationsOpen(true)} className="text-sm font-bold text-[#9A7D43]">عرض من الجرس</button></div><div className="mt-4 grid gap-2">{client.clientNotifications.slice(0, 5).map((item) => <button type="button" onClick={() => void readAdminNotification(item.id)} key={item.id} className={`rounded-xl p-4 text-right transition ${item.adminReadAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827] hover:bg-amber-100"}`}><div className="flex items-start justify-between gap-3"><strong>{item.title}</strong><time dateTime={item.createdAt} dir="ltr" className="shrink-0 text-xs text-slate-500">{new Date(item.createdAt).toLocaleDateString("ar")}</time></div>{item.body && <p className="mt-1 text-sm text-slate-500">{item.body}</p>}</button>)}{!client.clientNotifications.length && <p className="text-slate-500">لا توجد إشعارات بعد.</p>}</div></section>
+            <section className="mt-6 rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><Bell className="h-5 w-5" /><h2 className="text-xl font-black">آخر الإشعارات</h2></div><button onClick={() => setNotificationsOpen(true)} className="text-sm font-bold text-[#9A7D43]">عرض من الجرس</button></div><div className="mt-4 grid gap-2">{client.clientNotifications.slice(0, 5).map((item) => <div key={item.id} className={`rounded-xl p-4 ${item.readAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827]"}`}><div className="flex items-start justify-between gap-3"><strong>{item.title}</strong><time dateTime={item.createdAt} dir="ltr" className="shrink-0 text-xs text-slate-500">{new Date(item.createdAt).toLocaleDateString("ar")}</time></div>{item.body && <p className="mt-1 text-sm text-slate-500">{item.body}</p>}</div>)}{!client.clientNotifications.length && <p className="text-slate-500">لا توجد إشعارات بعد.</p>}</div></section>
           </div>}
 
           {!loading && client && section === "projects" && <div className="mt-7 grid gap-5">
