@@ -89,6 +89,10 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
         }
       : {
           ...CONTENT.en,
+          nav: {
+            ...CONTENT.en.nav,
+            partner: "Work with us",
+          },
           progressPartner: "Your Partner in Progress",
           hero: {
             ...CONTENT.en.hero,
@@ -230,6 +234,65 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
             intro:
               "We work with marketers, specialists, designers, developers, writers, analysts, and consultants who care about clarity, strong execution, and meaningful results. If that sounds like you, we would like to hear from you.",
             formHeading: "Tell Us About Yourself",
+          },
+          footer: {
+            ...CONTENT.en.footer,
+            tagline: "From where you are… to where you want to be.",
+            description:
+              "We help businesses understand what is holding them back, make the right decision, and build what their next stage genuinely needs.",
+            navigate: "Explore",
+            stayInTouch: "Stay in touch",
+            stayInTouchBody:
+              "No newsletters or automated noise. Just a direct line when you have something worth discussing.",
+            methodology: "Clarity · Decision · Progress",
+            followUs: "Follow CyberWeel",
+            shareChallenge: "Share your challenge",
+          },
+          commandPalette: {
+            ...CONTENT.en.commandPalette,
+            title: "Quick navigation",
+            placeholder: "Search pages…",
+            emptyTitle: "No matching page found.",
+            emptyBody: "",
+            pagesHeading: "Pages",
+            selectHint: "Select",
+            navigateHint: "Navigate",
+            toSelect: "select",
+            toNavigate: "navigate",
+          },
+          shortcuts: {
+            ...CONTENT.en.shortcuts,
+            title: "Keyboard shortcuts",
+            subtitle: "Navigate CyberWeel without reaching for the mouse",
+            items: [
+              { keys: ["⌘", "K"], label: "Quick navigation", desc: "Open the page search and navigation menu" },
+              { keys: ["?"], label: "Keyboard shortcuts", desc: "Open this shortcuts guide" },
+              { keys: ["G", "H"], label: "Go to Home", desc: "Open the homepage" },
+              { keys: ["G", "W"], label: "Go to How We Help", desc: "Review how CyberWeel assesses and delivers solutions" },
+              { keys: ["G", "C"], label: "Go to Share Your Challenge", desc: "Tell us about a project, problem, or decision" },
+              { keys: ["G", "P"], label: "Go to Work With Us", desc: "Explore partner and ambassador paths" },
+              { keys: ["G", "A"], label: "Go to About", desc: "Learn what CyberWeel is and how we think" },
+              { keys: ["G", "T"], label: "Go to Contact", desc: "Send a general message or enquiry" },
+              { keys: ["Esc"], label: "Close", desc: "Close the current dialog or menu" },
+            ],
+            close: "Press Esc to close",
+          },
+          share: {
+            ...CONTENT.en.share,
+            label: "Share this page",
+            copied: "Link copied",
+            successTitle: "Link copied to your clipboard.",
+            successDesc: "You can now share this page with anyone who may find it useful.",
+            errorTitle: "The link could not be copied.",
+            errorDesc: "Copy it directly from your browser's address bar.",
+          },
+          common: {
+            ...CONTENT.en.common,
+            skipToContent: "Skip to main content",
+            noPitches: "No automated pitches. Every message is read by a person.",
+            primaryCta: "Share your challenge",
+            secondaryCta: "Contact us",
+            requiredHint: "Fields marked with * are required.",
           },
         };
 
