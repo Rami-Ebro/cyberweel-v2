@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { requireOwner } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
+import { formatDate } from "@/lib/date-format";
 import { toggleSmartLink } from "./actions";
 import { DeleteSmartLinkButton } from "./delete-smart-link-button";
 import { LogoutButton } from "./logout-button";
@@ -26,14 +27,6 @@ export const metadata = {
   title: "إدارة الروابط الذكية",
   robots: { index: false, follow: false },
 };
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("ar", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
 
 export default async function SmartLinksAdminPage() {
   await requireOwner();
