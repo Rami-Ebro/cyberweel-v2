@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type InvalidEvent } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, Paperclip, Send, Share2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ type MailtoFormProps = {
 const MAX_FILES = 3;
 const MAX_TOTAL_BYTES = 4 * 1024 * 1024;
 const ACCEPTED_FILES = ".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp";
+const ACCEPTED_EXTENSIONS = new Set(["pdf", "doc", "docx", "xls", "xlsx", "png", "jpg", "jpeg", "webp"]);
 
 export function MailtoForm({
   to,
@@ -41,12 +42,28 @@ export function MailtoForm({
   const { t } = useI18n();
   const isArabic = t.dir === "rtl";
 
+  const requiredMessage = isArabic ? "يرجى تعبئة هذا الحقل" : "Please complete this field.";
+  const emailMessage = isArabic ? "يرجى إدخال بريد إلكتروني صحيح" : "Please enter a valid email address.";
+
+  const handleInvalid = (event: InvalidEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const target = event.currentTarget;
+    if (target.validity.valueMissing) {
+      target.setCustomValidity(requiredMessage);
+    } else if (target.validity.typeMismatch && target instanceof HTMLInputElement && target.type === "email") {
+      target.setCustomValidity(emailMessage);
+    }
+  };
+
+  const clearValidationMessage = (target: HTMLInputElement | HTMLTextAreaElement) => {
+    target.setCustomValidity("");
+  };
+
   const handleShare = async () => {
     const shareData = {
       title: document.title,
       text: isArabic
         ? "شارك CyberWeel مع شخص لديه مشكلة أو مشروع يحتاج إلى خطوة واضحة."
-        : "Share CyberWeel with someone who has a challenge or project and needs a clear next step.",
+        : "Share CyberWeel with someone facing a challenge or project that needs a clearer next step.",
       url: window.location.origin,
     };
 
@@ -64,22 +81,52 @@ export function MailtoForm({
     }
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
+  const handleFiles = (files: FileList | null, input: HTMLInputElement) => {
+    const nextFiles = Array.from(files ?? []);
+
+    if (nextFiles.length > MAX_FILES) {
+      input.value = "";
+      setSelectedFiles([]);
+      toast.error(isArabic ? "يمكن إرفاق 3 ملفات كحد أقصى" : "You can attach up to 3 files.");
+      return;
+    }
+
+    const unsupported = nextFiles.find((file) => {
+      const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+      return !ACCEPTED_EXTENSIONS.has(extension);
+    });
+
+    if (unsupported) {
+      input.value = "";
+      setSelectedFiles([]);
+      toast.error(isArabic ? "نوع الملف غير مدعوم" : "This file type is not supported.", {
+        description: isArabic
+          ? "استخدم ملف PDF أو Word أو Excel أو صورة."
+          : "Use a PDF, Word, Excel, or image file.",
+      });
+      return;
+    }
+
+    const totalBytes = nextFiles.reduce((sum, file) => sum + file.size, 0);
+    if (totalBytes > MAX_TOTAL_BYTES) {
+      input.value = "";
+      setSelectedFiles([]);
+      toast.error(isArabic ? "حجم المرفقات كبير جدًا" : "The attachments are too large.", {
+        description: isArabic
+          ? "يجب ألا يتجاوز الحجم الإجمالي 4 ميغابايت."
+          : "The combined file size must not exceed 4 MB.",
+      });
+      return;
+    }
+
+    setSelectedFiles(nextFiles);
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
 
     if (!form.reportValidity()) return;
-
-    if (selectedFiles.length > MAX_FILES) {
-      toast.error(isArabic ? "يمكن رفع 3 ملفات كحد أقصى" : "You can upload up to 3 files");
-      return;
-    }
-
-    const totalBytes = selectedFiles.reduce((sum, file) => sum + file.size, 0);
-    if (totalBytes > MAX_TOTAL_BYTES) {
-      toast.error(isArabic ? "يجب ألا يتجاوز مجموع الملفات 4 ميغابايت" : "Files must total no more than 4 MB");
-      return;
-    }
 
     setSubmitting(true);
     const data = new FormData(form);
@@ -158,11 +205,11 @@ export function MailtoForm({
     } catch (error) {
       console.error("[mailto-form] Submission failed", error);
       toast.error(
-        isArabic ? "تعذر إرسال الطلب كاملًا الآن" : "We couldn't complete your request right now",
+        isArabic ? "تعذر إرسال الطلب الآن" : "We could not send your request right now.",
         {
           description: isArabic
-            ? `لم نؤكد تسجيل الطلب. يمكنك مراسلتنا مباشرة على ${to}`
-            : `We could not confirm the request. You can email us directly at ${to}`,
+            ? `لم يتم تأكيد الإرسال. يمكنك مراسلتنا مباشرة على ${to}`
+            : `The submission was not confirmed. You can email us directly at ${to}.`,
         },
       );
     } finally {
@@ -172,7 +219,7 @@ export function MailtoForm({
 
   return (
     <>
-      <form onSubmit={handleSubmit} className={cn("space-y-6", className)}>
+      <form onSubmit={handleSubmit} className={cn("space-y-6", className)} noValidate={false}>
         <input
           type="text"
           name="website"
@@ -183,28 +230,34 @@ export function MailtoForm({
         />
 
         <div className="grid gap-6 sm:grid-cols-2">
-          {fields.map((f) => (
-            <div key={f.name} className={cn(f.full && "sm:col-span-2")}>
-              <label htmlFor={f.name} className="mb-2 block text-sm font-medium text-ink">
-                {f.label}
-                {f.required && <span className="ml-1 text-accent">*</span>}
+          {fields.map((field) => (
+            <div key={field.name} className={cn(field.full && "sm:col-span-2")}>
+              <label htmlFor={field.name} className="mb-2 block text-sm font-medium text-ink">
+                {field.label}
+                {field.required && <span className="ms-1 text-accent" aria-hidden="true">*</span>}
               </label>
-              {f.kind === "text" ? (
+              {field.kind === "text" ? (
                 <input
-                  id={f.name}
-                  name={f.name}
-                  type={f.type ?? "text"}
-                  required={f.required}
-                  placeholder={f.placeholder}
+                  id={field.name}
+                  name={field.name}
+                  type={field.type ?? "text"}
+                  required={field.required}
+                  placeholder={field.placeholder}
+                  onInvalid={handleInvalid}
+                  onInput={(event) => clearValidationMessage(event.currentTarget)}
+                  aria-required={field.required || undefined}
                   className="focus-ring h-12 w-full rounded-md border border-border bg-white px-4 text-sm text-ink shadow-sm transition-all duration-200 placeholder:text-muted-foreground/60 focus:border-camel focus:shadow-md focus:shadow-camel/10"
                 />
               ) : (
                 <textarea
-                  id={f.name}
-                  name={f.name}
-                  required={f.required}
-                  placeholder={f.placeholder}
-                  rows={f.rows ?? 5}
+                  id={field.name}
+                  name={field.name}
+                  required={field.required}
+                  placeholder={field.placeholder}
+                  rows={field.rows ?? 5}
+                  onInvalid={handleInvalid}
+                  onInput={(event) => clearValidationMessage(event.currentTarget)}
+                  aria-required={field.required || undefined}
                   className="focus-ring w-full resize-y rounded-md border border-border bg-white px-4 py-3 text-sm text-ink shadow-sm transition-all duration-200 placeholder:text-muted-foreground/60 focus:border-camel focus:shadow-md focus:shadow-camel/10"
                 />
               )}
@@ -226,7 +279,9 @@ export function MailtoForm({
                 {selectedFiles.length
                   ? isArabic
                     ? `تم اختيار ${selectedFiles.length} ملف`
-                    : `${selectedFiles.length} file(s) selected`
+                    : selectedFiles.length === 1
+                      ? "1 file selected"
+                      : `${selectedFiles.length} files selected`
                   : isArabic
                     ? "اختر ملفات تساعدنا على فهم رسالتك"
                     : "Choose files that help us understand your message"}
@@ -239,12 +294,12 @@ export function MailtoForm({
               multiple
               accept={ACCEPTED_FILES}
               className="sr-only"
-              onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []).slice(0, MAX_FILES))}
+              onChange={(event) => handleFiles(event.target.files, event.currentTarget)}
             />
             <p className="mt-2 text-xs text-muted-foreground">
               {isArabic
-                ? "حتى 3 ملفات بصيغة PDF أو Word أو Excel أو صورة، وبإجمالي 4 ميغابايت"
-                : "Up to 3 PDF, Word, Excel, or image files, 4 MB total"}
+                ? "حتى 3 ملفات بصيغة PDF أو Word أو Excel أو صورة، وبحجم إجمالي لا يتجاوز 4 ميغابايت"
+                : "Up to 3 PDF, Word, Excel, or image files, with a combined limit of 4 MB."}
             </p>
           </div>
         )}
@@ -254,6 +309,7 @@ export function MailtoForm({
           <button
             type="submit"
             disabled={submitting}
+            aria-busy={submitting}
             className="focus-ring inline-flex items-center justify-center gap-2 rounded-md bg-ink px-7 py-3.5 text-sm font-medium text-floral transition-colors hover:bg-ink/90 disabled:cursor-wait disabled:opacity-60"
           >
             {submitting
@@ -290,13 +346,13 @@ export function MailtoForm({
             </p>
             <p className="mt-3 text-sm leading-7 text-slate-600">
               {isArabic
-                ? "ساعد شخصًا تحبه أو شخصًا لديه مشكلة مشابهة، وشارك معه CyberWeel."
-                : "Help someone you care about, or someone facing a similar challenge, by sharing CyberWeel with them."}
+                ? "قد تكون هذه الصفحة مفيدة لشخص آخر يواجه مشكلة مشابهة."
+                : "This page may also be useful to someone facing a similar challenge."}
             </p>
 
             <div className="mt-7 grid gap-3 sm:grid-cols-2">
-              <button type="button" onClick={handleShare} className="focus-ring inline-flex items-center justify-center gap-2 rounded-xl bg-[#111827] px-5 py-3.5 font-bold text-white transition hover:bg-[#1F2937]">
-                <Share2 className="h-5 w-5" />
+              <button type="button" onClick={handleShare} className="focus-ring inline-flex items-center justify-center gap-2 rounded-xl bg-[#111827] px-5 py-3.5 font-bold text-white transition hover:bg-[#1f2937]">
+                <Share2 className="h-4 w-4" />
                 {isArabic ? "مشاركة" : "Share"}
               </button>
               <button type="button" onClick={() => setSuccessOpen(false)} className="focus-ring rounded-xl border border-[#D8D2C4] bg-white px-5 py-3.5 font-bold text-[#111827] transition hover:bg-[#F7F3EB]">
