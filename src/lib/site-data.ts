@@ -136,7 +136,7 @@ export const CONTENT: Record<Lang, {
     intro: string;
     formHeading: string;
     formHint: string;
-    fields: { name: string; label: string; placeholder?: string; required?: boolean; full?: boolean; rows?: number }[];
+    fields: { name: string; label: string; type?: string; placeholder?: string; required?: boolean; full?: boolean; rows?: number }[];
     submitLabel: string;
     successMessage: string;
     reassurance: { title: string; text: string }[];
@@ -162,7 +162,7 @@ export const CONTENT: Record<Lang, {
     networkNote: string;
     formHeading: string;
     formHint: string;
-    fields: { name: string; label: string; placeholder?: string; required?: boolean; full?: boolean; rows?: number }[];
+    fields: { name: string; label: string; type?: string; placeholder?: string; required?: boolean; full?: boolean; rows?: number }[];
     submitLabel: string;
     successMessage: string;
   };
@@ -192,7 +192,7 @@ export const CONTENT: Record<Lang, {
     intro: string;
     formHeading: string;
     formHint: string;
-    fields: { name: string; label: string; placeholder?: string; required?: boolean; full?: boolean; rows?: number }[];
+    fields: { name: string; label: string; type?: string; placeholder?: string; required?: boolean; full?: boolean; rows?: number }[];
     submitLabel: string;
     successMessage: string;
     details: { title: string; text: string; value?: string; href?: string }[];

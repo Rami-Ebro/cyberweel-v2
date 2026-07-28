@@ -14,11 +14,6 @@ export const ADMIN_SESSION_COOKIE = "cw_admin_session";
 export const SESSION_TTL_SECONDS = 12 * 60 * 60;
 export const REMEMBERED_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 
-const MAX_LOGIN_ATTEMPTS = 5;
-const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
-
-const loginAttempts = new Map<string, { count: number; windowStart: number }>();
-
 function getSessionSecret(): string {
   const secret = process.env.ADMIN_SESSION_SECRET;
   if (!secret || secret.length < 32) {
@@ -70,12 +65,61 @@ export async function isOwnerSession(): Promise<boolean> {
 
   const unifiedSession = readPartnerSession(cookieStore.get(PARTNER_SESSION_COOKIE)?.value);
   if (!unifiedSession) return false;
-  const user = await db.user.findUnique({ where: { id: unifiedSession.userId }, select: { role: true } });
-  return user?.role === "ADMIN";
+  const user = await db.user.findUnique({
+    where: { id: unifiedSession.userId },
+    select: {
+      email: true,
+      role: true,
+      isActive: true,
+      adminProfile: { select: { isOwner: true, isActive: true } },
+    },
+  });
+  if (
+    !user ||
+    user.role !== "ADMIN" ||
+    !user.isActive ||
+    user.adminProfile?.isActive === false
+  ) {
+    return false;
+  }
+  return user.adminProfile?.isOwner === true;
+}
+
+export async function hasAdminPermission(permission: string): Promise<boolean> {
+  const cookieStore = await cookies();
+  if (verifySessionToken(cookieStore.get(ADMIN_SESSION_COOKIE)?.value)) return true;
+
+  const unifiedSession = readPartnerSession(
+    cookieStore.get(PARTNER_SESSION_COOKIE)?.value,
+  );
+  if (!unifiedSession) return false;
+  const user = await db.user.findUnique({
+    where: { id: unifiedSession.userId },
+    select: {
+      role: true,
+      isActive: true,
+      adminProfile: {
+        select: { isOwner: true, isActive: true, permissions: true },
+      },
+    },
+  });
+  return Boolean(
+    user?.role === "ADMIN" &&
+      user.isActive &&
+      user.adminProfile?.isActive &&
+      (user.adminProfile.isOwner ||
+        user.adminProfile.permissions.includes(permission)),
+  );
 }
 
 export async function requireOwner(): Promise<void> {
   if (!(await isOwnerSession())) {
+    redirect("/login");
+  }
+}
+
+export async function requireAdminPermission(permission: string): Promise<void> {
+  if (!(await hasAdminPermission(permission))) {
     redirect("/login");
   }
 }
@@ -111,25 +155,4 @@ export async function getClientKey(): Promise<string> {
     headerStore.get("x-real-ip") ||
     "unknown"
   );
-}
-
-export function isRateLimited(clientKey: string): boolean {
-  const now = Date.now();
-  const entry = loginAttempts.get(clientKey);
-  if (!entry || now - entry.windowStart > ATTEMPT_WINDOW_MS) return false;
-  return entry.count >= MAX_LOGIN_ATTEMPTS;
-}
-
-export function recordFailedAttempt(clientKey: string): void {
-  const now = Date.now();
-  const entry = loginAttempts.get(clientKey);
-  if (!entry || now - entry.windowStart > ATTEMPT_WINDOW_MS) {
-    loginAttempts.set(clientKey, { count: 1, windowStart: now });
-    return;
-  }
-  entry.count += 1;
-}
-
-export function clearAttempts(clientKey: string): void {
-  loginAttempts.delete(clientKey);
 }

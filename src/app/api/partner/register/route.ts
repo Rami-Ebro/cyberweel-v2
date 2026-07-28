@@ -1,5 +1,11 @@
 import { db } from "@/lib/db";
 import { hashPassword, normalizeEmail, normalizePhone } from "@/lib/partner-auth";
+import {
+  consumeRateLimit,
+  hasTrustedOrigin,
+  invalidOriginResponse,
+  rateLimitResponse,
+} from "@/lib/request-security";
 import { NextRequest, NextResponse } from "next/server";
 
 function internalPhoneEmail(phone: string) {
@@ -7,6 +13,14 @@ function internalPhoneEmail(phone: string) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!hasTrustedOrigin(request)) return invalidOriginResponse();
+  const rateLimit = await consumeRateLimit(request, {
+    action: "partner-register",
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!rateLimit.allowed) return rateLimitResponse(rateLimit);
+
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const identifier = typeof body?.identifier === "string" ? body.identifier.trim() : "";
@@ -17,10 +31,13 @@ export async function POST(request: NextRequest) {
 
   if (
     name.length < 2 ||
-    password.length < 8 ||
+    name.length > 120 ||
+    identifier.length > 254 ||
+    password.length < 10 ||
+    password.length > 256 ||
     (isEmail ? !email.includes("@") : phone.replace(/\D/g, "").length < 8)
   ) {
-    return NextResponse.json({ error: "أدخل بريدًا إلكترونيًا صحيحًا أو رقم واتساب مع رمز الدولة" }, { status: 400 });
+    return NextResponse.json({ error: "تحقق من الاسم ووسيلة التواصل، واستخدم كلمة مرور من 10 أحرف على الأقل" }, { status: 400 });
   }
 
   const exists = await db.user.findFirst({

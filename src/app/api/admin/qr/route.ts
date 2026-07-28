@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { NextRequest, NextResponse } from "next/server";
-import { isOwnerSession } from "@/lib/admin-auth";
+import { hasAdminPermission } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -63,7 +63,7 @@ function markSvg(x: number, y: number, width: number, height: number) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await isOwnerSession())) {
+  if (!(await hasAdminPermission("smart_links"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

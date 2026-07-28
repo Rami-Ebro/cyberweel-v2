@@ -140,7 +140,9 @@ export function AboutView() {
         </div>
 
         <div className="mx-auto mt-16 grid max-w-5xl gap-6 md:grid-cols-3">
-          {steps.map(([title, text], index) => (
+          {steps.map((step, index) => {
+            const [title, text] = step;
+            return (
             <motion.div
               key={title}
               initial={{ opacity: 0, y: 20 }}
@@ -152,7 +154,8 @@ export function AboutView() {
               <span className="font-display text-2xl text-accent">{title}</span>
               <p className="mt-3 text-base leading-relaxed text-muted-foreground">{text}</p>
             </motion.div>
-          ))}
+            );
+          })}
         </div>
       </Section>
 

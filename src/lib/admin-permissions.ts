@@ -28,37 +28,19 @@ export async function currentAdminAccess(request: NextRequest) {
       id: true,
       email: true,
       role: true,
+      isActive: true,
       adminProfile: {
         select: { isOwner: true, isActive: true, permissions: true },
       },
     },
   });
 
-  if (!user || user.role !== "ADMIN") return null;
+  if (!user || user.role !== "ADMIN" || !user.isActive) return null;
 
   if (user.adminProfile && !user.adminProfile.isActive) return null;
 
-  const configuredOwnerEmail = "owner@cyberweel.com";
-  const isConfiguredOwner = user.email.toLowerCase() === configuredOwnerEmail;
-
-  // Repair the confirmed main owner's profile when upgrading from the legacy login.
-  if (isConfiguredOwner) {
-    if (!user.adminProfile?.isOwner) {
-      await db.adminProfile.upsert({
-        where: { userId: user.id },
-        create: { userId: user.id, isOwner: true, isActive: true },
-        update: { isOwner: true },
-      });
-    }
-    return { userId: user.id, isOwner: true, permissions: [...ADMIN_PERMISSIONS] as string[] };
-  }
-
-  // Existing ADMIN accounts predate AdminProfile and are treated as the main owner.
   if (!user.adminProfile) {
-    if (configuredOwnerEmail) {
-      return { userId: user.id, isOwner: false, permissions: [] };
-    }
-    return { userId: user.id, isOwner: true, permissions: [...ADMIN_PERMISSIONS] as string[] };
+    return { userId: user.id, isOwner: false, permissions: [] };
   }
 
   return {

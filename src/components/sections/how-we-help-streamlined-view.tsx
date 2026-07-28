@@ -157,13 +157,16 @@ export function HowWeHelpStreamlinedView() {
       <Section tone="background">
         <SectionHeading align="center" eyebrow={isArabic ? "من التقييم إلى التطوير" : "From assessment to improvement"} title={isArabic ? "من الفكرة إلى نتيجة قابلة للقياس" : "From an idea to a measurable result"} intro={isArabic ? "قد تحتاج إلى بناء حل جديد، أو تحسين ما لديك، أو اكتشاف أن المشكلة ليست تقنية من الأساس. مهمتنا ليست بيعك أكبر مشروع، بل مساعدتك على اتخاذ القرار الصحيح وتنفيذه بطريقة تخدم تقدّمك" : "You may need a new solution, an improvement to what already exists, or the realization that the problem is not technical at all. Our role is not to sell the largest project. It is to help you choose and deliver the step that genuinely moves the business forward."} className="mx-auto" />
         <div className="mx-auto mt-12 grid max-w-6xl gap-5 md:grid-cols-2 lg:grid-cols-4">
-          {delivery.map(([title, text], index) => (
+          {delivery.map((step, index) => {
+            const [title, text] = step;
+            return (
             <motion.article key={title} initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.55, delay: index * 0.06 }} className={`${CARD_HOVER} rounded-xl border border-camel/25 bg-white p-7 text-center shadow-sm`}>
               <span className={`${NUMBER_HOVER} inline-flex h-9 w-9 items-center justify-center rounded-md bg-camel/10 font-display text-sm font-semibold text-ink`}>{String(index + 1).padStart(2, "0")}</span>
               <h3 className="mt-5 font-display text-2xl font-semibold text-ink">{title}</h3>
               <p className="mt-3 text-base leading-relaxed text-muted-foreground">{text}</p>
             </motion.article>
-          ))}
+            );
+          })}
         </div>
       </Section>
 

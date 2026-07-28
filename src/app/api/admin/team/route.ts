@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
   const isEmail = identifier.includes("@");
   const email = isEmail ? normalizeEmail(identifier) : `${normalizePhone(identifier).replace("+", "")}@phone.cyberweel.local`;
   const phone = isEmail ? null : normalizePhone(identifier);
-  if (!isEmail && phone.length < 8) return NextResponse.json({ error: "رقم واتساب غير صالح" }, { status: 400 });
+  if (!isEmail && (phone ?? "").length < 8) return NextResponse.json({ error: "رقم واتساب غير صالح" }, { status: 400 });
 
   const exists = await db.user.findFirst({ where: { OR: [{ email }, ...(phone ? [{ phone }] : [])] }, select: { id: true } });
   if (exists) return NextResponse.json({ error: "البريد أو رقم واتساب مستخدم مسبقًا" }, { status: 409 });

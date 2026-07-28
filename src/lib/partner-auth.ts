@@ -6,9 +6,10 @@ const BROWSER_SESSION_MAX_AGE = 60 * 60 * 12;
 
 function secret() {
   const value = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
-  if (value) return value;
-  if (process.env.VERCEL_ENV === "preview") return "cyberweel-preview-partner-session-v1";
-  throw new Error("AUTH_SECRET or NEXTAUTH_SECRET is required");
+  if (!value || value.length < 32) {
+    throw new Error("AUTH_SECRET or NEXTAUTH_SECRET must be at least 32 characters");
+  }
+  return value;
 }
 
 export function hashPassword(password: string): string {
@@ -28,7 +29,8 @@ export function verifyPassword(password: string, stored: string): boolean {
 export function createPartnerSession(userId: string, remember = false): string {
   const maxAge = remember ? REMEMBERED_SESSION_MAX_AGE : BROWSER_SESSION_MAX_AGE;
   const expiresAt = Math.floor(Date.now() / 1000) + maxAge;
-  const payload = Buffer.from(JSON.stringify({ userId, expiresAt })).toString("base64url");
+  const nonce = randomBytes(16).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({ userId, expiresAt, nonce })).toString("base64url");
   const signature = createHmac("sha256", secret()).update(payload).digest("base64url");
   return `${payload}.${signature}`;
 }
@@ -71,6 +73,7 @@ export function partnerSessionCookieOptions(remember = false) {
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
+    priority: "high" as const,
     ...(remember ? { maxAge: REMEMBERED_SESSION_MAX_AGE } : {}),
   };
 }

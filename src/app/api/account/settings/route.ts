@@ -55,7 +55,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const phone = phoneInput ? normalizePhone(phoneInput) : null;
-  if (phoneInput && phone.replace(/\D/g, "").length < 8) {
+  if (phoneInput && (phone ?? "").replace(/\D/g, "").length < 8) {
     return NextResponse.json({ error: "رقم واتساب غير صالح. أضف رمز الدولة" }, { status: 400 });
   }
   if (phone) {

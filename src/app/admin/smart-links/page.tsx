@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { requireOwner } from "@/lib/admin-auth";
+import { requireAdminPermission } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/date-format";
 import { toggleSmartLink } from "./actions";
@@ -29,7 +29,7 @@ export const metadata = {
 };
 
 export default async function SmartLinksAdminPage() {
-  await requireOwner();
+  await requireAdminPermission("smart_links");
 
   const smartLinks = await db.smartLink.findMany({
     orderBy: { createdAt: "desc" },

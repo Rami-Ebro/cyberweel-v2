@@ -6,13 +6,11 @@ import {
   ADMIN_SESSION_COOKIE,
   REMEMBERED_SESSION_TTL_SECONDS,
   SESSION_TTL_SECONDS,
-  clearAttempts,
   createSessionToken,
   getClientKey,
-  isRateLimited,
-  recordFailedAttempt,
   verifyOwnerCredentials,
 } from "@/lib/admin-auth";
+import { consumeRateLimitSubject } from "@/lib/request-security";
 
 export type LoginActionState = {
   message: string;
@@ -31,8 +29,13 @@ export async function loginOwner(
   const remember = rememberValue === "on";
 
   const clientKey = await getClientKey();
-
-  if (isRateLimited(clientKey)) {
+  const rateLimit = await consumeRateLimitSubject({
+    action: "legacy-owner-login",
+    subject: `${clientKey}:${email.toLowerCase()}`,
+    limit: 5,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!rateLimit.allowed) {
     return {
       status: "error",
       message: "محاولات كثيرة. انتظر 15 دقيقة ثم حاول مجددًا.",
@@ -40,11 +43,8 @@ export async function loginOwner(
   }
 
   if (!email || !password || !verifyOwnerCredentials(email, password)) {
-    recordFailedAttempt(clientKey);
     return { status: "error", message: "بيانات الدخول غير صحيحة." };
   }
-
-  clearAttempts(clientKey);
 
   const maxAge = remember
     ? REMEMBERED_SESSION_TTL_SECONDS
@@ -56,6 +56,7 @@ export async function loginOwner(
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge,
+    priority: "high",
   });
 
   redirect("/admin/smart-links");
@@ -69,6 +70,7 @@ export async function logoutOwner(): Promise<void> {
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 0,
+    priority: "high",
   });
 
   redirect("/admin/login");
