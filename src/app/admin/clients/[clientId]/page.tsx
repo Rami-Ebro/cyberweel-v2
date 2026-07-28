@@ -193,13 +193,13 @@ export default function AdminClientWorkspacePage() {
           <header className="relative flex flex-wrap items-center justify-between gap-4">
             <div><p className="text-sm font-bold text-[#9A7D43]">عرض الإدارة — التعديلات تظهر للعميل مباشرة</p><h1 className="mt-1 text-3xl font-black">{client?.name || "لوحة العميل"}</h1></div>
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => setNotificationsOpen((value) => !value)} title="هذا العداد يوضح الإشعارات التي لم يقرأها العميل" className="relative flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
+              <button onClick={() => setNotificationsOpen((value) => !value)} title="العداد ينقص فقط عندما يقرأ العميل الإشعار من حسابه" className="relative flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
                 <Bell className="h-5 w-5" />إشعارات العميل
                 {!!client?.clientNotifications.filter((item) => !item.readAt).length && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{client.clientNotifications.filter((item) => !item.readAt).length}</span>}
               </button>
               <button onClick={() => void load()} disabled={loading} className="flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</button>
             </div>
-            {notificationsOpen && client && <div className="absolute left-0 top-full z-20 mt-3 w-full max-w-md rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl"><div className="flex items-center justify-between px-2 py-2"><div><strong>إشعارات العميل</strong><p className="mt-1 text-xs text-slate-500">{client.clientNotifications.filter((item) => !item.readAt).length} غير مقروء لدى العميل</p></div><button onClick={() => setNotificationsOpen(false)} className="text-xs text-slate-500">إغلاق</button></div><div className="max-h-96 space-y-2 overflow-y-auto">{client.clientNotifications.slice(0, 10).map((item) => <div key={item.id} className={`rounded-xl p-3 ${item.readAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827]"}`}><div className="flex items-start justify-between gap-3"><strong className="text-sm">{item.title}</strong><time dateTime={item.createdAt} dir="ltr" className="shrink-0 text-xs text-slate-500">{new Date(item.createdAt).toLocaleDateString("ar")}</time></div>{item.body && <p className="mt-1 text-xs leading-5 text-slate-500">{item.body}</p>}</div>)}{!client.clientNotifications.length && <p className="p-5 text-center text-sm text-slate-500">لا توجد إشعارات بعد.</p>}</div></div>}
+            {notificationsOpen && client && <div className="absolute left-0 top-full z-20 mt-3 w-full max-w-md rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl"><div className="flex items-center justify-between px-2 py-2"><div><strong>إشعارات العميل</strong><p className="mt-1 text-xs text-slate-500">{client.clientNotifications.filter((item) => !item.readAt).length} غير مقروء لدى العميل</p><p className="mt-1 text-xs text-[#9A7D43]">ينقص العداد عند فتح العميل للإشعار من حسابه.</p></div><button onClick={() => setNotificationsOpen(false)} className="text-xs text-slate-500">إغلاق</button></div><div className="max-h-96 space-y-2 overflow-y-auto">{client.clientNotifications.slice(0, 10).map((item) => <div key={item.id} className={`rounded-xl p-3 ${item.readAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827]"}`}><div className="flex items-start justify-between gap-3"><strong className="text-sm">{item.title}</strong><time dateTime={item.createdAt} dir="ltr" className="shrink-0 text-xs text-slate-500">{new Date(item.createdAt).toLocaleDateString("ar")}</time></div>{item.body && <p className="mt-1 text-xs leading-5 text-slate-500">{item.body}</p>}</div>)}{!client.clientNotifications.length && <p className="p-5 text-center text-sm text-slate-500">لا توجد إشعارات بعد.</p>}</div></div>}
           </header>
           {notice && <p role="status" className="mt-5 rounded-xl border border-[#D8D2C4] bg-white p-4 font-bold shadow-sm">{notice}</p>}
           {loading && <div className="mt-8 rounded-2xl bg-white p-10 text-center">جارٍ تحميل لوحة العميل...</div>}
@@ -368,41 +368,11 @@ function ProjectCoreFields({ project }: { project?: Project }) {
 }
 
 function ProjectDueDateInput({ value }: { value: string | null }) {
-  const initial = value?.slice(0, 10).split("-") || [];
-  const [day, setDay] = useState(initial[2] || "");
-  const [month, setMonth] = useState(initial[1] || "");
-  const [year, setYear] = useState(initial[0] || "");
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 12 }, (_, index) => currentYear - 1 + index);
-  const daysInMonth = month && year ? new Date(Number(year), Number(month), 0).getDate() : 31;
-  const dueAt = day && month && year ? `${year}-${month}-${day}` : "";
-
-  return <fieldset className="grid gap-2 font-bold">
-    <legend>موعد التسليم</legend>
-    <input type="hidden" name="dueAt" value={dueAt} />
-    <div className="grid grid-cols-3 gap-2">
-      <select aria-label="يوم التسليم" value={day} onChange={(event) => setDay(event.target.value)} className="field font-normal">
-        <option value="">يوم</option>
-        {Array.from({ length: daysInMonth }, (_, index) => String(index + 1).padStart(2, "0")).map((item) => <option key={item} value={item}>{Number(item)}</option>)}
-      </select>
-      <select aria-label="شهر التسليم" value={month} onChange={(event) => {
-        const nextMonth = event.target.value;
-        setMonth(nextMonth);
-        if (day && year && nextMonth && Number(day) > new Date(Number(year), Number(nextMonth), 0).getDate()) setDay("");
-      }} className="field font-normal">
-        <option value="">شهر</option>
-        {Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0")).map((item) => <option key={item} value={item}>{Number(item)}</option>)}
-      </select>
-      <select aria-label="سنة التسليم" value={year} onChange={(event) => {
-        const nextYear = event.target.value;
-        setYear(nextYear);
-        if (day && month && nextYear && Number(day) > new Date(Number(nextYear), Number(month), 0).getDate()) setDay("");
-      }} className="field font-normal">
-        <option value="">سنة</option>
-        {years.map((item) => <option key={item} value={item}>{item}</option>)}
-      </select>
-    </div>
-  </fieldset>;
+  return <label className="grid gap-2 font-bold">
+    <span>موعد التسليم</span>
+    <span dir="rtl" className="flex gap-1 text-xs font-normal text-slate-500"><span>يوم</span><span>/</span><span>شهر</span><span>/</span><span>سنة</span></span>
+    <input name="dueAt" type="date" dir="ltr" defaultValue={value?.slice(0, 10) || ""} aria-label="موعد التسليم: يوم ثم شهر ثم سنة" className="field font-normal" />
+  </label>;
 }
 
 function ProjectLinksFields({ initialLinks = [] }: { initialLinks?: string[] }) {
