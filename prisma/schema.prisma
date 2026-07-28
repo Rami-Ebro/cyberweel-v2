@@ -179,6 +179,12 @@ model ClientInvoice {
   @@index([status])
 }
 
+model InvoiceSequence {
+  year       Int      @id
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+}
+
 model ClientMessage {
   id        String         @id @default(cuid())
   clientId  String
