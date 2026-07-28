@@ -14,7 +14,7 @@ type Project = {
   links: string[]; notes: string | null;
   dueAt: string | null; updatedAt: string;
   files: Array<{ id: string; name: string; url: string; kind: string | null; size: number | null; storageProvider: string | null; createdAt: string }>;
-  invoices: Array<{ id: string; number: string; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; createdAt: string }>;
+  invoices: Array<{ id: string; number: string; type: "STANDARD" | "RETURN"; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; createdAt: string }>;
 };
 type Message = { id: string; subject: string | null; body: string; fromAdmin: boolean; createdAt: string; projectId: string | null };
 type Notification = { id: string; title: string; body: string | null; section: string; readAt: string | null; createdAt: string };
@@ -43,6 +43,7 @@ export default function AdminClientWorkspacePage() {
   const [invoiceFormOpen, setInvoiceFormOpen] = useState(false);
   const [messageFormOpen, setMessageFormOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [nextInvoiceNumber, setNextInvoiceNumber] = useState("");
   const [newProjectFormVersion, setNewProjectFormVersion] = useState(0);
 
   async function load(clearNotice = true) {
@@ -56,6 +57,7 @@ export default function AdminClientWorkspacePage() {
       setNotice(data?.error || "تعذر تحميل لوحة العميل");
     } else {
       setClient(data.client);
+      setNextInvoiceNumber(data.nextInvoiceNumber || "");
       const loadedProjects = data.client?.clientProjects || [];
       setSelectedProjectId((current) => loadedProjects.some((project: Project) => project.id === current) ? current : loadedProjects[0]?.id || "");
     }
@@ -275,7 +277,7 @@ export default function AdminClientWorkspacePage() {
 
               {selectedProject && <details className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><summary className="cursor-pointer list-none p-6"><div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-black">ملخص اتفاق المشروع</h2><p className="mt-1 text-sm text-slate-500">{selectedProject.title} — للعرض فقط</p></div><ChevronDown className="h-5 w-5" /></div></summary><div className="grid gap-4 border-t border-[#D8D2C4] p-6 text-sm"><ReadOnly label="نطاق المشروع" value={selectedProject.agreementDetails || selectedProject.description} /><ReadOnly label={`الخطة المالية — ${selectedProject.currency}`} value={selectedProject.financialPlan} /><ReadOnly label="المراحل" value={selectedProject.stages} /><ReadOnly label="الملاحظات الداخلية" value={selectedProject.notes} />{!!selectedProject.links?.length && <div><p className="font-black">روابط المشروع</p><div className="mt-2 grid gap-1">{selectedProject.links.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer" className="text-[#9A7D43] underline">{link}</a>)}</div></div>}<p className="text-xs text-slate-500">لتعديل هذه البيانات انتقل إلى صفحة المشاريع.</p></div></details>}
 
-              <section><h2 className="text-xl font-black">سجل الفواتير</h2><div className="mt-4"><ListEmpty empty={!selectedInvoices.length} text="لا توجد فواتير لهذا المشروع.">{selectedInvoices.map((invoice) => <div key={invoice.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap justify-between gap-3"><strong>{invoice.number}</strong><span>{invoice.amount.toLocaleString("ar")} {invoice.currency}</span></div><p className="mt-2 text-sm text-slate-500">{invoice.status} — {invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("ar") : "دون تاريخ استحقاق"}</p>{invoice.status !== "PAID" && <form onSubmit={(event) => void submit(event, "POST", "تم تسجيل الفاتورة كمدفوعة وإشعار العميل")} className="mt-3"><input type="hidden" name="action" value="payment" /><input type="hidden" name="invoiceId" value={invoice.id} /><button disabled={saving} className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800">تسجيلها كمدفوعة</button></form>}</div>)}</ListEmpty></div></section>
+              <section><h2 className="text-xl font-black">سجل الفواتير</h2><div className="mt-4"><ListEmpty empty={!selectedInvoices.length} text="لا توجد فواتير لهذا المشروع.">{selectedInvoices.map((invoice) => <div key={invoice.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap justify-between gap-3"><div className="flex items-center gap-2"><strong>{invoice.number}</strong><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-xs font-bold text-[#9A7D43]">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</span></div><span>{invoice.amount.toLocaleString("ar")} {invoice.currency}</span></div><p className="mt-2 text-sm text-slate-500">{invoice.status} — {invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("ar") : "دون تاريخ استحقاق"}</p>{invoice.status !== "PAID" && <form onSubmit={(event) => void submit(event, "POST", "تم تسجيل الفاتورة كمدفوعة وإشعار العميل")} className="mt-3"><input type="hidden" name="action" value="payment" /><input type="hidden" name="invoiceId" value={invoice.id} /><button disabled={saving} className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800">تسجيلها كمدفوعة</button></form>}</div>)}</ListEmpty></div></section>
 
               <section className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
                 <button onClick={() => setInvoiceFormOpen((value) => !value)} className="flex w-full items-center justify-between gap-3 p-6 text-right">
@@ -289,13 +291,18 @@ export default function AdminClientWorkspacePage() {
                     <input type="hidden" name="currency" value={selectedProject?.currency || "USD"} />
                     <div className="rounded-xl bg-[#F7F3EB] p-4">
                       <p className="font-black">رقم الفاتورة يُنشأ تلقائيًا</p>
-                      <p className="mt-1 text-sm text-slate-500">مثال: CW-{new Date().getFullYear()}-0001</p>
+                      <p dir="ltr" className="mt-1 w-fit text-sm font-bold text-[#9A7D43]">{nextInvoiceNumber || "جارٍ تحديد الرقم..."}</p>
                     </div>
                     <input name="amount" type="number" min="0.01" step="0.01" required placeholder="المبلغ" className="field" />
-                    <div className="grid gap-3 md:grid-cols-3">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <label className="grid gap-2 font-bold">نوع الفاتورة<select name="type" defaultValue="STANDARD" className="field font-normal"><option value="STANDARD">فاتورة</option><option value="RETURN">مرتجع</option></select></label>
+                      <label className="grid gap-2 font-bold">الحالة<select name="status" defaultValue="DUE" className="field font-normal">{invoiceStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
                       <div className="field bg-slate-50 font-bold">{selectedProject?.currency || "USD"}</div>
-                      <select name="status" defaultValue="DUE" className="field">{invoiceStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-                      <input name="dueAt" type="date" className="field" />
+                      <label className="grid gap-2 font-bold">
+                        <span>تاريخ الاستحقاق</span>
+                        <span dir="rtl" className="flex gap-1 text-xs font-normal text-slate-500"><span>يوم</span><span>/</span><span>شهر</span><span>/</span><span>سنة</span></span>
+                        <input name="dueAt" type="date" dir="ltr" aria-label="تاريخ الاستحقاق: يوم ثم شهر ثم سنة" className="field font-normal" />
+                      </label>
                     </div>
                     <SaveButton saving={saving} label="إصدار الفاتورة" />
                   </form>
