@@ -301,7 +301,7 @@ export default function AdminClientWorkspacePage() {
                       <label className="grid gap-2 font-bold">
                         <span>تاريخ الاستحقاق</span>
                         <span dir="rtl" className="flex gap-1 text-xs font-normal text-slate-500"><span>يوم</span><span>/</span><span>شهر</span><span>/</span><span>سنة</span></span>
-                        <input name="dueAt" type="date" dir="ltr" aria-label="تاريخ الاستحقاق: يوم ثم شهر ثم سنة" className="field font-normal" />
+                        <input name="dueAt" type="date" aria-label="تاريخ الاستحقاق: يوم ثم شهر ثم سنة" className="field font-normal" />
                       </label>
                     </div>
                     <SaveButton saving={saving} label="إصدار الفاتورة" />
@@ -371,7 +371,7 @@ function ProjectDueDateInput({ value }: { value: string | null }) {
   return <label className="grid gap-2 font-bold">
     <span>موعد التسليم</span>
     <span dir="rtl" className="flex gap-1 text-xs font-normal text-slate-500"><span>يوم</span><span>/</span><span>شهر</span><span>/</span><span>سنة</span></span>
-    <input name="dueAt" type="date" dir="ltr" defaultValue={value?.slice(0, 10) || ""} aria-label="موعد التسليم: يوم ثم شهر ثم سنة" className="field font-normal" />
+    <input name="dueAt" type="date" defaultValue={value?.slice(0, 10) || ""} aria-label="موعد التسليم: يوم ثم شهر ثم سنة" className="field font-normal" />
   </label>;
 }
 
