@@ -472,7 +472,7 @@ function ProjectLinksFields({ initialLinks = [] }: { initialLinks?: string[] }) 
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <legend className="font-black">روابط المشروع</legend>
-        <p className="mt-1 text-xs text-slate-500">يمكن إضافة أي عدد من روابط الموقع أو Figma أو GitHub أو غيرها.</p>
+        <p className="mt-1 text-xs text-slate-500">أضف أي عدد من الروابط. يمكنك كتابة الرابط كاملًا أو بدون https:// وسيُستكمل تلقائيًا.</p>
       </div>
       <button type="button" onClick={() => setLinks((items) => [...items, ""])} className="flex items-center gap-2 rounded-lg border border-[#D8D2C4] px-3 py-2 text-sm font-bold">
         <Plus className="h-4 w-4" />إضافة رابط
@@ -482,11 +482,21 @@ function ProjectLinksFields({ initialLinks = [] }: { initialLinks?: string[] }) 
       <div key={index} className="flex gap-2">
         <input
           name="links"
-          type="url"
+          type="text"
+          inputMode="url"
+          autoCapitalize="none"
+          autoCorrect="off"
+          dir="ltr"
           value={link}
           onChange={(event) => setLinks((items) => items.map((item, itemIndex) => itemIndex === index ? event.target.value : item))}
-          placeholder="https://..."
-          className="field min-w-0 flex-1 font-normal"
+          onBlur={(event) => {
+            const value = event.currentTarget.value.trim();
+            if (!value || /^https?:\/\//i.test(value)) return;
+            const normalized = `https://${value.replace(/^\/+/, "")}`;
+            setLinks((items) => items.map((item, itemIndex) => itemIndex === index ? normalized : item));
+          }}
+          placeholder="example.com أو https://example.com"
+          className="field min-w-0 flex-1 text-left font-normal"
         />
         <button
           type="button"
