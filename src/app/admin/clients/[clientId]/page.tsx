@@ -239,7 +239,7 @@ export default function AdminClientWorkspacePage() {
                   <div className="grid gap-3 md:grid-cols-3">
                     <label className="grid gap-2 font-bold">حالة المشروع<select name="status" defaultValue={project.status} className="field font-normal">{projectStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
                     <label className="grid gap-2 font-bold">نسبة الإنجاز<input name="progress" type="number" min={0} max={100} defaultValue={project.progress} className="field font-normal" /></label>
-                    <label className="grid gap-2 font-bold">موعد التسليم<input name="dueAt" type="date" defaultValue={project.dueAt?.slice(0, 10) || ""} className="field font-normal" /></label>
+                    <ProjectDueDateInput value={project.dueAt} />
                   </div>
                   <SaveButton saving={saving} label="حفظ بيانات المشروع" />
                 </form>
@@ -323,21 +323,56 @@ function ProjectCoreFields({ project }: { project?: Project }) {
     </label>
     <label className="grid gap-2 font-bold">
       العملة
-      <input name="currency" defaultValue={project?.currency || "USD"} list="project-currencies" maxLength={3} required placeholder="USD" className="field font-normal uppercase" />
-      <datalist id="project-currencies">
-        <option value="USD" />
-        <option value="SYP" />
-        <option value="EUR" />
-        <option value="SAR" />
-        <option value="AED" />
-        <option value="TRY" />
-      </datalist>
+      <select name="currency" defaultValue={project?.currency || "USD"} required className="field font-normal">
+        <option value="USD">دولار</option>
+        <option value="EUR">يورو</option>
+        <option value="SYP">ليرة سورية</option>
+        <option value="TRY">ليرة تركية</option>
+      </select>
     </label>
     <label className="grid gap-2 font-bold">
       مراحل المشروع
       <textarea name="stages" defaultValue={project?.stages || ""} placeholder={"اكتب كل مرحلة في سطر مستقل\nمثال: التحليل\nالتصميم\nالتنفيذ"} rows={5} className="field font-normal" />
     </label>
   </>;
+}
+
+function ProjectDueDateInput({ value }: { value: string | null }) {
+  const initial = value?.slice(0, 10).split("-") || [];
+  const [day, setDay] = useState(initial[2] || "");
+  const [month, setMonth] = useState(initial[1] || "");
+  const [year, setYear] = useState(initial[0] || "");
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 12 }, (_, index) => currentYear - 1 + index);
+  const daysInMonth = month && year ? new Date(Number(year), Number(month), 0).getDate() : 31;
+  const dueAt = day && month && year ? `${year}-${month}-${day}` : "";
+
+  return <fieldset className="grid gap-2 font-bold">
+    <legend>موعد التسليم</legend>
+    <input type="hidden" name="dueAt" value={dueAt} />
+    <div className="grid grid-cols-3 gap-2">
+      <select aria-label="يوم التسليم" value={day} onChange={(event) => setDay(event.target.value)} className="field font-normal">
+        <option value="">يوم</option>
+        {Array.from({ length: daysInMonth }, (_, index) => String(index + 1).padStart(2, "0")).map((item) => <option key={item} value={item}>{Number(item)}</option>)}
+      </select>
+      <select aria-label="شهر التسليم" value={month} onChange={(event) => {
+        const nextMonth = event.target.value;
+        setMonth(nextMonth);
+        if (day && year && nextMonth && Number(day) > new Date(Number(year), Number(nextMonth), 0).getDate()) setDay("");
+      }} className="field font-normal">
+        <option value="">شهر</option>
+        {Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0")).map((item) => <option key={item} value={item}>{Number(item)}</option>)}
+      </select>
+      <select aria-label="سنة التسليم" value={year} onChange={(event) => {
+        const nextYear = event.target.value;
+        setYear(nextYear);
+        if (day && month && nextYear && Number(day) > new Date(Number(nextYear), Number(month), 0).getDate()) setDay("");
+      }} className="field font-normal">
+        <option value="">سنة</option>
+        {years.map((item) => <option key={item} value={item}>{item}</option>)}
+      </select>
+    </div>
+  </fieldset>;
 }
 
 function ProjectLinksFields({ initialLinks = [] }: { initialLinks?: string[] }) {
