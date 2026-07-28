@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  consumeRateLimit,
+  hasTrustedOrigin,
+  invalidOriginResponse,
+  rateLimitResponse,
+} from "@/lib/request-security";
+import { validateUploadedFile } from "@/lib/upload-security";
 
 export const runtime = "nodejs";
 
 const MAX_FILES = 3;
 const MAX_TOTAL_BYTES = 4 * 1024 * 1024;
+const MAX_REQUEST_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set([
   "application/pdf",
   "application/msword",
@@ -27,6 +35,28 @@ function clean(value: unknown, max = 4000) {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!hasTrustedOrigin(request)) return invalidOriginResponse();
+
+    const contentLength = Number(request.headers.get("content-length"));
+    if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
+      return NextResponse.json(
+        { ok: false, error: "FILES_TOO_LARGE" },
+        { status: 413 },
+      );
+    }
+
+    const rateLimit = await consumeRateLimit(request, {
+      action: "contact-form",
+      limit: 5,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(
+        rateLimit,
+        "تم إرسال عدة طلبات. حاول مجددًا بعد قليل.",
+      );
+    }
+
     const formData = await request.formData();
 
     // Honeypot: bots commonly fill hidden fields.
@@ -64,10 +94,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const files = formData
+    const submittedFiles = formData
       .getAll("attachments")
-      .filter((entry): entry is File => entry instanceof File && entry.size > 0)
-      .slice(0, MAX_FILES);
+      .filter((entry): entry is File => entry instanceof File && entry.size > 0);
+
+    if (submittedFiles.length > MAX_FILES) {
+      return NextResponse.json(
+        { ok: false, error: "TOO_MANY_FILES" },
+        { status: 413 },
+      );
+    }
+    const files = submittedFiles;
 
     const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
     if (totalBytes > MAX_TOTAL_BYTES) {
@@ -85,13 +122,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const attachments = await Promise.all(
-      files.map(async (file) => ({
+    const attachments: Array<{
+      filename: string;
+      content: string;
+      content_type: string;
+    }> = [];
+    for (const file of files) {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      if (!validateUploadedFile(file.name, file.type, buffer)) {
+        return NextResponse.json(
+          { ok: false, error: "UNSUPPORTED_FILE_TYPE" },
+          { status: 415 },
+        );
+      }
+      attachments.push({
         filename: sanitizeFilename(file.name),
-        content: Buffer.from(await file.arrayBuffer()).toString("base64"),
+        content: buffer.toString("base64"),
         content_type: file.type,
-      })),
-    );
+      });
+    }
 
     const apiKey = process.env.RESEND_API_KEY;
     const recipient = process.env.CONTACT_TO_EMAIL || "hello@cyberweel.com";

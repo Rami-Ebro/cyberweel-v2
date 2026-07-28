@@ -1,10 +1,24 @@
 import { db } from "@/lib/db";
 import { parsePartnerReferralCode } from "@/lib/partner-referral";
+import {
+  consumeRateLimit,
+  hasTrustedOrigin,
+  invalidOriginResponse,
+  rateLimitResponse,
+} from "@/lib/request-security";
 import { NextRequest, NextResponse } from "next/server";
 
 const REFERRAL_COOKIE = "cyberweel_partner_referral";
 
 export async function POST(request: NextRequest) {
+  if (!hasTrustedOrigin(request)) return invalidOriginResponse();
+  const rateLimit = await consumeRateLimit(request, {
+    action: "partner-referral",
+    limit: 10,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!rateLimit.allowed) return rateLimitResponse(rateLimit);
+
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
@@ -14,7 +28,16 @@ export async function POST(request: NextRequest) {
   const explicitReferralNumber = explicitCode ? parsePartnerReferralCode(explicitCode) : null;
   const partnerId = request.cookies.get(REFERRAL_COOKIE)?.value;
 
-  if (!name || (!email && !phone) || !notes) {
+  if (
+    !name ||
+    name.length > 120 ||
+    email.length > 254 ||
+    phone.length > 40 ||
+    notes.length > 5000 ||
+    explicitCode.length > 80 ||
+    (!email && !phone) ||
+    !notes
+  ) {
     return NextResponse.json({ error: "أدخل الاسم ووسيلة تواصل واشرح المشكلة أو الفكرة" }, { status: 400 });
   }
 

@@ -1,15 +1,46 @@
 import { db } from "@/lib/db";
 import { createPartnerSession, normalizeEmail, normalizePhone, partnerSessionCookieOptions, verifyPassword, PARTNER_SESSION_COOKIE } from "@/lib/partner-auth";
+import {
+  consumeRateLimit,
+  hasTrustedOrigin,
+  invalidOriginResponse,
+  rateLimitResponse,
+} from "@/lib/request-security";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
+  if (!hasTrustedOrigin(request)) return invalidOriginResponse();
+
   const body = await request.json().catch(() => null);
   const identifier = typeof body?.identifier === "string" ? body.identifier.trim() : "";
   const password = typeof body?.password === "string" ? body.password : "";
   const remember = body?.remember === true;
+  if (!identifier || identifier.length > 254 || !password || password.length > 256) {
+    return NextResponse.json({ error: "بيانات الدخول غير صحيحة" }, { status: 401 });
+  }
+
+  const normalizedIdentifier = identifier.includes("@")
+    ? normalizeEmail(identifier)
+    : normalizePhone(identifier);
+  const [ipLimit, credentialLimit] = await Promise.all([
+    consumeRateLimit(request, {
+      action: "login-ip",
+      limit: 20,
+      windowMs: 15 * 60 * 1000,
+    }),
+    consumeRateLimit(request, {
+      action: "login-credential",
+      subject: normalizedIdentifier,
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+    }),
+  ]);
+  if (!ipLimit.allowed) return rateLimitResponse(ipLimit);
+  if (!credentialLimit.allowed) return rateLimitResponse(credentialLimit);
+
   const isEmail = identifier.includes("@");
-  const email = isEmail ? normalizeEmail(identifier) : "";
-  const phone = isEmail ? "" : normalizePhone(identifier);
+  const email = isEmail ? normalizedIdentifier : "";
+  const phone = isEmail ? "" : normalizedIdentifier;
 
   const user = await db.user.findFirst({
     where: isEmail ? { email } : { phone },

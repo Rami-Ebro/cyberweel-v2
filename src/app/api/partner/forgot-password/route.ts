@@ -1,17 +1,40 @@
 import { db } from "@/lib/db";
 import { fingerprint, normalizeEmail } from "@/lib/partner-auth";
+import {
+  consumeRateLimit,
+  hasTrustedOrigin,
+  invalidOriginResponse,
+  rateLimitResponse,
+} from "@/lib/request-security";
 import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 const GENERIC_MESSAGE = "إذا كان البريد مسجلًا، فستصلك رسالة إعادة تعيين كلمة المرور";
 
 export async function POST(request: NextRequest) {
+  if (!hasTrustedOrigin(request)) return invalidOriginResponse();
   const body = await request.json().catch(() => null);
   const email = typeof body?.email === "string" ? normalizeEmail(body.email) : "";
 
-  if (!email.includes("@")) {
+  if (!email.includes("@") || email.length > 254) {
     return NextResponse.json({ error: "أدخل بريدًا إلكترونيًا صحيحًا" }, { status: 400 });
   }
+
+  const [ipLimit, emailLimit] = await Promise.all([
+    consumeRateLimit(request, {
+      action: "password-reset-ip",
+      limit: 5,
+      windowMs: 60 * 60 * 1000,
+    }),
+    consumeRateLimit(request, {
+      action: "password-reset-email",
+      subject: email,
+      limit: 3,
+      windowMs: 60 * 60 * 1000,
+    }),
+  ]);
+  if (!ipLimit.allowed) return rateLimitResponse(ipLimit);
+  if (!emailLimit.allowed) return rateLimitResponse(emailLimit);
 
   const user = await db.user.findUnique({ where: { email }, select: { id: true, role: true } });
   if (!user || user.role !== "PARTNER") {

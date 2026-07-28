@@ -15,7 +15,7 @@ export function Section({
 }: {
   children: ReactNode;
   className?: string;
-  tone?: "floral" | "ink" | "muted";
+  tone?: "floral" | "background" | "ink" | "muted";
   id?: string;
   before?: ReactNode;
 }) {

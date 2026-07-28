@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { canAdmin } from "@/lib/admin-permissions";
+import type { ClientProjectStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 type RouteContext = { params: Promise<{ clientId: string }> };
@@ -47,9 +48,11 @@ function parseCurrency(value: unknown) {
   return /^[A-Z]{3}$/.test(currency) ? currency : "USD";
 }
 
-function parseProjectStatus(value: unknown) {
-  const allowed = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD"];
-  return typeof value === "string" && allowed.includes(value) ? value : "PLANNING";
+function parseProjectStatus(value: unknown): ClientProjectStatus {
+  const allowed = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD"] as const;
+  return typeof value === "string" && (allowed as readonly string[]).includes(value)
+    ? (value as ClientProjectStatus)
+    : "PLANNING";
 }
 
 export async function GET(request: NextRequest, context: RouteContext) {
