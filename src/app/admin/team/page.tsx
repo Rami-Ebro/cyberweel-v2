@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { ChevronDown, Eye, EyeOff, PauseCircle, PlayCircle, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { formatDateTime } from "@/lib/date-format";
 
 const labels: Record<string, string> = {
   overview: "عرض النظرة العامة",
@@ -206,8 +207,8 @@ export default function AdminTeamPage() {
                 {isExpanded && (
                   <form onSubmit={(event) => { event.preventDefault(); void saveMember(member, event.currentTarget); }} className="border-t border-[#E8E1D5] p-6">
                     <div className="grid gap-1 text-xs text-slate-400 sm:grid-cols-2">
-                      <p>أُنشئ: {new Date(member.createdAt).toLocaleString("ar")}</p>
-                      <p>آخر دخول: {member.adminProfile?.lastLoginAt ? new Date(member.adminProfile.lastLoginAt).toLocaleString("ar") : "لم يسجل الدخول بعد"}</p>
+                      <p>أُنشئ: {formatDateTime(member.createdAt)}</p>
+                      <p>آخر دخول: {member.adminProfile?.lastLoginAt ? formatDateTime(member.adminProfile.lastLoginAt) : "لم يسجل الدخول بعد"}</p>
                     </div>
                     <div className="mt-5">
                       <PermissionGrid permissions={permissions} selected={member.adminProfile?.isOwner ? permissions : member.adminProfile?.permissions || []} disabled={isProtected} />
