@@ -190,20 +190,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const body = await request.json().catch(() => null);
   const action = typeof body?.action === "string" ? body.action : "";
 
-  if (action === "notification-read") {
-    const notificationId = typeof body?.notificationId === "string" ? body.notificationId : "";
-    const notification = await db.clientNotification.findFirst({
-      where: { id: notificationId, clientId },
-      select: { id: true },
-    });
-    if (!notification) return NextResponse.json({ error: "الإشعار غير موجود" }, { status: 404 });
-    const updated = await db.clientNotification.update({
-      where: { id: notification.id },
-      data: { adminReadAt: new Date() },
-    });
-    return NextResponse.json({ notification: updated });
-  }
-
   if (action === "project") {
     const projectId = typeof body?.projectId === "string" ? body.projectId : "";
     const project = await db.clientProject.findFirst({ where: { id: projectId, clientId }, select: { id: true } });
