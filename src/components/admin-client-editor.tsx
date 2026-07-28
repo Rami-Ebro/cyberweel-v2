@@ -240,7 +240,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
           <header className="relative flex flex-wrap items-center justify-between gap-4">
             <div><p className="text-sm font-bold text-[#9A7D43]">عرض الإدارة — التعديلات تظهر للعميل مباشرة</p><h1 className="mt-1 text-3xl font-black">{client?.name || "لوحة العميل"}</h1></div>
             <div className="flex flex-wrap gap-3">
-              <button onClick={onPreview} className="flex items-center gap-2 rounded-xl bg-[#111827] px-4 py-3 font-bold text-white shadow-sm"><UserCog className="h-5 w-5" />معاينة لوحة العميل</button>
+              <button onClick={() => onPreview()} className="flex items-center gap-2 rounded-xl bg-[#111827] px-4 py-3 font-bold text-white shadow-sm"><UserCog className="h-5 w-5" />معاينة لوحة العميل</button>
               <button onClick={() => setNotificationsOpen((value) => !value)} title="يعرض العداد الإشعارات التي لم يفتحها العميل بعد" className="relative flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
                 <Bell className="h-5 w-5" />إشعارات العميل
                 {!!clientUnreadCount && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{clientUnreadCount}</span>}
