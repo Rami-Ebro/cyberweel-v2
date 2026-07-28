@@ -7,7 +7,21 @@ import { Logo } from "@/components/brand/logo";
 
 type Section = "overview" | "projects" | "files" | "invoices" | "payments" | "messages" | "account";
 type Client = { id: string; name: string | null; email: string; createdAt: string };
-type Project = { id: string; title: string; description: string | null; status: string; progress: number; startsAt: string | null; dueAt: string | null; updatedAt: string };
+type Project = {
+  id: string;
+  title: string;
+  description: string | null;
+  agreementDetails: string | null;
+  financialPlan: string | null;
+  currency: string;
+  stages: string | null;
+  links: string[];
+  status: string;
+  progress: number;
+  startsAt: string | null;
+  dueAt: string | null;
+  updatedAt: string;
+};
 type FileItem = { id: string; name: string; url: string; kind: string | null; size: number | null; createdAt: string; projectTitle: string };
 type Invoice = { id: string; number: string; type: "STANDARD" | "RETURN"; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; projectTitle: string };
 type Message = { id: string; subject: string | null; body: string; fromAdmin: boolean; readAt: string | null; createdAt: string };
@@ -244,7 +258,43 @@ export function ClientDashboard({
             <section className="mt-6 rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><h2 className="text-xl font-black">آخر تحديثات المشاريع</h2><div className="mt-5 grid gap-3">{projects.slice(0, 4).map((project) => <button key={project.id} onClick={() => setSection("projects")} className="rounded-xl bg-[#F7F3EB] p-4 text-right"><div className="flex items-center justify-between gap-3"><strong>{project.title}</strong><span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#9A7D43]">{projectLabel[project.status] || project.status}</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white"><div className="h-full bg-[#B89A5A]" style={{ width: `${Math.max(0, Math.min(100, project.progress))}%` }} /></div><p className="mt-2 text-xs text-slate-500">نسبة الإنجاز {project.progress}%</p></button>)}{!projects.length && <p className="text-slate-500">لا توجد مشاريع مرتبطة بالحساب بعد.</p>}</div></section>
           </>}
 
-          {!loading && section === "projects" && <section className="mt-7 grid gap-4"><h2 className="text-2xl font-black">المشاريع</h2>{projects.map((project) => <article key={project.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><h3 className="text-xl font-black">{project.title}</h3><p className="mt-2 text-slate-500">{project.description || "لا يوجد وصف مضاف بعد."}</p></div><span className="w-fit rounded-full bg-[#F7F3EB] px-4 py-2 text-sm font-black text-[#9A7D43]">{projectLabel[project.status] || project.status}</span></div><div className="mt-5 h-3 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A]" style={{ width: `${Math.max(0, Math.min(100, project.progress))}%` }} /></div><div className="mt-3 flex flex-wrap justify-between gap-3 text-sm text-slate-500"><span>الإنجاز: {project.progress}%</span><span>آخر تحديث: {new Date(project.updatedAt).toLocaleDateString("ar")}</span></div></article>)}{!projects.length && <Empty text="لا توجد مشاريع حتى الآن." />}</section>}
+          {!loading && section === "projects" && <section className="mt-7 grid gap-4">
+            <h2 className="text-2xl font-black">المشاريع</h2>
+            {projects.map((project) => (
+              <article key={project.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                  <div>
+                    <h3 className="text-xl font-black">{project.title}</h3>
+                    <p className="mt-2 whitespace-pre-wrap leading-7 text-slate-500">{project.description || "لا يوجد وصف مضاف بعد."}</p>
+                  </div>
+                  <span className="w-fit shrink-0 rounded-full bg-[#F7F3EB] px-4 py-2 text-sm font-black text-[#9A7D43]">{projectLabel[project.status] || project.status}</span>
+                </div>
+
+                <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A]" style={{ width: `${Math.max(0, Math.min(100, project.progress))}%` }} /></div>
+                <div className="mt-3 flex flex-wrap justify-between gap-3 text-sm text-slate-500">
+                  <span>الإنجاز: {project.progress}%</span>
+                  <span>آخر تحديث: {new Date(project.updatedAt).toLocaleDateString("ar")}</span>
+                </div>
+
+                <div className="mt-6 grid gap-3 md:grid-cols-2">
+                  <ProjectDetail title="تفاصيل الاتفاق ونطاق العمل" value={project.agreementDetails} />
+                  <ProjectDetail title={`الخطة المالية — ${project.currency || "USD"}`} value={project.financialPlan} />
+                  <ProjectDetail title="مراحل المشروع" value={project.stages} />
+                  <ProjectDetail title="موعد التسليم" value={project.dueAt ? new Date(project.dueAt).toLocaleDateString("ar") : null} />
+                </div>
+
+                {!!project.links?.length && (
+                  <div className="mt-3 rounded-xl bg-[#F7F3EB] p-4">
+                    <p className="text-xs font-black text-slate-500">روابط المشروع</p>
+                    <div className="mt-3 grid gap-2">
+                      {project.links.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer" dir="ltr" className="w-fit break-all text-left text-sm font-bold text-[#9A7D43] underline">{link}</a>)}
+                    </div>
+                  </div>
+                )}
+              </article>
+            ))}
+            {!projects.length && <Empty text="لا توجد مشاريع حتى الآن." />}
+          </section>}
 
           {!loading && section === "files" && <section className="mt-7"><h2 className="text-2xl font-black">الملفات والتسليمات</h2><div className="mt-5 grid gap-3">{files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="flex flex-col justify-between gap-3 rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm sm:flex-row sm:items-center"><div><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></div><span className="text-sm font-bold text-[#9A7D43]">فتح الملف</span></a>)}{!files.length && <Empty text="لا توجد ملفات أو تسليمات بعد." />}</div></section>}
 
@@ -281,4 +331,13 @@ export function ClientDashboard({
 
 function Empty({ text }: { text: string }) {
   return <div className="rounded-2xl border border-dashed border-[#D8D2C4] bg-white p-10 text-center text-slate-500">{text}</div>;
+}
+
+function ProjectDetail({ title, value }: { title: string; value: string | null }) {
+  return (
+    <div className="rounded-xl bg-[#F7F3EB] p-4">
+      <p className="text-xs font-black text-slate-500">{title}</p>
+      <p className="mt-2 whitespace-pre-wrap leading-7">{value || "لم تُضف معلومات بعد."}</p>
+    </div>
+  );
 }
