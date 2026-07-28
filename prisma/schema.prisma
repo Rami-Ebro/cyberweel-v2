@@ -43,6 +43,11 @@ enum ClientInvoiceStatus {
   CANCELLED
 }
 
+enum ClientInvoiceType {
+  STANDARD
+  RETURN
+}
+
 model User {
   id                  String               @id @default(cuid())
   email               String               @unique
@@ -167,6 +172,7 @@ model ClientInvoice {
   projectId String
   project   ClientProject       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   number    String              @unique
+  type      ClientInvoiceType   @default(STANDARD)
   amount    Decimal             @db.Decimal(12, 2)
   currency  String              @default("USD")
   status    ClientInvoiceStatus @default(DRAFT)
@@ -176,7 +182,14 @@ model ClientInvoice {
   updatedAt DateTime            @updatedAt
 
   @@index([projectId])
+  @@index([type])
   @@index([status])
+}
+
+model InvoiceSequence {
+  year       Int      @id
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
 }
 
 model ClientMessage {

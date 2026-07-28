@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, Bell, BriefcaseBusiness, CreditCard, Eye, EyeOff, FileText, Home, KeyRound, LogOut, Mail, ReceiptText, RefreshCw, Send, UserCog } from "lucide-react";
+import { BarChart3, Bell, BriefcaseBusiness, CreditCard, FileText, Home, LogOut, Mail, ReceiptText, RefreshCw, Send, UserCog } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 
 type Section = "overview" | "projects" | "files" | "invoices" | "payments" | "messages" | "account";
 type Client = { id: string; name: string | null; email: string; createdAt: string };
 type Project = { id: string; title: string; description: string | null; status: string; progress: number; startsAt: string | null; dueAt: string | null; updatedAt: string };
 type FileItem = { id: string; name: string; url: string; kind: string | null; size: number | null; createdAt: string; projectTitle: string };
-type Invoice = { id: string; number: string; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; projectTitle: string };
+type Invoice = { id: string; number: string; type: "STANDARD" | "RETURN"; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; projectTitle: string };
 type Message = { id: string; subject: string | null; body: string; fromAdmin: boolean; readAt: string | null; createdAt: string };
 type Notification = { id: string; title: string; body: string | null; section: Section; readAt: string | null; createdAt: string };
 type Stats = { projects: number; activeProjects: number; files: number; dueInvoices: number; unreadMessages: number; unreadNotifications: number };
@@ -19,7 +19,6 @@ const invoiceLabel: Record<string, string> = { DRAFT: "مسودة", DUE: "مست
 
 export default function ClientDashboardPage() {
   const router = useRouter();
-  const formRef = useRef<HTMLFormElement>(null);
   const [section, setSection] = useState<Section>("overview");
   const [client, setClient] = useState<Client | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -33,8 +32,6 @@ export default function ClientDashboardPage() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
 
   async function load(clearNotice = true) {
     setLoading(true);
@@ -59,24 +56,8 @@ export default function ClientDashboardPage() {
     setLoading(false);
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, []);
-
-  async function saveAccount(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const response = await fetch("/api/client/account", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: form.get("name"), email: form.get("email"), currentPassword: form.get("currentPassword"), newPassword: form.get("newPassword") }),
-    });
-    const data = await response.json();
-    if (!response.ok) return setNotice(data.error || "تعذر حفظ الحساب");
-    setClient(data.client);
-    setNotice("تم حفظ بيانات حسابك بنجاح");
-    formRef.current?.querySelectorAll<HTMLInputElement>('input[type="password"], input[name="currentPassword"], input[name="newPassword"]').forEach((input) => { input.value = ""; });
-    setShowCurrentPassword(false);
-    setShowNewPassword(false);
-  }
 
   async function logout() {
     await fetch("/api/partner/logout", { method: "POST" });
@@ -113,38 +94,22 @@ export default function ClientDashboardPage() {
 
   async function openNotification(notification: Notification) {
     if (!notification.readAt) {
+      const readAt = new Date().toISOString();
+      setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, readAt } : item));
+      setStats((value) => value ? { ...value, unreadNotifications: Math.max(0, value.unreadNotifications - 1) } : value);
+
       const response = await fetch("/api/client/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notificationId: notification.id }),
       });
-      if (!response.ok) return setNotice("تعذر تحديث حالة الإشعار");
-      setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item));
-      setStats((value) => value ? { ...value, unreadNotifications: Math.max(0, value.unreadNotifications - 1) } : value);
+      if (!response.ok) {
+        setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, readAt: null } : item));
+        setStats((value) => value ? { ...value, unreadNotifications: value.unreadNotifications + 1 } : value);
+        return setNotice("تعذر تحديث حالة الإشعار");
+      }
     }
     setSection(notification.section);
-    setNotificationsOpen(false);
-  }
-
-  async function toggleNotifications() {
-    if (notificationsOpen) {
-      setNotificationsOpen(false);
-      return;
-    }
-
-    setNotificationsOpen(true);
-    if (!stats?.unreadNotifications) return;
-
-    const response = await fetch("/api/client/notifications", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
-    if (!response.ok) return setNotice("تعذر تحديث حالة الإشعارات");
-
-    const readAt = new Date().toISOString();
-    setNotifications((items) => items.map((item) => item.readAt ? item : { ...item, readAt }));
-    setStats((value) => value ? { ...value, unreadNotifications: 0 } : value);
   }
 
   const nav = [
@@ -164,7 +129,7 @@ export default function ClientDashboardPage() {
     invoices: "جميع الفواتير الصادرة وحالة كل فاتورة.",
     payments: "المبالغ المدفوعة والمسجلة على فواتيرك.",
     messages: "جميع رسائلنا وتحديثات المشاريع ستجدها هنا. هذا هو سجل التواصل الرسمي.",
-    account: "بيانات حسابك وكلمة المرور وإعدادات الدخول.",
+    account: "بيانات حسابك للعرض فقط.",
   };
 
   return (
@@ -186,7 +151,7 @@ export default function ClientDashboardPage() {
           <header className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div><p className="text-sm font-bold text-[#9A7D43]">مساحة العميل</p><h1 className="mt-1 text-3xl font-black">مرحبًا {client?.name || "بك"}</h1></div>
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => void toggleNotifications()} className="relative flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
+              <button onClick={() => setNotificationsOpen((value) => !value)} className="relative flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
                 <Bell className="h-5 w-5" />الإشعارات
                 {!!stats?.unreadNotifications && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{stats.unreadNotifications}</span>}
               </button>
@@ -197,8 +162,16 @@ export default function ClientDashboardPage() {
                 <div className="flex items-center justify-between px-2 py-2"><strong>الإشعارات</strong><span className="text-xs text-slate-500">{stats?.unreadNotifications || 0} غير مقروء</span></div>
                 <div className="max-h-96 space-y-2 overflow-y-auto">
                   {notifications.map((notification) => (
-                    <button key={notification.id} onClick={() => void openNotification(notification)} className={`w-full rounded-xl p-3 text-right ${notification.readAt ? "bg-slate-50" : "bg-amber-50"}`}>
-                      <div className="flex items-center justify-between gap-3"><strong className="text-sm">{notification.title}</strong>{!notification.readAt && <span className="h-2 w-2 rounded-full bg-red-600" />}</div>
+                    <button key={notification.id} onClick={() => void openNotification(notification)} className={`w-full rounded-xl p-3 text-right ${notification.readAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827]"}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="flex items-center gap-2">
+                          <strong className="text-sm">{notification.title}</strong>
+                          {!notification.readAt && <span className="h-2 w-2 shrink-0 rounded-full bg-red-600" />}
+                        </span>
+                        <time dateTime={notification.createdAt} dir="ltr" className="shrink-0 text-xs text-slate-500">
+                          {new Date(notification.createdAt).toLocaleDateString("ar")}
+                        </time>
+                      </div>
                       {notification.body && <p className="mt-1 text-xs leading-5 text-slate-500">{notification.body}</p>}
                     </button>
                   ))}
@@ -224,7 +197,7 @@ export default function ClientDashboardPage() {
 
           {!loading && section === "files" && <section className="mt-7"><h2 className="text-2xl font-black">الملفات والتسليمات</h2><div className="mt-5 grid gap-3">{files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="flex flex-col justify-between gap-3 rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm sm:flex-row sm:items-center"><div><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></div><span className="text-sm font-bold text-[#9A7D43]">فتح الملف</span></a>)}{!files.length && <Empty text="لا توجد ملفات أو تسليمات بعد." />}</div></section>}
 
-          {!loading && section === "invoices" && <section className="mt-7"><h2 className="text-2xl font-black">الفواتير</h2><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[720px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">رقم الفاتورة</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-4 font-bold">{invoice.number}</td><td className="p-4">{invoice.projectTitle}</td><td className="p-4">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{invoiceLabel[invoice.status] || invoice.status}</td><td className="p-4">{invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("ar") : "—"}</td></tr>)}</tbody></table>{!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}</div></section>}
+          {!loading && section === "invoices" && <section className="mt-7"><h2 className="text-2xl font-black">الفواتير</h2><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[820px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">رقم الفاتورة</th><th className="p-4">النوع</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-4 font-bold">{invoice.number}</td><td className="p-4">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</td><td className="p-4">{invoice.projectTitle}</td><td className="p-4">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{invoiceLabel[invoice.status] || invoice.status}</td><td className="p-4">{invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("ar") : "—"}</td></tr>)}</tbody></table>{!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}</div></section>}
 
           {!loading && section === "payments" && <section className="mt-7"><h2 className="text-2xl font-black">المدفوعات</h2><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[640px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">الفاتورة</th><th className="p-4">المشروع</th><th className="p-4">المبلغ المدفوع</th><th className="p-4">تاريخ الدفع</th></tr></thead><tbody>{payments.map((payment) => <tr key={payment.id} className="border-b border-slate-100"><td className="p-4 font-bold">{payment.number}</td><td className="p-4">{payment.projectTitle}</td><td className="p-4">{payment.amount.toLocaleString("ar")} {payment.currency}</td><td className="p-4">{payment.paidAt ? new Date(payment.paidAt).toLocaleDateString("ar") : "مسجلة كمدفوعة"}</td></tr>)}</tbody></table>{!payments.length && <div className="p-8 text-center text-slate-500">لا توجد مدفوعات مسجلة بعد.</div>}</div></section>}
 
@@ -248,7 +221,7 @@ export default function ClientDashboardPage() {
             <div className="mt-5 grid gap-3">{messages.map((message) => <article key={message.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex items-center justify-between gap-3"><strong>{message.subject || (message.fromAdmin ? "تحديث من فريق CyberWeel" : "رسالتك")}</strong><span className="text-xs text-slate-500">{new Date(message.createdAt).toLocaleString("ar")}</span></div><span className={`mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-bold ${message.fromAdmin ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>{message.fromAdmin ? "فريق CyberWeel" : "أنت"}</span><p className="mt-3 whitespace-pre-wrap leading-7 text-slate-600">{message.body}</p></article>)}{!messages.length && <Empty text="لا توجد رسائل بعد." />}</div>
           </section>}
 
-          {!loading && section === "account" && <section className="mt-7 max-w-2xl rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><h2 className="text-2xl font-black">الحساب</h2><p className="mt-2 text-sm text-slate-500">تعديل بيانات الحساب وكلمة المرور.</p><form ref={formRef} onSubmit={saveAccount} className="mt-7 grid gap-4"><label className="grid gap-2 font-bold">الاسم<input name="name" defaultValue={client?.name || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><label className="grid gap-2 font-bold">البريد الإلكتروني<input name="email" type="email" defaultValue={client?.email || ""} required className="rounded-xl border border-[#D8D2C4] px-4 py-3" /></label><div className="mt-3 flex items-center gap-2 font-black"><KeyRound className="h-5 w-5" />تغيير كلمة المرور</div><PasswordField label="كلمة المرور الحالية" name="currentPassword" visible={showCurrentPassword} onToggle={() => setShowCurrentPassword((value) => !value)} /><PasswordField label="كلمة المرور الجديدة" name="newPassword" visible={showNewPassword} onToggle={() => setShowNewPassword((value) => !value)} minLength={8} /><button className="mt-2 rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white">حفظ التعديلات</button></form></section>}
+          {!loading && section === "account" && <section className="mt-7 max-w-2xl rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><h2 className="text-2xl font-black">الحساب</h2><p className="mt-2 text-sm text-slate-500">بيانات حسابك للعرض فقط. لتعديلها تواصل مع فريق CyberWeel.</p><div className="mt-7 grid gap-4"><div className="rounded-xl bg-[#F7F3EB] p-4"><p className="text-xs font-bold text-slate-500">الاسم</p><p className="mt-1 font-black">{client?.name || "—"}</p></div><div className="rounded-xl bg-[#F7F3EB] p-4"><p className="text-xs font-bold text-slate-500">البريد الإلكتروني</p><p dir="ltr" className="mt-1 w-fit font-bold">{client?.email}</p></div></div></section>}
         </section>
       </div>
     </main>
@@ -257,8 +230,4 @@ export default function ClientDashboardPage() {
 
 function Empty({ text }: { text: string }) {
   return <div className="rounded-2xl border border-dashed border-[#D8D2C4] bg-white p-10 text-center text-slate-500">{text}</div>;
-}
-
-function PasswordField({ label, name, visible, onToggle, minLength }: { label: string; name: string; visible: boolean; onToggle: () => void; minLength?: number }) {
-  return <label className="grid gap-2 font-bold">{label}<div className="relative"><input name={name} type={visible ? "text" : "password"} minLength={minLength} className="w-full rounded-xl border border-[#D8D2C4] px-4 py-3 pl-12" /><button type="button" onClick={onToggle} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 hover:bg-[#F7F3EB]" aria-label={visible ? `إخفاء ${label}` : `إظهار ${label}`}>{visible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button></div></label>;
 }

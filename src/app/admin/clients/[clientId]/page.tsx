@@ -14,7 +14,7 @@ type Project = {
   links: string[]; notes: string | null;
   dueAt: string | null; updatedAt: string;
   files: Array<{ id: string; name: string; url: string; kind: string | null; size: number | null; storageProvider: string | null; createdAt: string }>;
-  invoices: Array<{ id: string; number: string; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; createdAt: string }>;
+  invoices: Array<{ id: string; number: string; type: "STANDARD" | "RETURN"; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; createdAt: string }>;
 };
 type Message = { id: string; subject: string | null; body: string; fromAdmin: boolean; createdAt: string; projectId: string | null };
 type Notification = { id: string; title: string; body: string | null; section: string; readAt: string | null; createdAt: string };
@@ -43,6 +43,7 @@ export default function AdminClientWorkspacePage() {
   const [invoiceFormOpen, setInvoiceFormOpen] = useState(false);
   const [messageFormOpen, setMessageFormOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [nextInvoiceNumber, setNextInvoiceNumber] = useState("");
   const [newProjectFormVersion, setNewProjectFormVersion] = useState(0);
 
   async function load(clearNotice = true) {
@@ -56,6 +57,7 @@ export default function AdminClientWorkspacePage() {
       setNotice(data?.error || "تعذر تحميل لوحة العميل");
     } else {
       setClient(data.client);
+      setNextInvoiceNumber(data.nextInvoiceNumber || "");
       const loadedProjects = data.client?.clientProjects || [];
       setSelectedProjectId((current) => loadedProjects.some((project: Project) => project.id === current) ? current : loadedProjects[0]?.id || "");
     }
@@ -166,6 +168,7 @@ export default function AdminClientWorkspacePage() {
   });
   const selectedProject = projects.find((project) => project.id === selectedProjectId) || null;
   const selectedInvoices = sortedInvoices.filter((invoice) => invoice.projectId === selectedProjectId);
+  const clientUnreadCount = client?.clientNotifications.filter((item) => !item.readAt).length || 0;
   const nav = [
     ["overview", "نظرة عامة", BarChart3], ["projects", "المشاريع", BriefcaseBusiness],
     ["files", "الملفات والتسليمات", FileText], ["invoices", "الفواتير", ReceiptText],
@@ -191,13 +194,13 @@ export default function AdminClientWorkspacePage() {
           <header className="relative flex flex-wrap items-center justify-between gap-4">
             <div><p className="text-sm font-bold text-[#9A7D43]">عرض الإدارة — التعديلات تظهر للعميل مباشرة</p><h1 className="mt-1 text-3xl font-black">{client?.name || "لوحة العميل"}</h1></div>
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => setNotificationsOpen((value) => !value)} title="هذا العداد يوضح الإشعارات التي لم يقرأها العميل" className="relative flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
+              <button onClick={() => setNotificationsOpen((value) => !value)} title="يعرض العداد الإشعارات التي لم يفتحها العميل بعد" className="relative flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
                 <Bell className="h-5 w-5" />إشعارات العميل
-                {!!client?.clientNotifications.filter((item) => !item.readAt).length && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{client.clientNotifications.filter((item) => !item.readAt).length}</span>}
+                {!!clientUnreadCount && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{clientUnreadCount}</span>}
               </button>
               <button onClick={() => void load()} disabled={loading} className="flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</button>
             </div>
-            {notificationsOpen && client && <div className="absolute left-0 top-full z-20 mt-3 w-full max-w-md rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl"><div className="flex items-center justify-between px-2 py-2"><div><strong>إشعارات العميل</strong><p className="mt-1 text-xs text-slate-500">{client.clientNotifications.filter((item) => !item.readAt).length} غير مقروء لدى العميل</p></div><button onClick={() => setNotificationsOpen(false)} className="text-xs text-slate-500">إغلاق</button></div><div className="max-h-96 space-y-2 overflow-y-auto">{client.clientNotifications.slice(0, 10).map((item) => <div key={item.id} className={`rounded-xl p-3 ${item.readAt ? "bg-slate-50" : "bg-amber-50"}`}><strong className="text-sm">{item.title}</strong>{item.body && <p className="mt-1 text-xs leading-5 text-slate-500">{item.body}</p>}</div>)}{!client.clientNotifications.length && <p className="p-5 text-center text-sm text-slate-500">لا توجد إشعارات بعد.</p>}</div></div>}
+            {notificationsOpen && client && <div className="absolute left-0 top-full z-20 mt-3 w-full max-w-md rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl"><div className="flex items-center justify-between px-2 py-2"><div><strong>إشعارات العميل</strong><p className="mt-1 text-xs text-slate-500">{clientUnreadCount} لم يفتحها العميل بعد</p><p className="mt-1 text-xs text-[#9A7D43]">للعرض فقط؛ تتغير الحالة عندما يفتح العميل الإشعار.</p></div><button onClick={() => setNotificationsOpen(false)} className="text-xs text-slate-500">إغلاق</button></div><div className="max-h-96 space-y-2 overflow-y-auto">{client.clientNotifications.slice(0, 10).map((item) => <div key={item.id} className={`rounded-xl p-3 ${item.readAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827]"}`}><div className="flex items-start justify-between gap-3"><strong className="text-sm">{item.title}</strong><time dateTime={item.createdAt} dir="ltr" className="shrink-0 text-xs text-slate-500">{new Date(item.createdAt).toLocaleDateString("ar")}</time></div>{item.body && <p className="mt-1 text-xs leading-5 text-slate-500">{item.body}</p>}</div>)}{!client.clientNotifications.length && <p className="p-5 text-center text-sm text-slate-500">لا توجد إشعارات بعد.</p>}</div></div>}
           </header>
           {notice && <p role="status" className="mt-5 rounded-xl border border-[#D8D2C4] bg-white p-4 font-bold shadow-sm">{notice}</p>}
           {loading && <div className="mt-8 rounded-2xl bg-white p-10 text-center">جارٍ تحميل لوحة العميل...</div>}
@@ -208,10 +211,10 @@ export default function AdminClientWorkspacePage() {
                 ["المشاريع", projects.length, "projects"],
                 ["الفواتير", invoices.length, "invoices"],
                 ["الملفات", files.length, "files"],
-                ["الإشعارات", client.clientNotifications.filter((item) => !item.readAt).length, "notifications"],
+                ["الإشعارات", clientUnreadCount, "notifications"],
               ].map(([label, value, target]) => <button key={String(label)} onClick={() => target === "notifications" ? setNotificationsOpen(true) : setSection(target as Section)} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 text-right shadow-sm transition hover:-translate-y-1 hover:border-[#B89A5A] hover:shadow-md"><p className="text-sm font-bold text-slate-500">{label}</p><p className="mt-3 text-4xl font-black">{value}</p><p className="mt-3 text-xs font-bold text-[#9A7D43]">فتح القسم</p></button>)}
             </div>
-            <section className="mt-6 rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><Bell className="h-5 w-5" /><h2 className="text-xl font-black">آخر الإشعارات</h2></div><button onClick={() => setNotificationsOpen(true)} className="text-sm font-bold text-[#9A7D43]">عرض من الجرس</button></div><div className="mt-4 grid gap-2">{client.clientNotifications.slice(0, 5).map((item) => <div key={item.id} className="rounded-xl bg-[#F7F3EB] p-4"><strong>{item.title}</strong>{item.body && <p className="mt-1 text-sm text-slate-500">{item.body}</p>}</div>)}{!client.clientNotifications.length && <p className="text-slate-500">لا توجد إشعارات بعد.</p>}</div></section>
+            <section className="mt-6 rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><Bell className="h-5 w-5" /><h2 className="text-xl font-black">آخر الإشعارات</h2></div><button onClick={() => setNotificationsOpen(true)} className="text-sm font-bold text-[#9A7D43]">عرض من الجرس</button></div><div className="mt-4 grid gap-2">{client.clientNotifications.slice(0, 5).map((item) => <div key={item.id} className={`rounded-xl p-4 ${item.readAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827]"}`}><div className="flex items-start justify-between gap-3"><strong>{item.title}</strong><time dateTime={item.createdAt} dir="ltr" className="shrink-0 text-xs text-slate-500">{new Date(item.createdAt).toLocaleDateString("ar")}</time></div>{item.body && <p className="mt-1 text-sm text-slate-500">{item.body}</p>}</div>)}{!client.clientNotifications.length && <p className="text-slate-500">لا توجد إشعارات بعد.</p>}</div></section>
           </div>}
 
           {!loading && client && section === "projects" && <div className="mt-7 grid gap-5">
@@ -256,6 +259,11 @@ export default function AdminClientWorkspacePage() {
                   ملاحظات داخلية اختيارية
                   <textarea name="notes" placeholder="لا تظهر هذه الملاحظات للعميل" rows={3} className="field font-normal" />
                 </label>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <label className="grid gap-2 font-bold">حالة المشروع<select name="status" defaultValue="PLANNING" className="field font-normal">{projectStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                  <label className="grid gap-2 font-bold">نسبة الإنجاز<input name="progress" type="number" min={0} max={100} defaultValue={0} className="field font-normal" /></label>
+                  <ProjectDueDateInput value={null} />
+                </div>
                 <SaveButton saving={saving} label="حفظ المشروع" />
               </form>
             </CreationPanel>
@@ -275,9 +283,33 @@ export default function AdminClientWorkspacePage() {
 
               {selectedProject && <details className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><summary className="cursor-pointer list-none p-6"><div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-black">ملخص اتفاق المشروع</h2><p className="mt-1 text-sm text-slate-500">{selectedProject.title} — للعرض فقط</p></div><ChevronDown className="h-5 w-5" /></div></summary><div className="grid gap-4 border-t border-[#D8D2C4] p-6 text-sm"><ReadOnly label="نطاق المشروع" value={selectedProject.agreementDetails || selectedProject.description} /><ReadOnly label={`الخطة المالية — ${selectedProject.currency}`} value={selectedProject.financialPlan} /><ReadOnly label="المراحل" value={selectedProject.stages} /><ReadOnly label="الملاحظات الداخلية" value={selectedProject.notes} />{!!selectedProject.links?.length && <div><p className="font-black">روابط المشروع</p><div className="mt-2 grid gap-1">{selectedProject.links.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer" className="text-[#9A7D43] underline">{link}</a>)}</div></div>}<p className="text-xs text-slate-500">لتعديل هذه البيانات انتقل إلى صفحة المشاريع.</p></div></details>}
 
-              <section><h2 className="text-xl font-black">سجل الفواتير</h2><div className="mt-4"><ListEmpty empty={!selectedInvoices.length} text="لا توجد فواتير لهذا المشروع.">{selectedInvoices.map((invoice) => <div key={invoice.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap justify-between gap-3"><strong>{invoice.number}</strong><span>{invoice.amount.toLocaleString("ar")} {invoice.currency}</span></div><p className="mt-2 text-sm text-slate-500">{invoice.status} — {invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("ar") : "دون تاريخ استحقاق"}</p>{invoice.status !== "PAID" && <form onSubmit={(event) => void submit(event, "POST", "تم تسجيل الفاتورة كمدفوعة وإشعار العميل")} className="mt-3"><input type="hidden" name="action" value="payment" /><input type="hidden" name="invoiceId" value={invoice.id} /><button disabled={saving} className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800">تسجيلها كمدفوعة</button></form>}</div>)}</ListEmpty></div></section>
+              <section><h2 className="text-xl font-black">سجل الفواتير</h2><div className="mt-4"><ListEmpty empty={!selectedInvoices.length} text="لا توجد فواتير لهذا المشروع.">{selectedInvoices.map((invoice) => <div key={invoice.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap justify-between gap-3"><div className="flex items-center gap-2"><strong>{invoice.number}</strong><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-xs font-bold text-[#9A7D43]">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</span></div><span>{invoice.amount.toLocaleString("ar")} {invoice.currency}</span></div><p className="mt-2 text-sm text-slate-500">{invoice.status} — {invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("ar") : "دون تاريخ استحقاق"}</p>{invoice.status !== "PAID" && <form onSubmit={(event) => void submit(event, "POST", "تم تسجيل الفاتورة كمدفوعة وإشعار العميل")} className="mt-3"><input type="hidden" name="action" value="payment" /><input type="hidden" name="invoiceId" value={invoice.id} /><button disabled={saving} className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800">تسجيلها كمدفوعة</button></form>}</div>)}</ListEmpty></div></section>
 
-              <section className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><button onClick={() => setInvoiceFormOpen((value) => !value)} className="flex w-full items-center justify-between gap-3 p-6 text-right"><div><h2 className="text-xl font-black">إصدار فاتورة</h2><p className="mt-1 text-sm text-slate-500">تُسحب بيانات الاتفاق من المشروع ولا تُكرر هنا.</p></div><ChevronDown className={`h-5 w-5 transition ${invoiceFormOpen ? "rotate-180" : ""}`} /></button>{invoiceFormOpen && <form onSubmit={(event) => void submit(event, "POST", "تم إصدار الفاتورة وإشعار العميل")} className="grid gap-3 border-t border-[#D8D2C4] p-6"><input type="hidden" name="action" value="invoice" /><input type="hidden" name="projectId" value={selectedProjectId} /><input type="hidden" name="currency" value={selectedProject?.currency || "USD"} /><div className="grid gap-3 md:grid-cols-2"><input name="number" required placeholder="رقم الفاتورة" className="field" /><input name="amount" type="number" min="0.01" step="0.01" required placeholder="المبلغ" className="field" /></div><div className="grid gap-3 md:grid-cols-3"><div className="field bg-slate-50 font-bold">{selectedProject?.currency || "USD"}</div><select name="status" defaultValue="DUE" className="field">{invoiceStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><input name="dueAt" type="date" className="field" /></div><SaveButton saving={saving} label="إصدار الفاتورة" /></form>}</section>
+              <section className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
+                <button onClick={() => setInvoiceFormOpen((value) => !value)} className="flex w-full items-center justify-between gap-3 p-6 text-right">
+                  <div><h2 className="text-xl font-black">إصدار فاتورة</h2><p className="mt-1 text-sm text-slate-500">تُسحب بيانات الاتفاق من المشروع ولا تُكرر هنا.</p></div>
+                  <ChevronDown className={`h-5 w-5 transition ${invoiceFormOpen ? "rotate-180" : ""}`} />
+                </button>
+                {invoiceFormOpen && (
+                  <form onSubmit={(event) => void submit(event, "POST", "تم إصدار الفاتورة وإشعار العميل")} className="grid gap-3 border-t border-[#D8D2C4] p-6">
+                    <input type="hidden" name="action" value="invoice" />
+                    <input type="hidden" name="projectId" value={selectedProjectId} />
+                    <input type="hidden" name="currency" value={selectedProject?.currency || "USD"} />
+                    <div className="rounded-xl bg-[#F7F3EB] p-4">
+                      <p className="font-black">رقم الفاتورة يُنشأ تلقائيًا</p>
+                      <p dir="ltr" className="mt-1 w-fit text-sm font-bold text-[#9A7D43]">{nextInvoiceNumber || "جارٍ تحديد الرقم..."}</p>
+                    </div>
+                    <input name="amount" type="number" min="0.01" step="0.01" required placeholder="المبلغ" className="field" />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <label className="grid gap-2 font-bold">نوع الفاتورة<select name="type" defaultValue="STANDARD" className="field font-normal"><option value="STANDARD">فاتورة</option><option value="RETURN">مرتجع</option></select></label>
+                      <label className="grid gap-2 font-bold">الحالة<select name="status" defaultValue="DUE" className="field font-normal">{invoiceStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                      <div className="field bg-slate-50 font-bold">{selectedProject?.currency || "USD"}</div>
+                      <NativeDateInput label="تاريخ الاستحقاق" ariaLabel="تاريخ الاستحقاق: يوم ثم شهر ثم سنة" />
+                    </div>
+                    <SaveButton saving={saving} label="إصدار الفاتورة" />
+                  </form>
+                )}
+              </section>
             </>}
           </div>}
 
@@ -338,41 +370,25 @@ function ProjectCoreFields({ project }: { project?: Project }) {
 }
 
 function ProjectDueDateInput({ value }: { value: string | null }) {
-  const initial = value?.slice(0, 10).split("-") || [];
-  const [day, setDay] = useState(initial[2] || "");
-  const [month, setMonth] = useState(initial[1] || "");
-  const [year, setYear] = useState(initial[0] || "");
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 12 }, (_, index) => currentYear - 1 + index);
-  const daysInMonth = month && year ? new Date(Number(year), Number(month), 0).getDate() : 31;
-  const dueAt = day && month && year ? `${year}-${month}-${day}` : "";
+  return <NativeDateInput label="موعد التسليم" ariaLabel="موعد التسليم: يوم ثم شهر ثم سنة" value={value?.slice(0, 10) || ""} />;
+}
 
-  return <fieldset className="grid gap-2 font-bold">
-    <legend>موعد التسليم</legend>
-    <input type="hidden" name="dueAt" value={dueAt} />
-    <div className="grid grid-cols-3 gap-2">
-      <select aria-label="يوم التسليم" value={day} onChange={(event) => setDay(event.target.value)} className="field font-normal">
-        <option value="">يوم</option>
-        {Array.from({ length: daysInMonth }, (_, index) => String(index + 1).padStart(2, "0")).map((item) => <option key={item} value={item}>{Number(item)}</option>)}
-      </select>
-      <select aria-label="شهر التسليم" value={month} onChange={(event) => {
-        const nextMonth = event.target.value;
-        setMonth(nextMonth);
-        if (day && year && nextMonth && Number(day) > new Date(Number(year), Number(nextMonth), 0).getDate()) setDay("");
-      }} className="field font-normal">
-        <option value="">شهر</option>
-        {Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0")).map((item) => <option key={item} value={item}>{Number(item)}</option>)}
-      </select>
-      <select aria-label="سنة التسليم" value={year} onChange={(event) => {
-        const nextYear = event.target.value;
-        setYear(nextYear);
-        if (day && month && nextYear && Number(day) > new Date(Number(nextYear), Number(month), 0).getDate()) setDay("");
-      }} className="field font-normal">
-        <option value="">سنة</option>
-        {years.map((item) => <option key={item} value={item}>{item}</option>)}
-      </select>
-    </div>
-  </fieldset>;
+function NativeDateInput({ label, ariaLabel, value = "" }: { label: string; ariaLabel: string; value?: string }) {
+  const [dateValue, setDateValue] = useState(value);
+  return <label className="grid gap-2 font-bold">
+    <span>{label}</span>
+    <span className="relative">
+      {!dateValue && <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-4 z-10 flex items-center text-sm font-normal text-slate-400">يوم / شهر / سنة</span>}
+      <input
+        name="dueAt"
+        type="date"
+        value={dateValue}
+        onChange={(event) => setDateValue(event.target.value)}
+        aria-label={ariaLabel}
+        className={`field w-full font-normal ${dateValue ? "" : "[&::-webkit-datetime-edit]:text-transparent"}`}
+      />
+    </span>
+  </label>;
 }
 
 function ProjectLinksFields({ initialLinks = [] }: { initialLinks?: string[] }) {

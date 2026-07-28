@@ -27,27 +27,36 @@ function parseCurrency(value: unknown) {
   return /^[A-Z]{3}$/.test(currency) ? currency : "USD";
 }
 
+function parseProjectStatus(value: unknown) {
+  const allowed = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD"];
+  return typeof value === "string" && allowed.includes(value) ? value : "PLANNING";
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   const { clientId } = await context.params;
   if (!(await allowedClient(request, clientId))) {
     return NextResponse.json({ error: "غير مصرح أو العميل غير موجود" }, { status: 403 });
   }
 
-  const client = await db.user.findUnique({
-    where: { id: clientId },
-    select: {
-      id: true, name: true, email: true, phone: true, isActive: true, createdAt: true,
-      clientProjects: {
-        orderBy: { updatedAt: "desc" },
-        include: {
-          files: { orderBy: { createdAt: "desc" } },
-          invoices: { orderBy: { createdAt: "desc" } },
+  const year = new Date().getUTCFullYear();
+  const [client, invoiceSequence] = await Promise.all([
+    db.user.findUnique({
+      where: { id: clientId },
+      select: {
+        id: true, name: true, email: true, phone: true, isActive: true, createdAt: true,
+        clientProjects: {
+          orderBy: { updatedAt: "desc" },
+          include: {
+            files: { orderBy: { createdAt: "desc" } },
+            invoices: { orderBy: { createdAt: "desc" } },
+          },
         },
+        clientMessages: { orderBy: { createdAt: "desc" }, take: 100 },
+        clientNotifications: { orderBy: { createdAt: "desc" }, take: 100 },
       },
-      clientMessages: { orderBy: { createdAt: "desc" }, take: 100 },
-      clientNotifications: { orderBy: { createdAt: "desc" }, take: 100 },
-    },
-  });
+    }),
+    db.invoiceSequence.findUnique({ where: { year }, select: { lastNumber: true } }),
+  ]);
 
   if (!client) return NextResponse.json({ error: "العميل غير موجود" }, { status: 404 });
   return NextResponse.json({
@@ -58,6 +67,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         invoices: project.invoices.map((invoice) => ({ ...invoice, amount: Number(invoice.amount) })),
       })),
     },
+    nextInvoiceNumber: `CW-${year}-${String((invoiceSequence?.lastNumber || 0) + 1).padStart(4, "0")}`,
   });
 }
 
@@ -73,6 +83,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (action === "project") {
       const title = typeof body?.title === "string" ? body.title.trim() : "";
       if (title.length < 2) return NextResponse.json({ error: "اسم المشروع مطلوب" }, { status: 400 });
+      const progress = Number(body?.progress);
       const project = await db.clientProject.create({
         data: {
           clientId,
@@ -84,6 +95,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
           stages: body.stages?.trim() || null,
           links: parseLinks(body.links),
           notes: body.notes?.trim() || null,
+          status: parseProjectStatus(body.status),
+          progress: Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : 0,
+          dueAt: body.dueAt ? new Date(body.dueAt) : null,
         },
       });
       await notify(clientId, "تمت إضافة مشروع جديد", title, "projects");
@@ -103,18 +117,33 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     if (action === "invoice") {
       const projectId = typeof body?.projectId === "string" ? body.projectId : "";
-      const number = typeof body?.number === "string" ? body.number.trim() : "";
       const amount = Number(body?.amount);
+      const invoiceType = body?.type === "RETURN" ? "RETURN" : "STANDARD";
       const project = await db.clientProject.findFirst({ where: { id: projectId, clientId }, select: { id: true, title: true, currency: true } });
-      if (!project || !number || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: "بيانات الفاتورة غير مكتملة" }, { status: 400 });
-      const invoice = await db.clientInvoice.create({
-        data: {
-          projectId, number, amount, currency: parseCurrency(body.currency || project.currency),
-          status: body.status || "DUE",
-          dueAt: body.dueAt ? new Date(body.dueAt) : null,
-        },
+      if (!project || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: "بيانات الفاتورة غير مكتملة" }, { status: 400 });
+
+      const year = new Date().getUTCFullYear();
+      const invoice = await db.$transaction(async (transaction) => {
+        const sequence = await transaction.invoiceSequence.upsert({
+          where: { year },
+          create: { year, lastNumber: 1 },
+          update: { lastNumber: { increment: 1 } },
+        });
+        const number = `CW-${year}-${String(sequence.lastNumber).padStart(4, "0")}`;
+
+        return transaction.clientInvoice.create({
+          data: {
+            projectId,
+            number,
+            type: invoiceType,
+            amount,
+            currency: parseCurrency(body.currency || project.currency),
+            status: body.status || "DUE",
+            dueAt: body.dueAt ? new Date(body.dueAt) : null,
+          },
+        });
       });
-      await notify(clientId, "صدرت فاتورة جديدة", `${number} — ${amount} ${invoice.currency}`, "invoices");
+      await notify(clientId, invoice.type === "RETURN" ? "صدر مرتجع جديد" : "صدرت فاتورة جديدة", `${invoice.number} — ${amount} ${invoice.currency}`, "invoices");
       return NextResponse.json({ invoice: { ...invoice, amount: Number(invoice.amount) } }, { status: 201 });
     }
 
@@ -177,7 +206,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ...(typeof body.stages === "string" ? { stages: body.stages.trim() || null } : {}),
         ...(body.links !== undefined ? { links: parseLinks(body.links) } : {}),
         ...(typeof body.notes === "string" ? { notes: body.notes.trim() || null } : {}),
-        ...(body.status ? { status: body.status } : {}),
+        ...(body.status ? { status: parseProjectStatus(body.status) } : {}),
         ...(Number.isFinite(progress) ? { progress: Math.max(0, Math.min(100, progress)) } : {}),
         ...(body.dueAt !== undefined ? { dueAt: body.dueAt ? new Date(body.dueAt) : null } : {}),
       },

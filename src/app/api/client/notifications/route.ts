@@ -14,18 +14,14 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
   const notificationId = typeof body?.notificationId === "string" ? body.notificationId : "";
-
-  if (notificationId) {
-    await db.clientNotification.updateMany({
-      where: { id: notificationId, clientId: client.id },
-      data: { readAt: new Date() },
-    });
-  } else {
-    await db.clientNotification.updateMany({
-      where: { clientId: client.id, readAt: null },
-      data: { readAt: new Date() },
-    });
+  if (!notificationId) {
+    return NextResponse.json({ error: "معرّف الإشعار مطلوب" }, { status: 400 });
   }
+
+  await db.clientNotification.updateMany({
+    where: { id: notificationId, clientId: client.id, readAt: null },
+    data: { readAt: new Date() },
+  });
 
   return NextResponse.json({ ok: true });
 }
