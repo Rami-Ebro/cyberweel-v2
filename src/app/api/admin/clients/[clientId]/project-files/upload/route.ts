@@ -2,6 +2,7 @@ import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextRequest, NextResponse } from "next/server";
 import { canAdmin } from "@/lib/admin-permissions";
 import { db } from "@/lib/db";
+import { auditAdminAction } from "@/lib/audit-log";
 
 export const runtime = "nodejs";
 
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
         const project = await db.clientProject.findFirst({
           where: { id: payload.projectId, clientId: payload.clientId },
-          select: { id: true },
+          select: { id: true, title: true },
         });
         if (!project) throw new Error("المشروع غير موجود");
 
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           select: { id: true },
         });
         if (!existing) {
-          await db.clientFile.create({
+          const file = await db.clientFile.create({
             data: {
               projectId: project.id,
               name: cleanFilename(payload.originalName),
@@ -104,6 +105,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
               size: Math.round(payload.size),
               storageProvider: "VERCEL_BLOB",
             },
+          });
+          await auditAdminAction(request, {
+            action: "CREATE", entityType: "CLIENT_FILE", entityId: file.id, entityLabel: file.name,
+            summary: `رفع المرفق ${file.name} إلى ${project.title}`,
+            afterData: { name: file.name, kind: file.kind, size: file.size, storageProvider: file.storageProvider, projectId: project.id, projectTitle: project.title },
           });
         }
       },

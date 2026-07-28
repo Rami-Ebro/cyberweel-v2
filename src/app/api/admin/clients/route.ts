@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { canAdmin } from "@/lib/admin-permissions";
 import { hashPassword, normalizeEmail, normalizePhone } from "@/lib/partner-auth";
+import { auditAdminAction } from "@/lib/audit-log";
 
 function parseIdentifier(identifier: string) {
   const isEmail = identifier.includes("@");
@@ -87,6 +88,14 @@ export async function POST(request: NextRequest) {
         : null;
       return { client, project };
     });
+    await auditAdminAction(request, {
+      action: "CREATE",
+      entityType: "CLIENT_ACCOUNT",
+      entityId: result.client.id,
+      entityLabel: result.client.name || result.client.email,
+      summary: `${existing ? "أعاد تفعيل" : "أنشأ"} حساب العميل ${result.client.name || result.client.email}`,
+      afterData: { name: result.client.name, email: result.client.email, phone: result.client.phone, isActive: result.client.isActive, projectId: result.project?.id || null, projectTitle: result.project?.title || null },
+    });
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === "REFERRAL_UNAVAILABLE") {
@@ -106,13 +115,22 @@ export async function PATCH(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: "حساب العميل مطلوب" }, { status: 400 });
   if (password && password.length < 8) return NextResponse.json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" }, { status: 400 });
 
-  const client = await db.user.findFirst({ where: { id: userId, role: "CLIENT" }, select: { id: true } });
+  const client = await db.user.findFirst({ where: { id: userId, role: "CLIENT" }, select: { id: true, name: true, email: true, phone: true, isActive: true } });
   if (!client) return NextResponse.json({ error: "حساب العميل غير موجود" }, { status: 404 });
 
   const updated = await db.user.update({
     where: { id: client.id },
     data: { ...(isActive !== undefined ? { isActive } : {}), ...(password ? { passwordHash: hashPassword(password) } : {}) },
     select: { id: true, name: true, email: true, phone: true, isActive: true },
+  });
+  await auditAdminAction(request, {
+    action: password ? "PASSWORD_RESET" : isActive ? "ACTIVATE" : "SUSPEND",
+    entityType: "CLIENT_ACCOUNT",
+    entityId: updated.id,
+    entityLabel: updated.name || updated.email,
+    summary: password ? `غيّر كلمة مرور العميل ${updated.name || updated.email}` : `${updated.isActive ? "فعّل" : "علّق"} حساب العميل ${updated.name || updated.email}`,
+    beforeData: { name: client.name, email: client.email, phone: client.phone, isActive: client.isActive },
+    afterData: { name: updated.name, email: updated.email, phone: updated.phone, isActive: updated.isActive, ...(password ? { passwordChanged: true } : {}) },
   });
   return NextResponse.json({ client: updated });
 }
