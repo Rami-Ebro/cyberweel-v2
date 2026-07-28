@@ -59,6 +59,7 @@ export default function ClientDashboardPage() {
     setLoading(false);
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, []);
 
   async function saveAccount(event: React.FormEvent<HTMLFormElement>) {
@@ -126,27 +127,6 @@ export default function ClientDashboardPage() {
     setNotificationsOpen(false);
   }
 
-  async function toggleNotifications() {
-    if (notificationsOpen) {
-      setNotificationsOpen(false);
-      return;
-    }
-
-    setNotificationsOpen(true);
-    if (!stats?.unreadNotifications) return;
-
-    const response = await fetch("/api/client/notifications", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
-    if (!response.ok) return setNotice("تعذر تحديث حالة الإشعارات");
-
-    const readAt = new Date().toISOString();
-    setNotifications((items) => items.map((item) => item.readAt ? item : { ...item, readAt }));
-    setStats((value) => value ? { ...value, unreadNotifications: 0 } : value);
-  }
-
   const nav = [
     ["overview", "نظرة عامة", BarChart3],
     ["projects", "المشاريع", BriefcaseBusiness],
@@ -186,7 +166,7 @@ export default function ClientDashboardPage() {
           <header className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div><p className="text-sm font-bold text-[#9A7D43]">مساحة العميل</p><h1 className="mt-1 text-3xl font-black">مرحبًا {client?.name || "بك"}</h1></div>
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => void toggleNotifications()} className="relative flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
+              <button onClick={() => setNotificationsOpen((value) => !value)} className="relative flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
                 <Bell className="h-5 w-5" />الإشعارات
                 {!!stats?.unreadNotifications && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{stats.unreadNotifications}</span>}
               </button>
@@ -197,8 +177,16 @@ export default function ClientDashboardPage() {
                 <div className="flex items-center justify-between px-2 py-2"><strong>الإشعارات</strong><span className="text-xs text-slate-500">{stats?.unreadNotifications || 0} غير مقروء</span></div>
                 <div className="max-h-96 space-y-2 overflow-y-auto">
                   {notifications.map((notification) => (
-                    <button key={notification.id} onClick={() => void openNotification(notification)} className={`w-full rounded-xl p-3 text-right ${notification.readAt ? "bg-slate-50" : "bg-amber-50"}`}>
-                      <div className="flex items-center justify-between gap-3"><strong className="text-sm">{notification.title}</strong>{!notification.readAt && <span className="h-2 w-2 rounded-full bg-red-600" />}</div>
+                    <button key={notification.id} onClick={() => void openNotification(notification)} className={`w-full rounded-xl p-3 text-right ${notification.readAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827]"}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="flex items-center gap-2">
+                          <strong className="text-sm">{notification.title}</strong>
+                          {!notification.readAt && <span className="h-2 w-2 shrink-0 rounded-full bg-red-600" />}
+                        </span>
+                        <time dateTime={notification.createdAt} dir="ltr" className="shrink-0 text-xs text-slate-500">
+                          {new Date(notification.createdAt).toLocaleDateString("ar")}
+                        </time>
+                      </div>
                       {notification.body && <p className="mt-1 text-xs leading-5 text-slate-500">{notification.body}</p>}
                     </button>
                   ))}
