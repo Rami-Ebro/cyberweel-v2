@@ -57,6 +57,24 @@ function JsonDetails({ title, value }: { title: string; value: unknown }) {
   return <div><p className="mb-2 text-xs font-black text-slate-500">{title}</p><pre dir="ltr" className="max-h-64 overflow-auto rounded-xl bg-[#111827] p-4 text-left text-xs leading-6 text-white">{JSON.stringify(value, null, 2)}</pre></div>;
 }
 
+function FilterDateInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="grid gap-1 text-xs font-bold text-slate-500">
+      {label}
+      <span className="relative">
+        {!value && <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-4 z-10 flex items-center text-sm font-normal text-slate-400">يوم / شهر / سنة</span>}
+        <input
+          type="date"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          aria-label={`${label}: يوم ثم شهر ثم سنة`}
+          className={`w-full rounded-xl border border-[#D8D2C4] px-4 py-3 text-[#111827] ${value ? "" : "[&::-webkit-datetime-edit]:text-transparent"}`}
+        />
+      </span>
+    </label>
+  );
+}
+
 export default function AdminAuditLogPage() {
   const [data, setData] = useState<AuditResponse | null>(null);
   const [filters, setFilters] = useState({ search: "", action: "", entityType: "", actor: "", from: "", to: "" });
@@ -115,8 +133,8 @@ export default function AdminAuditLogPage() {
           <select value={filters.action} onChange={(event) => setFilters((value) => ({ ...value, action: event.target.value }))} className="rounded-xl border border-[#D8D2C4] bg-white px-4 py-3"><option value="">كل العمليات</option>{Object.entries(actionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
           <select value={filters.entityType} onChange={(event) => setFilters((value) => ({ ...value, entityType: event.target.value }))} className="rounded-xl border border-[#D8D2C4] bg-white px-4 py-3"><option value="">كل الأقسام</option>{(data?.entityTypes || []).map((value) => <option key={value} value={value}>{entityLabels[value] || value}</option>)}</select>
           <select value={filters.actor} onChange={(event) => setFilters((value) => ({ ...value, actor: event.target.value }))} className="rounded-xl border border-[#D8D2C4] bg-white px-4 py-3"><option value="">كل أعضاء الإدارة</option>{(data?.actors || []).map((actor) => <option key={actor.actorEmail} value={actor.actorEmail}>{actor.actorName || actor.actorEmail}</option>)}</select>
-          <label className="grid gap-1 text-xs font-bold text-slate-500">من تاريخ<input type="date" value={filters.from} onChange={(event) => setFilters((value) => ({ ...value, from: event.target.value }))} className="rounded-xl border border-[#D8D2C4] px-4 py-3 text-[#111827]" /></label>
-          <label className="grid gap-1 text-xs font-bold text-slate-500">إلى تاريخ<input type="date" value={filters.to} onChange={(event) => setFilters((value) => ({ ...value, to: event.target.value }))} className="rounded-xl border border-[#D8D2C4] px-4 py-3 text-[#111827]" /></label>
+          <FilterDateInput label="من تاريخ" value={filters.from} onChange={(from) => setFilters((value) => ({ ...value, from }))} />
+          <FilterDateInput label="إلى تاريخ" value={filters.to} onChange={(to) => setFilters((value) => ({ ...value, to }))} />
           <div className="flex gap-2 self-end"><button className="rounded-xl bg-[#B89A5A] px-5 py-3 font-black">تطبيق</button><button type="button" onClick={clearFilters} className="rounded-xl border border-[#D8D2C4] px-5 py-3 font-bold">مسح</button></div>
         </form>
 
