@@ -16,10 +16,30 @@ async function notify(clientId: string, title: string, body: string | null, sect
   return db.clientNotification.create({ data: { clientId, title, body, section } });
 }
 
+function normalizeProjectLink(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed.replace(/^\/+/, "")}`;
+  try {
+    const url = new URL(candidate);
+    if (!["http:", "https:"].includes(url.protocol) || !url.hostname || !url.hostname.includes(".")) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 function parseLinks(value: unknown) {
-  if (Array.isArray(value)) return [...new Set(value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter((item) => /^https?:\/\//i.test(item)))];
-  if (typeof value !== "string") return [];
-  return [...new Set(value.split(/\r?\n/).map((item) => item.trim()).filter((item) => /^https?:\/\//i.test(item)))];
+  const rawLinks = Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
+    : typeof value === "string"
+      ? value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean)
+      : [];
+  const parsed = rawLinks.map((original) => ({ original, normalized: normalizeProjectLink(original) }));
+  return {
+    links: [...new Set(parsed.flatMap((item) => item.normalized ? [item.normalized] : []))],
+    invalid: parsed.filter((item) => !item.normalized).map((item) => item.original),
+  };
 }
 
 function parseCurrency(value: unknown) {
@@ -84,6 +104,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const title = typeof body?.title === "string" ? body.title.trim() : "";
       if (title.length < 2) return NextResponse.json({ error: "اسم المشروع مطلوب" }, { status: 400 });
       const progress = Number(body?.progress);
+      const parsedLinks = parseLinks(body.links);
+      if (parsedLinks.invalid.length) {
+        return NextResponse.json({ error: `الرابط غير صالح: ${parsedLinks.invalid[0]}. اكتب اسم النطاق مثل example.com أو رابطًا كاملًا.` }, { status: 400 });
+      }
       const project = await db.clientProject.create({
         data: {
           clientId,
@@ -93,7 +117,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           financialPlan: body.financialPlan?.trim() || null,
           currency: parseCurrency(body.currency),
           stages: body.stages?.trim() || null,
-          links: parseLinks(body.links),
+          links: parsedLinks.links,
           notes: body.notes?.trim() || null,
           status: parseProjectStatus(body.status),
           progress: Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : 0,
@@ -195,6 +219,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const project = await db.clientProject.findFirst({ where: { id: projectId, clientId }, select: { id: true } });
     if (!project) return NextResponse.json({ error: "المشروع غير موجود" }, { status: 404 });
     const progress = Number(body.progress);
+    const parsedLinks = body.links !== undefined ? parseLinks(body.links) : null;
+    if (parsedLinks?.invalid.length) {
+      return NextResponse.json({ error: `الرابط غير صالح: ${parsedLinks.invalid[0]}. اكتب اسم النطاق مثل example.com أو رابطًا كاملًا.` }, { status: 400 });
+    }
     const updated = await db.clientProject.update({
       where: { id: project.id },
       data: {
@@ -204,7 +232,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ...(typeof body.financialPlan === "string" ? { financialPlan: body.financialPlan.trim() || null } : {}),
         ...(body.currency !== undefined ? { currency: parseCurrency(body.currency) } : {}),
         ...(typeof body.stages === "string" ? { stages: body.stages.trim() || null } : {}),
-        ...(body.links !== undefined ? { links: parseLinks(body.links) } : {}),
+        ...(parsedLinks ? { links: parsedLinks.links } : {}),
         ...(typeof body.notes === "string" ? { notes: body.notes.trim() || null } : {}),
         ...(body.status ? { status: parseProjectStatus(body.status) } : {}),
         ...(Number.isFinite(progress) ? { progress: Math.max(0, Math.min(100, progress)) } : {}),
