@@ -128,6 +128,12 @@ model ClientProject {
   referral    PartnerReferral?     @relation(fields: [referralId], references: [id], onDelete: SetNull)
   title       String
   description String?
+  agreementDetails String?
+  financialPlan    String?
+  currency         String               @default("USD")
+  stages           String?
+  links            String[]             @default([])
+  notes            String?
   status      ClientProjectStatus  @default(PLANNING)
   progress    Int                  @default(0)
   startsAt    DateTime?
@@ -150,6 +156,7 @@ model ClientFile {
   url       String
   kind      String?
   size      Int?
+  storageProvider String?
   createdAt DateTime      @default(now())
 
   @@index([projectId])
