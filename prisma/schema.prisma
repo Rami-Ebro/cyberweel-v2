@@ -210,16 +210,18 @@ model ClientMessage {
 }
 
 model ClientNotification {
-  id        String   @id @default(cuid())
-  clientId  String
-  client    User     @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  title     String
-  body      String?
-  section   String
-  readAt    DateTime?
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  clientId    String
+  client      User     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title       String
+  body        String?
+  section     String
+  readAt      DateTime?
+  adminReadAt DateTime?
+  createdAt   DateTime @default(now())
 
   @@index([clientId, readAt])
+  @@index([clientId, adminReadAt])
   @@index([clientId, createdAt])
 }
 
