@@ -27,6 +27,11 @@ function parseCurrency(value: unknown) {
   return /^[A-Z]{3}$/.test(currency) ? currency : "USD";
 }
 
+function parseProjectStatus(value: unknown) {
+  const allowed = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD"];
+  return typeof value === "string" && allowed.includes(value) ? value : "PLANNING";
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   const { clientId } = await context.params;
   if (!(await allowedClient(request, clientId))) {
@@ -78,6 +83,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (action === "project") {
       const title = typeof body?.title === "string" ? body.title.trim() : "";
       if (title.length < 2) return NextResponse.json({ error: "اسم المشروع مطلوب" }, { status: 400 });
+      const progress = Number(body?.progress);
       const project = await db.clientProject.create({
         data: {
           clientId,
@@ -89,6 +95,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
           stages: body.stages?.trim() || null,
           links: parseLinks(body.links),
           notes: body.notes?.trim() || null,
+          status: parseProjectStatus(body.status),
+          progress: Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : 0,
+          dueAt: body.dueAt ? new Date(body.dueAt) : null,
         },
       });
       await notify(clientId, "تمت إضافة مشروع جديد", title, "projects");
@@ -181,6 +190,20 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const body = await request.json().catch(() => null);
   const action = typeof body?.action === "string" ? body.action : "";
 
+  if (action === "notification-read") {
+    const notificationId = typeof body?.notificationId === "string" ? body.notificationId : "";
+    const notification = await db.clientNotification.findFirst({
+      where: { id: notificationId, clientId },
+      select: { id: true },
+    });
+    if (!notification) return NextResponse.json({ error: "الإشعار غير موجود" }, { status: 404 });
+    const updated = await db.clientNotification.update({
+      where: { id: notification.id },
+      data: { adminReadAt: new Date() },
+    });
+    return NextResponse.json({ notification: updated });
+  }
+
   if (action === "project") {
     const projectId = typeof body?.projectId === "string" ? body.projectId : "";
     const project = await db.clientProject.findFirst({ where: { id: projectId, clientId }, select: { id: true } });
@@ -197,7 +220,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ...(typeof body.stages === "string" ? { stages: body.stages.trim() || null } : {}),
         ...(body.links !== undefined ? { links: parseLinks(body.links) } : {}),
         ...(typeof body.notes === "string" ? { notes: body.notes.trim() || null } : {}),
-        ...(body.status ? { status: body.status } : {}),
+        ...(body.status ? { status: parseProjectStatus(body.status) } : {}),
         ...(Number.isFinite(progress) ? { progress: Math.max(0, Math.min(100, progress)) } : {}),
         ...(body.dueAt !== undefined ? { dueAt: body.dueAt ? new Date(body.dueAt) : null } : {}),
       },
