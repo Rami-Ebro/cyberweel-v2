@@ -114,17 +114,22 @@ export default function ClientDashboardPage() {
 
   async function openNotification(notification: Notification) {
     if (!notification.readAt) {
+      const readAt = new Date().toISOString();
+      setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, readAt } : item));
+      setStats((value) => value ? { ...value, unreadNotifications: Math.max(0, value.unreadNotifications - 1) } : value);
+
       const response = await fetch("/api/client/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notificationId: notification.id }),
       });
-      if (!response.ok) return setNotice("تعذر تحديث حالة الإشعار");
-      setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item));
-      setStats((value) => value ? { ...value, unreadNotifications: Math.max(0, value.unreadNotifications - 1) } : value);
+      if (!response.ok) {
+        setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, readAt: null } : item));
+        setStats((value) => value ? { ...value, unreadNotifications: value.unreadNotifications + 1 } : value);
+        return setNotice("تعذر تحديث حالة الإشعار");
+      }
     }
     setSection(notification.section);
-    setNotificationsOpen(false);
   }
 
   const nav = [
