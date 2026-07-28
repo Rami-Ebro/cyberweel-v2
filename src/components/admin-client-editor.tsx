@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
-import { BarChart3, Bell, BriefcaseBusiness, ChevronDown, FileText, Mail, Paperclip, Plus, ReceiptText, RefreshCw, Trash2, UserCog } from "lucide-react";
+import { BarChart3, Bell, BriefcaseBusiness, ChevronDown, Eye, EyeOff, FileText, Mail, Paperclip, PauseCircle, PlayCircle, Plus, ReceiptText, RefreshCw, Trash2, UserCog } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 
 type Section = "overview" | "projects" | "files" | "invoices" | "messages" | "account";
@@ -29,11 +29,11 @@ const projectStatuses = [
 ] as const;
 const invoiceStatuses = [["DRAFT", "مسودة"], ["DUE", "مستحقة"], ["OVERDUE", "متأخرة"]] as const;
 
-export function AdminClientEditor({ onPreview }: { onPreview: () => void }) {
+export function AdminClientEditor({ initialSection = "overview", onPreview }: { initialSection?: Section; onPreview: (notice?: string) => void }) {
   const params = useParams<{ clientId: string }>();
   const router = useRouter();
   const [client, setClient] = useState<Client | null>(null);
-  const [section, setSection] = useState<Section>("overview");
+  const [section, setSection] = useState<Section>(initialSection);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
@@ -45,6 +45,7 @@ export function AdminClientEditor({ onPreview }: { onPreview: () => void }) {
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [nextInvoiceNumber, setNextInvoiceNumber] = useState("");
   const [newProjectFormVersion, setNewProjectFormVersion] = useState(0);
+  const [showAccountPassword, setShowAccountPassword] = useState(false);
 
   async function load(clearNotice = true) {
     setLoading(true);
@@ -90,6 +91,7 @@ export function AdminClientEditor({ onPreview }: { onPreview: () => void }) {
       if (values.action === "invoice") setInvoiceFormOpen(false);
       if (values.action === "message") setMessageFormOpen(false);
       setNotice(success);
+      onPreview(success);
     } finally {
       setSaving(false);
     }
@@ -152,7 +154,51 @@ export function AdminClientEditor({ onPreview }: { onPreview: () => void }) {
         setProjectFormOpen(false);
       }
       await load(false);
-      setNotice(method === "POST" ? "تم حفظ المشروع وإشعار العميل" : "تم تحديث المشروع وإشعار العميل");
+      const success = method === "POST" ? "تم حفظ المشروع وإشعار العميل" : "تم تحديث المشروع وإشعار العميل";
+      setNotice(success);
+      onPreview(success);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function changeClientPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!client) return;
+    const form = event.currentTarget;
+    const password = String(new FormData(form).get("password") || "");
+    if (password.length < 8) return setNotice("أدخل كلمة مرور جديدة من 8 أحرف على الأقل");
+
+    setSaving(true);
+    setNotice("");
+    try {
+      const response = await fetch("/api/admin/clients", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: client.id, password }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) return setNotice(data?.error || "تعذر تغيير كلمة مرور العميل");
+      form.reset();
+      onPreview("تم تغيير كلمة مرور العميل");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleClientStatus() {
+    if (!client) return;
+    setSaving(true);
+    setNotice("");
+    try {
+      const response = await fetch("/api/admin/clients", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: client.id, isActive: !client.isActive }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) return setNotice(data?.error || "تعذر تحديث حالة حساب العميل");
+      onPreview(client.isActive ? "تم تعليق حساب العميل" : "تم تفعيل حساب العميل");
     } finally {
       setSaving(false);
     }
@@ -321,7 +367,34 @@ export function AdminClientEditor({ onPreview }: { onPreview: () => void }) {
             </CreationPanel>
           </div>}
 
-          {!loading && client && section === "account" && <Editor title="بيانات حساب العميل"><div className="grid gap-3 text-sm"><p><b>الاسم:</b> {client.name || "—"}</p><p><b>البريد:</b> {client.email}</p><p><b>الهاتف:</b> {client.phone || "—"}</p><p><b>الحالة:</b> {client.isActive ? "فعال" : "معلّق"}</p><Link href="/admin/clients" className="mt-3 w-fit rounded-xl bg-[#111827] px-5 py-3 font-black text-white">إدارة الحساب وكلمة المرور</Link></div></Editor>}
+          {!loading && client && section === "account" && <Editor title="إدارة حساب العميل">
+            <div className="grid gap-4 text-sm">
+              <div className="grid gap-3 rounded-xl bg-[#F7F3EB] p-4 md:grid-cols-2">
+                <p><b>الاسم:</b> {client.name || "—"}</p>
+                <p><b>البريد:</b> {client.email}</p>
+                <p><b>الهاتف:</b> {client.phone || "—"}</p>
+                <p><b>الحالة:</b> {client.isActive ? "فعال" : "معلّق"}</p>
+              </div>
+              <form onSubmit={changeClientPassword} className="grid gap-3">
+                <label className="grid gap-2 font-bold">كلمة مرور جديدة
+                  <span className="relative">
+                    <input name="password" type={showAccountPassword ? "text" : "password"} minLength={8} required autoComplete="new-password" placeholder="8 أحرف على الأقل" className="field w-full pl-12 font-normal" />
+                    <button type="button" onClick={() => setShowAccountPassword((value) => !value)} aria-label={showAccountPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"} className="absolute left-3 top-1/2 -translate-y-1/2 p-2">
+                      {showAccountPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </span>
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  <SaveButton saving={saving} label="حفظ كلمة المرور" />
+                  <button type="button" disabled={saving} onClick={() => void toggleClientStatus()} className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 font-black text-amber-800 disabled:opacity-50">
+                    {client.isActive ? <PauseCircle className="h-5 w-5" /> : <PlayCircle className="h-5 w-5" />}
+                    {client.isActive ? "تعليق الحساب" : "تفعيل الحساب"}
+                  </button>
+                  <button type="button" onClick={() => onPreview()} className="rounded-xl border border-[#D8D2C4] px-5 py-3 font-black">إلغاء</button>
+                </div>
+              </form>
+            </div>
+          </Editor>}
         </section>
       </div>
     </main>
