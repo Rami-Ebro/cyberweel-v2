@@ -277,7 +277,30 @@ export default function AdminClientWorkspacePage() {
 
               <section><h2 className="text-xl font-black">سجل الفواتير</h2><div className="mt-4"><ListEmpty empty={!selectedInvoices.length} text="لا توجد فواتير لهذا المشروع.">{selectedInvoices.map((invoice) => <div key={invoice.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap justify-between gap-3"><strong>{invoice.number}</strong><span>{invoice.amount.toLocaleString("ar")} {invoice.currency}</span></div><p className="mt-2 text-sm text-slate-500">{invoice.status} — {invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("ar") : "دون تاريخ استحقاق"}</p>{invoice.status !== "PAID" && <form onSubmit={(event) => void submit(event, "POST", "تم تسجيل الفاتورة كمدفوعة وإشعار العميل")} className="mt-3"><input type="hidden" name="action" value="payment" /><input type="hidden" name="invoiceId" value={invoice.id} /><button disabled={saving} className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800">تسجيلها كمدفوعة</button></form>}</div>)}</ListEmpty></div></section>
 
-              <section className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><button onClick={() => setInvoiceFormOpen((value) => !value)} className="flex w-full items-center justify-between gap-3 p-6 text-right"><div><h2 className="text-xl font-black">إصدار فاتورة</h2><p className="mt-1 text-sm text-slate-500">تُسحب بيانات الاتفاق من المشروع ولا تُكرر هنا.</p></div><ChevronDown className={`h-5 w-5 transition ${invoiceFormOpen ? "rotate-180" : ""}`} /></button>{invoiceFormOpen && <form onSubmit={(event) => void submit(event, "POST", "تم إصدار الفاتورة وإشعار العميل")} className="grid gap-3 border-t border-[#D8D2C4] p-6"><input type="hidden" name="action" value="invoice" /><input type="hidden" name="projectId" value={selectedProjectId} /><input type="hidden" name="currency" value={selectedProject?.currency || "USD"} /><div className="grid gap-3 md:grid-cols-2"><input name="number" required placeholder="رقم الفاتورة" className="field" /><input name="amount" type="number" min="0.01" step="0.01" required placeholder="المبلغ" className="field" /></div><div className="grid gap-3 md:grid-cols-3"><div className="field bg-slate-50 font-bold">{selectedProject?.currency || "USD"}</div><select name="status" defaultValue="DUE" className="field">{invoiceStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><input name="dueAt" type="date" className="field" /></div><SaveButton saving={saving} label="إصدار الفاتورة" /></form>}</section>
+              <section className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
+                <button onClick={() => setInvoiceFormOpen((value) => !value)} className="flex w-full items-center justify-between gap-3 p-6 text-right">
+                  <div><h2 className="text-xl font-black">إصدار فاتورة</h2><p className="mt-1 text-sm text-slate-500">تُسحب بيانات الاتفاق من المشروع ولا تُكرر هنا.</p></div>
+                  <ChevronDown className={`h-5 w-5 transition ${invoiceFormOpen ? "rotate-180" : ""}`} />
+                </button>
+                {invoiceFormOpen && (
+                  <form onSubmit={(event) => void submit(event, "POST", "تم إصدار الفاتورة وإشعار العميل")} className="grid gap-3 border-t border-[#D8D2C4] p-6">
+                    <input type="hidden" name="action" value="invoice" />
+                    <input type="hidden" name="projectId" value={selectedProjectId} />
+                    <input type="hidden" name="currency" value={selectedProject?.currency || "USD"} />
+                    <div className="rounded-xl bg-[#F7F3EB] p-4">
+                      <p className="font-black">رقم الفاتورة يُنشأ تلقائيًا</p>
+                      <p className="mt-1 text-sm text-slate-500">مثال: CW-{new Date().getFullYear()}-0001</p>
+                    </div>
+                    <input name="amount" type="number" min="0.01" step="0.01" required placeholder="المبلغ" className="field" />
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="field bg-slate-50 font-bold">{selectedProject?.currency || "USD"}</div>
+                      <select name="status" defaultValue="DUE" className="field">{invoiceStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+                      <input name="dueAt" type="date" className="field" />
+                    </div>
+                    <SaveButton saving={saving} label="إصدار الفاتورة" />
+                  </form>
+                )}
+              </section>
             </>}
           </div>}
 
