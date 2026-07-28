@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, Bell, BriefcaseBusiness, FileText, Home, LogOut, Mail, ReceiptText, RefreshCw, Send, UserCog } from "lucide-react";
+import { BarChart3, Bell, BriefcaseBusiness, FileText, Home, LogOut, Mail, Pencil, ReceiptText, RefreshCw, Send, UserCog } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 
 type Section = "overview" | "projects" | "files" | "invoices" | "messages" | "account";
@@ -33,10 +33,12 @@ const invoiceLabel: Record<string, string> = { DRAFT: "مسودة", DUE: "مست
 
 export function ClientDashboard({
   adminClientId,
+  initialNotice = "",
   onManage,
 }: {
   adminClientId?: string;
-  onManage?: () => void;
+  initialNotice?: string;
+  onManage?: (section: "projects" | "files" | "invoices" | "account") => void;
 }) {
   const router = useRouter();
   const isAdminMirror = Boolean(adminClientId);
@@ -51,7 +53,7 @@ export function ClientDashboard({
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState(initialNotice);
 
   async function load(clearNotice = true) {
     setLoading(true);
@@ -199,8 +201,7 @@ export function ClientDashboard({
             {nav.map(([key, label, Icon]) => <button key={key} onClick={() => setSection(key)} className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${section === key ? "bg-[#B89A5A] text-[#111827]" : "text-white/70 hover:bg-white/10 hover:text-white"}`}><Icon className="h-5 w-5" />{label}</button>)}
           </nav>
           {isAdminMirror ? <>
-            <button onClick={onManage} className="mt-8 flex w-full items-center gap-3 rounded-xl bg-[#B89A5A] px-4 py-3 font-bold text-[#111827]"><UserCog className="h-5 w-5" />إدارة وتعديل البيانات</button>
-            <button onClick={() => router.push("/admin/clients")} className="mt-2 flex w-full items-center gap-3 rounded-xl border border-white/10 px-4 py-3 font-bold text-white/70 hover:bg-white/10"><Home className="h-5 w-5" />العودة إلى العملاء</button>
+            <button onClick={() => router.push("/admin/clients")} className="mt-8 flex w-full items-center gap-3 rounded-xl border border-white/10 px-4 py-3 font-bold text-white/70 hover:bg-white/10"><Home className="h-5 w-5" />العودة إلى العملاء</button>
           </> : <>
             <button onClick={() => router.push("/")} className="mt-8 flex w-full items-center gap-3 rounded-xl border border-white/10 px-4 py-3 font-bold text-white/70 hover:bg-white/10"><Home className="h-5 w-5" />العودة إلى الموقع</button>
             <button onClick={logout} className="mt-2 flex w-full items-center gap-3 rounded-xl border border-white/10 px-4 py-3 font-bold text-white/70 hover:bg-white/10"><LogOut className="h-5 w-5" />تسجيل الخروج</button>
@@ -247,14 +248,30 @@ export function ClientDashboard({
           {!loading && <p className="mt-7 text-sm font-semibold text-slate-500">{sectionDescriptions[section]}</p>}
 
           {!loading && section === "overview" && stats && <>
-            <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              {[["المشاريع", stats.projects], ["المشاريع النشطة", stats.activeProjects], ["الملفات", stats.files], ["الفواتير المستحقة", stats.dueInvoices], ["الرسائل الجديدة", stats.unreadMessages]].map(([label, value]) => <article key={String(label)} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><p className="text-sm font-bold text-slate-500">{label}</p><p className="mt-3 text-4xl font-black">{value}</p></article>)}
+            <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                ["المشاريع", projects.length, "projects"],
+                ["الفواتير", invoices.length, "invoices"],
+                ["الملفات", files.length, "files"],
+                ["الإشعارات", stats.unreadNotifications, "notifications"],
+              ].map(([label, value, target]) => (
+                <button
+                  key={String(label)}
+                  type="button"
+                  onClick={() => target === "notifications" ? setNotificationsOpen(true) : setSection(target as Section)}
+                  className="rounded-2xl border border-[#D8D2C4] bg-white p-5 text-right shadow-sm transition hover:-translate-y-1 hover:border-[#B89A5A] hover:shadow-md"
+                >
+                  <p className="text-sm font-bold text-slate-500">{label}</p>
+                  <p className="mt-3 text-4xl font-black">{value}</p>
+                  <p className="mt-3 text-xs font-black text-[#9A7D43]">فتح القسم</p>
+                </button>
+              ))}
             </div>
             <section className="mt-6 rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><h2 className="text-xl font-black">آخر تحديثات المشاريع</h2><div className="mt-5 grid gap-3">{projects.slice(0, 4).map((project) => <button key={project.id} onClick={() => setSection("projects")} className="rounded-xl bg-[#F7F3EB] p-4 text-right"><div className="flex items-center justify-between gap-3"><strong>{project.title}</strong><span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#9A7D43]">{projectLabel[project.status] || project.status}</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white"><div className="h-full bg-[#B89A5A]" style={{ width: `${Math.max(0, Math.min(100, project.progress))}%` }} /></div><p className="mt-2 text-xs text-slate-500">نسبة الإنجاز {project.progress}%</p></button>)}{!projects.length && <p className="text-slate-500">لا توجد مشاريع مرتبطة بالحساب بعد.</p>}</div></section>
           </>}
 
           {!loading && section === "projects" && <section className="mt-7 grid gap-4">
-            <h2 className="text-2xl font-black">المشاريع</h2>
+            <div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">المشاريع</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("projects")} />}</div>
             {projects.map((project) => (
               <article key={project.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
@@ -291,9 +308,9 @@ export function ClientDashboard({
             {!projects.length && <Empty text="لا توجد مشاريع حتى الآن." />}
           </section>}
 
-          {!loading && section === "files" && <section className="mt-7"><h2 className="text-2xl font-black">الملفات والتسليمات</h2><div className="mt-5 grid gap-3">{files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="flex flex-col justify-between gap-3 rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm sm:flex-row sm:items-center"><div><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></div><span className="text-sm font-bold text-[#9A7D43]">فتح الملف</span></a>)}{!files.length && <Empty text="لا توجد ملفات أو تسليمات بعد." />}</div></section>}
+          {!loading && section === "files" && <section className="mt-7"><div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الملفات والتسليمات</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("files")} />}</div><div className="mt-5 grid gap-3">{files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="flex flex-col justify-between gap-3 rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm sm:flex-row sm:items-center"><div><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></div><span className="text-sm font-bold text-[#9A7D43]">فتح الملف</span></a>)}{!files.length && <Empty text="لا توجد ملفات أو تسليمات بعد." />}</div></section>}
 
-          {!loading && section === "invoices" && <section className="mt-7"><h2 className="text-2xl font-black">الفواتير</h2><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[820px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">رقم الفاتورة</th><th className="p-4">النوع</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-4 font-bold">{invoice.number}</td><td className="p-4">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</td><td className="p-4">{invoice.projectTitle}</td><td className="p-4">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{invoiceLabel[invoice.status] || invoice.status}</td><td className="p-4">{invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("ar") : "—"}</td></tr>)}</tbody></table>{!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}</div></section>}
+          {!loading && section === "invoices" && <section className="mt-7"><div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الفواتير</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("invoices")} />}</div><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[820px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">رقم الفاتورة</th><th className="p-4">النوع</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-4 font-bold">{invoice.number}</td><td className="p-4">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</td><td className="p-4">{invoice.projectTitle}</td><td className="p-4">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{invoiceLabel[invoice.status] || invoice.status}</td><td className="p-4">{invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("ar") : "—"}</td></tr>)}</tbody></table>{!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}</div></section>}
 
           {!loading && section === "messages" && <section className="mt-7">
             <h2 className="text-2xl font-black">الرسائل والتحديثات</h2>
@@ -315,10 +332,18 @@ export function ClientDashboard({
             <div className="mt-5 grid gap-3">{messages.map((message) => <article key={message.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex items-center justify-between gap-3"><strong>{message.subject || (message.fromAdmin ? "تحديث من فريق CyberWeel" : isAdminMirror ? "رسالة العميل" : "رسالتك")}</strong><span className="text-xs text-slate-500">{new Date(message.createdAt).toLocaleString("ar")}</span></div><span className={`mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-bold ${message.fromAdmin ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>{message.fromAdmin ? (isAdminMirror ? "أنت" : "فريق CyberWeel") : (isAdminMirror ? "العميل" : "أنت")}</span><p className="mt-3 whitespace-pre-wrap leading-7 text-slate-600">{message.body}</p></article>)}{!messages.length && <Empty text="لا توجد رسائل بعد." />}</div>
           </section>}
 
-          {!loading && section === "account" && <section className="mt-7 max-w-2xl rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><h2 className="text-2xl font-black">الحساب</h2><p className="mt-2 text-sm text-slate-500">بيانات حسابك للعرض فقط. لتعديلها تواصل مع فريق CyberWeel.</p><div className="mt-7 grid gap-4"><div className="rounded-xl bg-[#F7F3EB] p-4"><p className="text-xs font-bold text-slate-500">الاسم</p><p className="mt-1 font-black">{client?.name || "—"}</p></div><div className="rounded-xl bg-[#F7F3EB] p-4"><p className="text-xs font-bold text-slate-500">البريد الإلكتروني</p><p dir="ltr" className="mt-1 w-fit font-bold">{client?.email}</p></div></div></section>}
+          {!loading && section === "account" && <section className="mt-7 max-w-2xl rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الحساب</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("account")} />}</div><p className="mt-2 text-sm text-slate-500">بيانات حسابك للعرض فقط. لتعديلها تواصل مع فريق CyberWeel.</p><div className="mt-7 grid gap-4"><div className="rounded-xl bg-[#F7F3EB] p-4"><p className="text-xs font-bold text-slate-500">الاسم</p><p className="mt-1 font-black">{client?.name || "—"}</p></div><div className="rounded-xl bg-[#F7F3EB] p-4"><p className="text-xs font-bold text-slate-500">البريد الإلكتروني</p><p dir="ltr" className="mt-1 w-fit font-bold">{client?.email}</p></div></div></section>}
         </section>
       </div>
     </main>
+  );
+}
+
+function EditSectionButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="flex items-center gap-2 rounded-lg border border-[#B89A5A] bg-white px-3 py-2 text-sm font-black text-[#9A7D43] shadow-sm hover:bg-[#F7F3EB]">
+      <Pencil className="h-4 w-4" />تعديل
+    </button>
   );
 }
 
