@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { formatDate } from "@/lib/date-format";
 
 type SectionKey = "overview" | "referrals" | "projects" | "commissions" | "payments" | "referral" | "profile";
 type Referral = { id: string; name: string | null; email: string | null; phone: string | null; status: string; createdAt: string };
@@ -61,10 +62,6 @@ const referralStatusClass: Record<string, string> = {
   CONVERTED: "bg-emerald-100 text-emerald-800",
   REJECTED: "bg-rose-100 text-rose-800",
 };
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("ar", { year: "numeric", month: "short", day: "numeric" }).format(new Date(value));
-}
 
 function readStoredIds(key: string) {
   try {
