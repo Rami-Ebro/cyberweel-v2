@@ -8,6 +8,7 @@ import {
   readPartnerSession,
   verifyPassword,
 } from "@/lib/partner-auth";
+import { auditAdminAction } from "@/lib/audit-log";
 
 async function currentUser(request: NextRequest) {
   const session = readPartnerSession(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
@@ -81,6 +82,17 @@ export async function PATCH(request: NextRequest) {
     select: { id: true, name: true, email: true, phone: true, role: true },
   });
 
+  if (updated.role === "ADMIN") {
+    await auditAdminAction(request, {
+      action: newPassword ? "PASSWORD_RESET" : "UPDATE",
+      entityType: "ADMIN_SETTINGS",
+      entityId: updated.id,
+      entityLabel: updated.name || updated.email,
+      summary: newPassword ? "غيّر كلمة مرور حسابه من الإعدادات" : "عدّل بيانات حسابه من الإعدادات",
+      beforeData: { name: user.name, email: user.email, phone: user.phone },
+      afterData: { name: updated.name, email: updated.email, phone: updated.phone, ...(newPassword ? { passwordChanged: true } : {}) },
+    });
+  }
   return NextResponse.json({
     account: {
       ...updated,

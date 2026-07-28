@@ -237,6 +237,29 @@ model ClientNotification {
   @@index([clientId, createdAt])
 }
 
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?
+  actorName   String?
+  actorEmail  String
+  actorRole   String
+  action      String
+  entityType  String
+  entityId    String?
+  entityLabel String?
+  summary     String
+  beforeData  Json?
+  afterData   Json?
+  ipHash      String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([entityType, createdAt])
+  @@index([action, createdAt])
+}
+
 model SmartLink {
   id             String          @id @default(cuid())
   title          String

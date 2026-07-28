@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requireAdminPermission } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
+import { auditOwnerServerAction } from "@/lib/audit-log";
 
 export type SmartLinkActionState = {
   message: string;
@@ -73,8 +74,13 @@ export async function createSmartLink(
   }
 
   try {
-    await db.smartLink.create({
+    const created = await db.smartLink.create({
       data: { title, slug, destinationUrl },
+    });
+    await auditOwnerServerAction({
+      action: "CREATE", entityType: "SMART_LINK", entityId: created.id, entityLabel: created.title,
+      summary: `أنشأ الرابط الذكي ${created.title}`,
+      afterData: { title: created.title, slug: created.slug, destinationUrl: created.destinationUrl, isActive: created.isActive },
     });
     revalidatePath("/admin/smart-links");
     return { status: "success", message: "تم إنشاء الرابط بنجاح." };
@@ -100,9 +106,16 @@ export async function updateSmartLinkDestination(
   }
 
   try {
-    await db.smartLink.update({
+    const before = await db.smartLink.findUnique({ where: { id }, select: { title: true, slug: true, destinationUrl: true, isActive: true } });
+    const updated = await db.smartLink.update({
       where: { id },
       data: { destinationUrl },
+    });
+    await auditOwnerServerAction({
+      action: "UPDATE", entityType: "SMART_LINK", entityId: updated.id, entityLabel: updated.title,
+      summary: `عدّل وجهة الرابط الذكي ${updated.title}`,
+      beforeData: before || undefined,
+      afterData: { title: updated.title, slug: updated.slug, destinationUrl: updated.destinationUrl, isActive: updated.isActive },
     });
     revalidatePath("/admin/smart-links");
     return { status: "success", message: "تم تحديث الوجهة." };
@@ -119,9 +132,16 @@ export async function toggleSmartLink(formData: FormData) {
 
   if (!id) return;
 
-  await db.smartLink.update({
+  const before = await db.smartLink.findUnique({ where: { id }, select: { title: true, slug: true, destinationUrl: true, isActive: true } });
+  const updated = await db.smartLink.update({
     where: { id },
     data: { isActive: nextState },
+  });
+  await auditOwnerServerAction({
+    action: nextState ? "ACTIVATE" : "SUSPEND", entityType: "SMART_LINK", entityId: updated.id, entityLabel: updated.title,
+    summary: `${nextState ? "فعّل" : "عطّل"} الرابط الذكي ${updated.title}`,
+    beforeData: before || undefined,
+    afterData: { title: updated.title, slug: updated.slug, destinationUrl: updated.destinationUrl, isActive: updated.isActive },
   });
   revalidatePath("/admin/smart-links");
 }
@@ -134,11 +154,16 @@ export async function deleteSmartLink(formData: FormData) {
 
   const smartLink = await db.smartLink.findUnique({
     where: { id },
-    select: { isActive: true },
+    select: { id: true, title: true, slug: true, destinationUrl: true, isActive: true },
   });
 
   if (!smartLink || smartLink.isActive) return;
 
   await db.smartLink.delete({ where: { id } });
+  await auditOwnerServerAction({
+    action: "DELETE", entityType: "SMART_LINK", entityId: smartLink.id, entityLabel: smartLink.title,
+    summary: `حذف الرابط الذكي ${smartLink.title}`,
+    beforeData: { title: smartLink.title, slug: smartLink.slug, destinationUrl: smartLink.destinationUrl, isActive: smartLink.isActive },
+  });
   revalidatePath("/admin/smart-links");
 }
