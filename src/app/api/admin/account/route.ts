@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { currentAdminAccess } from "@/lib/admin-permissions";
 import { hashPassword, normalizeEmail, PARTNER_SESSION_COOKIE, readPartnerSession, verifyPassword } from "@/lib/partner-auth";
 import { NextRequest, NextResponse } from "next/server";
+import { auditAdminAction } from "@/lib/audit-log";
 
 async function currentAdmin(request: NextRequest) {
   const session = readPartnerSession(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
@@ -66,6 +67,15 @@ export async function PATCH(request: NextRequest) {
         createdAt: true,
         adminProfile: { select: { isOwner: true } },
       },
+    });
+    await auditAdminAction(request, {
+      action: newPassword ? "PASSWORD_RESET" : "UPDATE",
+      entityType: "ADMIN_ACCOUNT",
+      entityId: updated.id,
+      entityLabel: updated.name || updated.email,
+      summary: newPassword ? "غيّر كلمة مرور حسابه الإداري" : "عدّل بيانات حسابه الإداري",
+      beforeData: { name: admin.name, email: admin.email },
+      afterData: { name: updated.name, email: updated.email, ...(newPassword ? { passwordChanged: true } : {}) },
     });
     return NextResponse.json({
       admin: {

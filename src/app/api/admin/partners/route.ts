@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { canAdmin } from "@/lib/admin-permissions";
 import { NextRequest, NextResponse } from "next/server";
+import { auditAdminAction } from "@/lib/audit-log";
 
 export async function GET(request: NextRequest) {
   const canView = await Promise.all([
@@ -61,7 +62,15 @@ export async function PATCH(request: NextRequest) {
     if (!["NEW", "CONTACTED", "QUALIFIED", "CONVERTED", "REJECTED"].includes(status)) {
       return NextResponse.json({ error: "حالة الإحالة غير صالحة" }, { status: 400 });
     }
+    const before = await db.partnerReferral.findUnique({ where: { id }, select: { id: true, name: true, email: true, status: true } });
+    if (!before) return NextResponse.json({ error: "الإحالة غير موجودة" }, { status: 404 });
     const referral = await db.partnerReferral.update({ where: { id }, data: { status } });
+    await auditAdminAction(request, {
+      action: "UPDATE", entityType: "REFERRAL", entityId: referral.id, entityLabel: referral.name,
+      summary: `غيّر حالة الإحالة ${referral.name}`,
+      beforeData: { name: before.name, email: before.email, status: before.status },
+      afterData: { name: referral.name, email: referral.email, status: referral.status },
+    });
     return NextResponse.json({ referral });
   }
 
@@ -69,6 +78,15 @@ export async function PATCH(request: NextRequest) {
   if (!["ACTIVE", "PENDING", "SUSPENDED"].includes(status)) {
     return NextResponse.json({ error: "حالة الشريك غير صالحة" }, { status: 400 });
   }
+  const before = await db.partner.findUnique({ where: { id }, select: { id: true, referralNumber: true, status: true, user: { select: { name: true, email: true } } } });
+  if (!before) return NextResponse.json({ error: "الشريك غير موجود" }, { status: 404 });
   const partner = await db.partner.update({ where: { id }, data: { status } });
+  await auditAdminAction(request, {
+    action: status === "ACTIVE" ? "ACTIVATE" : status === "SUSPENDED" ? "SUSPEND" : "UPDATE",
+    entityType: "PARTNER", entityId: partner.id, entityLabel: before.user.name || before.user.email,
+    summary: `غيّر حالة الشريك ${before.user.name || before.user.email}`,
+    beforeData: { name: before.user.name, email: before.user.email, referralNumber: before.referralNumber, status: before.status },
+    afterData: { name: before.user.name, email: before.user.email, referralNumber: before.referralNumber, status: partner.status },
+  });
   return NextResponse.json({ partner });
 }

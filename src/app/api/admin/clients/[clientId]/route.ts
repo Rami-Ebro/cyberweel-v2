@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { canAdmin } from "@/lib/admin-permissions";
 import type { ClientProjectStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { auditAdminAction } from "@/lib/audit-log";
 
 type RouteContext = { params: Promise<{ clientId: string }> };
 
@@ -128,6 +129,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
         },
       });
       await notify(clientId, "تمت إضافة مشروع جديد", title, "projects");
+      await auditAdminAction(request, {
+        action: "CREATE", entityType: "CLIENT_PROJECT", entityId: project.id, entityLabel: project.title,
+        summary: `أنشأ المشروع ${project.title}`,
+        afterData: { title: project.title, description: project.description, agreementDetails: project.agreementDetails, financialPlan: project.financialPlan, currency: project.currency, stages: project.stages, links: project.links, status: project.status, progress: project.progress, dueAt: project.dueAt },
+      });
       return NextResponse.json({ project }, { status: 201 });
     }
 
@@ -139,6 +145,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       if (!project || !name || !/^https?:\/\//i.test(url)) return NextResponse.json({ error: "المشروع واسم الملف ورابط صحيح مطلوبة" }, { status: 400 });
       const file = await db.clientFile.create({ data: { projectId, name, url, kind: body.kind?.trim() || null } });
       await notify(clientId, "ملف أو تسليم جديد", `${name} — ${project.title}`, "files");
+      await auditAdminAction(request, {
+        action: "CREATE", entityType: "CLIENT_FILE", entityId: file.id, entityLabel: file.name,
+        summary: `أضاف الملف ${file.name} إلى ${project.title}`,
+        afterData: { name: file.name, kind: file.kind, projectId, projectTitle: project.title },
+      });
       return NextResponse.json({ file }, { status: 201 });
     }
 
@@ -171,6 +182,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
         });
       });
       await notify(clientId, invoice.type === "RETURN" ? "صدر مرتجع جديد" : "صدرت فاتورة جديدة", `${invoice.number} — ${amount} ${invoice.currency}`, "invoices");
+      await auditAdminAction(request, {
+        action: "CREATE", entityType: "CLIENT_INVOICE", entityId: invoice.id, entityLabel: invoice.number,
+        summary: `${invoice.type === "RETURN" ? "أصدر مرتجع" : "أصدر فاتورة"} ${invoice.number}`,
+        afterData: { number: invoice.number, type: invoice.type, amount: Number(invoice.amount), currency: invoice.currency, status: invoice.status, dueAt: invoice.dueAt, projectId, projectTitle: project.title },
+      });
       return NextResponse.json({ invoice: { ...invoice, amount: Number(invoice.amount) } }, { status: 201 });
     }
 
@@ -186,6 +202,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
         data: { status: "PAID", paidAt: body.paidAt ? new Date(body.paidAt) : new Date() },
       });
       await notify(clientId, "تم تسجيل دفعة", `${invoice.number} — ${Number(invoice.amount)} ${invoice.currency}`, "payments");
+      await auditAdminAction(request, {
+        action: "UPDATE", entityType: "CLIENT_PAYMENT", entityId: invoice.id, entityLabel: invoice.number,
+        summary: `سجّل دفعة الفاتورة ${invoice.number}`,
+        beforeData: { status: "DUE" },
+        afterData: { status: updated.status, paidAt: updated.paidAt, amount: Number(invoice.amount), currency: invoice.currency },
+      });
       return NextResponse.json({ invoice: { ...updated, amount: Number(updated.amount) } });
     }
 
@@ -200,6 +222,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
         data: { clientId, projectId, subject: body.subject?.trim() || null, body: messageBody, fromAdmin: true },
       });
       await notify(clientId, body.subject?.trim() || "رسالة جديدة من فريق CyberWeel", messageBody.slice(0, 180), "messages");
+      await auditAdminAction(request, {
+        action: "SEND", entityType: "CLIENT_MESSAGE", entityId: message.id, entityLabel: message.subject || "رسالة للعميل",
+        summary: `أرسل رسالة إلى العميل${message.subject ? `: ${message.subject}` : ""}`,
+        afterData: { clientId, projectId, subject: message.subject, sentAt: message.createdAt },
+      });
       return NextResponse.json({ message }, { status: 201 });
     }
 
@@ -219,7 +246,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
   if (action === "project") {
     const projectId = typeof body?.projectId === "string" ? body.projectId : "";
-    const project = await db.clientProject.findFirst({ where: { id: projectId, clientId }, select: { id: true } });
+    const project = await db.clientProject.findFirst({
+      where: { id: projectId, clientId },
+      select: { id: true, title: true, description: true, agreementDetails: true, financialPlan: true, currency: true, stages: true, links: true, status: true, progress: true, dueAt: true },
+    });
     if (!project) return NextResponse.json({ error: "المشروع غير موجود" }, { status: 404 });
     const progress = Number(body.progress);
     const parsedLinks = body.links !== undefined ? parseLinks(body.links) : null;
@@ -243,6 +273,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       },
     });
     await notify(clientId, "تم تحديث المشروع", `${updated.title} — الإنجاز ${updated.progress}%`, "projects");
+    await auditAdminAction(request, {
+      action: "UPDATE", entityType: "CLIENT_PROJECT", entityId: updated.id, entityLabel: updated.title,
+      summary: `عدّل المشروع ${updated.title}`,
+      beforeData: project,
+      afterData: { id: updated.id, title: updated.title, description: updated.description, agreementDetails: updated.agreementDetails, financialPlan: updated.financialPlan, currency: updated.currency, stages: updated.stages, links: updated.links, status: updated.status, progress: updated.progress, dueAt: updated.dueAt },
+    });
     return NextResponse.json({ project: updated });
   }
 

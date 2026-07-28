@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { ADMIN_PERMISSIONS, currentAdminAccess } from "@/lib/admin-permissions";
 import { hashPassword, normalizeEmail, normalizePhone } from "@/lib/partner-auth";
+import { auditAdminAction } from "@/lib/audit-log";
 
 async function requireOwner(request: NextRequest) {
   const access = await currentAdminAccess(request);
@@ -68,6 +69,14 @@ export async function POST(request: NextRequest) {
     select: { id: true, name: true, email: true, phone: true, adminProfile: true },
   });
 
+  await auditAdminAction(request, {
+    action: "CREATE",
+    entityType: "ADMIN_ACCOUNT",
+    entityId: member.id,
+    entityLabel: member.name || member.email,
+    summary: `أنشأ حساب إدارة لـ ${member.name || member.email}`,
+    afterData: { name: member.name, email: member.email, phone: member.phone, isActive: member.adminProfile?.isActive, permissions },
+  });
   return NextResponse.json({ member }, { status: 201 });
 }
 
@@ -81,7 +90,7 @@ export async function PATCH(request: NextRequest) {
 
   const target = await db.user.findFirst({
     where: { id: userId, role: "ADMIN" },
-    select: { id: true, adminProfile: { select: { isOwner: true } } },
+    select: { id: true, name: true, email: true, phone: true, adminProfile: { select: { isOwner: true, isActive: true, permissions: true } } },
   });
   if (!target) return NextResponse.json({ error: "حساب الإدارة غير موجود" }, { status: 404 });
   if (target.adminProfile?.isOwner) {
@@ -111,6 +120,16 @@ export async function PATCH(request: NextRequest) {
     select: { id: true, name: true, email: true, phone: true, adminProfile: true },
   });
 
+  const nextActive = updated.adminProfile?.isActive;
+  await auditAdminAction(request, {
+    action: password ? "PASSWORD_RESET" : isActive === true ? "ACTIVATE" : isActive === false ? "SUSPEND" : "UPDATE",
+    entityType: "ADMIN_ACCOUNT",
+    entityId: updated.id,
+    entityLabel: updated.name || updated.email,
+    summary: password ? `غيّر كلمة مرور حساب الإدارة ${updated.name || updated.email}` : `عدّل حساب الإدارة ${updated.name || updated.email}`,
+    beforeData: { name: target.name, email: target.email, phone: target.phone, isActive: target.adminProfile?.isActive, permissions: target.adminProfile?.permissions },
+    afterData: { name: updated.name, email: updated.email, phone: updated.phone, isActive: nextActive, permissions: updated.adminProfile?.permissions, ...(password ? { passwordChanged: true } : {}) },
+  });
   return NextResponse.json({ member: updated });
 }
 
@@ -126,7 +145,7 @@ export async function DELETE(request: NextRequest) {
 
   const target = await db.user.findFirst({
     where: { id: userId, role: "ADMIN" },
-    select: { id: true, adminProfile: { select: { isOwner: true } } },
+    select: { id: true, name: true, email: true, phone: true, adminProfile: { select: { isOwner: true, isActive: true, permissions: true } } },
   });
   if (!target) return NextResponse.json({ error: "حساب الإدارة غير موجود" }, { status: 404 });
   if (target.adminProfile?.isOwner) {
@@ -134,5 +153,13 @@ export async function DELETE(request: NextRequest) {
   }
 
   await db.user.delete({ where: { id: target.id } });
+  await auditAdminAction(request, {
+    action: "DELETE",
+    entityType: "ADMIN_ACCOUNT",
+    entityId: target.id,
+    entityLabel: target.name || target.email,
+    summary: `حذف حساب الإدارة ${target.name || target.email}`,
+    beforeData: { name: target.name, email: target.email, phone: target.phone, isActive: target.adminProfile?.isActive, permissions: target.adminProfile?.permissions },
+  });
   return NextResponse.json({ ok: true });
 }
