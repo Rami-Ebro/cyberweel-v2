@@ -33,21 +33,25 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "غير مصرح أو العميل غير موجود" }, { status: 403 });
   }
 
-  const client = await db.user.findUnique({
-    where: { id: clientId },
-    select: {
-      id: true, name: true, email: true, phone: true, isActive: true, createdAt: true,
-      clientProjects: {
-        orderBy: { updatedAt: "desc" },
-        include: {
-          files: { orderBy: { createdAt: "desc" } },
-          invoices: { orderBy: { createdAt: "desc" } },
+  const year = new Date().getUTCFullYear();
+  const [client, invoiceSequence] = await Promise.all([
+    db.user.findUnique({
+      where: { id: clientId },
+      select: {
+        id: true, name: true, email: true, phone: true, isActive: true, createdAt: true,
+        clientProjects: {
+          orderBy: { updatedAt: "desc" },
+          include: {
+            files: { orderBy: { createdAt: "desc" } },
+            invoices: { orderBy: { createdAt: "desc" } },
+          },
         },
+        clientMessages: { orderBy: { createdAt: "desc" }, take: 100 },
+        clientNotifications: { orderBy: { createdAt: "desc" }, take: 100 },
       },
-      clientMessages: { orderBy: { createdAt: "desc" }, take: 100 },
-      clientNotifications: { orderBy: { createdAt: "desc" }, take: 100 },
-    },
-  });
+    }),
+    db.invoiceSequence.findUnique({ where: { year }, select: { lastNumber: true } }),
+  ]);
 
   if (!client) return NextResponse.json({ error: "العميل غير موجود" }, { status: 404 });
   return NextResponse.json({
@@ -58,6 +62,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         invoices: project.invoices.map((invoice) => ({ ...invoice, amount: Number(invoice.amount) })),
       })),
     },
+    nextInvoiceNumber: `CW-${year}-${String((invoiceSequence?.lastNumber || 0) + 1).padStart(4, "0")}`,
   });
 }
 
@@ -104,6 +109,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (action === "invoice") {
       const projectId = typeof body?.projectId === "string" ? body.projectId : "";
       const amount = Number(body?.amount);
+      const invoiceType = body?.type === "RETURN" ? "RETURN" : "STANDARD";
       const project = await db.clientProject.findFirst({ where: { id: projectId, clientId }, select: { id: true, title: true, currency: true } });
       if (!project || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: "بيانات الفاتورة غير مكتملة" }, { status: 400 });
 
@@ -120,6 +126,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           data: {
             projectId,
             number,
+            type: invoiceType,
             amount,
             currency: parseCurrency(body.currency || project.currency),
             status: body.status || "DUE",
@@ -127,7 +134,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           },
         });
       });
-      await notify(clientId, "صدرت فاتورة جديدة", `${invoice.number} — ${amount} ${invoice.currency}`, "invoices");
+      await notify(clientId, invoice.type === "RETURN" ? "صدر مرتجع جديد" : "صدرت فاتورة جديدة", `${invoice.number} — ${amount} ${invoice.currency}`, "invoices");
       return NextResponse.json({ invoice: { ...invoice, amount: Number(invoice.amount) } }, { status: 201 });
     }
 
