@@ -31,22 +31,28 @@ const amiri = Amiri({
   display: "swap",
 });
 
+const siteTitle = "CyberWeel — From where you are… to where you want to be";
+const siteDescription =
+  "CyberWeel helps businesses understand digital and operational challenges, make sound decisions, and build the websites, systems, automation, and protection their next stage genuinely needs.";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://cyberweel.com"),
   title: {
-    default: "CyberWeel — From where you are… to where you want to be",
+    default: siteTitle,
     template: "%s · CyberWeel",
   },
-  description:
-    "CyberWeel is a progress partner. We help you see clearly, make the right decision, and move confidently toward the next stage. Clarity → Decision → Progress.",
+  description: siteDescription,
   keywords: [
     "CyberWeel",
-    "strategic clarity",
-    "progress partner",
-    "decision",
-    "consultancy",
-    "digital presence",
-    "growth direction",
+    "digital solutions",
+    "business systems",
+    "web development",
+    "SaaS development",
+    "process automation",
+    "artificial intelligence",
+    "cybersecurity",
+    "financial analysis",
+    "business decision support",
   ],
   authors: [{ name: "CyberWeel" }],
   creator: "CyberWeel",
@@ -58,24 +64,22 @@ export const metadata: Metadata = {
       { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
-    other: [
-      { rel: "mask-icon", url: "/logo.svg", color: "#111827" },
-    ],
+    other: [{ rel: "mask-icon", url: "/logo.svg", color: "#111827" }],
   },
   openGraph: {
-    title: "CyberWeel — From where you are… to where you want to be",
-    description:
-      "A progress partner. We help you see clearly, make the right decision, and move confidently toward the next stage.",
+    title: siteTitle,
+    description: siteDescription,
     url: "https://cyberweel.com",
     siteName: "CyberWeel",
     type: "website",
     locale: "en",
+    alternateLocale: ["ar"],
     images: [
       {
         url: "/og-image.png",
         width: 1344,
         height: 768,
-        alt: "CyberWeel — From where you are… to where you want to be",
+        alt: "CyberWeel — clarity, decision, and practical execution",
       },
     ],
   },
@@ -83,7 +87,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "CyberWeel",
     description:
-      "A progress partner. Clarity → Decision → Progress.",
+      "Understand the problem. Make the right decision. Build what the business genuinely needs.",
     images: ["/og-image.png"],
   },
   robots: {
@@ -109,16 +113,18 @@ export default function RootLayout({
     name: "CyberWeel",
     url: "https://cyberweel.com",
     logo: "https://cyberweel.com/logo.png",
-    description:
-      "CyberWeel is a progress partner. We help you see clearly, make the right decision, and move confidently toward the next stage.",
+    description: siteDescription,
     slogan: "From where you are… to where you want to be.",
     email: "hello@cyberweel.com",
     knowsAbout: [
-      "Strategic clarity",
-      "Decision making",
-      "Digital presence",
-      "Brand positioning",
-      "Growth direction",
+      "Websites and digital platforms",
+      "SaaS and custom business systems",
+      "Mobile applications",
+      "Process automation and artificial intelligence",
+      "Cybersecurity and digital protection",
+      "Financial analysis and decision support",
+      "Brand positioning and conversion journeys",
+      "Dynamic QR codes and smart links",
     ],
   };
 
@@ -131,39 +137,39 @@ export default function RootLayout({
         name: "Is CyberWeel a digital agency?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Not in the usual sense. We're a progress partner. We help you find clarity and make the right decision first — then, if a website, product, or campaign is genuinely the right next step, we help you move toward it with intention.",
+          text: "Not in the conventional sense. CyberWeel begins by understanding the business problem and defining the right decision. When execution is needed, we design and build websites, systems, automation, cybersecurity safeguards, and other practical digital solutions.",
         },
       },
       {
         "@type": "Question",
-        name: "What does 'Clarity, Decision, Progress' actually mean?",
+        name: "What does Clarity, Decision, Progress mean?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "It's how we work. Clarity is understanding your real situation. Decision is choosing the right next step grounded in that understanding. Progress is moving deliberately, without the noise that usually derails good plans.",
+          text: "Clarity means understanding the current situation and the real problem. Decision means choosing the most sensible next step. Progress means executing that decision deliberately and measuring whether it creates real value.",
         },
       },
       {
         "@type": "Question",
-        name: "Do you take on every project you're offered?",
+        name: "Does CyberWeel take on every project?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "No. Sometimes the honest recommendation is that you don't need more work right now — you need clarity, or a simpler step. We'd rather tell you that than take on work you don't need.",
+          text: "No. CyberWeel may recommend a smaller step, improving what already exists, or waiting until the timing is right. The goal is to solve the right problem, not manufacture unnecessary work.",
         },
       },
       {
         "@type": "Question",
-        name: "Who do you typically work with?",
+        name: "Who does CyberWeel work with?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Founders, teams, and leaders at a turning point — people deciding what to build, change, or stop doing next. You don't need to arrive with a polished brief; we help you find it.",
+          text: "CyberWeel works with business owners, founders, and teams that need to decide what to build, improve, automate, secure, or stop doing. A polished brief is not required.",
         },
       },
       {
         "@type": "Question",
-        name: "How does an engagement begin?",
+        name: "How does a project begin?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "With a conversation. Share your situation through the contact form, and we'll talk honestly about whether and how we can help. No pitch, no pressure.",
+          text: "It begins with a clear description of the current situation, the challenge, and the desired outcome. CyberWeel reviews the request, identifies the most useful next step, and then discusses whether and how to proceed.",
         },
       },
     ],
@@ -174,9 +180,8 @@ export default function RootLayout({
     "@type": "WebSite",
     name: "CyberWeel",
     url: "https://cyberweel.com/",
-    description:
-      "A progress partner. We help you see clearly, make the right decision, and move confidently toward the next stage.",
-    inLanguage: "en",
+    description: siteDescription,
+    inLanguage: ["ar", "en"],
     publisher: {
       "@type": "Organization",
       name: "CyberWeel",

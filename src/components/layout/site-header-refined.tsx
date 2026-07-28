@@ -21,13 +21,17 @@ type SignedInAccount = {
   settingsUrl: string;
 };
 
-function Wordmark({ compact = false }: { compact?: boolean }) {
+function Wordmark({ compact = false, isArabic }: { compact?: boolean; isArabic: boolean }) {
   return (
     <span className="flex items-center gap-3">
       <Logo size={compact ? 42 : 54} />
       <span className="flex flex-col">
         <span aria-label="CyberWeel" className={cn("block bg-ink", compact ? "h-[31px] w-[116px]" : "h-[40px] w-[148px]")} style={{ WebkitMaskImage: "url('/cyberweel-wordmark.svg')", maskImage: "url('/cyberweel-wordmark.svg')", WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat", WebkitMaskPosition: "center", maskPosition: "center", WebkitMaskSize: "contain", maskSize: "contain" }} />
-        {!compact && <span className="mt-1 text-[11px] font-bold tracking-[0.18em] text-muted-foreground">شريكك للتقدّم</span>}
+        {!compact && (
+          <span className="mt-1 text-[11px] font-bold tracking-[0.18em] text-muted-foreground">
+            {isArabic ? "شريكك للتقدّم" : "YOUR PARTNER IN PROGRESS"}
+          </span>
+        )}
       </span>
     </span>
   );
@@ -36,6 +40,7 @@ function Wordmark({ compact = false }: { compact?: boolean }) {
 export function SiteHeaderRefined() {
   const { view, navigate } = useNav();
   const { t, dir } = useI18n();
+  const isArabic = dir === "rtl";
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [account, setAccount] = useState<SignedInAccount | null>(null);
@@ -53,13 +58,13 @@ export function SiteHeaderRefined() {
 
   const go = (id: ViewId) => { navigate(id); setMobileOpen(false); };
   const navLabel = (id: ViewId) => {
-    if (dir === "rtl" && id === "how-we-help") return "كيف نساعدك";
-    if (dir === "rtl" && id === "partner") return "انضم إلينا";
-    if (dir === "ltr" && id === "partner") return "Join us";
+    if (isArabic && id === "how-we-help") return "كيف نساعدك";
+    if (isArabic && id === "partner") return "انضم إلينا";
+    if (!isArabic && id === "partner") return "Work with us";
     return t.nav[id];
   };
-  const menuLabel = dir === "rtl" ? "فتح القائمة" : "Open menu";
-  const loginLabel = dir === "rtl" ? "تسجيل الدخول" : "Sign in";
+  const menuLabel = isArabic ? "فتح القائمة" : "Open navigation menu";
+  const loginLabel = isArabic ? "تسجيل الدخول" : "Sign in";
   const accountInitial = account?.name.trim().charAt(0).toUpperCase() || "C";
 
   async function logout() {
@@ -74,15 +79,15 @@ export function SiteHeaderRefined() {
     <>
       <a href={account.dashboardUrl} onClick={() => { setAccountOpen(false); setMobileOpen(false); }} className={cn("focus-ring flex items-center gap-3 font-semibold text-ink transition hover:bg-muted", mobile ? "rounded-md px-4 py-3" : "rounded-lg px-3 py-2.5 text-sm")}>
         <LayoutDashboard className="h-4 w-4 text-accent" />
-        {dir === "rtl" ? "لوحة التحكم" : "Dashboard"}
+        {isArabic ? "لوحة التحكم" : "Dashboard"}
       </a>
       <a href={account.settingsUrl} onClick={() => { setAccountOpen(false); setMobileOpen(false); }} className={cn("focus-ring flex items-center gap-3 font-semibold text-ink transition hover:bg-muted", mobile ? "rounded-md px-4 py-3" : "rounded-lg px-3 py-2.5 text-sm")}>
         <Settings className="h-4 w-4 text-accent" />
-        {dir === "rtl" ? "إعدادات الحساب" : "Account settings"}
+        {isArabic ? "إعدادات الحساب" : "Account settings"}
       </a>
       <button type="button" onClick={logout} className={cn("focus-ring flex w-full items-center gap-3 font-semibold text-red-700 transition hover:bg-red-50", mobile ? "rounded-md px-4 py-3" : "rounded-lg px-3 py-2.5 text-sm")}>
         <LogOut className="h-4 w-4" />
-        {dir === "rtl" ? "تسجيل الخروج" : "Sign out"}
+        {isArabic ? "تسجيل الخروج" : "Sign out"}
       </button>
     </>
   ) : null;
@@ -90,11 +95,11 @@ export function SiteHeaderRefined() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/70 bg-background/90 backdrop-blur-md">
       <div className="cw-container flex h-24 items-center justify-between">
-        <button type="button" onClick={() => go("home")} className="focus-ring rounded-md" aria-label={`CyberWeel — ${t.nav.home}`}><Wordmark /></button>
-        <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
+        <button type="button" onClick={() => go("home")} className="focus-ring rounded-md" aria-label={`CyberWeel — ${t.nav.home}`}><Wordmark isArabic={isArabic} /></button>
+        <nav className="hidden items-center gap-1 lg:flex" aria-label={isArabic ? "التنقل الرئيسي" : "Primary navigation"}>
           {HEADER_ITEMS.map((item) => {
             const active = view === item.id;
-            return <button key={item.id} type="button" onClick={() => go(item.id)} className={cn("focus-ring group relative rounded-md px-3 py-2 text-sm font-medium transition-colors", active ? "text-ink" : "text-muted-foreground hover:text-ink")} aria-current={active ? "page" : undefined}>{navLabel(item.id)}<span className={cn("absolute inset-x-3 -bottom-[1px] h-[2px] bg-accent transition-transform duration-300", dir === "rtl" ? "origin-right" : "origin-left", active ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100")} aria-hidden /></button>;
+            return <button key={item.id} type="button" onClick={() => go(item.id)} className={cn("focus-ring group relative rounded-md px-3 py-2 text-sm font-medium transition-colors", active ? "text-ink" : "text-muted-foreground hover:text-ink")} aria-current={active ? "page" : undefined}>{navLabel(item.id)}<span className={cn("absolute inset-x-3 -bottom-[1px] h-[2px] bg-accent transition-transform duration-300", isArabic ? "origin-right" : "origin-left", active ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100")} aria-hidden /></button>;
           })}
         </nav>
         <div className="flex items-center gap-2">
@@ -122,9 +127,9 @@ export function SiteHeaderRefined() {
           )}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild><button type="button" className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-md text-ink lg:hidden" aria-label={menuLabel}><Menu className="h-6 w-6" /></button></SheetTrigger>
-            <SheetContent side={dir === "rtl" ? "left" : "right"} className="flex w-full max-w-sm flex-col border-border bg-background p-0">
-              <SheetHeader className="border-b border-border px-6 py-5 text-start"><SheetTitle className="text-start"><Wordmark compact /></SheetTitle></SheetHeader>
-              <nav className="flex flex-col px-3 py-4" aria-label="Mobile">
+            <SheetContent side={isArabic ? "left" : "right"} className="flex w-full max-w-sm flex-col border-border bg-background p-0">
+              <SheetHeader className="border-b border-border px-6 py-5 text-start"><SheetTitle className="text-start"><Wordmark compact isArabic={isArabic} /></SheetTitle></SheetHeader>
+              <nav className="flex flex-col px-3 py-4" aria-label={isArabic ? "تنقل الهاتف" : "Mobile navigation"}>
                 {HEADER_ITEMS.map((item) => {
                   const Icon = item.icon;
                   const active = view === item.id;
@@ -132,7 +137,7 @@ export function SiteHeaderRefined() {
                 })}
               </nav>
               <div className="mt-auto space-y-3 border-t border-border px-6 py-6">
-                <button type="button" onClick={() => go("share-challenge")} className="focus-ring flex w-full items-center justify-center rounded-md border border-border px-5 py-3 text-sm font-semibold text-ink transition-colors hover:bg-muted">{dir === "rtl" ? "شاركنا مشكلتك" : "Share your challenge"}</button>
+                <button type="button" onClick={() => go("share-challenge")} className="focus-ring flex w-full items-center justify-center rounded-md border border-border px-5 py-3 text-sm font-semibold text-ink transition-colors hover:bg-muted">{isArabic ? "شاركنا مشكلتك" : "Share your challenge"}</button>
                 {account ? (
                   <div className="rounded-2xl border border-border bg-white p-2">
                     <div className="flex items-center gap-3 border-b border-border px-3 py-3">

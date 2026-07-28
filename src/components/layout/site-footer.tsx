@@ -10,7 +10,7 @@ import { SocialLinks } from "@/components/site/social-links";
 
 const FOOTER_ITEMS = NAV_ITEMS.filter((item) => item.id !== "share-challenge");
 
-function FooterWordmark() {
+function FooterWordmark({ isArabic }: { isArabic: boolean }) {
   return (
     <span className="flex items-center gap-3">
       <span className="inline-flex rounded-xl border border-white/15 bg-white/95 p-2.5 shadow-sm">
@@ -32,7 +32,7 @@ function FooterWordmark() {
           }}
         />
         <span className="mt-1 text-[11px] font-bold tracking-[0.18em] text-[#D8D2C4]">
-          شريكك للتقدّم
+          {isArabic ? "شريكك للتقدّم" : "YOUR PARTNER IN PROGRESS"}
         </span>
       </span>
     </span>
@@ -42,13 +42,21 @@ function FooterWordmark() {
 export function SiteFooter() {
   const { navigate } = useNav();
   const { t, dir } = useI18n();
+  const isArabic = dir === "rtl";
 
   const go = (id: ViewId) => navigate(id);
-  const shareLabel = dir === "rtl" ? "شاركنا مشكلتك" : "Share your challenge";
-  const methodology = dir === "rtl" ? "وضوح ← قرار ← تقدّم" : "Clarity → Decision → Progress";
-  const copyright = dir === "rtl"
+  const shareLabel = isArabic ? "شاركنا مشكلتك" : "Share your challenge";
+  const methodology = isArabic ? "وضوح ← قرار ← تقدّم" : "Clarity · Decision · Progress";
+  const copyright = isArabic
     ? "© 2026 CyberWeel — جميع الحقوق محفوظة"
     : "© 2026 CyberWeel — All rights reserved";
+
+  const navLabel = (id: ViewId) => {
+    if (isArabic && id === "how-we-help") return "كيف نساعدك";
+    if (isArabic && id === "partner") return "انضم إلينا";
+    if (!isArabic && id === "partner") return "Work with us";
+    return t.nav[id];
+  };
 
   return (
     <footer className="relative mt-auto overflow-hidden bg-ink text-floral">
@@ -60,31 +68,27 @@ export function SiteFooter() {
             "radial-gradient(120% 80% at 85% -10%, rgba(184,154,90,0.18), transparent 55%), radial-gradient(90% 60% at 10% 110%, rgba(184,154,90,0.08), transparent 60%), linear-gradient(180deg, #0d121b 0%, #111827 50%, #090c12 100%)",
         }}
       />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-32 -top-20 opacity-[0.10] lg:block"
-      >
+      <div aria-hidden className="pointer-events-none absolute -right-32 -top-20 opacity-[0.10] lg:block">
         <ArchMotif size={520} onDark />
       </div>
-      <div
-        aria-hidden
-        className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-camel/70 to-transparent"
-      />
+      <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-camel/70 to-transparent" />
 
       <div className="cw-container relative py-16">
         <div className="grid gap-10 lg:grid-cols-[1.5fr_1fr_1fr]">
           <div className="max-w-sm">
-            <FooterWordmark />
+            <FooterWordmark isArabic={isArabic} />
             <p className="mt-6 font-display text-2xl font-normal leading-snug text-[#F7F3EB]">
-              {t.footer.tagline}
+              {isArabic ? t.footer.tagline : "From where you are… to where you want to be."}
             </p>
             <p className="mt-5 text-base leading-relaxed text-[#D8D2C4]/85">
-              {t.footer.description}
+              {isArabic
+                ? t.footer.description
+                : "We help businesses understand the real problem, make sound decisions, and build the digital solutions their next stage requires."}
             </p>
           </div>
 
           <div>
-            <p className="eyebrow !text-[#D8D2C4]/75">{t.footer.navigate}</p>
+            <p className="eyebrow !text-[#D8D2C4]/75">{isArabic ? t.footer.navigate : "Explore"}</p>
             <ul className="mt-5 space-y-3">
               {FOOTER_ITEMS.map((item) => (
                 <li key={item.id}>
@@ -93,7 +97,7 @@ export function SiteFooter() {
                     onClick={() => go(item.id)}
                     className="focus-ring inline-flex items-center gap-2 rounded-md text-sm text-[#D8D2C4]/90 transition-colors hover:text-[#F7F3EB]"
                   >
-                    {t.nav[item.id]}
+                    {navLabel(item.id)}
                   </button>
                 </li>
               ))}
@@ -104,9 +108,9 @@ export function SiteFooter() {
           </div>
 
           <div>
-            <p className="eyebrow !text-[#D8D2C4]/75">{t.footer.stayInTouch}</p>
+            <p className="eyebrow !text-[#D8D2C4]/75">{isArabic ? t.footer.stayInTouch : "Stay in touch"}</p>
             <p className="mt-5 text-base leading-relaxed text-[#D8D2C4]/85">
-              {t.footer.stayInTouchBody}
+              {isArabic ? t.footer.stayInTouchBody : "No mailing lists or noise. Just a direct line when you have something worth discussing."}
             </p>
             <ul className="mt-5 space-y-3 text-base">
               <li>
@@ -122,7 +126,7 @@ export function SiteFooter() {
 
             <div className="mt-6">
               <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-[#D8D2C4]/75">
-                {t.footer.followUs}
+                {isArabic ? t.footer.followUs : "Follow CyberWeel"}
               </p>
               <SocialLinks onDark size="sm" />
             </div>
