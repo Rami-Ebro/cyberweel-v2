@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, Bell, BriefcaseBusiness, CreditCard, FileText, Home, LogOut, Mail, ReceiptText, RefreshCw, Send, UserCog } from "lucide-react";
+import { BarChart3, Bell, BriefcaseBusiness, FileText, Home, LogOut, Mail, ReceiptText, RefreshCw, Send, UserCog } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 
-type Section = "overview" | "projects" | "files" | "invoices" | "payments" | "messages" | "account";
+type Section = "overview" | "projects" | "files" | "invoices" | "messages" | "account";
 type Client = { id: string; name: string | null; email: string; createdAt: string };
 type Project = {
   id: string;
@@ -46,7 +46,6 @@ export function ClientDashboard({
   const [projects, setProjects] = useState<Project[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [payments, setPayments] = useState<Invoice[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -90,7 +89,6 @@ export function ClientDashboard({
       setProjects(adminProjects);
       setFiles(adminFiles);
       setInvoices(adminInvoices);
-      setPayments(adminInvoices.filter((invoice: Invoice) => invoice.status === "PAID" || invoice.paidAt));
       setMessages(adminMessages);
       setNotifications(adminNotifications);
       setStats({
@@ -107,7 +105,6 @@ export function ClientDashboard({
       setProjects(data.projects || []);
       setFiles(data.files || []);
       setInvoices(data.invoices || []);
-      setPayments(data.payments || []);
       setMessages(data.messages || []);
       setNotifications(data.notifications || []);
     }
@@ -177,7 +174,6 @@ export function ClientDashboard({
     ["projects", "المشاريع", BriefcaseBusiness],
     ["files", "الملفات والتسليمات", FileText],
     ["invoices", "الفواتير", ReceiptText],
-    ["payments", "المدفوعات", CreditCard],
     ["messages", "الرسائل والتحديثات", Mail],
     ["account", "الحساب", UserCog],
   ] as const;
@@ -187,7 +183,6 @@ export function ClientDashboard({
     projects: "جميع مشاريعك وحالة التنفيذ ونسبة الإنجاز.",
     files: "هنا ستجد الملفات والتسليمات التي سنسلّمها لك.",
     invoices: "جميع الفواتير الصادرة وحالة كل فاتورة.",
-    payments: "المبالغ المدفوعة والمسجلة على فواتيرك.",
     messages: "جميع رسائلنا وتحديثات المشاريع ستجدها هنا. هذا هو سجل التواصل الرسمي.",
     account: "بيانات حسابك للعرض فقط.",
   };
@@ -299,8 +294,6 @@ export function ClientDashboard({
           {!loading && section === "files" && <section className="mt-7"><h2 className="text-2xl font-black">الملفات والتسليمات</h2><div className="mt-5 grid gap-3">{files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="flex flex-col justify-between gap-3 rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm sm:flex-row sm:items-center"><div><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></div><span className="text-sm font-bold text-[#9A7D43]">فتح الملف</span></a>)}{!files.length && <Empty text="لا توجد ملفات أو تسليمات بعد." />}</div></section>}
 
           {!loading && section === "invoices" && <section className="mt-7"><h2 className="text-2xl font-black">الفواتير</h2><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[820px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">رقم الفاتورة</th><th className="p-4">النوع</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-4 font-bold">{invoice.number}</td><td className="p-4">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</td><td className="p-4">{invoice.projectTitle}</td><td className="p-4">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{invoiceLabel[invoice.status] || invoice.status}</td><td className="p-4">{invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("ar") : "—"}</td></tr>)}</tbody></table>{!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}</div></section>}
-
-          {!loading && section === "payments" && <section className="mt-7"><h2 className="text-2xl font-black">المدفوعات</h2><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[640px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">الفاتورة</th><th className="p-4">المشروع</th><th className="p-4">المبلغ المدفوع</th><th className="p-4">تاريخ الدفع</th></tr></thead><tbody>{payments.map((payment) => <tr key={payment.id} className="border-b border-slate-100"><td className="p-4 font-bold">{payment.number}</td><td className="p-4">{payment.projectTitle}</td><td className="p-4">{payment.amount.toLocaleString("ar")} {payment.currency}</td><td className="p-4">{payment.paidAt ? new Date(payment.paidAt).toLocaleDateString("ar") : "مسجلة كمدفوعة"}</td></tr>)}</tbody></table>{!payments.length && <div className="p-8 text-center text-slate-500">لا توجد مدفوعات مسجلة بعد.</div>}</div></section>}
 
           {!loading && section === "messages" && <section className="mt-7">
             <h2 className="text-2xl font-black">الرسائل والتحديثات</h2>
