@@ -103,18 +103,31 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     if (action === "invoice") {
       const projectId = typeof body?.projectId === "string" ? body.projectId : "";
-      const number = typeof body?.number === "string" ? body.number.trim() : "";
       const amount = Number(body?.amount);
       const project = await db.clientProject.findFirst({ where: { id: projectId, clientId }, select: { id: true, title: true, currency: true } });
-      if (!project || !number || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: "بيانات الفاتورة غير مكتملة" }, { status: 400 });
-      const invoice = await db.clientInvoice.create({
-        data: {
-          projectId, number, amount, currency: parseCurrency(body.currency || project.currency),
-          status: body.status || "DUE",
-          dueAt: body.dueAt ? new Date(body.dueAt) : null,
-        },
+      if (!project || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: "بيانات الفاتورة غير مكتملة" }, { status: 400 });
+
+      const year = new Date().getUTCFullYear();
+      const invoice = await db.$transaction(async (transaction) => {
+        const sequence = await transaction.invoiceSequence.upsert({
+          where: { year },
+          create: { year, lastNumber: 1 },
+          update: { lastNumber: { increment: 1 } },
+        });
+        const number = `CW-${year}-${String(sequence.lastNumber).padStart(4, "0")}`;
+
+        return transaction.clientInvoice.create({
+          data: {
+            projectId,
+            number,
+            amount,
+            currency: parseCurrency(body.currency || project.currency),
+            status: body.status || "DUE",
+            dueAt: body.dueAt ? new Date(body.dueAt) : null,
+          },
+        });
       });
-      await notify(clientId, "صدرت فاتورة جديدة", `${number} — ${amount} ${invoice.currency}`, "invoices");
+      await notify(clientId, "صدرت فاتورة جديدة", `${invoice.number} — ${amount} ${invoice.currency}`, "invoices");
       return NextResponse.json({ invoice: { ...invoice, amount: Number(invoice.amount) } }, { status: 201 });
     }
 
