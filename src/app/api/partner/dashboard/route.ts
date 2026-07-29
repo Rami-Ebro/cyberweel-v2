@@ -106,8 +106,7 @@ export async function PATCH(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
   const projectId = typeof body?.projectId === "string" ? body.projectId : "";
-  const action = body?.action;
-  if (!projectId || action !== "progress") {
+  if (!projectId || body?.action !== "progress") {
     return NextResponse.json({ error: "طلب غير صالح" }, { status: 400 });
   }
 
@@ -120,16 +119,14 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "لا يمكن تعديل مشروع مكتمل" }, { status: 409 });
   }
 
-  if (action === "progress") {
-    const progress = Number(body?.progress);
-    if (!Number.isInteger(progress) || progress < 0 || progress > 100) {
-      return NextResponse.json({ error: "نسبة التقدم يجب أن تكون بين 0 و100" }, { status: 400 });
-    }
-    const updated = await db.partnerProject.update({
-      where: { id: project.id },
-      data: { progress },
-    });
-    return NextResponse.json({ project: serializeProject(updated) });
+  const progress = Number(body?.progress);
+  if (!Number.isInteger(progress) || progress < 0 || progress > 100) {
+    return NextResponse.json({ error: "نسبة التقدم يجب أن تكون بين 0 و100" }, { status: 400 });
   }
 
+  const updated = await db.partnerProject.update({
+    where: { id: project.id },
+    data: { progress },
+  });
+  return NextResponse.json({ project: serializeProject(updated) });
 }
