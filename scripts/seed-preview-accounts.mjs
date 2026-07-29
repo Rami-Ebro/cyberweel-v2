@@ -238,7 +238,7 @@ try {
         },
       });
     }
-  });
+  }, { maxWait: 15_000, timeout: 60_000 });
 
   console.log("[preview-seed] Test accounts are ready:", Object.values(emails));
 } finally {
