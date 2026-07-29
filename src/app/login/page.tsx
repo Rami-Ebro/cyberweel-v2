@@ -126,7 +126,7 @@ export default function LoginPage() {
             {message && <p role="alert" className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">{message}</p>}
 
             <div className="mt-7 border-t border-[#ECE8DF] pt-6 text-center">
-              <p className="text-sm text-slate-500">الوصول متاح للحسابات المقبولة فقط. <Link href="/?view=partner" className="font-black text-[#111827] underline decoration-[#B89A5A] decoration-2 underline-offset-4">قدّم طلب تعاون</Link></p>
+              <p className="text-sm text-slate-500">الوصول متاح للحسابات المقبولة فقط. <Link href="/#/partner" className="font-black text-[#111827] underline decoration-[#B89A5A] decoration-2 underline-offset-4">قدّم طلب تعاون</Link></p>
             </div>
           </section>
         </div>
