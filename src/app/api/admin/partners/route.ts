@@ -23,7 +23,10 @@ export async function GET(request: NextRequest) {
       ? db.partnerReferral.findMany({
           orderBy: { createdAt: "desc" },
           take: 250,
-          include: { partner: { include: { user: { select: { name: true, email: true } } } } },
+          include: {
+            partner: { include: { user: { select: { name: true, email: true } } } },
+            ambassador: { include: { user: { select: { name: true, email: true } } } },
+          },
         })
       : [],
     canView[0] ? db.user.count() : 0,
