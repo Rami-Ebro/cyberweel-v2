@@ -38,7 +38,12 @@ if (
 
 const password = process.env.PREVIEW_TEST_PASSWORD;
 
-if (!password || password.length < 12 || password.length > 256) {
+if (!password) {
+  console.error("[preview-seed] PREVIEW_TEST_PASSWORD is missing from the Preview environment.");
+  process.exit(1);
+}
+
+if (password.length < 12 || password.length > 256) {
   console.error("[preview-seed] PREVIEW_TEST_PASSWORD must contain 12-256 characters.");
   process.exit(1);
 }
