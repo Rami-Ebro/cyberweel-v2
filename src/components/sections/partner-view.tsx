@@ -5,9 +5,9 @@ import { motion } from "framer-motion";
 import { BriefcaseBusiness, Check, Megaphone, X } from "lucide-react";
 import { PageHeader } from "@/components/site/page-header";
 import { Section } from "@/components/site/section-primitives";
-import { MailtoForm } from "@/components/site/mailto-form";
+import { CollaborationApplicationForm } from "./collaboration-application-form";
 import { useI18n } from "@/components/site/i18n";
-import { BRAND } from "@/lib/site-data";
+
 
 type PathId = "partner" | "ambassador";
 
@@ -21,9 +21,9 @@ const AR = {
   },
   ambassador: {
     eyebrow: "مسار السفير",
-    title: "كن سفيرًا لـ CyberWeel وحقق أرباحًا",
-    intro: "أوصلنا إلى أصحاب الأعمال المناسبين، واحصل على عمولة واضحة عند تحوّل الفرصة إلى مشروع",
-    items: ["عمولة أو مكافأة متفق عليها", "دعم في تقييم الفرص ومتابعتها", "مواد تساعدك في تقديم CyberWeel", "لوحة تحكم شفافة تحفظ حقوقك وتوضح كل فرصة وعمولتها وحالتها"],
+    title: "حوّل علاقاتك المهنية إلى دخل إضافي واضح",
+    intro: "عرّف أصحاب الأعمال المناسبين بنا. تُحدّد العمولة مسبقًا، وتُستحق وفق نتيجة الإحالة الفعلية دون وعود بدخل مضمون.",
+    items: ["قيمة العمولة وشروط استحقاقها موثقة مسبقًا", "تتبّع كل إحالة وقرار الإدارة من لوحة مستقلة", "مواد تساعدك في تقديم CyberWeel", "لوحة تحكم شفافة تحفظ حقوقك وتوضح كل فرصة وعمولتها وحالتها"],
     cta: "انضم كسفير CyberWeel",
   },
 };
@@ -65,19 +65,7 @@ export function PartnerView() {
   const data = ar ? AR : EN;
   const [active, setActive] = useState<PathId | null>(null);
 
-  const fields = active === "partner"
-    ? [
-        { kind: "text" as const, name: "name", label: ar ? "الاسم" : "Name", required: true },
-        { kind: "text" as const, name: "email", label: ar ? "البريد الإلكتروني" : "Email", type: "email", required: true },
-        { kind: "text" as const, name: "specialty", label: ar ? "التخصص والخبرة" : "Expertise and experience", required: true, full: true },
-        { kind: "textarea" as const, name: "portfolio", label: ar ? "عرّفنا بأعمالك وتفرغك (اختياري)" : "Tell us about your work, availability, and relevant portfolio links (optional)", full: true, rows: 5 },
-      ]
-    : [
-        { kind: "text" as const, name: "name", label: ar ? "الاسم" : "Name", required: true },
-        { kind: "text" as const, name: "email", label: ar ? "البريد الإلكتروني" : "Email", type: "email", required: true },
-        { kind: "text" as const, name: "market", label: ar ? "البلد أو السوق المستهدف" : "Country or target market", required: true, full: true },
-        { kind: "textarea" as const, name: "network", label: ar ? "صف لنا شبكة علاقاتك وطريقة الوصول إلى الفرص (اختياري)" : "Tell us about your network and how you identify suitable opportunities (optional)", full: true, rows: 5 },
-      ];
+
 
   return (
     <div>
@@ -110,14 +98,7 @@ export function PartnerView() {
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-ink/70 p-4" role="dialog" aria-modal="true">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-background p-6 shadow-2xl sm:p-8">
             <div className="mb-6 flex items-start justify-between gap-4"><div><p className="text-sm font-bold text-accent">{data[active].eyebrow}</p><h2 className="mt-2 font-display text-2xl font-semibold text-ink">{data[active].cta}</h2></div><button type="button" onClick={() => setActive(null)} aria-label={ar ? "إغلاق" : "Close"} className="focus-ring rounded-md p-2 text-muted-foreground hover:bg-muted"><X className="h-5 w-5" /></button></div>
-            <MailtoForm
-              to={BRAND.email}
-              subject={`${active === "partner" ? (ar ? "طلب شريك تنفيذ" : "Delivery Partner Application") : (ar ? "طلب سفير CyberWeel" : "CyberWeel Ambassador Application")} — CyberWeel`}
-              submitLabel={data[active].cta}
-              successMessage={ar ? "وصلت رسالتك بنجاح. شارك هذه الفرصة مع شخص قد تناسبه" : "Your application is ready. We will review it carefully and contact you if the opportunity appears to be a good fit."}
-              allowAttachments
-              fields={fields}
-            />
+<CollaborationApplicationForm type={active === "partner" ? "PARTNER" : "AMBASSADOR"} arabic={ar} />
           </div>
         </div>
       )}

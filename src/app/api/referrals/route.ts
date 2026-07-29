@@ -25,6 +25,8 @@ export async function POST(request: NextRequest) {
   const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
   const notes = typeof body?.notes === "string" ? body.notes.trim() : "";
   const explicitCode = typeof body?.referralCode === "string" ? body.referralCode.trim() : "";
+  const ambassadorMatch = /^CWA-(\d{4,})$/i.exec(explicitCode);
+  const ambassadorReferralNumber = ambassadorMatch ? Number.parseInt(ambassadorMatch[1], 10) : null;
   const explicitReferralNumber = explicitCode ? parsePartnerReferralCode(explicitCode) : null;
   const partnerId = request.cookies.get(REFERRAL_COOKIE)?.value;
 
@@ -42,7 +44,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const partner = explicitReferralNumber
+    const ambassador = ambassadorReferralNumber
+      ? await db.ambassador.findFirst({ where: { referralNumber: ambassadorReferralNumber, status: "ACTIVE" }, select: { id: true } })
+      : null;
+    const partner = ambassadorReferralNumber ? null : explicitReferralNumber
       ? await db.partner.findFirst({
           where: { referralNumber: explicitReferralNumber, status: "ACTIVE" },
           select: { id: true },
@@ -54,13 +59,14 @@ export async function POST(request: NextRequest) {
           })
         : null;
 
-    if (!partner) {
+    if (!partner && !ambassador) {
       return NextResponse.json({ ok: true, attributed: false });
     }
 
     const referral = await db.partnerReferral.create({
       data: {
-        partnerId: partner.id,
+        partnerId: partner?.id || null,
+        ambassadorId: ambassador?.id || null,
         name,
         email: email || null,
         phone: phone || null,
