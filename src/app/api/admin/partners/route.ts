@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     referrals: referrals.length,
     newReferrals: referrals.filter((item) => item.status === "NEW").length,
     qualifiedReferrals: referrals.filter((item) => item.status === "QUALIFIED").length,
-    projects: referrals.filter((item) => item.status === "CONVERTED").length,
+    projects: partners.reduce((total, item) => total + item.assignments.length, 0),
   };
 
   return NextResponse.json({
