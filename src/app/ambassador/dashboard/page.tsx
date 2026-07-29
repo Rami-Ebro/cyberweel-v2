@@ -149,7 +149,10 @@ export default function AmbassadorDashboardPage() {
     const response = await fetch("/api/ambassador/dashboard", { cache: "no-store" });
     const payload = await response.json();
     if (!response.ok) {
-      if (payload.redirectTo) router.replace(payload.redirectTo);
+      if (payload.redirectTo) {
+        router.replace(payload.redirectTo);
+        return;
+      }
       throw new Error(payload.error === "PROFILE_REQUIRED" ? "أكمل ملفك أولًا" : "تعذر تحميل لوحة السفير");
     }
     setData(payload);
