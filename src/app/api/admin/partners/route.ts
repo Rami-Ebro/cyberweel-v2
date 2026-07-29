@@ -105,10 +105,12 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "رمز العملة غير صالح" }, { status: 400 });
     }
 
-    const paymentStatus = typeof body?.paymentStatus === "string" ? body.paymentStatus : "PENDING";
-    if (!["PENDING", "APPROVED", "PAID", "CANCELLED"].includes(paymentStatus)) {
+    const paymentStatuses = ["PENDING", "APPROVED", "PAID", "CANCELLED"] as const;
+    const paymentStatusValue = typeof body?.paymentStatus === "string" ? body.paymentStatus : "PENDING";
+    if (!paymentStatuses.includes(paymentStatusValue as (typeof paymentStatuses)[number])) {
       return NextResponse.json({ error: "حالة المستحقات غير صالحة" }, { status: 400 });
     }
+    const paymentStatus = paymentStatusValue as (typeof paymentStatuses)[number];
 
     const dueAt = body?.dueAt ? new Date(body.dueAt) : null;
     if (dueAt && Number.isNaN(dueAt.getTime())) {
