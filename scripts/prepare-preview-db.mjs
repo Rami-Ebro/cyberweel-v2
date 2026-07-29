@@ -2,20 +2,26 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const allowedPreviewBranch = "codex-9b7hcm";
+const productionBranch = "main";
 const productionDatabaseHostFragment = "ep-quiet-bird-asiuetz3";
 
+const isVercel = process.env.VERCEL === "1";
 const isAllowedPreview =
-  process.env.VERCEL === "1" &&
+  isVercel &&
   process.env.VERCEL_ENV === "preview" &&
   process.env.VERCEL_GIT_COMMIT_REF === allowedPreviewBranch;
+const isAllowedProduction =
+  isVercel &&
+  process.env.VERCEL_ENV === "production" &&
+  process.env.VERCEL_GIT_COMMIT_REF === productionBranch;
 
-if (!isAllowedPreview) {
-  console.log("[preview-db] Skipped outside the isolated PR preview.");
+if (!isAllowedPreview && !isAllowedProduction) {
+  console.log("[deployment-db] Skipped outside the approved Vercel deployments.");
   process.exit(0);
 }
 
 if (!process.env.DATABASE_URL) {
-  console.error("[preview-db] DATABASE_URL is missing from Preview.");
+  console.error("[deployment-db] DATABASE_URL is missing.");
   process.exit(1);
 }
 
@@ -24,15 +30,22 @@ let databaseUrl;
 try {
   databaseUrl = new URL(process.env.DATABASE_URL);
 } catch {
-  console.error("[preview-db] DATABASE_URL is invalid.");
+  console.error("[deployment-db] DATABASE_URL is invalid.");
   process.exit(1);
 }
 
-if (
-  !databaseUrl.hostname.endsWith(".neon.tech") ||
-  databaseUrl.hostname.includes(productionDatabaseHostFragment)
-) {
-  console.error("[preview-db] Refusing to change an unapproved database host.");
+if (!databaseUrl.hostname.endsWith(".neon.tech")) {
+  console.error("[deployment-db] Refusing to change a non-Neon database host.");
+  process.exit(1);
+}
+
+if (isAllowedPreview && databaseUrl.hostname.includes(productionDatabaseHostFragment)) {
+  console.error("[deployment-db] Refusing to use the Production database from Preview.");
+  process.exit(1);
+}
+
+if (isAllowedProduction && !databaseUrl.hostname.includes(productionDatabaseHostFragment)) {
+  console.error("[deployment-db] Refusing to migrate an unapproved Production database host.");
   process.exit(1);
 }
 
@@ -42,16 +55,23 @@ const prismaBinary = path.join(
   ".bin",
   process.platform === "win32" ? "prisma.cmd" : "prisma",
 );
+const prismaArgs = isAllowedPreview
+  ? ["db", "push", "--skip-generate"]
+  : ["migrate", "deploy"];
 
-console.log("[preview-db] Synchronizing the isolated Preview database schema.");
+console.log(
+  isAllowedPreview
+    ? "[deployment-db] Synchronizing the isolated Preview database schema."
+    : "[deployment-db] Applying reviewed migrations to Production.",
+);
 
-const result = spawnSync(prismaBinary, ["db", "push", "--skip-generate"], {
+const result = spawnSync(prismaBinary, prismaArgs, {
   env: process.env,
   stdio: "inherit",
 });
 
 if (result.error) {
-  console.error("[preview-db] Failed to start Prisma:", result.error.message);
+  console.error("[deployment-db] Failed to start Prisma:", result.error.message);
   process.exit(1);
 }
 
