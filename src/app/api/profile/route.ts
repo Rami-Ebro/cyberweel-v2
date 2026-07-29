@@ -7,6 +7,44 @@ function value(input: unknown, max = 1000) {
   return typeof input === "string" ? input.trim().slice(0, max) : "";
 }
 
+export async function GET(request: NextRequest) {
+  const session = readPartnerSession(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
+  if (!session) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+
+  const user = await db.user.findUnique({
+    where: { id: session.userId },
+    select: {
+      role: true,
+      partner: {
+        select: {
+          phone: true,
+          specialty: true,
+          experience: true,
+          availability: true,
+          portfolioUrl: true,
+        },
+      },
+      ambassador: {
+        select: {
+          phone: true,
+          country: true,
+          contactMethod: true,
+          payoutMethod: true,
+          payoutDetails: true,
+        },
+      },
+    },
+  });
+  if (!user || !["PARTNER", "AMBASSADOR"].includes(user.role)) {
+    return NextResponse.json({ error: "INVALID_ROLE" }, { status: 403 });
+  }
+
+  return NextResponse.json({
+    role: user.role,
+    profile: user.role === "AMBASSADOR" ? user.ambassador : user.partner,
+  });
+}
+
 export async function POST(request: NextRequest) {
   if (!hasTrustedOrigin(request)) return invalidOriginResponse();
 
