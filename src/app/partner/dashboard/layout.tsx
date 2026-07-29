@@ -6,5 +6,6 @@ export default async function PartnerDashboardLayout({ children }: { children: R
   if (!user?.partner || user.role !== "PARTNER" || user.partner.status !== "ACTIVE") {
     redirect("/partner/login");
   }
+  if (!user.partner.profileCompletedAt) redirect("/complete-profile");
   return children;
 }

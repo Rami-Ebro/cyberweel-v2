@@ -27,12 +27,13 @@ import { Logo } from "@/components/brand/logo";
 import { formatDate } from "@/lib/date-format";
 
 type SectionKey = "overview" | "referrals" | "projects" | "commissions" | "payments" | "referral" | "profile";
+type PartnerProject = { id: string; title: string; description: string | null; status: string; tasks: string[]; deliverables: string[]; files: string[]; updates: string[]; dueAt: string | null };
 type Referral = { id: string; name: string | null; email: string | null; phone: string | null; status: string; createdAt: string };
 type DashboardData = {
   partner: { name: string; email: string; code: string; referralUrl: string; joinedAt: string };
   stats: { referrals: number; projects: number; totalCommissions: number; dueBalance: number };
   referrals: Referral[];
-  projects: unknown[];
+  projects: PartnerProject[];
   commissions: unknown[];
   payments: unknown[];
 };
@@ -238,7 +239,7 @@ export default function PartnerDashboardPage() {
       );
     }
 
-    if (activeSection === "projects") return empty("المشاريع", "لا توجد مشاريع مرتبطة بالإحالات حتى الآن.");
+    if (activeSection === "projects") return <section className={`rounded-2xl border p-6 shadow-sm ${card}`}><h2 className="text-2xl font-extrabold">المشاريع المسندة</h2><p className={`mt-2 text-sm ${muted}`}>المهام والتسليمات والملفات والتحديثات المطلوبة لبدء العمل.</p><div className="mt-6 grid gap-4">{data.projects.length ? data.projects.map(project => <article key={project.id} className={`rounded-xl p-5 ${soft}`}><div className="flex justify-between gap-3"><h3 className="font-extrabold">{project.title}</h3><span>{project.status}</span></div>{project.description && <p className={`mt-2 text-sm ${muted}`}>{project.description}</p>}<div className="mt-4 grid gap-3 md:grid-cols-2"><div><b>المهام</b><ul className="mt-2 list-inside list-disc">{project.tasks.map(x=><li key={x}>{x}</li>)}</ul></div><div><b>التسليمات</b><ul className="mt-2 list-inside list-disc">{project.deliverables.map(x=><li key={x}>{x}</li>)}</ul></div><div><b>الملفات</b><ul className="mt-2">{project.files.map(x=><li key={x}><a className="underline" href={x}>فتح الملف</a></li>)}</ul></div><div><b>آخر التحديثات</b><ul className="mt-2 list-inside list-disc">{project.updates.map(x=><li key={x}>{x}</li>)}</ul></div></div>{project.dueAt&&<p className="mt-4 text-sm">موعد التسليم: {formatDate(project.dueAt)}</p>}</article>) : <p className={muted}>لا توجد مشاريع مسندة حاليًا.</p>}</div></section>;
     if (activeSection === "commissions") return empty("العمولات", "لا توجد عمولات مسجلة حتى الآن.");
     if (activeSection === "payments") return empty("الدفعات", "لا توجد دفعات مسجلة حتى الآن.");
 

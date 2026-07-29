@@ -13,7 +13,7 @@ export default async function DashboardEntryPage() {
 
   const user = await db.user.findUnique({
     where: { id: session.userId },
-    select: { role: true, partner: { select: { status: true } }, adminProfile: { select: { isActive: true } } },
+    select: { role: true, partner: { select: { status: true, profileCompletedAt: true } }, ambassador: { select: { status: true, profileCompletedAt: true } }, adminProfile: { select: { isActive: true } } },
   });
 
   if (!user) redirect("/login?next=/dashboard");
@@ -25,6 +25,8 @@ export default async function DashboardEntryPage() {
 
   if (user.role === "CLIENT") redirect("/client/dashboard");
 
+  if (user.role === "AMBASSADOR" && user.ambassador?.status === "ACTIVE") redirect(user.ambassador.profileCompletedAt ? "/ambassador/dashboard" : "/complete-profile");
+  if (user.role === "PARTNER" && user.partner?.status === "ACTIVE" && !user.partner.profileCompletedAt) redirect("/complete-profile");
   if (user.partner?.status === "ACTIVE") redirect("/partner/dashboard");
   redirect("/login?error=partner-pending");
 }

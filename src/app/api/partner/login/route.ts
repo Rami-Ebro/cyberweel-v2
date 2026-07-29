@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
   const user = await db.user.findFirst({
     where: isEmail ? { email } : { phone },
-    include: { partner: true, adminProfile: true },
+    include: { partner: true, ambassador: true, adminProfile: true },
   });
   if (!user?.passwordHash || !verifyPassword(password, user.passwordHash)) {
     return NextResponse.json({ error: "بيانات الدخول غير صحيحة" }, { status: 401 });
@@ -59,6 +59,10 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  if (user.role === "AMBASSADOR" && (!user.ambassador || user.ambassador.status !== "ACTIVE")) {
+    return NextResponse.json({ error: user.ambassador?.status === "SUSPENDED" ? "الحساب معلّق" : "الحساب بانتظار موافقة الإدارة" }, { status: 403 });
+  }
+
   if (user.role === "ADMIN" && user.adminProfile && !user.adminProfile.isActive) {
     return NextResponse.json({ error: "الحساب الإداري موقوف" }, { status: 403 });
   }
@@ -67,11 +71,12 @@ export async function POST(request: NextRequest) {
     await db.adminProfile.update({ where: { userId: user.id }, data: { lastLoginAt: new Date() } });
   }
 
-  const redirectTo = user.role === "ADMIN"
+  const needsProfile = (user.role === "PARTNER" && !user.partner?.profileCompletedAt) || (user.role === "AMBASSADOR" && !user.ambassador?.profileCompletedAt);
+  const redirectTo = needsProfile ? "/complete-profile" : user.role === "ADMIN"
     ? "/admin/partners"
     : user.role === "CLIENT"
       ? "/client/dashboard"
-      : "/partner/dashboard";
+      : user.role === "AMBASSADOR" ? "/ambassador/dashboard" : "/partner/dashboard";
   const response = NextResponse.json({ ok: true, role: user.role, redirectTo });
   response.cookies.set(PARTNER_SESSION_COOKIE, createPartnerSession(user.id, remember), partnerSessionCookieOptions(remember));
   return response;

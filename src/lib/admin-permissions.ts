@@ -5,6 +5,7 @@ import { NextRequest } from "next/server";
 export const ADMIN_PERMISSIONS = [
   "overview",
   "partners",
+  "ambassadors",
   "referrals",
   "projects",
   "clients",

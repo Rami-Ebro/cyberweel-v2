@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
           status: true,
           referralNumber: true,
           createdAt: true,
+          assignments: { orderBy: { createdAt: "desc" } },
           referrals: {
             orderBy: { createdAt: "desc" },
             select: {
@@ -56,12 +57,12 @@ export async function GET(request: NextRequest) {
     },
     stats: {
       referrals: user.partner.referrals.length,
-      projects: 0,
+      projects: user.partner.assignments.filter((item) => item.status !== "COMPLETED").length,
       totalCommissions: 0,
       dueBalance: 0,
     },
     referrals: user.partner.referrals,
-    projects: [],
+    projects: user.partner.assignments,
     commissions: [],
     payments: [],
   });

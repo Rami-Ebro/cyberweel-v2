@@ -58,7 +58,7 @@ export default function PartnerLoginPage() {
           <button disabled={loading} className="w-full rounded-xl bg-[#111827] px-4 py-3 font-extrabold text-white disabled:opacity-60">{loading ? "جارٍ الدخول..." : "دخول"}</button>
         </form>
         {message && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">{message}</p>}
-        <p className="mt-6 text-sm text-slate-600">شريك جديد؟ <Link href="/partner/register" className="font-bold text-[#9A7D43]">إنشاء طلب شراكة</Link></p>
+        <p className="mt-6 text-sm text-slate-600">لا يوجد تسجيل ذاتي. <Link href="/?view=partner" className="font-bold text-[#9A7D43]">قدّم طلب تعاون</Link></p>
       </div>
     </main>
   );

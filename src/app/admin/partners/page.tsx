@@ -157,7 +157,7 @@ export default function AdminPartnersPage() {
             {(admin?.isOwner || admin?.permissions.includes("smart_links")) && <Link href="/admin/smart-links" className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-white/70 transition hover:bg-white/10 hover:text-white"><Link2 className="h-5 w-5" />الروابط الذكية</Link>}
           </nav>
           <div className="mt-auto grid gap-2 pt-8">
-            <Link href="/" className="flex items-center gap-3 rounded-xl bg-[#B89A5A] px-4 py-3 font-black text-[#111827]"><Home className="h-5 w-5" />العودة إلى الموقع</Link>
+            <Link href="/admin/ambassadors" className="flex items-center gap-3 rounded-xl border border-white/10 px-4 py-3 font-bold text-white">إدارة السفراء</Link><Link href="/admin/referrals" className="flex items-center gap-3 rounded-xl border border-white/10 px-4 py-3 font-bold text-white">إدارة الإحالات</Link><Link href="/" className="flex items-center gap-3 rounded-xl bg-[#B89A5A] px-4 py-3 font-black text-[#111827]"><Home className="h-5 w-5" />العودة إلى الموقع</Link>
             <button onClick={logout} className="flex w-full items-center gap-3 rounded-xl border border-white/10 px-4 py-3 font-bold text-white/70 hover:bg-white/10"><LogOut className="h-5 w-5" />تسجيل الخروج</button>
           </div>
         </aside>

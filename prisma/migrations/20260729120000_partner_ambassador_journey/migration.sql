@@ -1,0 +1,18 @@
+-- Additive migration only: existing users, partners and referrals remain intact.
+ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'AMBASSADOR';
+ALTER TYPE "PartnerStatus" ADD VALUE IF NOT EXISTS 'REJECTED';
+CREATE TYPE "ApplicationType" AS ENUM ('PARTNER', 'AMBASSADOR');
+CREATE TYPE "ApplicationStatus" AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED');
+CREATE TYPE "CommissionStatus" AS ENUM ('PENDING', 'APPROVED', 'PAID', 'CANCELLED');
+ALTER TABLE "Partner" ADD COLUMN "profileCompletedAt" TIMESTAMP(3), ADD COLUMN "phone" TEXT, ADD COLUMN "specialty" TEXT, ADD COLUMN "experience" TEXT, ADD COLUMN "availability" TEXT, ADD COLUMN "portfolioUrl" TEXT, ADD COLUMN "decisionNotes" TEXT, ADD COLUMN "decidedAt" TIMESTAMP(3);
+CREATE TABLE "Ambassador" ("id" TEXT NOT NULL, "referralNumber" SERIAL NOT NULL, "status" "PartnerStatus" NOT NULL DEFAULT 'PENDING', "userId" TEXT NOT NULL, "phone" TEXT, "country" TEXT, "contactMethod" TEXT, "payoutMethod" TEXT, "payoutDetails" TEXT, "profileCompletedAt" TIMESTAMP(3), "decisionNotes" TEXT, "decidedAt" TIMESTAMP(3), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "Ambassador_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "Ambassador_referralNumber_key" ON "Ambassador"("referralNumber"); CREATE UNIQUE INDEX "Ambassador_userId_key" ON "Ambassador"("userId"); CREATE INDEX "Ambassador_status_idx" ON "Ambassador"("status");
+CREATE TABLE "CollaborationApplication" ("id" TEXT NOT NULL, "type" "ApplicationType" NOT NULL, "status" "ApplicationStatus" NOT NULL DEFAULT 'PENDING', "name" TEXT NOT NULL, "email" TEXT NOT NULL, "phone" TEXT, "specialty" TEXT, "market" TEXT, "details" TEXT, "decisionNotes" TEXT, "decidedAt" TIMESTAMP(3), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "CollaborationApplication_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "CollaborationApplication_type_status_idx" ON "CollaborationApplication"("type", "status"); CREATE INDEX "CollaborationApplication_createdAt_idx" ON "CollaborationApplication"("createdAt");
+CREATE TABLE "PartnerProject" ("id" TEXT NOT NULL, "partnerId" TEXT NOT NULL, "title" TEXT NOT NULL, "description" TEXT, "tasks" TEXT[] DEFAULT ARRAY[]::TEXT[], "deliverables" TEXT[] DEFAULT ARRAY[]::TEXT[], "files" TEXT[] DEFAULT ARRAY[]::TEXT[], "updates" TEXT[] DEFAULT ARRAY[]::TEXT[], "status" TEXT NOT NULL DEFAULT 'ASSIGNED', "dueAt" TIMESTAMP(3), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "PartnerProject_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "PartnerProject_partnerId_status_idx" ON "PartnerProject"("partnerId", "status");
+ALTER TABLE "PartnerReferral" ALTER COLUMN "partnerId" DROP NOT NULL, ADD COLUMN "ambassadorId" TEXT, ADD COLUMN "source" TEXT, ADD COLUMN "contactMethod" TEXT, ADD COLUMN "adminDecision" TEXT, ADD COLUMN "commissionAmount" DECIMAL(12,2), ADD COLUMN "commissionCurrency" TEXT NOT NULL DEFAULT 'USD', ADD COLUMN "commissionStatus" "CommissionStatus" NOT NULL DEFAULT 'PENDING';
+CREATE INDEX "PartnerReferral_ambassadorId_status_idx" ON "PartnerReferral"("ambassadorId", "status");
+ALTER TABLE "Ambassador" ADD CONSTRAINT "Ambassador_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "PartnerProject" ADD CONSTRAINT "PartnerProject_partnerId_fkey" FOREIGN KEY ("partnerId") REFERENCES "Partner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "PartnerReferral" ADD CONSTRAINT "PartnerReferral_ambassadorId_fkey" FOREIGN KEY ("ambassadorId") REFERENCES "Ambassador"("id") ON DELETE SET NULL ON UPDATE CASCADE;
