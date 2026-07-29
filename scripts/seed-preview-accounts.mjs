@@ -149,6 +149,11 @@ try {
       files: [],
       updates: ["تم إسناد المشروع إلى الشريك", "بدأت مراجعة المتطلبات"],
       status: "IN_PROGRESS",
+      progress: 35,
+      feeAmount: "850.00",
+      feeCurrency: "USD",
+      paymentStatus: "APPROVED",
+      paidAt: null,
       dueAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     };
 
@@ -163,6 +168,41 @@ try {
           partnerId: partner.id,
           title: "مشروع تجريبي لتطوير رحلة العميل",
           ...projectData,
+        },
+      });
+    }
+
+    const historicalTitle = "مشروع هوية رقمية مكتمل";
+    const historicalProject = await tx.partnerProject.findFirst({
+      where: { partnerId: partner.id, title: historicalTitle },
+      select: { id: true },
+    });
+    const historicalData = {
+      description: "مشروع تجريبي مكتمل لعرض سجل المشاريع والمستحقات السابقة.",
+      tasks: ["إعداد اتجاه الهوية", "تسليم الملفات النهائية"],
+      deliverables: ["دليل هوية", "حزمة ملفات نهائية"],
+      files: [],
+      updates: ["تم اعتماد التسليم النهائي", "تم إغلاق المشروع وصرف المستحقات"],
+      status: "COMPLETED",
+      progress: 100,
+      feeAmount: "500.00",
+      feeCurrency: "USD",
+      paymentStatus: "PAID",
+      paidAt: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000),
+      dueAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    };
+
+    if (historicalProject) {
+      await tx.partnerProject.update({
+        where: { id: historicalProject.id },
+        data: historicalData,
+      });
+    } else {
+      await tx.partnerProject.create({
+        data: {
+          partnerId: partner.id,
+          title: historicalTitle,
+          ...historicalData,
         },
       });
     }
