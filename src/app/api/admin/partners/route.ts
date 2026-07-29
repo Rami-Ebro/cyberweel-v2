@@ -82,7 +82,57 @@ export async function PATCH(request: NextRequest) {
     if (!(await canAdmin(request, "projects"))) return NextResponse.json({ error: "لا تملك صلاحية إدارة المشاريع" }, { status: 403 });
     const title = typeof body?.title === "string" ? body.title.trim() : "";
     if (!title) return NextResponse.json({ error: "اسم المشروع مطلوب" }, { status: 400 });
-    const project = await db.partnerProject.create({ data: { partnerId: id, title, description: typeof body.description === "string" ? body.description : null, tasks: Array.isArray(body.tasks) ? body.tasks.filter((x: unknown): x is string => typeof x === "string") : [], deliverables: Array.isArray(body.deliverables) ? body.deliverables.filter((x: unknown): x is string => typeof x === "string") : [], files: Array.isArray(body.files) ? body.files.filter((x: unknown): x is string => typeof x === "string") : [], updates: Array.isArray(body.updates) ? body.updates.filter((x: unknown): x is string => typeof x === "string") : [], dueAt: body.dueAt ? new Date(body.dueAt) : null } });
+
+    const projectStatus = typeof body?.projectStatus === "string" ? body.projectStatus : "ASSIGNED";
+    if (!["ASSIGNED", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD"].includes(projectStatus)) {
+      return NextResponse.json({ error: "حالة المشروع غير صالحة" }, { status: 400 });
+    }
+
+    const progress = body?.progress === undefined ? 0 : Number(body.progress);
+    if (!Number.isInteger(progress) || progress < 0 || progress > 100) {
+      return NextResponse.json({ error: "نسبة التقدم يجب أن تكون بين 0 و100" }, { status: 400 });
+    }
+
+    const feeAmount = body?.feeAmount === undefined || body?.feeAmount === null || body?.feeAmount === ""
+      ? null
+      : String(body.feeAmount).trim();
+    if (feeAmount && !/^\d{1,10}(\.\d{1,2})?$/.test(feeAmount)) {
+      return NextResponse.json({ error: "قيمة المستحقات غير صالحة" }, { status: 400 });
+    }
+
+    const feeCurrency = typeof body?.feeCurrency === "string" ? body.feeCurrency.trim().toUpperCase() : "USD";
+    if (!/^[A-Z]{3}$/.test(feeCurrency)) {
+      return NextResponse.json({ error: "رمز العملة غير صالح" }, { status: 400 });
+    }
+
+    const paymentStatus = typeof body?.paymentStatus === "string" ? body.paymentStatus : "PENDING";
+    if (!["PENDING", "APPROVED", "PAID", "CANCELLED"].includes(paymentStatus)) {
+      return NextResponse.json({ error: "حالة المستحقات غير صالحة" }, { status: 400 });
+    }
+
+    const dueAt = body?.dueAt ? new Date(body.dueAt) : null;
+    if (dueAt && Number.isNaN(dueAt.getTime())) {
+      return NextResponse.json({ error: "موعد التسليم غير صالح" }, { status: 400 });
+    }
+
+    const project = await db.partnerProject.create({
+      data: {
+        partnerId: id,
+        title,
+        description: typeof body.description === "string" ? body.description.trim() || null : null,
+        tasks: Array.isArray(body.tasks) ? body.tasks.filter((x: unknown): x is string => typeof x === "string").map((x: string) => x.trim()).filter(Boolean) : [],
+        deliverables: Array.isArray(body.deliverables) ? body.deliverables.filter((x: unknown): x is string => typeof x === "string").map((x: string) => x.trim()).filter(Boolean) : [],
+        files: Array.isArray(body.files) ? body.files.filter((x: unknown): x is string => typeof x === "string") : [],
+        updates: Array.isArray(body.updates) ? body.updates.filter((x: unknown): x is string => typeof x === "string").map((x: string) => x.trim()).filter(Boolean) : [],
+        status: projectStatus,
+        progress,
+        feeAmount,
+        feeCurrency,
+        paymentStatus,
+        paidAt: paymentStatus === "PAID" ? new Date() : null,
+        dueAt,
+      },
+    });
     return NextResponse.json({ project }, { status: 201 });
   }
 
