@@ -107,7 +107,7 @@ export async function PATCH(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const projectId = typeof body?.projectId === "string" ? body.projectId : "";
   const action = body?.action;
-  if (!projectId || !["progress", "update"].includes(action)) {
+  if (!projectId || action !== "progress") {
     return NextResponse.json({ error: "طلب غير صالح" }, { status: 400 });
   }
 
@@ -132,14 +132,4 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ project: serializeProject(updated) });
   }
 
-  const note = typeof body?.note === "string" ? body.note.trim() : "";
-  if (!note || note.length > 1000) {
-    return NextResponse.json({ error: "اكتب تحديثًا من 1 إلى 1000 حرف" }, { status: 400 });
-  }
-  const datedNote = `${new Date().toISOString()} — ${note}`;
-  const updated = await db.partnerProject.update({
-    where: { id: project.id },
-    data: { updates: { push: datedNote } },
-  });
-  return NextResponse.json({ project: serializeProject(updated) });
 }
