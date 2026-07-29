@@ -1,5 +1,12 @@
 import { db } from "@/lib/db";
-import { createPartnerSession, normalizeEmail, normalizePhone, partnerSessionCookieOptions, verifyPassword, PARTNER_SESSION_COOKIE } from "@/lib/partner-auth";
+import {
+  createPartnerSession,
+  normalizeEmail,
+  normalizePhone,
+  partnerSessionCookieOptions,
+  verifyPassword,
+  PARTNER_SESSION_COOKIE,
+} from "@/lib/partner-auth";
 import {
   consumeRateLimit,
   hasTrustedOrigin,
@@ -22,21 +29,13 @@ export async function POST(request: NextRequest) {
   const normalizedIdentifier = identifier.includes("@")
     ? normalizeEmail(identifier)
     : normalizePhone(identifier);
-  const [ipLimit, credentialLimit] = await Promise.all([
-    consumeRateLimit(request, {
-      action: "login-ip",
-      limit: 20,
-      windowMs: 15 * 60 * 1000,
-    }),
-    consumeRateLimit(request, {
-      action: "login-credential",
-      subject: normalizedIdentifier,
-      limit: 5,
-      windowMs: 15 * 60 * 1000,
-    }),
-  ]);
+
+  const ipLimit = await consumeRateLimit(request, {
+    action: "login-ip-v2",
+    limit: 30,
+    windowMs: 15 * 60 * 1000,
+  });
   if (!ipLimit.allowed) return rateLimitResponse(ipLimit);
-  if (!credentialLimit.allowed) return rateLimitResponse(credentialLimit);
 
   const isEmail = identifier.includes("@");
   const email = isEmail ? normalizedIdentifier : "";
@@ -46,9 +45,18 @@ export async function POST(request: NextRequest) {
     where: isEmail ? { email } : { phone },
     include: { partner: true, ambassador: true, adminProfile: true },
   });
+
   if (!user?.passwordHash || !verifyPassword(password, user.passwordHash)) {
+    const credentialLimit = await consumeRateLimit(request, {
+      action: "login-credential-failure-v2",
+      subject: normalizedIdentifier,
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!credentialLimit.allowed) return rateLimitResponse(credentialLimit);
     return NextResponse.json({ error: "بيانات الدخول غير صحيحة" }, { status: 401 });
   }
+
   if (!user.isActive) {
     return NextResponse.json({ error: "الحساب معلّق. تواصل مع الإدارة." }, { status: 403 });
   }
@@ -71,13 +79,23 @@ export async function POST(request: NextRequest) {
     await db.adminProfile.update({ where: { userId: user.id }, data: { lastLoginAt: new Date() } });
   }
 
-  const needsProfile = (user.role === "PARTNER" && !user.partner?.profileCompletedAt) || (user.role === "AMBASSADOR" && !user.ambassador?.profileCompletedAt);
-  const redirectTo = needsProfile ? "/complete-profile" : user.role === "ADMIN"
-    ? "/admin/partners"
-    : user.role === "CLIENT"
-      ? "/client/dashboard"
-      : user.role === "AMBASSADOR" ? "/ambassador/dashboard" : "/partner/dashboard";
+  const needsProfile = (user.role === "PARTNER" && !user.partner?.profileCompletedAt)
+    || (user.role === "AMBASSADOR" && !user.ambassador?.profileCompletedAt);
+  const redirectTo = needsProfile
+    ? "/complete-profile"
+    : user.role === "ADMIN"
+      ? "/admin/partners"
+      : user.role === "CLIENT"
+        ? "/client/dashboard"
+        : user.role === "AMBASSADOR"
+          ? "/ambassador/dashboard"
+          : "/partner/dashboard";
+
   const response = NextResponse.json({ ok: true, role: user.role, redirectTo });
-  response.cookies.set(PARTNER_SESSION_COOKIE, createPartnerSession(user.id, remember), partnerSessionCookieOptions(remember));
+  response.cookies.set(
+    PARTNER_SESSION_COOKIE,
+    createPartnerSession(user.id, remember),
+    partnerSessionCookieOptions(remember),
+  );
   return response;
 }
