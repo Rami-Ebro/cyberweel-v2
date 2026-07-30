@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { canAdmin } from "@/lib/admin-permissions";
 import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
 import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security";
 import { NextRequest, NextResponse } from "next/server";
@@ -40,6 +41,30 @@ async function currentPartner(request: NextRequest) {
   return user;
 }
 
+async function dashboardPartner(request: NextRequest) {
+  const previewId = request.nextUrl.searchParams.get("adminPreview");
+  if (previewId) {
+    if (!(await canAdmin(request, "partners"))) return null;
+    const partner = await db.partner.findUnique({
+      where: { id: previewId },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        user: { select: { id: true, name: true, email: true, role: true, isActive: true } },
+      },
+    });
+    if (!partner) return null;
+    return {
+      ...partner.user,
+      partner: { id: partner.id, status: partner.status, createdAt: partner.createdAt },
+      isAdminPreview: true,
+    };
+  }
+  const user = await currentPartner(request);
+  return user ? { ...user, isAdminPreview: false } : null;
+}
+
 function serializeProject<T extends {
   feeAmount: { toString(): string } | null;
 }>(project: T) {
@@ -50,7 +75,7 @@ function serializeProject<T extends {
 }
 
 export async function GET(request: NextRequest) {
-  const user = await currentPartner(request);
+  const user = await dashboardPartner(request);
   if (!user) return NextResponse.json({ error: "الحساب غير متاح" }, { status: 401 });
 
   const assignments = await db.partnerProject.findMany({
@@ -83,6 +108,7 @@ export async function GET(request: NextRequest) {
       email: user.email,
       joinedAt: user.partner!.createdAt,
     },
+    isAdminPreview: user.isAdminPreview,
     stats: {
       activeProjects: activeProjects.length,
       completedProjects: projects.filter((project) => project.status === "COMPLETED").length,
