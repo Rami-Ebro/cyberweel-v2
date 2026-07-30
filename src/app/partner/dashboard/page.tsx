@@ -45,6 +45,7 @@ type PartnerProject = {
   updatedAt: string;
 };
 type DashboardData = {
+  isAdminPreview: boolean;
   partner: { name: string; email: string; joinedAt: string };
   stats: {
     activeProjects: number;
@@ -146,7 +147,11 @@ export default function PartnerDashboardPage() {
 
   useEffect(() => {
     setDarkMode(localStorage.getItem("cyberweel-partner-theme") === "dark");
-    fetch("/api/partner/dashboard", { cache: "no-store" })
+    const previewId = new URLSearchParams(window.location.search).get("adminPreview");
+    const endpoint = previewId
+      ? `/api/partner/dashboard?adminPreview=${encodeURIComponent(previewId)}`
+      : "/api/partner/dashboard";
+    fetch(endpoint, { cache: "no-store" })
       .then(async (response) => {
         if (response.status === 401) {
           router.replace("/partner/login");
@@ -188,6 +193,10 @@ export default function PartnerDashboardPage() {
   }
 
   async function saveProgress(project: PartnerProject) {
+    if (data?.isAdminPreview) {
+      setError("المعاينة الإدارية للقراءة فقط.");
+      return;
+    }
     const progress = progressDrafts[project.id];
     if (!Number.isInteger(progress) || progress < 0 || progress > 100) {
       setError("نسبة التقدم يجب أن تكون بين 0 و100.");
@@ -226,6 +235,10 @@ export default function PartnerDashboardPage() {
   }
 
   async function logout() {
+    if (data?.isAdminPreview) {
+      router.push("/admin/partners");
+      return;
+    }
     setLoggingOut(true);
     try {
       await fetch("/api/partner/logout", { method: "POST" });
@@ -351,11 +364,11 @@ export default function PartnerDashboardPage() {
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <button aria-label="فتح القائمة" onClick={() => setMenuOpen(true)} className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm lg:hidden dark:border-slate-700 dark:bg-slate-900"><Menu size={21} /></button>
-              <div><p className="text-xs font-black tracking-[0.14em] text-[#9f7d3d]">لوحة شريك التنفيذ</p><h1 className="mt-1 text-lg font-black sm:text-2xl">مرحبًا، {data.partner.name}</h1></div>
+              <div><p className="text-xs font-black tracking-[0.14em] text-[#9f7d3d]">{data.isAdminPreview ? "معاينة الإدارة · للقراءة فقط" : "لوحة شريك التنفيذ"}</p><h1 className="mt-1 text-lg font-black sm:text-2xl">مرحبًا، {data.partner.name}</h1></div>
             </div>
             <div className="flex items-center gap-2">
               <button aria-label="تبديل المظهر" onClick={toggleDarkMode} className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">{darkMode ? <Sun size={20} /> : <Moon size={20} />}</button>
-              <button type="button" onClick={logout} disabled={loggingOut} className="hidden items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 font-black text-white hover:bg-rose-700 disabled:opacity-60 sm:flex"><LogOut size={18} />{loggingOut ? "جارٍ الخروج" : "تسجيل الخروج"}</button>
+              <button type="button" onClick={logout} disabled={loggingOut} className="hidden items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 font-black text-white hover:bg-rose-700 disabled:opacity-60 sm:flex"><LogOut size={18} />{data.isAdminPreview ? "العودة للإدارة" : loggingOut ? "جارٍ الخروج" : "تسجيل الخروج"}</button>
             </div>
           </div>
         </header>
@@ -389,7 +402,7 @@ export default function PartnerDashboardPage() {
 
           {activeSection === "projects" && <section className="space-y-8">
             <div><p className="text-sm font-black text-[#9f7d3d]">نطاقك التنفيذي فقط</p><h2 className="mt-1 text-3xl font-black">المشاريع المحالة إليك</h2><p className="mt-2 text-slate-600 dark:text-slate-300">لا تظهر هنا إلا المشاريع المرتبطة بحسابك.</p></div>
-            <div className="space-y-5"><h3 className="text-xl font-black">المشاريع الحالية</h3>{currentProjects.length ? currentProjects.map((project) => <ProjectCard key={project.id} project={project} />) : <div className="rounded-3xl border border-dashed border-slate-300 p-10 text-center text-slate-500 dark:border-slate-700">لا توجد مشاريع حالية.</div>}</div>
+            <div className="space-y-5"><h3 className="text-xl font-black">المشاريع الحالية</h3>{currentProjects.length ? currentProjects.map((project) => <ProjectCard key={project.id} project={project} editable={!data.isAdminPreview} />) : <div className="rounded-3xl border border-dashed border-slate-300 p-10 text-center text-slate-500 dark:border-slate-700">لا توجد مشاريع حالية.</div>}</div>
             <div className="space-y-5"><h3 className="text-xl font-black">سجل المشاريع المكتملة</h3>{historicalProjects.length ? historicalProjects.map((project) => <ProjectCard key={project.id} project={project} editable={false} />) : <div className="rounded-3xl border border-dashed border-slate-300 p-10 text-center text-slate-500 dark:border-slate-700">لا توجد مشاريع مكتملة بعد.</div>}</div>
           </section>}
 
