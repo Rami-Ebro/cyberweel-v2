@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { canAdmin } from "@/lib/admin-permissions";
 import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
 import { formatPartnerReferralCode } from "@/lib/partner-referral";
 import {
@@ -49,6 +50,49 @@ async function currentAmbassador(request: NextRequest) {
   return user;
 }
 
+async function dashboardAmbassador(request: NextRequest) {
+  const previewId = request.nextUrl.searchParams.get("adminPreview");
+  if (previewId) {
+    if (!(await canAdmin(request, "ambassadors"))) return null;
+    const ambassador = await db.ambassador.findUnique({
+      where: { id: previewId },
+      select: {
+        id: true,
+        referralNumber: true,
+        status: true,
+        phone: true,
+        country: true,
+        contactMethod: true,
+        payoutMethod: true,
+        payoutDetails: true,
+        profileCompletedAt: true,
+        createdAt: true,
+        user: { select: { id: true, name: true, email: true, role: true, isActive: true } },
+      },
+    });
+    if (!ambassador) return null;
+    return {
+      ...ambassador.user,
+      ambassador: {
+        id: ambassador.id,
+        referralNumber: ambassador.referralNumber,
+        status: ambassador.status,
+        phone: ambassador.phone,
+        country: ambassador.country,
+        contactMethod: ambassador.contactMethod,
+        payoutMethod: ambassador.payoutMethod,
+        payoutDetails: ambassador.payoutDetails,
+        profileCompletedAt: ambassador.profileCompletedAt,
+        createdAt: ambassador.createdAt,
+      },
+      isAdminPreview: true,
+    };
+  }
+
+  const user = await currentAmbassador(request);
+  return user ? { ...user, isAdminPreview: false } : null;
+}
+
 function serializeReferral<T extends { commissionAmount: { toString(): string } | null }>(referral: T) {
   return {
     ...referral,
@@ -57,9 +101,9 @@ function serializeReferral<T extends { commissionAmount: { toString(): string } 
 }
 
 export async function GET(request: NextRequest) {
-  const user = await currentAmbassador(request);
+  const user = await dashboardAmbassador(request);
   if (!user) return NextResponse.json({ error: "FORBIDDEN", redirectTo: "/login" }, { status: 401 });
-  if (!user.ambassador!.profileCompletedAt) {
+  if (!user.isAdminPreview && !user.ambassador!.profileCompletedAt) {
     return NextResponse.json({ error: "PROFILE_REQUIRED", redirectTo: "/complete-profile" }, { status: 428 });
   }
 
@@ -103,6 +147,7 @@ export async function GET(request: NextRequest) {
       payoutMethod: user.ambassador!.payoutMethod,
       payoutDetails: user.ambassador!.payoutDetails,
     },
+    isAdminPreview: user.isAdminPreview,
     stats: {
       referrals: referrals.length,
       converted: referrals.filter((item) => item.status === "CONVERTED").length,

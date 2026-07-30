@@ -16,7 +16,9 @@ export async function PATCH(request: NextRequest) {
   if (body?.entity === "application") {
     if (!body.id || !["ACCEPTED", "REJECTED"].includes(body.status) || !notes) return NextResponse.json({ error: "INVALID_DECISION" }, { status: 400 });
     const app = await db.collaborationApplication.findUnique({ where: { id: body.id } }); if (!app || app.type !== "AMBASSADOR") return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+    if (app.status !== "PENDING") return NextResponse.json({ error: "ALREADY_DECIDED" }, { status: 409 });
     if (body.status === "ACCEPTED") { if (typeof body.password !== "string" || body.password.length < 10) return NextResponse.json({ error: "TEMP_PASSWORD_REQUIRED" }, { status: 400 });
+      const existingUser = await db.user.findFirst({ where: { OR: [{ email: normalizeEmail(app.email) }, ...(app.phone ? [{ phone: app.phone }] : [])] }, select: { id: true } }); if (existingUser) return NextResponse.json({ error: "EMAIL_EXISTS" }, { status: 409 });
       await db.$transaction(async tx => { const user = await tx.user.create({ data: { name: app.name, email: normalizeEmail(app.email), phone: app.phone, passwordHash: hashPassword(body.password), role: "AMBASSADOR", ambassador: { create: { status: "ACTIVE", decisionNotes: notes, decidedAt: new Date() } } } }); await tx.collaborationApplication.update({ where: { id: app.id }, data: { status: "ACCEPTED", decisionNotes: notes, decidedAt: new Date() } }); return user; });
     } else await db.collaborationApplication.update({ where: { id: app.id }, data: { status: "REJECTED", decisionNotes: notes, decidedAt: new Date() } });
     return NextResponse.json({ ok: true });

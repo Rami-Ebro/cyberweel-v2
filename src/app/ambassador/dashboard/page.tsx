@@ -50,6 +50,7 @@ type CommissionSummary = {
   cancelled: string;
 };
 type DashboardData = {
+  isAdminPreview: boolean;
   ambassador: {
     name: string;
     email: string;
@@ -146,7 +147,11 @@ export default function AmbassadorDashboardPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
 
   async function loadDashboard() {
-    const response = await fetch("/api/ambassador/dashboard", { cache: "no-store" });
+    const previewId = new URLSearchParams(window.location.search).get("adminPreview");
+    const endpoint = previewId
+      ? `/api/ambassador/dashboard?adminPreview=${encodeURIComponent(previewId)}`
+      : "/api/ambassador/dashboard";
+    const response = await fetch(endpoint, { cache: "no-store" });
     const payload = await response.json();
     if (!response.ok) {
       if (payload.redirectTo) {
@@ -198,6 +203,10 @@ export default function AmbassadorDashboardPage() {
 
   async function addReferral(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (data?.isAdminPreview) {
+      setError("المعاينة الإدارية للقراءة فقط.");
+      return;
+    }
     setAddingReferral(true);
     setError("");
     setNotice("");
@@ -227,6 +236,10 @@ export default function AmbassadorDashboardPage() {
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (data?.isAdminPreview) {
+      setError("المعاينة الإدارية للقراءة فقط.");
+      return;
+    }
     setSavingProfile(true);
     setError("");
     setNotice("");
@@ -259,6 +272,10 @@ export default function AmbassadorDashboardPage() {
   }
 
   async function logout() {
+    if (data?.isAdminPreview) {
+      router.push("/admin/ambassadors");
+      return;
+    }
     setLoggingOut(true);
     try {
       await fetch("/api/partner/logout", { method: "POST" });
@@ -287,7 +304,7 @@ export default function AmbassadorDashboardPage() {
 
       <main className="min-h-screen lg:mr-[310px]">
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-[#f5f1e8]/90 px-4 py-4 backdrop-blur sm:px-7 lg:px-10 dark:border-slate-800 dark:bg-slate-950/90">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4"><div className="flex items-center gap-3"><button aria-label="فتح القائمة" onClick={() => setMenuOpen(true)} className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm lg:hidden dark:border-slate-700 dark:bg-slate-900"><Menu size={21} /></button><div><p className="text-xs font-black tracking-[0.14em] text-[#9f7d3d]">لوحة سفير CyberWeel</p><h1 className="mt-1 text-lg font-black sm:text-2xl">مرحبًا، {data.ambassador.name}</h1></div></div><div className="flex items-center gap-2"><button aria-label="تبديل المظهر" onClick={toggleDarkMode} className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">{darkMode ? <Sun size={20} /> : <Moon size={20} />}</button><button type="button" onClick={logout} disabled={loggingOut} className="hidden items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 font-black text-white hover:bg-rose-700 disabled:opacity-60 sm:flex"><LogOut size={18} />{loggingOut ? "جارٍ الخروج" : "تسجيل الخروج"}</button></div></div>
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4"><div className="flex items-center gap-3"><button aria-label="فتح القائمة" onClick={() => setMenuOpen(true)} className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm lg:hidden dark:border-slate-700 dark:bg-slate-900"><Menu size={21} /></button><div><p className="text-xs font-black tracking-[0.14em] text-[#9f7d3d]">{data.isAdminPreview ? "معاينة الإدارة · للقراءة فقط" : "لوحة سفير CyberWeel"}</p><h1 className="mt-1 text-lg font-black sm:text-2xl">مرحبًا، {data.ambassador.name}</h1></div></div><div className="flex items-center gap-2"><button aria-label="تبديل المظهر" onClick={toggleDarkMode} className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">{darkMode ? <Sun size={20} /> : <Moon size={20} />}</button><button type="button" onClick={logout} disabled={loggingOut} className="hidden items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 font-black text-white hover:bg-rose-700 disabled:opacity-60 sm:flex"><LogOut size={18} />{data.isAdminPreview ? "العودة للإدارة" : loggingOut ? "جارٍ الخروج" : "تسجيل الخروج"}</button></div></div>
         </header>
 
         <div className="mx-auto max-w-7xl space-y-7 p-4 sm:p-7 lg:p-10">
