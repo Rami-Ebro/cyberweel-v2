@@ -67,9 +67,20 @@ export async function PATCH(request: NextRequest) {
     if (!["ACCEPTED", "REJECTED"].includes(status) || !notes) return NextResponse.json({ error: "ملاحظة القرار مطلوبة" }, { status: 400 });
     const application = await db.collaborationApplication.findUnique({ where: { id } });
     if (!application || application.type !== "PARTNER") return NextResponse.json({ error: "الطلب غير موجود" }, { status: 404 });
+    if (application.status !== "PENDING") return NextResponse.json({ error: "ALREADY_DECIDED" }, { status: 409 });
     if (status === "ACCEPTED") {
       const password = typeof body?.password === "string" ? body.password : "";
       if (password.length < 10) return NextResponse.json({ error: "كلمة مرور مؤقتة من 10 أحرف مطلوبة" }, { status: 400 });
+      const existingUser = await db.user.findFirst({
+        where: {
+          OR: [
+            { email: normalizeEmail(application.email) },
+            ...(application.phone ? [{ phone: application.phone }] : []),
+          ],
+        },
+        select: { id: true },
+      });
+      if (existingUser) return NextResponse.json({ error: "EMAIL_EXISTS" }, { status: 409 });
       await db.$transaction(async (tx) => {
         await tx.user.create({ data: { name: application.name, email: normalizeEmail(application.email), phone: application.phone, passwordHash: hashPassword(password), role: "PARTNER", partner: { create: { status: "ACTIVE", specialty: application.specialty, decisionNotes: notes, decidedAt: new Date() } } } });
         await tx.collaborationApplication.update({ where: { id }, data: { status: "ACCEPTED", decisionNotes: notes, decidedAt: new Date() } });
