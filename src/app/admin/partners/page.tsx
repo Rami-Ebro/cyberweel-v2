@@ -145,38 +145,50 @@ export default function AdminPartnersPage() {
 
   async function load() {
     setLoading(true);
-    const [dashboardResponse, accountResponse] = await Promise.all([
-      fetch("/api/admin/partners", { cache: "no-store" }),
-      fetch("/api/admin/account", { cache: "no-store" }),
-    ]);
+    const dashboardPromise = fetch("/api/admin/partners", { cache: "no-store" });
+    const accountPromise = fetch("/api/admin/account", { cache: "no-store" });
 
-    if (dashboardResponse.status === 401 || accountResponse.status === 401) {
-      router.replace("/login");
-      return;
-    }
+    try {
+      const accountResponse = await accountPromise;
+      if (accountResponse.status === 401) {
+        router.replace("/login");
+        return;
+      }
 
-    const dashboard = await dashboardResponse.json();
-    const account = await accountResponse.json();
-    if (!dashboardResponse.ok && dashboardResponse.status !== 403) {
-      setMessage(dashboard.error || "تعذر تحميل لوحة الإدارة");
-    } else {
-      setPartners(dashboard.partners || []);
-      setApplications(dashboard.applications || []);
-      setReferrals(dashboard.referrals || []);
-      setStats(dashboard.stats || null);
-    }
+      const account = await accountResponse.json();
+      if (accountResponse.ok) {
+        setAdmin(account.admin);
+        const allowedSections = ["overview", "partners", "projects"].filter(
+          (key) => account.admin.isOwner || account.admin.permissions?.includes(key),
+        ) as Section[];
+        setSection((current) => {
+          if (current === "account" || allowedSections.includes(current)) return current;
+          return allowedSections[0] || "account";
+        });
+      } else {
+        setMessage(account.error || "تعذر تحميل صلاحيات حساب الإدارة");
+      }
 
-    if (accountResponse.ok) {
-      setAdmin(account.admin);
-      const allowedSections = ["overview", "partners", "projects"].filter(
-        (key) => account.admin.isOwner || account.admin.permissions?.includes(key),
-      ) as Section[];
-      setSection((current) => {
-        if (current === "account" || allowedSections.includes(current)) return current;
-        return allowedSections[0] || "account";
-      });
+      const dashboardResponse = await dashboardPromise;
+      if (dashboardResponse.status === 401) {
+        router.replace("/login");
+        return;
+      }
+
+      const dashboard = await dashboardResponse.json();
+      if (!dashboardResponse.ok && dashboardResponse.status !== 403) {
+        setMessage(dashboard.error || "تعذر تحميل لوحة الإدارة");
+      } else {
+        setPartners(dashboard.partners || []);
+        setApplications(dashboard.applications || []);
+        setReferrals(dashboard.referrals || []);
+        setStats(dashboard.stats || null);
+      }
+    } catch {
+      setMessage("تعذر الاتصال بخدمات لوحة الإدارة. أعد المحاولة.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -331,6 +343,30 @@ export default function AdminPartnersPage() {
   );
 
   const canSeeReferrals = admin?.isOwner || admin?.permissions.includes("referrals");
+
+  if (loading && !admin) {
+    return (
+      <main
+        dir="rtl"
+        className="grid min-h-screen place-items-center bg-[#F7F3EB] px-5 text-[#111827]"
+      >
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex max-w-sm flex-col items-center text-center"
+        >
+          <span className="grid h-20 w-20 place-items-center rounded-2xl bg-white shadow-sm">
+            <Logo size={52} />
+          </span>
+          <RefreshCw className="mt-7 h-6 w-6 animate-spin text-[#9A7D43]" />
+          <h1 className="mt-4 text-2xl font-black">جارٍ تجهيز لوحة الإدارة</h1>
+          <p className="mt-2 text-sm font-bold text-slate-500">
+            يتم تحميل الحساب والصلاحيات والبيانات…
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#F7F3EB] text-[#111827]">
