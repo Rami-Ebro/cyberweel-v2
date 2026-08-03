@@ -77,14 +77,12 @@ type Application = {
 };
 
 type Stats = {
-  users: number;
-  partners: number;
-  activePartners: number;
-  pendingPartners: number;
-  referrals: number;
-  newReferrals: number;
-  qualifiedReferrals: number;
+  clients: number;
   projects: number;
+  invoices: number;
+  referrals: number;
+  partners: number;
+  ambassadors: number;
 };
 
 type Admin = {
@@ -454,12 +452,14 @@ export default function AdminPartnersPage() {
 
           {!loading && section === "overview" && stats && (
             <>
-              <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {[
-                  ["إجمالي المستخدمين", stats.users],
-                  ["الشركاء النشطون", stats.activePartners],
-                  ["الإحالات الجديدة", stats.newReferrals],
-                  ["المشاريع المسندة", projects.length],
+                  ["العملاء", stats.clients],
+                  ["المشاريع", stats.projects],
+                  ["الفواتير", stats.invoices],
+                  ["الإحالات", stats.referrals],
+                  ["الشركاء", stats.partners],
+                  ["السفراء", stats.ambassadors],
                 ].map(([label, value]) => (
                   <article
                     key={String(label)}

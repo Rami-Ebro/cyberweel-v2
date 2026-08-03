@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   ]);
   if (!canView.some(Boolean)) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
-  const [partners, referrals, users, applications] = await Promise.all([
+  const [partners, referrals, applications, overviewStats] = await Promise.all([
     canView[1]
       ? db.partner.findMany({
           orderBy: { createdAt: "desc" },
@@ -29,19 +29,26 @@ export async function GET(request: NextRequest) {
           },
         })
       : [],
-    canView[0] ? db.user.count() : 0,
     canView[1] ? db.collaborationApplication.findMany({ where: { type: "PARTNER" }, orderBy: { createdAt: "desc" } }) : [],
+    canView[0]
+      ? Promise.all([
+          db.user.count({ where: { role: "CLIENT" } }),
+          db.clientProject.count(),
+          db.clientInvoice.count(),
+          db.partnerReferral.count(),
+          db.partner.count(),
+          db.ambassador.count(),
+        ])
+      : Promise.resolve([0, 0, 0, 0, 0, 0]),
   ]);
 
   const stats = {
-    users,
-    partners: partners.length,
-    activePartners: partners.filter((item) => item.status === "ACTIVE").length,
-    pendingPartners: partners.filter((item) => item.status === "PENDING").length,
-    referrals: referrals.length,
-    newReferrals: referrals.filter((item) => item.status === "NEW").length,
-    qualifiedReferrals: referrals.filter((item) => item.status === "QUALIFIED").length,
-    projects: partners.reduce((total, item) => total + item.assignments.length, 0),
+    clients: overviewStats[0],
+    projects: overviewStats[1],
+    invoices: overviewStats[2],
+    referrals: overviewStats[3],
+    partners: overviewStats[4],
+    ambassadors: overviewStats[5],
   };
 
   return NextResponse.json({
