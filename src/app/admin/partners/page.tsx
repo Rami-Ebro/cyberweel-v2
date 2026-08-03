@@ -330,15 +330,6 @@ export default function AdminPartnersPage() {
     [applications],
   );
 
-  const nav = [
-    ["overview", "نظرة عامة", BarChart3],
-    ["partners", "إدارة الشركاء", UsersRound],
-    ["projects", "المشاريع", FolderKanban],
-    ["account", "حساب الإدارة", UserCog],
-  ] as const;
-  const visibleNav = nav.filter(
-    ([key]) => key === "account" || admin?.isOwner || admin?.permissions.includes(key),
-  );
   const canSeeReferrals = admin?.isOwner || admin?.permissions.includes("referrals");
 
   return (
@@ -356,35 +347,84 @@ export default function AdminPartnersPage() {
           </Link>
 
           <nav className="mt-6 grid gap-2">
-            {visibleNav.map(([key, label, Icon]) => (
+            {(admin?.isOwner || admin?.permissions.includes("overview")) && (
               <button
-                key={key}
-                onClick={() => setSection(key)}
+                onClick={() => setSection("overview")}
                 className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${
-                  section === key
+                  section === "overview"
                     ? "bg-[#B89A5A] text-[#111827]"
                     : "text-white/70 hover:bg-white/10 hover:text-white"
                 }`}
               >
-                <Icon className="h-5 w-5" />
-                {label}
+                <BarChart3 className="h-5 w-5" />
+                نظرة عامة
               </button>
-            ))}
-            {canSeeReferrals && (
-              <Link
-                href="/admin/referrals"
-                className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-white/70 transition hover:bg-white/10 hover:text-white"
-              >
-                <CheckCircle2 className="h-5 w-5" />
-                إدارة الإحالات
-              </Link>
             )}
             {(admin?.isOwner || admin?.permissions.includes("clients")) && (
               <Link href="/admin/clients" className="nav-link">
                 <UserRound className="h-5 w-5" />
-                إدارة العملاء
+                العملاء
               </Link>
             )}
+            {(admin?.isOwner || admin?.permissions.includes("projects")) && (
+              <button
+                onClick={() => setSection("projects")}
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${
+                  section === "projects"
+                    ? "bg-[#B89A5A] text-[#111827]"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <FolderKanban className="h-5 w-5" />
+                المشاريع
+              </button>
+            )}
+            {(admin?.isOwner || admin?.permissions.includes("invoices")) && (
+              <Link
+                href="/admin/clients"
+                title="تُدار الفواتير من داخل حساب العميل"
+                className="nav-link"
+              >
+                <BarChart3 className="h-5 w-5" />
+                الفواتير
+              </Link>
+            )}
+            {canSeeReferrals && (
+              <Link href="/admin/referrals" className="nav-link">
+                <CheckCircle2 className="h-5 w-5" />
+                الإحالات
+              </Link>
+            )}
+            {(admin?.isOwner || admin?.permissions.includes("partners")) && (
+              <button
+                onClick={() => setSection("partners")}
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${
+                  section === "partners"
+                    ? "bg-[#B89A5A] text-[#111827]"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <UsersRound className="h-5 w-5" />
+                الشركاء
+              </button>
+            )}
+            {(admin?.isOwner || admin?.permissions.includes("ambassadors")) && (
+              <Link href="/admin/ambassadors" className="nav-link">
+                <UsersRound className="h-5 w-5" />
+                السفراء
+              </Link>
+            )}
+            <button
+              onClick={() => setSection("account")}
+              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${
+                section === "account"
+                  ? "bg-[#B89A5A] text-[#111827]"
+                  : "text-white/70 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <UserCog className="h-5 w-5" />
+              حساب الإدارة
+            </button>
             {admin?.isOwner && (
               <Link href="/admin/team" className="nav-link">
                 <ShieldCheck className="h-5 w-5" />
@@ -400,12 +440,6 @@ export default function AdminPartnersPage() {
           </nav>
 
           <div className="mt-auto grid gap-2 pt-8">
-            <Link
-              href="/admin/ambassadors"
-              className="flex items-center gap-3 rounded-xl border border-white/10 px-4 py-3 font-bold text-white"
-            >
-              إدارة السفراء
-            </Link>
             <Link
               href="/"
               className="flex items-center gap-3 rounded-xl bg-[#B89A5A] px-4 py-3 font-black text-[#111827]"
