@@ -350,7 +350,11 @@ export default function AdminPartnersPage() {
         dir="rtl"
         className="grid min-h-screen place-items-center bg-[#F7F3EB] px-5 text-[#111827]"
       >
-        <div className="flex max-w-sm flex-col items-center text-center">
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex max-w-sm flex-col items-center text-center"
+        >
           <span className="grid h-20 w-20 place-items-center rounded-2xl bg-white shadow-sm">
             <Logo size={52} />
           </span>
