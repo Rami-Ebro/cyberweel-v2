@@ -488,20 +488,65 @@ export default function AdminPartnersPage() {
             <>
               <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {[
-                  ["العملاء", stats.clients],
-                  ["المشاريع", stats.projects],
-                  ["الفواتير", stats.invoices],
-                  ["الإحالات", stats.referrals],
-                  ["الشركاء", stats.partners],
-                  ["السفراء", stats.ambassadors],
-                ].map(([label, value]) => (
-                  <article
-                    key={String(label)}
-                    className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"
+                  {
+                    label: "العملاء",
+                    value: stats.clients,
+                    actionLabel: "فتح إدارة العملاء",
+                    action: () => router.push("/admin/clients"),
+                  },
+                  {
+                    label: "المشاريع",
+                    value: stats.projects,
+                    actionLabel: "فتح إدارة المشاريع",
+                    action: () => setSection("projects"),
+                  },
+                  {
+                    label: "الفواتير",
+                    value: stats.invoices,
+                    actionLabel: "فتح العملاء والفواتير",
+                    action: () => router.push("/admin/clients"),
+                  },
+                  {
+                    label: "الإحالات",
+                    value: stats.referrals,
+                    actionLabel: "فتح إدارة الإحالات",
+                    action: () => router.push("/admin/referrals"),
+                  },
+                  {
+                    label: "الشركاء",
+                    value: stats.partners,
+                    actionLabel: "فتح إدارة الشركاء",
+                    action: () => setSection("partners"),
+                  },
+                  {
+                    label: "السفراء",
+                    value: stats.ambassadors,
+                    actionLabel: "فتح إدارة السفراء",
+                    action: () => router.push("/admin/ambassadors"),
+                  },
+                ].map(({ label, value, actionLabel, action }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={action}
+                    className="group w-full cursor-pointer rounded-2xl border border-[#D8D2C4] bg-white p-5 text-right shadow-sm transition duration-200 hover:-translate-y-1 hover:border-[#B89A5A] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B89A5A] focus-visible:ring-offset-2"
+                    aria-label={actionLabel}
                   >
-                    <p className="text-sm font-bold text-slate-500">{label}</p>
-                    <p className="mt-3 text-4xl font-black">{value}</p>
-                  </article>
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-bold text-slate-500 transition group-hover:text-[#9A7D43]">
+                          {label}
+                        </p>
+                        <p className="mt-3 text-4xl font-black">{value}</p>
+                      </div>
+                      <span className="rounded-full bg-[#F7F3EB] px-3 py-1.5 text-xs font-black text-[#9A7D43] transition group-hover:bg-[#B89A5A] group-hover:text-[#111827]">
+                        فتح
+                      </span>
+                    </div>
+                    <p className="mt-4 text-xs font-bold text-slate-400 transition group-hover:text-[#9A7D43]">
+                      {actionLabel}
+                    </p>
+                  </button>
                 ))}
               </div>
               <section className="mt-6 rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
