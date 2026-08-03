@@ -65,14 +65,31 @@ console.log(
     : "[deployment-db] Applying reviewed migrations to Production.",
 );
 
-const result = spawnSync(prismaBinary, prismaArgs, {
-  env: process.env,
-  stdio: "inherit",
-});
+const maxAttempts = 3;
 
-if (result.error) {
-  console.error("[deployment-db] Failed to start Prisma:", result.error.message);
-  process.exit(1);
+for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+  console.log(`[deployment-db] Prisma attempt ${attempt}/${maxAttempts}.`);
+
+  const result = spawnSync(prismaBinary, prismaArgs, {
+    env: process.env,
+    stdio: "inherit",
+  });
+
+  if (!result.error && result.status === 0) {
+    process.exit(0);
+  }
+
+  if (result.error) {
+    console.error("[deployment-db] Failed to start Prisma:", result.error.message);
+  }
+
+  if (attempt < maxAttempts) {
+    const delayMs = attempt * 5000;
+    console.warn(
+      `[deployment-db] Prisma did not complete; retrying in ${delayMs / 1000} seconds.`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  } else {
+    process.exit(result.status ?? 1);
+  }
 }
-
-process.exit(result.status ?? 1);
