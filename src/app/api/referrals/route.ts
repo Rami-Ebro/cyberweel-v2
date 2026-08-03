@@ -59,9 +59,20 @@ export async function POST(request: NextRequest) {
           })
         : null;
 
-    if (!partner && !ambassador) {
-      return NextResponse.json({ ok: true, attributed: false });
+    if (explicitCode && !partner && !ambassador) {
+      return NextResponse.json(
+        { ok: false, error: "INVALID_REFERRAL_CODE" },
+        { status: 400 },
+      );
     }
+
+    const attributed = Boolean(partner || ambassador);
+    const source = ambassador ? "AMBASSADOR" : partner ? "PARTNER" : "DIRECT";
+    const contactMethod = email && phone
+      ? "البريد الإلكتروني والهاتف"
+      : email
+        ? "البريد الإلكتروني"
+        : "الهاتف";
 
     const referral = await db.partnerReferral.create({
       data: {
@@ -72,11 +83,13 @@ export async function POST(request: NextRequest) {
         phone: phone || null,
         notes,
         sourcePath: "/share-challenge",
+        source,
+        contactMethod,
       },
       select: { id: true },
     });
 
-    return NextResponse.json({ ok: true, attributed: true, referralId: referral.id }, { status: 201 });
+    return NextResponse.json({ ok: true, attributed, referralId: referral.id }, { status: 201 });
   } catch (error) {
     console.error("[referrals] Failed to create partner referral", {
       explicitCode: explicitCode || null,
