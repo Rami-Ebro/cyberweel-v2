@@ -15,6 +15,7 @@ type Referral = {
   name: string | null;
   email: string | null;
   phone: string | null;
+  company: string | null;
   status: ReferralStatus;
   createdAt: string;
   updatedAt: string;
@@ -32,6 +33,7 @@ type Referral = {
   ambassador: Owner | null;
   partner: Owner | null;
   updatedBy: { name: string | null; email: string } | null;
+  convertedClient: { id: string; name: string | null; email: string } | null;
   clientProject: { id: string; title: string; currency: string; paidAmount: number; hasPaidInvoice: boolean } | null;
 };
 type AmbassadorOption = { id: string; user: { name: string | null; email: string } };
@@ -166,6 +168,9 @@ type ReferralDraft = {
 };
 
 function ReferralEditor({ referral, busy, onSave }: { referral: Referral; busy: boolean; onSave: (referral: Referral, values: ReferralDraft) => Promise<void> }) {
+  const [showConversion, setShowConversion] = useState(false);
+  const [conversionBusy, setConversionBusy] = useState(false);
+  const [conversionMessage, setConversionMessage] = useState("");
   const [draft, setDraft] = useState<ReferralDraft>({
     status: referral.status,
     adminDecision: referral.adminDecision || "PENDING_REVIEW",
@@ -189,9 +194,31 @@ function ReferralEditor({ referral, busy, onSave }: { referral: Referral; busy: 
     setDraft((current) => ({
       ...current,
       adminDecision: value,
-      ...(value === "CONVERTED_TO_CLIENT" ? { status: "CONVERTED" as const } : {}),
       ...(["REJECTED", "CANCELLED"].includes(value) ? { commissionStatus: "NOT_ELIGIBLE" as const, commissionType: null, commissionAmount: null, commissionRate: null } : {}),
     }));
+  }
+
+  async function convertToClient(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setConversionBusy(true);
+    setConversionMessage("");
+    const form = new FormData(event.currentTarget);
+    const payload = Object.fromEntries(form.entries());
+    try {
+      let response = await fetch("/api/admin/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, referralId: referral.id, sendInvite: form.get("sendInvite") === "on" }) });
+      let data = await response.json();
+      if (data.error === "PHONE_MATCH_REQUIRES_CONFIRMATION" && window.confirm("رقم الهاتف مستخدم في حساب آخر. هل تريد المتابعة وربط التحويل بالبريد؟")) {
+        response = await fetch("/api/admin/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, referralId: referral.id, sendInvite: form.get("sendInvite") === "on", confirmPhoneDuplicate: true }) });
+        data = await response.json();
+      }
+      if (!response.ok) throw new Error(data.error || "تعذر تحويل الإحالة");
+      setConversionMessage(data.reusedExistingClient ? "رُبطت الإحالة بالعميل الموجود بهذا البريد." : "تم إنشاء العميل وربط الإحالة بنجاح.");
+      window.setTimeout(() => window.location.reload(), 700);
+    } catch (cause) {
+      setConversionMessage(cause instanceof Error ? cause.message : "تعذر تحويل الإحالة");
+    } finally {
+      setConversionBusy(false);
+    }
   }
 
   return (
@@ -214,8 +241,8 @@ function ReferralEditor({ referral, busy, onSave }: { referral: Referral; busy: 
         <section className="rounded-2xl border border-sky-100 bg-sky-50/40 p-4">
           <SectionTitle icon={MessageSquareText} title="حالة التواصل" subtitle="ما المرحلة الحالية مع العميل؟" />
           <label className="mt-4 grid gap-2 text-sm font-bold">حالة الإحالة
-            <select value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value as ReferralStatus }))} className="rounded-xl border border-sky-200 bg-white p-3 font-normal">
-              {(Object.keys(referralLabels) as ReferralStatus[]).map((status) => <option key={status} value={status}>{referralLabels[status]}</option>)}
+            <select disabled={Boolean(referral.convertedClient)} value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value as ReferralStatus }))} className="rounded-xl border border-sky-200 bg-white p-3 font-normal disabled:opacity-60">
+              {(Object.keys(referralLabels) as ReferralStatus[]).filter((status) => status !== "CONVERTED" || Boolean(referral.convertedClient)).map((status) => <option key={status} value={status}>{referralLabels[status]}</option>)}
             </select>
           </label>
           {referral.sourcePath && <p className="mt-4 text-xs leading-6 text-slate-500">مسار المصدر: <span dir="ltr">{referral.sourcePath}</span></p>}
@@ -225,7 +252,7 @@ function ReferralEditor({ referral, busy, onSave }: { referral: Referral; busy: 
           <SectionTitle icon={BadgeCheck} title="قرار الإدارة" subtitle="قرار مستقل عن مسار التواصل." />
           <label className="mt-4 grid gap-2 text-sm font-bold">القرار
             <select value={draft.adminDecision} onChange={(event) => changeDecision(event.target.value as ReferralDecision)} className="rounded-xl border border-amber-200 bg-white p-3 font-normal">
-              {(Object.keys(decisionLabels) as ReferralDecision[]).map((decision) => <option key={decision} value={decision}>{decisionLabels[decision]}</option>)}
+              {(Object.keys(decisionLabels) as ReferralDecision[]).filter((decision) => decision !== "CONVERTED_TO_CLIENT" || Boolean(referral.convertedClient)).map((decision) => <option key={decision} value={decision}>{decisionLabels[decision]}</option>)}
             </select>
           </label>
           <label className="mt-3 grid gap-2 text-sm font-bold">ملاحظات الإدارة
@@ -264,6 +291,27 @@ function ReferralEditor({ referral, busy, onSave }: { referral: Referral; busy: 
           )}
         </section>
       </div>
+
+      <section className="mx-5 mb-5 rounded-2xl border border-[#D8D2C4] bg-[#FCFAF6] p-4">
+        {referral.convertedClient ? (
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-black">تم التحويل</h3><p className="mt-1 text-sm text-slate-600">مرتبط بالعميل {referral.convertedClient.name || referral.convertedClient.email}</p></div><button disabled className="rounded-xl bg-slate-200 px-5 py-3 font-bold text-slate-500">تم التحويل</button></div>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-black">تحويل الإحالة إلى عميل</h3><p className="mt-1 text-sm text-slate-600">يتطلب حالة «مهتم» وقرار «مقبولة». ينشئ ملف العميل فقط؛ المشروع يبقى خطوة مستقلة.</p></div><button type="button" disabled={draft.status !== "INTERESTED" || draft.adminDecision !== "ACCEPTED" || !referral.email} onClick={() => setShowConversion((value) => !value)} className="rounded-xl bg-[#B89A5A] px-5 py-3 font-bold text-[#111827] disabled:cursor-not-allowed disabled:opacity-50">{showConversion ? "إغلاق النموذج" : "تحويل إلى عميل"}</button></div>
+            {showConversion && <form onSubmit={convertToClient} className="mt-4 grid gap-3 md:grid-cols-2">
+              <label className="grid gap-1 text-sm font-bold">الاسم<input name="name" required defaultValue={referral.name || ""} className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal" /></label>
+              <label className="grid gap-1 text-sm font-bold">البريد<input name="email" type="email" required defaultValue={referral.email || ""} className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal" /></label>
+              <label className="grid gap-1 text-sm font-bold">الهاتف<input name="phone" defaultValue={referral.phone || ""} className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal" /></label>
+              <label className="grid gap-1 text-sm font-bold">الشركة<input name="company" defaultValue={referral.company || ""} className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal" /></label>
+              <label className="grid gap-1 text-sm font-bold">اللغة<select name="preferredLanguage" defaultValue="ar" className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal"><option value="ar">العربية</option><option value="en">English</option></select></label>
+              <label className="grid gap-1 text-sm font-bold">ملاحظات داخلية<textarea name="internalNotes" className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal" /></label>
+              <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" name="sendInvite" /> إرسال دعوة الدخول بعد الحفظ</label>
+              <button disabled={conversionBusy} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50">{conversionBusy ? "جارٍ التحويل..." : "حفظ العميل والتحويل"}</button>
+              {conversionMessage && <p className="md:col-span-2 text-sm font-bold text-slate-700">{conversionMessage}</p>}
+            </form>}
+          </>
+        )}
+      </section>
 
       <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-[#EEE7DA] px-5 py-4">
         <div className="flex items-center gap-2 text-xs text-slate-500"><Clock3 className="h-4 w-4" /><span>{referral.updatedBy ? `آخر تعديل: ${referral.updatedBy.name || referral.updatedBy.email} · ${formatDateTime(referral.updatedAt)}` : "لم يُسجّل تعديل إداري بعد"}</span></div>
