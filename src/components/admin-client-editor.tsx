@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
-import { BarChart3, Bell, BriefcaseBusiness, ChevronDown, Eye, EyeOff, FileText, Mail, Paperclip, PauseCircle, PlayCircle, Plus, ReceiptText, RefreshCw, Trash2, UserCog } from "lucide-react";
+import { BarChart3, Bell, BriefcaseBusiness, ChevronDown, Eye, EyeOff, FileText, Mail, Paperclip, PauseCircle, PlayCircle, Plus, ReceiptText, RefreshCw, Trash2, UserCog, X } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { formatDate, formatDateTime } from "@/lib/date-format";
 
@@ -592,9 +592,9 @@ function ProjectAttachmentsInput({ files = [] }: { files?: Project["files"] }) {
     </label>
     {!!selectedFiles.length && <div className="grid gap-2 rounded-lg bg-emerald-50 p-3 text-sm font-bold text-emerald-800" aria-live="polite">
       <p>الملفات الجاهزة للرفع:</p>
-      {selectedFiles.map((file, index) => <div key={projectFileIdentity(file)} className="flex items-center justify-between gap-3 rounded-lg bg-white/70 px-3 py-2">
+      {selectedFiles.map((file, index) => <div key={projectFileIdentity(file)} className="group flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-blue-950 shadow-sm transition hover:border-blue-300 hover:bg-blue-100/70">
         <p className="min-w-0 truncate" dir="auto">{file.name}</p>
-        <button type="button" onClick={() => removeFile(index)} className="shrink-0 rounded-lg p-2 text-emerald-900 hover:bg-emerald-100" aria-label={`إزالة ${file.name}`}><Trash2 className="h-4 w-4" /></button>
+        <button type="button" onClick={() => removeFile(index)} className="shrink-0 rounded-full bg-white p-2 text-blue-700 opacity-100 shadow-sm transition hover:bg-red-50 hover:text-red-700 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100" aria-label={`إزالة ${file.name}`}><X className="h-4 w-4" /></button>
       </div>)}
       <button type="button" onClick={clearSelection} className="w-fit text-xs underline underline-offset-4">إزالة كل الملفات</button>
     </div>}
