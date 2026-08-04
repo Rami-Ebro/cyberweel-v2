@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ReceiptText, RefreshCw } from "lucide-react";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { formatDate } from "@/lib/date-format";
 
 type Project = {
@@ -154,21 +154,11 @@ export default function AdminInvoicesPage() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#F7F3EB] p-4 text-[#111827] sm:p-7 lg:p-10">
-      <div className="mx-auto max-w-[1500px]">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-bold text-[#9A7D43]">لوحة الإدارة</p>
-            <h1 className="mt-1 text-3xl font-black">إدارة الفواتير</h1>
-            <p className="mt-2 text-slate-500">الفواتير والمرتجعات والدفعات مرتبطة بالمشاريع والعملاء.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+    <AdminShell active="invoices" title="إدارة الفواتير" description="الفواتير والمرتجعات والدفعات مرتبطة بالمشاريع والعملاء." actions={
             <button onClick={() => void load()} disabled={loading} className="flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold">
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> تحديث
             </button>
-            <Link href="/admin/partners" className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white">العودة إلى لوحة الإدارة</Link>
-          </div>
-        </header>
+    }>
 
         {message && <p className="mt-5 rounded-xl bg-emerald-50 p-4 font-bold text-emerald-800">{message}</p>}
         {error && <p className="mt-5 rounded-xl bg-rose-50 p-4 font-bold text-rose-800">{error}</p>}
@@ -212,9 +202,8 @@ export default function AdminInvoicesPage() {
           </div>
           <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[1000px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">الرقم</th><th className="p-4">النوع</th><th className="p-4">العميل</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th><th className="p-4">الإجراء</th></tr></thead><tbody>{filteredInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td dir="ltr" className="p-4 text-right font-black">{invoice.number}</td><td className="p-4">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</td><td className="p-4">{invoice.project.client.name || invoice.project.client.email}</td><td className="p-4">{invoice.project.title}</td><td className="p-4 font-black">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{statusLabels[invoice.status] || invoice.status}</td><td className="p-4">{invoice.dueAt ? formatDate(invoice.dueAt) : "—"}</td><td className="p-4">{invoice.status !== "PAID" && invoice.status !== "CANCELLED" ? <button onClick={() => void markPaid(invoice)} disabled={saving} className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 font-black text-emerald-800 disabled:opacity-40">تسجيل مدفوعة</button> : "—"}</td></tr>)}</tbody></table>{!loading && !filteredInvoices.length && <p className="p-8 text-center text-slate-500">لا توجد فواتير مطابقة.</p>}</div>
         </section>
-      </div>
       <style jsx global>{`.field{width:100%;border-radius:.75rem;border:1px solid #d8d2c4;padding:.75rem 1rem;background:white}`}</style>
-    </main>
+    </AdminShell>
   );
 }
 

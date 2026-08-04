@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { AdminShell } from "@/components/admin/admin-shell";
 
 type Ambassador = {
   id: string;
@@ -44,7 +45,7 @@ export default function AmbassadorsAdmin() {
   }
 
   useEffect(() => {
-    load().catch((cause) => setError(cause instanceof Error ? cause.message : "تعذر تحميل البيانات"));
+    void Promise.resolve().then(() => load()).catch((cause) => setError(cause instanceof Error ? cause.message : "تعذر تحميل البيانات"));
   }, []);
 
   async function updateStatus(id: string, status: "ACTIVE" | "SUSPENDED") {
@@ -103,15 +104,7 @@ export default function AmbassadorsAdmin() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#F4F1EA] p-6 text-[#111827]">
-      <div className="mx-auto max-w-6xl">
-        <nav className="flex flex-wrap gap-3">
-          <Link href="/admin/partners" className="rounded-xl bg-white px-4 py-2">الشركاء</Link>
-          <Link href="/admin/referrals" className="rounded-xl bg-white px-4 py-2">الإحالات</Link>
-        </nav>
-
-        <h1 className="mt-8 text-3xl font-black">إدارة السفراء</h1>
-        <p className="mt-2 text-slate-600">الحسابات، رموز الإحالة، الأداء، العمولات وقرارات الطلبات.</p>
+    <AdminShell active="ambassadors" title="إدارة السفراء" description="الحسابات، رموز الإحالة، الأداء، العمولات وقرارات الطلبات." wide={false}>
         {message && <p className="mt-4 rounded-xl bg-emerald-50 p-3 font-bold text-emerald-800">{message}</p>}
         {error && <p className="mt-4 rounded-xl bg-rose-50 p-3 font-bold text-rose-800">{error}</p>}
 
@@ -174,8 +167,7 @@ export default function AmbassadorsAdmin() {
           ))}
           {!data.applications.length && <p className="rounded-xl bg-white p-5 text-slate-500">لا توجد طلبات سفراء.</p>}
         </div>
-      </div>
-    </main>
+    </AdminShell>
   );
 }
 

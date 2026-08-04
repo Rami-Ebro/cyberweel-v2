@@ -1,6 +1,5 @@
-import Image from "next/image";
-import Link from "next/link";
 import { Activity, Link2, MousePointerClick, Power } from "lucide-react";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +16,6 @@ import { db } from "@/lib/db";
 import { formatDate } from "@/lib/date-format";
 import { toggleSmartLink } from "./actions";
 import { DeleteSmartLinkButton } from "./delete-smart-link-button";
-import { LogoutButton } from "./logout-button";
 import { QrCodeActions } from "./qr-code-actions";
 import { CreateSmartLinkForm, EditDestinationForm } from "./smart-link-forms";
 
@@ -40,46 +38,7 @@ export default async function SmartLinksAdminPage() {
   const totalVisits = smartLinks.reduce((sum, link) => sum + link._count.scans, 0);
 
   return (
-    <main className="min-h-screen bg-background pb-16 text-foreground">
-      <header className="border-b border-border bg-ink text-floral">
-        <div className="cw-container flex min-h-24 items-center justify-between gap-5 py-4">
-          <Link href="/admin/partners" className="flex items-center gap-3" aria-label="العودة إلى لوحة الإدارة">
-            <span className="grid size-16 place-items-center rounded-xl border border-floral/20 bg-floral p-2 shadow-sm">
-              <Image
-                src="/cyberweel-logo-20260720.svg"
-                alt=""
-                width={52}
-                height={52}
-                className="h-full w-full object-contain"
-                priority
-              />
-            </span>
-            <span>
-              <span className="block font-display text-2xl font-bold">CyberWeel</span>
-              <span className="mt-1 block text-xs font-bold tracking-[0.12em] text-bone/80">
-                لوحة الإدارة
-              </span>
-            </span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <Button asChild variant="outline" className="border-bone/40 bg-transparent text-floral hover:bg-floral hover:text-ink">
-              <Link href="/admin/partners">العودة إلى لوحة الإدارة</Link>
-            </Button>
-            <LogoutButton />
-          </div>
-        </div>
-      </header>
-
-      <div className="cw-container py-10">
-        <div className="mb-8 max-w-3xl">
-          <p className="eyebrow-camel">Smart Links</p>
-          <h1 className="mt-3 font-display text-4xl font-bold text-ink sm:text-5xl">
-            إدارة الروابط الذكية
-          </h1>
-          <p className="mt-4 leading-8 text-muted-foreground">
-            أنشئ الروابط المختصرة، غيّر وجهاتها، حمّل رمز QR، وتابع الزيارات من مكان واحد.
-          </p>
-        </div>
+    <AdminShell active="smart-links" eyebrow="SMART LINKS" title="إدارة الروابط الذكية" description="أنشئ الروابط المختصرة، غيّر وجهاتها، حمّل رمز QR، وتابع الزيارات من مكان واحد.">
 
         <section aria-label="ملخص الروابط" className="grid gap-4 sm:grid-cols-3">
           <SummaryCard icon={Link2} label="إجمالي الروابط" value={smartLinks.length} />
@@ -205,8 +164,7 @@ export default async function SmartLinksAdminPage() {
             )}
           </CardContent>
         </Card>
-      </div>
-    </main>
+    </AdminShell>
   );
 }
 

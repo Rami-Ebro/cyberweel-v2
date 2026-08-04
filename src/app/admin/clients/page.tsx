@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { ChevronDown, Eye, EyeOff, PauseCircle, PlayCircle, UserPlus, UsersRound } from "lucide-react";
+import { AdminShell } from "@/components/admin/admin-shell";
 
 type Referral = { id: string; name: string | null; email: string | null; phone: string | null };
 type Client = {
@@ -86,12 +87,7 @@ export default function AdminClientsPage() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#F7F3EB] p-4 text-[#111827] sm:p-8">
-      <div className="mx-auto max-w-6xl">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div><p className="text-sm font-bold text-[#9A7D43]">لوحة الإدارة</p><h1 className="mt-1 text-3xl font-black">إدارة حسابات العملاء</h1></div>
-          <Link href="/admin/partners" className="rounded-xl bg-[#111827] px-5 py-3 font-bold text-white">العودة إلى لوحة الإدارة</Link>
-        </header>
+    <AdminShell active="clients" title="إدارة حسابات العملاء" description="إنشاء حسابات العملاء وإدارة مشاريعهم وحالة الوصول.">
         {message && <p role="status" className="mt-5 rounded-xl border border-[#D8D2C4] bg-white p-4 font-bold">{message}</p>}
 
         <section className="mt-7 grid gap-5">
@@ -164,7 +160,6 @@ export default function AdminClientsPage() {
             </form>
           )}
         </section>
-      </div>
-    </main>
+    </AdminShell>
   );
 }

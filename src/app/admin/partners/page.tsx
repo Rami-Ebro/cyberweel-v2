@@ -162,6 +162,8 @@ export default function AdminPartnersPage() {
           (key) => account.admin.isOwner || account.admin.permissions?.includes(key),
         ) as Section[];
         setSection((current) => {
+          const requested = typeof window === "undefined" ? null : (new URLSearchParams(window.location.search).get("section") as Section | null);
+          if (requested === "account" || (requested && allowedSections.includes(requested))) return requested;
           if (current === "account" || allowedSections.includes(current)) return current;
           return allowedSections[0] || "account";
         });
@@ -192,7 +194,7 @@ export default function AdminPartnersPage() {
   }
 
   useEffect(() => {
-    void load();
+    void Promise.resolve().then(() => load());
   }, []);
 
   async function changePartnerStatus(id: string, status: PartnerStatus) {
