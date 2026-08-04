@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   const token = typeof body?.token === "string" ? body.token : "";
   const password = typeof body?.password === "string" ? body.password : "";
 
-  if (token.length < 32 || token.length > 256 || password.length < 10 || password.length > 256) {
+  if (token.length < 32 || token.length > 256 || password.length < 8 || password.length > 256) {
     return NextResponse.json({ error: "الرابط غير صالح أو كلمة المرور قصيرة" }, { status: 400 });
   }
 
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     !resetToken ||
     resetToken.usedAt ||
     resetToken.expiresAt <= new Date() ||
-    resetToken.user.role !== "PARTNER"
+    !["PARTNER", "CLIENT"].includes(resetToken.user.role)
   ) {
     return NextResponse.json({ error: "الرابط منتهي أو تم استخدامه مسبقًا" }, { status: 400 });
   }
