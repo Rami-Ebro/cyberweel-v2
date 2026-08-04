@@ -110,6 +110,7 @@ model User {
   clientNotifications ClientNotification[]
   updatedReferrals     PartnerReferral[]    @relation("ReferralUpdatedBy")
   convertedReferrals  PartnerReferral[]    @relation("ConvertedReferralClient")
+  decidedApplications CollaborationApplication[] @relation("ApplicationDecidedBy")
   passwordResetTokens PasswordResetToken[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -162,6 +163,8 @@ model Partner {
   status         PartnerStatus     @default(PENDING)
   userId         String            @unique
   user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applicationId  String?           @unique
+  application    CollaborationApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
   referrals      PartnerReferral[]
   profileCompletedAt DateTime?
   phone          String?
@@ -210,11 +213,29 @@ model CollaborationApplication {
   market        String?
   details       String?
   decisionNotes String?
+  reviewState   String            @default("NEW")
+  decidedById  String?
+  decidedBy    User?             @relation("ApplicationDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
   decidedAt     DateTime?
+  partner       Partner?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
   @@index([type, status])
+  @@index([decidedById])
+  @@index([createdAt])
+}
+
+model AdminNotification {
+  id        String   @id @default(cuid())
+  title     String
+  body      String?
+  href      String
+  kind      String
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([readAt, createdAt])
   @@index([createdAt])
 }
 
