@@ -83,11 +83,13 @@ export function MailtoForm({
   };
 
   const handleFiles = (files: FileList | null, input: HTMLInputElement) => {
-    const nextFiles = Array.from(files ?? []);
+    const addedFiles = Array.from(files ?? []);
+    const nextFiles = [...selectedFiles, ...addedFiles].filter(
+      (file, index, allFiles) => allFiles.findIndex((candidate) => fileIdentity(candidate) === fileIdentity(file)) === index,
+    );
 
     if (nextFiles.length > MAX_FILES) {
       input.value = "";
-      setSelectedFiles([]);
       toast.error(isArabic ? "يمكن إرفاق 3 ملفات كحد أقصى" : "You can attach up to 3 files.");
       return;
     }
@@ -99,7 +101,6 @@ export function MailtoForm({
 
     if (unsupported) {
       input.value = "";
-      setSelectedFiles([]);
       toast.error(isArabic ? "نوع الملف غير مدعوم" : "This file type is not supported.", {
         description: isArabic
           ? "استخدم ملف PDF أو Word أو Excel أو صورة."
@@ -111,7 +112,6 @@ export function MailtoForm({
     const totalBytes = nextFiles.reduce((sum, file) => sum + file.size, 0);
     if (totalBytes > MAX_TOTAL_BYTES) {
       input.value = "";
-      setSelectedFiles([]);
       toast.error(isArabic ? "حجم المرفقات كبير جدًا" : "The attachments are too large.", {
         description: isArabic
           ? "يجب ألا يتجاوز الحجم الإجمالي 4 ميغابايت."
@@ -289,8 +289,8 @@ export function MailtoForm({
               <span>
                 {selectedFiles.length
                   ? isArabic
-                    ? "استبدال الملفات المختارة"
-                    : "Replace selected files"
+                    ? "إضافة ملفات أخرى"
+                    : "Add more files"
                   : isArabic
                     ? "اختر ملفات تساعدنا على فهم رسالتك"
                     : "Choose files that help us understand your message"}
@@ -410,4 +410,8 @@ function formatFileSize(bytes: number, isArabic: boolean) {
   if (bytes < 1024) return `${bytes} ${isArabic ? "بايت" : "B"}`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} ${isArabic ? "ك.ب" : "KB"}`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} ${isArabic ? "م.ب" : "MB"}`;
+}
+
+function fileIdentity(file: File) {
+  return `${file.name}:${file.size}:${file.lastModified}`;
 }
