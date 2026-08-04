@@ -676,7 +676,34 @@ export default function AdminPartnersPage() {
                 </div>
               </section>
 
-              {!!decidedApplications.length && <section className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><h2 className="text-2xl font-black">سجل قرارات الطلبات</h2><div className="mt-5 grid gap-3">{decidedApplications.map((application) => <div key={application.id} className="flex flex-wrap items-start justify-between gap-4 rounded-xl bg-[#F7F3EB] p-4"><div><div className="flex items-center gap-2"><strong>{application.name}</strong><span className={`rounded-full px-3 py-1 text-xs font-bold ${application.status === "ACCEPTED" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{application.status === "ACCEPTED" ? "مقبول" : "مرفوض"}</span></div><p className="mt-1 text-sm text-slate-500">{application.email}</p>{application.decisionNotes && <p className="mt-2 text-sm">{application.decisionNotes}</p>}</div><p className="text-xs text-slate-500">{application.decidedBy ? `${application.decidedBy.name || application.decidedBy.email} · ` : ""}{application.decidedAt ? formatDate(application.decidedAt) : ""}</p></div>)}</div></section>}
+              {!!decidedApplications.length && (
+                <details className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
+                  <summary className="cursor-pointer list-none p-6 text-xl font-black">
+                    سجل قرارات طلبات الشركاء ({decidedApplications.length})
+                    <span className="mr-2 text-sm font-normal text-slate-500">مقبولة ومرفوضة — سجل تاريخي</span>
+                  </summary>
+                  <div className="grid gap-3 border-t border-[#E6E0D4] p-6">
+                    {decidedApplications.map((application) => (
+                      <div key={application.id} className="flex flex-wrap items-start justify-between gap-4 rounded-xl bg-[#F7F3EB] p-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <strong>{application.name}</strong>
+                            <span className={`rounded-full px-3 py-1 text-xs font-bold ${application.status === "ACCEPTED" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>
+                              {application.status === "ACCEPTED" ? "مقبول — تم إنشاء الحساب" : "مرفوض — لم يُنشأ حساب"}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm text-slate-500">{application.email}</p>
+                          {application.decisionNotes && <p className="mt-2 text-sm">ملاحظات الإدارة: {application.decisionNotes}</p>}
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {application.decidedBy ? `${application.decidedBy.name || application.decidedBy.email} · ` : ""}
+                          {application.decidedAt ? formatDate(application.decidedAt) : ""}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
 
               <section className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between">
@@ -953,6 +980,7 @@ function ApplicationCard({
 }) {
   const [notes, setNotes] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [pendingAction, setPendingAction] = useState<"ACCEPTED" | "REJECTED" | null>(null);
   const [decisionMessage, setDecisionMessage] = useState<DecisionResult | null>(null);
 
@@ -1008,14 +1036,25 @@ function ApplicationCard({
             placeholder="ملاحظات الإدارة (اختيارية عند القبول، مطلوبة عند الرفض)"
             className="field"
           />
-          <input
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            type="password"
-            minLength={10}
-            placeholder="كلمة مرور مؤقتة (10 أحرف على الأقل)"
-            className="field"
-          />
+          <div className="relative">
+            <input
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              type={showPassword ? "text" : "password"}
+              minLength={10}
+              autoComplete="new-password"
+              placeholder="كلمة مرور مؤقتة (10 أحرف على الأقل)"
+              className="field pl-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+            >
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
+          </div>
           {password.length > 0 && password.length < 10 && (
             <p className="text-xs font-bold text-amber-700">أدخل 10 أحرف على الأقل لتفعيل القبول.</p>
           )}
