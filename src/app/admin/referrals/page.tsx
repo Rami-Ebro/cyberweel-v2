@@ -1,11 +1,14 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { BadgeCheck, CircleDollarSign, Clock3, MessageSquareText, UserRound } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { formatDate } from "@/lib/date-format";
+import { formatDate, formatDateTime } from "@/lib/date-format";
 
-type ReferralStatus = "NEW" | "CONTACTED" | "QUALIFIED" | "CONVERTED" | "REJECTED";
-type CommissionStatus = "PENDING" | "APPROVED" | "PAID" | "CANCELLED";
+type ReferralStatus = "NEW" | "CONTACTED" | "INTERESTED" | "AWAITING_RESPONSE" | "NOT_INTERESTED" | "CONVERTED";
+type ReferralDecision = "PENDING_REVIEW" | "ACCEPTED" | "REJECTED" | "CONVERTED_TO_CLIENT" | "CANCELLED";
+type CommissionStatus = "VERIFYING" | "ON_HOLD" | "NOT_ELIGIBLE" | "DUE" | "PAID";
+type CommissionType = "FIXED" | "PERCENTAGE";
 type Owner = { user: { name: string | null; email: string } };
 type Referral = {
   id: string;
@@ -14,30 +17,60 @@ type Referral = {
   phone: string | null;
   status: ReferralStatus;
   createdAt: string;
+  updatedAt: string;
   source: string | null;
   sourcePath: string | null;
   contactMethod: string | null;
-  adminDecision: string | null;
+  adminDecision: ReferralDecision | null;
+  adminNotes: string | null;
+  commissionType: CommissionType | null;
   commissionAmount: string | null;
+  commissionRate: string | null;
+  commissionBaseAmount: string | null;
   commissionCurrency: string;
   commissionStatus: CommissionStatus;
   ambassador: Owner | null;
   partner: Owner | null;
+  updatedBy: { name: string | null; email: string } | null;
+  clientProject: { id: string; title: string; currency: string; paidAmount: number; hasPaidInvoice: boolean } | null;
 };
 type AmbassadorOption = { id: string; user: { name: string | null; email: string } };
 
 const referralLabels: Record<ReferralStatus, string> = {
   NEW: "جديدة",
   CONTACTED: "تم التواصل",
-  QUALIFIED: "مؤهلة",
-  CONVERTED: "تحولت إلى مشروع",
-  REJECTED: "غير مناسبة",
+  INTERESTED: "مهتم",
+  AWAITING_RESPONSE: "بانتظار الرد",
+  NOT_INTERESTED: "غير مهتم",
+  CONVERTED: "تحولت إلى عميل",
+};
+const decisionLabels: Record<ReferralDecision, string> = {
+  PENDING_REVIEW: "قيد المراجعة",
+  ACCEPTED: "مقبولة",
+  REJECTED: "مرفوضة",
+  CONVERTED_TO_CLIENT: "تحولت إلى عميل",
+  CANCELLED: "ملغاة",
 };
 const commissionLabels: Record<CommissionStatus, string> = {
-  PENDING: "قيد التحقق",
-  APPROVED: "معتمدة",
+  VERIFYING: "قيد التحقق",
+  ON_HOLD: "معلّقة",
+  NOT_ELIGIBLE: "غير مستحقة",
+  DUE: "مستحقة",
   PAID: "مدفوعة",
-  CANCELLED: "ملغاة",
+};
+const sourceLabels: Record<string, string> = {
+  DIRECT: "إحالة مباشرة",
+  AMBASSADOR: "رابط السفير",
+  PARTNER: "شريك تنفيذ",
+  MANUAL: "إدخال يدوي من الإدارة",
+};
+const statusColors: Record<ReferralStatus, string> = {
+  NEW: "bg-sky-50 text-sky-800",
+  CONTACTED: "bg-violet-50 text-violet-800",
+  INTERESTED: "bg-emerald-50 text-emerald-800",
+  AWAITING_RESPONSE: "bg-amber-50 text-amber-800",
+  NOT_INTERESTED: "bg-slate-100 text-slate-700",
+  CONVERTED: "bg-teal-100 text-teal-900",
 };
 
 export default function ReferralAdmin() {
@@ -63,8 +96,8 @@ export default function ReferralAdmin() {
     event.preventDefault();
     setError("");
     setMessage("");
-    const query = new URLSearchParams(new FormData(event.currentTarget) as never).toString();
-    load(query).catch((cause) => setError(cause instanceof Error ? cause.message : "تعذر تطبيق الفلاتر"));
+    load(new URLSearchParams(new FormData(event.currentTarget) as never).toString())
+      .catch((cause) => setError(cause instanceof Error ? cause.message : "تعذر تطبيق الفلاتر"));
   }
 
   async function saveReferral(referral: Referral, values: ReferralDraft) {
@@ -78,16 +111,9 @@ export default function ReferralAdmin() {
         body: JSON.stringify({ id: referral.id, ...values }),
       });
       const payload = await response.json();
-      if (!response.ok) {
-        const labels: Record<string, string> = {
-          INVALID_COMMISSION: "قيمة العمولة غير صالحة.",
-          INVALID_CURRENCY: "عملة العمولة غير صالحة.",
-          INVALID_COMMISSION_STATUS: "حالة العمولة غير صالحة.",
-        };
-        throw new Error(labels[payload.error] || "تعذر حفظ الإحالة");
-      }
-      setMessage(`تم حفظ إحالة «${referral.name || "دون اسم"}» وتحديث العمولة.`);
-      await load();
+      if (!response.ok) throw new Error(errorLabels[payload.error] || "تعذر حفظ الإحالة");
+      setItems((current) => current.map((item) => item.id === referral.id ? payload.referral : item));
+      setMessage(`تم حفظ إحالة «${referral.name || "دون اسم"}» بنجاح.`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "تعذر حفظ الإحالة");
     } finally {
@@ -96,156 +122,172 @@ export default function ReferralAdmin() {
   }
 
   return (
-    <AdminShell active="referrals" title="إدارة الإحالات" description="بحث وفلاتر وقرار الإدارة وحالة العميل والعمولة في شاشة واحدة.">
-        {message && <p className="mt-4 rounded-xl bg-emerald-50 p-3 font-bold text-emerald-800">{message}</p>}
-        {error && <p className="mt-4 rounded-xl bg-rose-50 p-3 font-bold text-rose-800">{error}</p>}
+    <AdminShell active="referrals" title="إدارة الإحالات" description="مسار التواصل وقرار الإدارة واستحقاق العمولة في شاشة واحدة واضحة.">
+      {message && <p role="status" className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 font-bold text-emerald-800">{message}</p>}
+      {error && <p role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 font-bold text-rose-800">{error}</p>}
 
-        <form onSubmit={filter} className="mt-6 grid gap-3 rounded-2xl bg-white p-4 md:grid-cols-4">
-          <input name="search" placeholder="بحث بالعميل" className="rounded-lg border p-2" />
-          <select name="status" className="rounded-lg border p-2">
-            <option value="">كل الحالات</option>
-            {(Object.keys(referralLabels) as ReferralStatus[]).map((status) => (
-              <option key={status} value={status}>{referralLabels[status]}</option>
-            ))}
-          </select>
-          <select name="ambassadorId" className="rounded-lg border p-2">
-            <option value="">كل السفراء</option>
-            {ambassadors.map((ambassador) => (
-              <option key={ambassador.id} value={ambassador.id}>
-                {ambassador.user.name || ambassador.user.email}
-              </option>
-            ))}
-          </select>
-          <input name="contactMethod" placeholder="طريقة التواصل" className="rounded-lg border p-2" />
-          <input name="source" placeholder="مصدر الإحالة" className="rounded-lg border p-2" />
-          <label className="grid gap-1 text-xs font-bold text-slate-500">
-            من تاريخ
-            <input type="date" name="from" className="rounded-lg border p-2 text-base text-slate-900" />
-          </label>
-          <label className="grid gap-1 text-xs font-bold text-slate-500">
-            إلى تاريخ
-            <input type="date" name="to" className="rounded-lg border p-2 text-base text-slate-900" />
-          </label>
-          <button className="self-end rounded-lg bg-[#111827] p-2.5 font-bold text-white">تطبيق الفلاتر</button>
-        </form>
+      <form onSubmit={filter} className="mt-6 grid gap-3 rounded-2xl border border-[#E5DED0] bg-white p-4 shadow-sm md:grid-cols-4">
+        <input name="search" placeholder="بحث بالعميل" className="rounded-xl border border-[#D8D2C4] p-3" />
+        <select name="status" className="rounded-xl border border-[#D8D2C4] p-3">
+          <option value="">كل حالات التواصل</option>
+          {(Object.keys(referralLabels) as ReferralStatus[]).map((status) => <option key={status} value={status}>{referralLabels[status]}</option>)}
+        </select>
+        <select name="ambassadorId" className="rounded-xl border border-[#D8D2C4] p-3">
+          <option value="">كل السفراء</option>
+          {ambassadors.map((ambassador) => <option key={ambassador.id} value={ambassador.id}>{ambassador.user.name || ambassador.user.email}</option>)}
+        </select>
+        <select name="source" className="rounded-xl border border-[#D8D2C4] p-3">
+          <option value="">كل مصادر الإحالة</option>
+          {Object.entries(sourceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+        <input name="contactMethod" placeholder="طريقة التواصل" className="rounded-xl border border-[#D8D2C4] p-3" />
+        <label className="grid gap-1 text-xs font-bold text-slate-500">من تاريخ<input type="date" name="from" className="rounded-xl border border-[#D8D2C4] p-3 text-base text-slate-900" /></label>
+        <label className="grid gap-1 text-xs font-bold text-slate-500">إلى تاريخ<input type="date" name="to" className="rounded-xl border border-[#D8D2C4] p-3 text-base text-slate-900" /></label>
+        <button className="self-end rounded-xl bg-[#111827] p-3 font-bold text-white transition hover:bg-[#1F2937]">تطبيق الفلاتر</button>
+      </form>
 
-        <div className="mt-6 grid gap-4">
-          {items.map((referral) => (
-            <ReferralEditor
-              key={referral.id}
-              referral={referral}
-              busy={busyId === referral.id}
-              onSave={saveReferral}
-            />
-          ))}
-          {!items.length && <p className="rounded-2xl bg-white p-6 text-slate-500">لا توجد إحالات مطابقة.</p>}
-        </div>
+      <div className="mt-6 grid gap-5">
+        {items.map((referral) => <ReferralEditor key={referral.id} referral={referral} busy={busyId === referral.id} onSave={saveReferral} />)}
+        {!items.length && <p className="rounded-2xl border border-dashed border-[#D8D2C4] bg-white p-10 text-center text-slate-500">لا توجد إحالات مطابقة.</p>}
+      </div>
     </AdminShell>
   );
 }
 
 type ReferralDraft = {
   status: ReferralStatus;
-  adminDecision: string;
+  adminDecision: ReferralDecision;
+  adminNotes: string;
+  commissionType: CommissionType | null;
   commissionAmount: string | null;
+  commissionRate: string | null;
   commissionCurrency: string;
   commissionStatus: CommissionStatus;
 };
 
-function ReferralEditor({
-  referral,
-  busy,
-  onSave,
-}: {
-  referral: Referral;
-  busy: boolean;
-  onSave: (referral: Referral, values: ReferralDraft) => Promise<void>;
-}) {
+function ReferralEditor({ referral, busy, onSave }: { referral: Referral; busy: boolean; onSave: (referral: Referral, values: ReferralDraft) => Promise<void> }) {
   const [draft, setDraft] = useState<ReferralDraft>({
     status: referral.status,
-    adminDecision: referral.adminDecision || "",
+    adminDecision: referral.adminDecision || "PENDING_REVIEW",
+    adminNotes: referral.adminNotes || "",
+    commissionType: referral.commissionType,
     commissionAmount: referral.commissionAmount,
-    commissionCurrency: referral.commissionCurrency || "USD",
+    commissionRate: referral.commissionRate,
+    commissionCurrency: referral.commissionCurrency || referral.clientProject?.currency || "USD",
     commissionStatus: referral.commissionStatus,
   });
   const owner = referral.ambassador?.user || referral.partner?.user;
+  const commissionAllowed = ["ACCEPTED", "CONVERTED_TO_CLIENT"].includes(draft.adminDecision) || draft.status === "CONVERTED";
+  const estimatedAmount = useMemo(() => {
+    if (draft.commissionType === "PERCENTAGE" && referral.clientProject?.paidAmount && draft.commissionRate) {
+      return (referral.clientProject.paidAmount * Number(draft.commissionRate) / 100).toFixed(2);
+    }
+    return draft.commissionAmount || null;
+  }, [draft.commissionAmount, draft.commissionRate, draft.commissionType, referral.clientProject?.paidAmount]);
+
+  function changeDecision(value: ReferralDecision) {
+    setDraft((current) => ({
+      ...current,
+      adminDecision: value,
+      ...(value === "CONVERTED_TO_CLIENT" ? { status: "CONVERTED" as const } : {}),
+      ...(["REJECTED", "CANCELLED"].includes(value) ? { commissionStatus: "NOT_ELIGIBLE" as const, commissionType: null, commissionAmount: null, commissionRate: null } : {}),
+    }));
+  }
 
   return (
-    <article className="rounded-2xl bg-white p-5 shadow-sm">
-      <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr_1fr_1fr_auto] xl:items-end">
+    <article className="overflow-hidden rounded-2xl border border-[#E2DACB] bg-white shadow-sm">
+      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[#EEE7DA] bg-[#FCFAF6] p-5">
         <div>
-          <h2 className="font-black">{referral.name || "دون اسم"}</h2>
-          <p className="mt-1 text-sm text-slate-500">{referral.email || referral.phone || "لا توجد وسيلة تواصل"}</p>
-          <p className="mt-1 text-xs text-slate-400">
-            عن طريق {owner?.name || owner?.email || "إحالة مباشرة"} · {formatDate(referral.createdAt)}
-          </p>
-          <p className="mt-1 text-xs text-slate-400">
-            {referral.contactMethod || "—"} · {referral.source || referral.sourcePath || "—"}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-xl font-black">{referral.name || "دون اسم"}</h2>
+            <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusColors[draft.status]}`}>{referralLabels[draft.status]}</span>
+          </div>
+          <p className="mt-2 text-sm text-slate-600">{referral.email || "—"}{referral.phone ? ` · ${referral.phone}` : ""}</p>
         </div>
-        <label className="grid gap-1 text-xs font-bold text-slate-500">
-          حالة الإحالة
-          <select
-            value={draft.status}
-            onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value as ReferralStatus }))}
-            className="rounded-lg border p-2 text-base text-slate-900"
-          >
-            {(Object.keys(referralLabels) as ReferralStatus[]).map((status) => (
-              <option key={status} value={status}>{referralLabels[status]}</option>
-            ))}
-          </select>
-        </label>
-        <label className="grid gap-1 text-xs font-bold text-slate-500">
-          قرار الإدارة
-          <input
-            value={draft.adminDecision}
-            onChange={(event) => setDraft((current) => ({ ...current, adminDecision: event.target.value }))}
-            className="rounded-lg border p-2 text-base text-slate-900"
-          />
-        </label>
-        <div className="grid grid-cols-[1fr_90px] gap-2">
-          <label className="grid gap-1 text-xs font-bold text-slate-500">
-            العمولة
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={draft.commissionAmount || ""}
-              onChange={(event) => setDraft((current) => ({ ...current, commissionAmount: event.target.value || null }))}
-              className="rounded-lg border p-2 text-base text-slate-900"
-            />
-          </label>
-          <label className="grid gap-1 text-xs font-bold text-slate-500">
-            العملة
-            <select
-              value={draft.commissionCurrency}
-              onChange={(event) => setDraft((current) => ({ ...current, commissionCurrency: event.target.value }))}
-              className="rounded-lg border p-2 text-base text-slate-900"
-            >
-              {["USD", "EUR", "SYP", "TRY"].map((currency) => <option key={currency}>{currency}</option>)}
+        <div className="grid gap-1 text-xs text-slate-500 sm:text-left">
+          <span>{sourceLabels[referral.source || ""] || "إحالة مباشرة"} · {referral.contactMethod || "وسيلة التواصل غير محددة"}</span>
+          <span>{owner ? `عن طريق ${owner.name || owner.email}` : "دون مسوّق مرتبط"} · {formatDate(referral.createdAt)}</span>
+        </div>
+      </header>
+
+      <div className="grid gap-5 p-5 xl:grid-cols-3">
+        <section className="rounded-2xl border border-sky-100 bg-sky-50/40 p-4">
+          <SectionTitle icon={MessageSquareText} title="حالة التواصل" subtitle="ما المرحلة الحالية مع العميل؟" />
+          <label className="mt-4 grid gap-2 text-sm font-bold">حالة الإحالة
+            <select value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value as ReferralStatus }))} className="rounded-xl border border-sky-200 bg-white p-3 font-normal">
+              {(Object.keys(referralLabels) as ReferralStatus[]).map((status) => <option key={status} value={status}>{referralLabels[status]}</option>)}
             </select>
           </label>
-          <label className="col-span-2 grid gap-1 text-xs font-bold text-slate-500">
-            حالة العمولة
-            <select
-              value={draft.commissionStatus}
-              onChange={(event) => setDraft((current) => ({ ...current, commissionStatus: event.target.value as CommissionStatus }))}
-              className="rounded-lg border p-2 text-base text-slate-900"
-            >
-              {(Object.keys(commissionLabels) as CommissionStatus[]).map((status) => (
-                <option key={status} value={status}>{commissionLabels[status]}</option>
-              ))}
+          {referral.sourcePath && <p className="mt-4 text-xs leading-6 text-slate-500">مسار المصدر: <span dir="ltr">{referral.sourcePath}</span></p>}
+        </section>
+
+        <section className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4">
+          <SectionTitle icon={BadgeCheck} title="قرار الإدارة" subtitle="قرار مستقل عن مسار التواصل." />
+          <label className="mt-4 grid gap-2 text-sm font-bold">القرار
+            <select value={draft.adminDecision} onChange={(event) => changeDecision(event.target.value as ReferralDecision)} className="rounded-xl border border-amber-200 bg-white p-3 font-normal">
+              {(Object.keys(decisionLabels) as ReferralDecision[]).map((decision) => <option key={decision} value={decision}>{decisionLabels[decision]}</option>)}
             </select>
           </label>
-        </div>
-        <button
-          disabled={busy}
-          onClick={() => void onSave(referral, draft)}
-          className="rounded-lg bg-[#B89A5A] px-5 py-3 font-black text-[#111827] disabled:opacity-40"
-        >
-          {busy ? "جارٍ الحفظ..." : "حفظ"}
-        </button>
+          <label className="mt-3 grid gap-2 text-sm font-bold">ملاحظات الإدارة
+            <textarea value={draft.adminNotes} onChange={(event) => setDraft((current) => ({ ...current, adminNotes: event.target.value }))} rows={4} placeholder="تفاصيل التواصل أو سبب القرار عند الحاجة" className="resize-y rounded-xl border border-amber-200 bg-white p-3 font-normal" />
+          </label>
+        </section>
+
+        <section className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4">
+          <SectionTitle icon={CircleDollarSign} title="بيانات العمولة" subtitle="تُستحق بعد تحقق الشرط المالي." />
+          {!commissionAllowed ? (
+            <p className="mt-4 rounded-xl bg-white p-4 text-sm leading-6 text-slate-600">اعتمد الإحالة أولًا أو حوّلها إلى عميل قبل إدخال العمولة.</p>
+          ) : (
+            <div className="mt-4 grid gap-3">
+              <label className="grid gap-2 text-sm font-bold">نوع العمولة
+                <select value={draft.commissionType || ""} onChange={(event) => setDraft((current) => ({ ...current, commissionType: (event.target.value || null) as CommissionType | null, commissionAmount: null, commissionRate: null }))} className="rounded-xl border border-emerald-200 bg-white p-3 font-normal">
+                  <option value="">دون عمولة محددة</option><option value="FIXED">مبلغ ثابت</option><option value="PERCENTAGE">نسبة مئوية</option>
+                </select>
+              </label>
+              {draft.commissionType === "FIXED" && <label className="grid gap-2 text-sm font-bold">مبلغ العمولة<input type="number" min="0" step="0.01" value={draft.commissionAmount || ""} onChange={(event) => setDraft((current) => ({ ...current, commissionAmount: event.target.value || null }))} className="rounded-xl border border-emerald-200 bg-white p-3 font-normal" /></label>}
+              {draft.commissionType === "PERCENTAGE" && <>
+                <label className="grid gap-2 text-sm font-bold">نسبة العمولة<input type="number" min="0.01" max="100" step="0.01" value={draft.commissionRate || ""} onChange={(event) => setDraft((current) => ({ ...current, commissionRate: event.target.value || null }))} className="rounded-xl border border-emerald-200 bg-white p-3 font-normal" /></label>
+                <p className="rounded-xl bg-white p-3 text-xs leading-6 text-slate-600">قيمة الدفعات المعتمدة: <strong>{referral.clientProject?.paidAmount.toFixed(2) || "0.00"} {referral.clientProject?.currency || draft.commissionCurrency}</strong><br />العمولة المحسوبة: <strong>{estimatedAmount || "0.00"} {referral.clientProject?.currency || draft.commissionCurrency}</strong></p>
+              </>}
+              {estimatedAmount && <label className="grid gap-2 text-sm font-bold">العملة
+                <select value={draft.commissionCurrency} onChange={(event) => setDraft((current) => ({ ...current, commissionCurrency: event.target.value }))} className="rounded-xl border border-emerald-200 bg-white p-3 font-normal">
+                  {[referral.clientProject?.currency, "USD", "EUR", "SYP", "TRY"].filter((value, index, all): value is string => Boolean(value) && all.indexOf(value) === index).map((currency) => <option key={currency}>{currency}</option>)}
+                </select>
+              </label>}
+              <label className="grid gap-2 text-sm font-bold">حالة العمولة
+                <select value={draft.commissionStatus} onChange={(event) => setDraft((current) => ({ ...current, commissionStatus: event.target.value as CommissionStatus }))} className="rounded-xl border border-emerald-200 bg-white p-3 font-normal">
+                  {(Object.keys(commissionLabels) as CommissionStatus[]).map((status) => <option key={status} value={status} disabled={(status === "DUE" || status === "PAID") && !referral.clientProject?.hasPaidInvoice}>{commissionLabels[status]}</option>)}
+                </select>
+              </label>
+              {!referral.clientProject?.hasPaidInvoice && <p className="text-xs leading-5 text-amber-800">لا يمكن جعل العمولة مستحقة قبل تسجيل دفعة عميل مرتبطة بالمشروع.</p>}
+            </div>
+          )}
+        </section>
       </div>
+
+      <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-[#EEE7DA] px-5 py-4">
+        <div className="flex items-center gap-2 text-xs text-slate-500"><Clock3 className="h-4 w-4" /><span>{referral.updatedBy ? `آخر تعديل: ${referral.updatedBy.name || referral.updatedBy.email} · ${formatDateTime(referral.updatedAt)}` : "لم يُسجّل تعديل إداري بعد"}</span></div>
+        <button disabled={busy} onClick={() => void onSave(referral, draft)} className="rounded-xl bg-[#111827] px-6 py-3 font-black text-white transition hover:bg-[#1F2937] disabled:cursor-wait disabled:opacity-50">{busy ? "جارٍ الحفظ..." : "حفظ التغييرات"}</button>
+      </footer>
     </article>
   );
 }
+
+function SectionTitle({ icon: Icon, title, subtitle }: { icon: typeof UserRound; title: string; subtitle: string }) {
+  return <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white shadow-sm"><Icon className="h-5 w-5" /></span><div><h3 className="font-black">{title}</h3><p className="mt-1 text-xs text-slate-500">{subtitle}</p></div></div>;
+}
+
+const errorLabels: Record<string, string> = {
+  INVALID: "حالة الإحالة غير صالحة.",
+  INVALID_DECISION: "قرار الإدارة غير صالح.",
+  INVALID_COMMISSION: "قيمة العمولة أو نسبتها غير صالحة.",
+  INVALID_CURRENCY: "عملة العمولة غير صالحة.",
+  INVALID_COMMISSION_STATUS: "حالة العمولة غير صالحة.",
+  REFERRAL_NOT_APPROVED: "يجب قبول الإحالة أو تحويلها إلى عميل قبل إدخال العمولة.",
+  CONFLICTING_STATUSES: "لا يمكن أن تكون الإحالة مرفوضة أو ملغاة والعمولة مستحقة.",
+  FINANCIAL_CONDITION_NOT_MET: "لا يمكن استحقاق العمولة قبل تسجيل دفعة عميل مرتبطة بالمشروع.",
+  COMMISSION_AMOUNT_REQUIRED: "أدخل مبلغ العمولة قبل اعتماد هذه الحالة.",
+  COMMISSION_RATE_REQUIRED: "أدخل نسبة العمولة الصحيحة.",
+  COMMISSION_NOT_DUE: "حوّل العمولة إلى مستحقة واحفظها قبل تسجيلها كمدفوعة.",
+  NOT_FOUND: "الإحالة غير موجودة.",
+};
