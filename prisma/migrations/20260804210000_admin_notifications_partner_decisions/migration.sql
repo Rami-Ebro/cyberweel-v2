@@ -1,3 +1,4 @@
+-- Persist the administrative decision trail and notification center state.
 ALTER TABLE "CollaborationApplication"
 ADD COLUMN IF NOT EXISTS "reviewState" TEXT NOT NULL DEFAULT 'NEW',
 ADD COLUMN IF NOT EXISTS "decidedById" TEXT;
