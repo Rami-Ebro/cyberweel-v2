@@ -416,11 +416,7 @@ export default function AdminPartnersPage() {
               </button>
             )}
             {(admin?.isOwner || admin?.permissions.includes("invoices")) && (
-              <Link
-                href="/admin/clients"
-                title="تُدار الفواتير من داخل حساب العميل"
-                className="nav-link"
-              >
+              <Link href="/admin/invoices" className="nav-link">
                 <BarChart3 className="h-5 w-5" />
                 الفواتير
               </Link>
@@ -539,8 +535,8 @@ export default function AdminPartnersPage() {
                   {
                     label: "الفواتير",
                     value: stats.invoices,
-                    actionLabel: "فتح العملاء والفواتير",
-                    action: () => router.push("/admin/clients"),
+                    actionLabel: "فتح إدارة الفواتير",
+                    action: () => router.push("/admin/invoices"),
                   },
                   {
                     label: "الإحالات",
