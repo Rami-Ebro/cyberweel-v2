@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { ChevronDown, Eye, EyeOff, PauseCircle, PlayCircle, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { formatDateTime } from "@/lib/date-format";
 
 const labels: Record<string, string> = {
@@ -56,7 +56,7 @@ export default function AdminTeamPage() {
     setLoading(false);
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void Promise.resolve().then(() => load()); }, []);
 
   async function createMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -165,12 +165,7 @@ export default function AdminTeamPage() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#F7F3EB] p-4 text-[#111827] sm:p-8">
-      <div className="mx-auto max-w-6xl">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div><p className="text-sm font-bold text-[#9A7D43]">لوحة المالك</p><h1 className="mt-1 text-3xl font-black">إدارة الفريق والصلاحيات</h1></div>
-          <Link href="/admin/partners" className="rounded-xl bg-[#111827] px-5 py-3 font-bold text-white">العودة إلى لوحة الإدارة</Link>
-        </header>
+    <AdminShell active="team" eyebrow="لوحة المالك" title="إدارة الفريق والصلاحيات" description="إدارة حسابات فريق الإدارة وتحديد نطاق وصول كل عضو." wide={false}>
 
         {message && <p className="mt-5 rounded-xl border border-[#D8D2C4] bg-white p-4 font-bold">{message}</p>}
 
@@ -261,8 +256,7 @@ export default function AdminTeamPage() {
             </form>
           )}
         </section>
-      </div>
-    </main>
+    </AdminShell>
   );
 }
 
