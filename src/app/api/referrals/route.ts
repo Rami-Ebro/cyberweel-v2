@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
   const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
+  const company = typeof body?.company === "string" ? body.company.trim() : "";
   const notes = typeof body?.notes === "string" ? body.notes.trim() : "";
   const explicitCode = typeof body?.referralCode === "string" ? body.referralCode.trim() : "";
   const ambassadorMatch = /^CWA-(\d{4,})$/i.exec(explicitCode);
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
     name.length > 120 ||
     email.length > 254 ||
     phone.length > 40 ||
+    company.length > 160 ||
     notes.length > 5000 ||
     explicitCode.length > 80 ||
     (!email && !phone) ||
@@ -81,6 +83,7 @@ export async function POST(request: NextRequest) {
         name,
         email: email || null,
         phone: phone || null,
+        company: company || null,
         notes,
         sourcePath: "/share-challenge",
         source,
