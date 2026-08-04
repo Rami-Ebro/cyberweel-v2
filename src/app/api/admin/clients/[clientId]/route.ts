@@ -67,6 +67,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
       where: { id: clientId },
       select: {
         id: true, name: true, email: true, phone: true, isActive: true, createdAt: true,
+        convertedReferrals: {
+          where: { clientProject: null },
+          orderBy: { convertedAt: "desc" },
+          select: { id: true, name: true, email: true, source: true, convertedAt: true },
+        },
         clientProjects: {
           orderBy: { updatedAt: "desc" },
           include: {
@@ -105,15 +110,24 @@ export async function POST(request: NextRequest, context: RouteContext) {
   try {
     if (action === "project") {
       const title = typeof body?.title === "string" ? body.title.trim() : "";
+      const referralId = typeof body?.referralId === "string" ? body.referralId : "";
       if (title.length < 2) return NextResponse.json({ error: "اسم المشروع مطلوب" }, { status: 400 });
       const progress = Number(body?.progress);
       const parsedLinks = parseLinks(body.links);
       if (parsedLinks.invalid.length) {
         return NextResponse.json({ error: `الرابط غير صالح: ${parsedLinks.invalid[0]}. اكتب اسم النطاق مثل example.com أو رابطًا كاملًا.` }, { status: 400 });
       }
+      if (referralId) {
+        const referral = await db.partnerReferral.findFirst({
+          where: { id: referralId, convertedClientId: clientId, status: "CONVERTED", clientProject: null },
+          select: { id: true },
+        });
+        if (!referral) return NextResponse.json({ error: "الإحالة غير متاحة أو مرتبطة بمشروع مسبقًا" }, { status: 409 });
+      }
       const project = await db.clientProject.create({
         data: {
           clientId,
+          referralId: referralId || null,
           title,
           description: body.description?.trim() || null,
           agreementDetails: body.agreementDetails?.trim() || null,
