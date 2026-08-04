@@ -20,6 +20,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { AdminNotificationCenter } from "@/components/admin/admin-notification-center";
 import { formatDate } from "@/lib/date-format";
 
 type PartnerStatus = "PENDING" | "ACTIVE" | "SUSPENDED";
@@ -504,14 +505,17 @@ export default function AdminPartnersPage() {
               <p className="text-sm font-bold text-[#9A7D43]">مركز التحكم</p>
               <h1 className="mt-1 text-3xl font-black">مرحبًا {admin?.name || "بك"}</h1>
             </div>
-            <button
-              onClick={load}
-              disabled={loading}
-              className="flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-              تحديث البيانات
-            </button>
+            <div className="flex items-center gap-2">
+              <AdminNotificationCenter />
+              <button
+                onClick={load}
+                disabled={loading}
+                className="flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                تحديث البيانات
+              </button>
+            </div>
           </header>
 
           {message && (
