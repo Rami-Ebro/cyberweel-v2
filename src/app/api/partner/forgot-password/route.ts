@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   if (!emailLimit.allowed) return rateLimitResponse(emailLimit);
 
   const user = await db.user.findUnique({ where: { email }, select: { id: true, role: true } });
-  if (!user || user.role !== "PARTNER") {
+  if (!user || !["PARTNER", "CLIENT"].includes(user.role)) {
     return NextResponse.json({ ok: true, message: GENERIC_MESSAGE });
   }
 

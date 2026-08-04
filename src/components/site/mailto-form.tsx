@@ -192,6 +192,7 @@ export function MailtoForm({
             name: String(data.get("name") ?? organization).trim(),
             email: String(data.get("email") ?? "").trim(),
             phone: String(data.get("phone") ?? "").trim(),
+            company: organization,
             notes: details.join("\n\n"),
             referralCode,
           }),

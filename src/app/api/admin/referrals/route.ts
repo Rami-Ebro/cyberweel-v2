@@ -50,6 +50,7 @@ const referralInclude = {
   ambassador: { include: { user: { select: { name: true, email: true } } } },
   partner: { include: { user: { select: { name: true, email: true } } } },
   updatedBy: { select: { name: true, email: true } },
+  convertedClient: { select: { id: true, name: true, email: true } },
   clientProject: {
     select: {
       id: true,
@@ -126,6 +127,12 @@ export async function PATCH(request: NextRequest) {
     include: referralInclude,
   });
   if (!referral) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  if (body.status === "CONVERTED" && !referral.convertedClientId) {
+    return NextResponse.json({ error: "USE_CLIENT_CONVERSION" }, { status: 409 });
+  }
+  if (referral.convertedClientId && body.status !== "CONVERTED") {
+    return NextResponse.json({ error: "CONVERTED_STATUS_LOCKED" }, { status: 409 });
+  }
 
   const commissionType = COMMISSION_TYPES.includes(body.commissionType) ? body.commissionType : null;
   const fixedAmount = decimalInput(body.commissionAmount);
@@ -177,7 +184,7 @@ export async function PATCH(request: NextRequest) {
   const updated = await db.partnerReferral.update({
     where: { id: referral.id },
     data: {
-      status: body.adminDecision === "CONVERTED_TO_CLIENT" ? "CONVERTED" : body.status,
+      status: body.status,
       adminDecision: body.adminDecision,
       adminNotes: typeof body.adminNotes === "string" ? body.adminNotes.trim().slice(0, 5000) || null : null,
       commissionType,

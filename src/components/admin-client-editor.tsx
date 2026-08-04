@@ -22,6 +22,7 @@ type Notification = { id: string; title: string; body: string | null; section: s
 type Client = {
   id: string; name: string | null; email: string; phone: string | null; isActive: boolean; createdAt: string;
   clientProjects: Project[]; clientMessages: Message[]; clientNotifications: Notification[];
+  convertedReferrals: Array<{ id: string; name: string | null; email: string | null; source: string | null; convertedAt: string | null }>;
 };
 
 const projectStatuses = [
@@ -320,6 +321,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
             <CreationPanel title="إضافة مشروع جديد" description="افتح البطاقة عند الحاجة فقط." open={projectFormOpen} onToggle={() => setProjectFormOpen((value) => !value)}>
               <form key={newProjectFormVersion} onSubmit={(event) => void saveProject(event, "POST")} className="grid gap-4">
                 <input type="hidden" name="action" value="project" />
+                {!!client.convertedReferrals.length && <label className="grid gap-2 font-bold">الإحالة المرتبطة — اختيارية<select name="referralId" className="field font-normal"><option value="">مشروع جديد دون إحالة</option>{client.convertedReferrals.map((referral) => <option key={referral.id} value={referral.id}>{referral.name || referral.email || referral.id}</option>)}</select><span className="text-xs font-normal text-slate-500">اختيار الإحالة يربط هذا المشروع بها نهائيًا.</span></label>}
                 <ProjectCoreFields />
                 <ProjectLinksFields />
                 <ProjectAttachmentsInput />

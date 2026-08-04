@@ -2,36 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { canAdmin } from "@/lib/admin-permissions";
 import { hashPassword, normalizeEmail, normalizePhone } from "@/lib/partner-auth";
-
-function parseIdentifier(identifier: string) {
-  const isEmail = identifier.includes("@");
-  const phone = isEmail ? null : normalizePhone(identifier);
-  const email = isEmail ? normalizeEmail(identifier) : `${(phone || "").replace("+", "")}@phone.cyberweel.local`;
-  return { email, phone };
-}
+import { sendClientInvitation } from "@/lib/client-invitation";
 
 export async function GET(request: NextRequest) {
   if (!(await canAdmin(request, "clients"))) return NextResponse.json({ error: "لا تملك صلاحية إدارة العملاء" }, { status: 403 });
 
-  const [clients, referrals] = await Promise.all([
-    db.user.findMany({
-      where: { role: "CLIENT" },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true, name: true, email: true, phone: true, isActive: true, createdAt: true,
-        clientProjects: {
-          orderBy: { createdAt: "desc" },
-          select: { id: true, title: true, status: true, progress: true, referralId: true },
-        },
+  const clients = await db.user.findMany({
+    where: { role: "CLIENT" },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      company: true,
+      preferredLanguage: true,
+      clientSource: true,
+      internalNotes: true,
+      isActive: true,
+      passwordHash: true,
+      createdAt: true,
+      clientProjects: {
+        orderBy: { createdAt: "desc" },
+        select: { id: true, title: true, status: true, progress: true },
       },
-    }),
-    db.partnerReferral.findMany({
-      where: { status: "CONVERTED", clientProject: null },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, name: true, email: true, phone: true },
-    }),
-  ]);
-  return NextResponse.json({ clients, referrals });
+    },
+  });
+  return NextResponse.json({
+    clients: clients.map(({ passwordHash, ...client }) => ({ ...client, hasLogin: Boolean(passwordHash) })),
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -39,60 +38,106 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
-  const identifier = typeof body?.identifier === "string" ? body.identifier.trim() : "";
+  const email = typeof body?.email === "string" ? normalizeEmail(body.email) : "";
+  const phone = typeof body?.phone === "string" ? normalizePhone(body.phone) : "";
+  const company = typeof body?.company === "string" ? body.company.trim() : "";
+  const preferredLanguage = body?.preferredLanguage === "en" ? "en" : "ar";
+  const clientSource = typeof body?.clientSource === "string" ? body.clientSource.trim() : "";
+  const internalNotes = typeof body?.internalNotes === "string" ? body.internalNotes.trim() : "";
   const password = typeof body?.password === "string" ? body.password : "";
   const referralId = typeof body?.referralId === "string" ? body.referralId : "";
-  const projectTitle = typeof body?.projectTitle === "string" ? body.projectTitle.trim() : "";
+  const sendInvite = body?.sendInvite === true;
+  const confirmPhoneDuplicate = body?.confirmPhoneDuplicate === true;
+  const isActive = body?.isActive !== false;
 
-  if (name.length < 2 || !identifier || password.length < 8) {
-    return NextResponse.json({ error: "الاسم وبيانات الدخول وكلمة مرور من 8 أحرف مطلوبة" }, { status: 400 });
+  if (name.length < 2 || !email.includes("@") || email.length > 254) {
+    return NextResponse.json({ error: "الاسم والبريد الإلكتروني الصحيح مطلوبان" }, { status: 400 });
   }
-  if (referralId && !projectTitle) return NextResponse.json({ error: "اسم المشروع مطلوب عند ربط إحالة" }, { status: 400 });
+  if (phone && phone.length < 8) return NextResponse.json({ error: "رقم الهاتف غير صالح" }, { status: 400 });
+  if (password && password.length < 8) return NextResponse.json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" }, { status: 400 });
 
-  const { email, phone } = parseIdentifier(identifier);
-  if (!identifier.includes("@") && (!phone || phone.length < 8)) return NextResponse.json({ error: "رقم واتساب غير صالح" }, { status: 400 });
+  const [emailOwner, phoneOwner, referral] = await Promise.all([
+    db.user.findUnique({ where: { email }, select: { id: true, role: true, name: true, email: true, phone: true, company: true, preferredLanguage: true, clientSource: true, internalNotes: true, isActive: true } }),
+    phone ? db.user.findFirst({ where: { phone }, select: { id: true, role: true, name: true, email: true } }) : null,
+    referralId ? db.partnerReferral.findUnique({ where: { id: referralId }, select: { id: true, status: true, adminDecision: true, convertedClientId: true } }) : null,
+  ]);
 
-  const existing = await db.user.findFirst({
-    where: { OR: [{ email }, ...(phone ? [{ phone }] : [])] },
-    select: { id: true, role: true },
-  });
-  if (existing && existing.role !== "CLIENT") return NextResponse.json({ error: "بيانات الدخول مرتبطة بحساب من نوع آخر" }, { status: 409 });
+  if (emailOwner && emailOwner.role !== "CLIENT") {
+    return NextResponse.json({ error: "البريد مرتبط بحساب من نوع آخر" }, { status: 409 });
+  }
+  if (emailOwner && !referralId) {
+    return NextResponse.json({ error: "يوجد عميل مسجل بهذا البريد بالفعل", clientId: emailOwner.id }, { status: 409 });
+  }
+  if (referralId && (!referral || !["INTERESTED", "CONVERTED"].includes(referral.status))) {
+    return NextResponse.json({ error: "الإحالة يجب أن تكون مهتمة ومقبولة قبل تحويلها" }, { status: 409 });
+  }
+  if (referralId && referral?.adminDecision !== "ACCEPTED") {
+    return NextResponse.json({ error: "يجب اعتماد قرار الإحالة قبل تحويلها" }, { status: 409 });
+  }
+  if (referral?.convertedClientId) {
+    return NextResponse.json({ error: "تم تحويل هذه الإحالة مسبقًا", clientId: referral.convertedClientId }, { status: 409 });
+  }
+  if (phoneOwner && phoneOwner.id !== emailOwner?.id && !confirmPhoneDuplicate) {
+    return NextResponse.json({
+      error: "PHONE_MATCH_REQUIRES_CONFIRMATION",
+      phoneMatch: { id: phoneOwner.id, name: phoneOwner.name, email: phoneOwner.email, role: phoneOwner.role },
+    }, { status: 409 });
+  }
 
   try {
-    const result = await db.$transaction(async (tx) => {
-      if (referralId) {
-        const referral = await tx.partnerReferral.findFirst({
-          where: { id: referralId, status: "CONVERTED", clientProject: null },
-          select: { id: true },
-        });
-        if (!referral) throw new Error("REFERRAL_UNAVAILABLE");
-      }
-
-      const client = existing
+    const client = await db.$transaction(async (tx) => {
+      const savedClient = emailOwner
         ? await tx.user.update({
-            where: { id: existing.id },
-            data: { name, passwordHash: hashPassword(password), isActive: true },
-            select: { id: true, name: true, email: true, phone: true, isActive: true },
+            where: { id: emailOwner.id },
+            data: {
+              name: emailOwner.name || name,
+              phone: emailOwner.phone || phone || null,
+              company: emailOwner.company || company || null,
+              preferredLanguage: emailOwner.preferredLanguage || preferredLanguage,
+              clientSource: emailOwner.clientSource || clientSource || "REFERRAL",
+              internalNotes: emailOwner.internalNotes || internalNotes || null,
+              isActive: emailOwner.isActive,
+            },
           })
         : await tx.user.create({
-            data: { name, email, phone, passwordHash: hashPassword(password), role: "CLIENT", isActive: true },
-            select: { id: true, name: true, email: true, phone: true, isActive: true },
+            data: {
+              name,
+              email,
+              phone: phone || null,
+              company: company || null,
+              preferredLanguage,
+              clientSource: clientSource || (referralId ? "REFERRAL" : "DIRECT"),
+              internalNotes: internalNotes || null,
+              passwordHash: password ? hashPassword(password) : null,
+              role: "CLIENT",
+              isActive,
+            },
           });
 
-      const project = referralId
-        ? await tx.clientProject.create({
-            data: { clientId: client.id, referralId, title: projectTitle },
-            select: { id: true, title: true, status: true, progress: true, referralId: true },
-          })
-        : null;
-      return { client, project };
+      if (referralId) {
+        await tx.partnerReferral.update({
+          where: { id: referralId },
+          data: { status: "CONVERTED", adminDecision: "CONVERTED_TO_CLIENT", convertedClientId: savedClient.id, convertedAt: new Date() },
+        });
+      }
+      return savedClient;
     });
-    return NextResponse.json(result, { status: 201 });
+
+    const shouldSendInvite = sendInvite && !emailOwner;
+    const invitation = shouldSendInvite
+      ? await sendClientInvitation(client.id, client.email, request.nextUrl.origin)
+      : { sent: false, error: undefined, invitationUrl: undefined };
+    return NextResponse.json({
+      client: { id: client.id, name: client.name, email: client.email, phone: client.phone, isActive: client.isActive },
+      reusedExistingClient: Boolean(emailOwner),
+      inviteRequested: shouldSendInvite,
+      inviteSent: invitation.sent,
+      ...(invitation.error ? { inviteError: invitation.error } : {}),
+      ...(invitation.invitationUrl ? { invitationUrl: invitation.invitationUrl } : {}),
+    }, { status: emailOwner ? 200 : 201 });
   } catch (error) {
-    if (error instanceof Error && error.message === "REFERRAL_UNAVAILABLE") {
-      return NextResponse.json({ error: "الإحالة غير متاحة أو مرتبطة بمشروع مسبقًا" }, { status: 409 });
-    }
-    return NextResponse.json({ error: "تعذر إنشاء حساب العميل، وقد تكون بيانات الدخول مستخدمة" }, { status: 409 });
+    console.error("[admin-clients] Failed to save client", error);
+    return NextResponse.json({ error: "تعذر حفظ العميل" }, { status: 409 });
   }
 }
 
@@ -108,7 +153,6 @@ export async function PATCH(request: NextRequest) {
 
   const client = await db.user.findFirst({ where: { id: userId, role: "CLIENT" }, select: { id: true } });
   if (!client) return NextResponse.json({ error: "حساب العميل غير موجود" }, { status: 404 });
-
   const updated = await db.user.update({
     where: { id: client.id },
     data: { ...(isActive !== undefined ? { isActive } : {}), ...(password ? { passwordHash: hashPassword(password) } : {}) },
