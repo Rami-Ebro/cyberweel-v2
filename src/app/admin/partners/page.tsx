@@ -73,6 +73,10 @@ type Application = {
   market: string | null;
   details: string | null;
   status: ApplicationStatus;
+  reviewState: string;
+  decisionNotes: string | null;
+  decidedAt: string | null;
+  decidedBy: { name: string | null; email: string } | null;
   createdAt: string;
 };
 
@@ -242,8 +246,9 @@ export default function AdminPartnersPage() {
       };
       setMessage(known[data.error] || data.error || "تعذر حفظ القرار");
     } else {
-      setMessage(status === "ACCEPTED" ? "تم قبول الطلب وإنشاء حساب الشريك." : "تم رفض الطلب.");
+      setMessage(status === "ACCEPTED" ? "تم قبول الطلب وإنشاء حساب الشريك بنجاح." : "تم رفض الطلب وتسجيل القرار.");
       await load();
+      window.dispatchEvent(new Event("admin-notifications-refresh"));
     }
     setUpdatingId(null);
   }
@@ -344,6 +349,7 @@ export default function AdminPartnersPage() {
     () => applications.filter((application) => application.status === "PENDING"),
     [applications],
   );
+  const decidedApplications = useMemo(() => applications.filter((application) => application.status !== "PENDING"), [applications]);
 
   const canSeeReferrals = admin?.isOwner || admin?.permissions.includes("referrals");
 
@@ -649,6 +655,8 @@ export default function AdminPartnersPage() {
                 </div>
               </section>
 
+              {!!decidedApplications.length && <section className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><h2 className="text-2xl font-black">سجل قرارات الطلبات</h2><div className="mt-5 grid gap-3">{decidedApplications.map((application) => <div key={application.id} className="flex flex-wrap items-start justify-between gap-4 rounded-xl bg-[#F7F3EB] p-4"><div><div className="flex items-center gap-2"><strong>{application.name}</strong><span className={`rounded-full px-3 py-1 text-xs font-bold ${application.status === "ACCEPTED" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{application.status === "ACCEPTED" ? "مقبول" : "مرفوض"}</span></div><p className="mt-1 text-sm text-slate-500">{application.email}</p>{application.decisionNotes && <p className="mt-2 text-sm">{application.decisionNotes}</p>}</div><p className="text-xs text-slate-500">{application.decidedBy ? `${application.decidedBy.name || application.decidedBy.email} · ` : ""}{application.decidedAt ? formatDate(application.decidedAt) : ""}</p></div>)}</div></section>}
+
               <section className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-black">حسابات الشركاء</h2>
@@ -929,7 +937,7 @@ function ApplicationCard({
     <article className="rounded-2xl border border-[#D8D2C4] p-5">
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <div>
-          <h3 className="text-lg font-black">{application.name}</h3>
+          <div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-black">{application.name}</h3><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">{application.reviewState === "NEEDS_INFO" ? "يحتاج استكمال بيانات" : application.reviewState === "IN_REVIEW" ? "قيد المراجعة" : "جديد"}</span></div>
           <p className="mt-1 text-sm text-slate-500">
             {application.email} {application.phone ? `· ${application.phone}` : ""}
           </p>
@@ -945,7 +953,7 @@ function ApplicationCard({
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             rows={2}
-            placeholder="ملاحظات القرار"
+            placeholder="ملاحظات الإدارة (اختيارية عند القبول، مطلوبة عند الرفض)"
             className="field"
           />
           <input
@@ -958,18 +966,18 @@ function ApplicationCard({
           />
           <div className="grid grid-cols-2 gap-2">
             <button
-              disabled={busy || password.length < 10 || !notes.trim()}
+              disabled={busy || password.length < 10}
               onClick={() => decide(application.id, "ACCEPTED", notes, password)}
               className="rounded-xl bg-emerald-600 px-4 py-3 font-black text-white disabled:opacity-40"
             >
-              قبول وإنشاء الحساب
+              {busy ? "جارٍ إنشاء الحساب…" : "قبول وإنشاء الحساب"}
             </button>
             <button
               disabled={busy || !notes.trim()}
-              onClick={() => decide(application.id, "REJECTED", notes, "")}
+              onClick={() => { if (window.confirm("هل أنت متأكد من رفض طلب الشريك؟ لن يتم إنشاء حساب لهذا الطلب.")) void decide(application.id, "REJECTED", notes, ""); }}
               className="rounded-xl bg-red-600 px-4 py-3 font-black text-white disabled:opacity-40"
             >
-              رفض الطلب
+              {busy ? "جارٍ رفض الطلب…" : "رفض الطلب"}
             </button>
           </div>
         </div>
