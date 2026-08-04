@@ -23,6 +23,18 @@ const ALLOWED_TYPES = new Set([
   "image/webp",
 ]);
 
+const MIME_BY_EXTENSION: Record<string, string> = {
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+};
+
 type ContactField = {
   name?: string;
   label?: string;
@@ -31,6 +43,12 @@ type ContactField = {
 
 function clean(value: unknown, max = 4000) {
   return String(value ?? "").trim().slice(0, max);
+}
+
+function normalizedMime(file: File) {
+  if (ALLOWED_TYPES.has(file.type)) return file.type;
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  return MIME_BY_EXTENSION[extension] || "";
 }
 
 export async function POST(request: NextRequest) {
@@ -114,7 +132,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const unsupportedFile = files.find((file) => !ALLOWED_TYPES.has(file.type));
+    const unsupportedFile = files.find((file) => !normalizedMime(file));
     if (unsupportedFile) {
       return NextResponse.json(
         { ok: false, error: "UNSUPPORTED_FILE_TYPE" },
@@ -128,8 +146,9 @@ export async function POST(request: NextRequest) {
       content_type: string;
     }> = [];
     for (const file of files) {
+      const contentType = normalizedMime(file);
       const buffer = Buffer.from(await file.arrayBuffer());
-      if (!validateUploadedFile(file.name, file.type, buffer)) {
+      if (!validateUploadedFile(file.name, contentType, buffer)) {
         return NextResponse.json(
           { ok: false, error: "UNSUPPORTED_FILE_TYPE" },
           { status: 415 },
@@ -138,7 +157,7 @@ export async function POST(request: NextRequest) {
       attachments.push({
         filename: sanitizeFilename(file.name),
         content: buffer.toString("base64"),
-        content_type: file.type,
+        content_type: contentType,
       });
     }
 
