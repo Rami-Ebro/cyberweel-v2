@@ -81,16 +81,18 @@ export async function PATCH(request: NextRequest) {
     if (status === "ACCEPTED") {
       const password = typeof body?.password === "string" ? body.password : "";
       if (password.length < 10) return NextResponse.json({ error: "كلمة مرور مؤقتة من 10 أحرف مطلوبة" }, { status: 400 });
-      const existingUser = await db.user.findFirst({
-        where: {
-          OR: [
-            { email: normalizeEmail(application.email) },
-            ...(application.phone ? [{ phone: application.phone }] : []),
-          ],
-        },
+      const existingEmail = await db.user.findUnique({
+        where: { email: normalizeEmail(application.email) },
         select: { id: true },
       });
-      if (existingUser) return NextResponse.json({ error: "EMAIL_EXISTS" }, { status: 409 });
+      if (existingEmail) return NextResponse.json({ error: "EMAIL_EXISTS" }, { status: 409 });
+      if (application.phone) {
+        const existingPhone = await db.user.findFirst({
+          where: { phone: application.phone },
+          select: { id: true },
+        });
+        if (existingPhone) return NextResponse.json({ error: "PHONE_EXISTS" }, { status: 409 });
+      }
       let user: { id: string; email: string };
       try {
         user = await db.$transaction(async (tx) => {
@@ -104,7 +106,10 @@ export async function PATCH(request: NextRequest) {
         if (error instanceof Error && error.message === "ALREADY_DECIDED") return NextResponse.json({ error: "ALREADY_DECIDED" }, { status: 409 });
         throw error;
       }
-      const invitation = await sendClientInvitation(user.id, user.email, request.nextUrl.origin);
+      const invitation = await sendClientInvitation(user.id, user.email, request.nextUrl.origin).catch((error) => {
+        console.error("[partner-acceptance] Invitation failed after account creation", error);
+        return { sent: false, error: "EMAIL_SEND_FAILED" };
+      });
       return NextResponse.json({ ok: true, invitationSent: invitation.sent, inviteError: invitation.error });
     } else {
       const rejected = await db.collaborationApplication.updateMany({ where: { id, status: "PENDING" }, data: { status: "REJECTED", reviewState: "REJECTED", decisionNotes: notes, decidedAt: new Date(), decidedById: access.userId } });
