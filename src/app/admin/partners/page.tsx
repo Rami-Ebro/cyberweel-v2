@@ -100,6 +100,7 @@ type Admin = {
 };
 
 type Section = "overview" | "partners" | "projects" | "account";
+type DecisionResult = { ok: boolean; message: string };
 
 const partnerLabel: Record<PartnerStatus, string> = {
   ACTIVE: "نشط",
@@ -225,33 +226,49 @@ export default function AdminPartnersPage() {
     status: "ACCEPTED" | "REJECTED",
     notes: string,
     password: string,
-  ) {
+  ): Promise<DecisionResult> {
     setUpdatingId(id);
     setMessage("");
-    const response = await fetch("/api/admin/partners", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        entity: "application",
-        id,
-        status,
-        notes,
-        password,
-      }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      const known: Record<string, string> = {
-        ALREADY_DECIDED: "سبق اتخاذ قرار بشأن هذا الطلب. حدّث الصفحة.",
-        EMAIL_EXISTS: "يوجد حساب مسجل بهذا البريد أو رقم الهاتف.",
-      };
-      setMessage(known[data.error] || data.error || "تعذر حفظ القرار");
-    } else {
-      setMessage(status === "ACCEPTED" ? "تم قبول الطلب وإنشاء حساب الشريك بنجاح." : "تم رفض الطلب وتسجيل القرار.");
+    try {
+      const response = await fetch("/api/admin/partners", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entity: "application",
+          id,
+          status,
+          notes,
+          password,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const known: Record<string, string> = {
+          ALREADY_DECIDED: "سبق اتخاذ قرار بشأن هذا الطلب. حدّث الصفحة.",
+          EMAIL_EXISTS: "يوجد حساب مسجل بهذا البريد الإلكتروني، لذلك لم يُنشأ حساب مكرر.",
+          PHONE_EXISTS: "يوجد حساب مسجل برقم الهاتف، لذلك لم يُنشأ حساب مكرر.",
+        };
+        const errorMessage = known[data.error] || data.error || "تعذر حفظ القرار. حاول مرة أخرى.";
+        setMessage(errorMessage);
+        return { ok: false, message: errorMessage };
+      }
+
+      const successMessage = status === "ACCEPTED"
+        ? data.invitationSent === false
+          ? "تم إنشاء حساب الشريك، لكن تعذر إرسال دعوة الدخول. يمكنك إرسالها لاحقًا."
+          : "تم قبول الطلب وإنشاء حساب الشريك بنجاح."
+        : "تم رفض الطلب وتسجيل القرار.";
+      setMessage(successMessage);
       await load();
       window.dispatchEvent(new Event("admin-notifications-refresh"));
+      return { ok: true, message: successMessage };
+    } catch {
+      const errorMessage = "تعذر الاتصال بالخادم. لم يُحفظ القرار، حاول مرة أخرى.";
+      setMessage(errorMessage);
+      return { ok: false, message: errorMessage };
+    } finally {
+      setUpdatingId(null);
     }
-    setUpdatingId(null);
   }
 
   async function createProject(event: FormEvent<HTMLFormElement>) {
@@ -932,17 +949,20 @@ function ApplicationCard({
     status: "ACCEPTED" | "REJECTED",
     notes: string,
     password: string,
-  ) => Promise<void>;
+  ) => Promise<DecisionResult>;
 }) {
   const [notes, setNotes] = useState("");
   const [password, setPassword] = useState("");
   const [pendingAction, setPendingAction] = useState<"ACCEPTED" | "REJECTED" | null>(null);
+  const [decisionMessage, setDecisionMessage] = useState<DecisionResult | null>(null);
 
   async function acceptApplication() {
     if (busy || pendingAction) return;
+    setDecisionMessage(null);
     setPendingAction("ACCEPTED");
     try {
-      await decide(application.id, "ACCEPTED", notes, password);
+      const result = await decide(application.id, "ACCEPTED", notes, password);
+      setDecisionMessage(result);
     } finally {
       setPendingAction(null);
     }
@@ -950,10 +970,16 @@ function ApplicationCard({
 
   async function rejectApplication() {
     if (busy || pendingAction) return;
+    if (!notes.trim()) {
+      setDecisionMessage({ ok: false, message: "اكتب سبب الرفض في ملاحظات الإدارة أولًا." });
+      return;
+    }
     if (!window.confirm("هل أنت متأكد من رفض طلب الشريك؟ لن يتم إنشاء حساب لهذا الطلب.")) return;
+    setDecisionMessage(null);
     setPendingAction("REJECTED");
     try {
-      await decide(application.id, "REJECTED", notes, "");
+      const result = await decide(application.id, "REJECTED", notes, "");
+      setDecisionMessage(result);
     } finally {
       setPendingAction(null);
     }
@@ -990,6 +1016,9 @@ function ApplicationCard({
             placeholder="كلمة مرور مؤقتة (10 أحرف على الأقل)"
             className="field"
           />
+          {password.length > 0 && password.length < 10 && (
+            <p className="text-xs font-bold text-amber-700">أدخل 10 أحرف على الأقل لتفعيل القبول.</p>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -1001,13 +1030,26 @@ function ApplicationCard({
             </button>
             <button
               type="button"
-              disabled={busy || pendingAction !== null || !notes.trim()}
+              disabled={busy || pendingAction !== null}
               onClick={() => void rejectApplication()}
               className="rounded-xl bg-red-600 px-4 py-3 font-black text-white disabled:opacity-40"
             >
               {pendingAction === "REJECTED" ? "جارٍ رفض الطلب…" : "رفض الطلب"}
             </button>
           </div>
+          {!notes.trim() && (
+            <p className="text-xs font-bold text-rose-700">اكتب سبب الرفض في «ملاحظات الإدارة» لتفعيل زر الرفض.</p>
+          )}
+          {decisionMessage && (
+            <p
+              role="status"
+              className={`rounded-xl px-4 py-3 text-sm font-bold ${
+                decisionMessage.ok ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"
+              }`}
+            >
+              {decisionMessage.message}
+            </p>
+          )}
         </div>
       </div>
     </article>
