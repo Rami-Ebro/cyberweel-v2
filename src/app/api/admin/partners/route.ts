@@ -157,9 +157,8 @@ export async function PATCH(request: NextRequest) {
   }
 
   if (entity === "referral") {
-    const permission = status === "CONVERTED" ? "projects" : "referrals";
-    if (!(await canAdmin(request, permission))) return NextResponse.json({ error: "لا تملك هذه الصلاحية" }, { status: 403 });
-    if (!["NEW", "CONTACTED", "INTERESTED", "AWAITING_RESPONSE", "NOT_INTERESTED", "CONVERTED"].includes(status)) {
+    if (!(await canAdmin(request, "referrals"))) return NextResponse.json({ error: "لا تملك هذه الصلاحية" }, { status: 403 });
+    if (!["NEW", "CONTACTED", "INTERESTED", "AWAITING_RESPONSE", "NOT_INTERESTED"].includes(status)) {
       return NextResponse.json({ error: "حالة الإحالة غير صالحة" }, { status: 400 });
     }
     const referral = await db.partnerReferral.update({ where: { id }, data: { status } });
