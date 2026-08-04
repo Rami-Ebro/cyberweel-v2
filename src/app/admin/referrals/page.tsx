@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { formatDate } from "@/lib/date-format";
 
 type ReferralStatus = "NEW" | "CONTACTED" | "QUALIFIED" | "CONVERTED" | "REJECTED";
@@ -56,7 +56,7 @@ export default function ReferralAdmin() {
   }
 
   useEffect(() => {
-    load().catch((cause) => setError(cause instanceof Error ? cause.message : "تعذر تحميل الإحالات"));
+    void Promise.resolve().then(() => load()).catch((cause) => setError(cause instanceof Error ? cause.message : "تعذر تحميل الإحالات"));
   }, []);
 
   function filter(event: FormEvent<HTMLFormElement>) {
@@ -96,14 +96,7 @@ export default function ReferralAdmin() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#F4F1EA] p-6 text-[#111827]">
-      <div className="mx-auto max-w-[1500px]">
-        <div className="flex flex-wrap gap-3">
-          <Link href="/admin/partners" className="rounded-lg bg-white px-4 py-2">الشركاء والمشاريع</Link>
-          <Link href="/admin/ambassadors" className="rounded-lg bg-white px-4 py-2">السفراء</Link>
-        </div>
-        <h1 className="mt-8 text-3xl font-black">إدارة الإحالات</h1>
-        <p className="mt-2 text-slate-600">بحث وفلاتر وقرار الإدارة وحالة العميل والعمولة في شاشة واحدة.</p>
+    <AdminShell active="referrals" title="إدارة الإحالات" description="بحث وفلاتر وقرار الإدارة وحالة العميل والعمولة في شاشة واحدة.">
         {message && <p className="mt-4 rounded-xl bg-emerald-50 p-3 font-bold text-emerald-800">{message}</p>}
         {error && <p className="mt-4 rounded-xl bg-rose-50 p-3 font-bold text-rose-800">{error}</p>}
 
@@ -147,8 +140,7 @@ export default function ReferralAdmin() {
           ))}
           {!items.length && <p className="rounded-2xl bg-white p-6 text-slate-500">لا توجد إحالات مطابقة.</p>}
         </div>
-      </div>
-    </main>
+    </AdminShell>
   );
 }
 
