@@ -311,16 +311,16 @@ export function MailtoForm({
                 {selectedFiles.map((file, index) => (
                   <div
                     key={`${file.name}-${file.size}-${file.lastModified}`}
-                    className="flex items-center justify-between gap-3 rounded-md border border-border bg-white px-3 py-2 text-sm"
+                    className="group flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm shadow-sm transition hover:border-blue-300 hover:bg-blue-100/70"
                   >
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-ink" dir="auto">{file.name}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{formatFileSize(file.size, isArabic)}</p>
+                      <p className="truncate font-bold text-blue-950" dir="auto">{file.name}</p>
+                      <p className="mt-0.5 text-xs text-blue-700/70">{formatFileSize(file.size, isArabic)}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => removeSelectedFile(index)}
-                      className="focus-ring shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-700"
+                      className="focus-ring shrink-0 rounded-full bg-white p-2 text-blue-700 opacity-100 shadow-sm transition hover:bg-red-50 hover:text-red-700 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                       aria-label={isArabic ? `إزالة ${file.name}` : `Remove ${file.name}`}
                     >
                       <X className="h-4 w-4" />

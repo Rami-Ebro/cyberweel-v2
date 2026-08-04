@@ -27,7 +27,7 @@ import { Logo } from "@/components/brand/logo";
 import { formatDate } from "@/lib/date-format";
 
 type SectionKey = "overview" | "referrals" | "commissions" | "profile";
-type CommissionStatus = "PENDING" | "APPROVED" | "PAID" | "CANCELLED";
+type CommissionStatus = "VERIFYING" | "ON_HOLD" | "NOT_ELIGIBLE" | "DUE" | "PAID";
 type Referral = {
   id: string;
   name: string | null;
@@ -82,31 +82,35 @@ const navigation: { key: SectionKey; label: string; icon: typeof Home }[] = [
 const referralStatus: Record<string, string> = {
   NEW: "جديدة",
   CONTACTED: "تم التواصل",
-  QUALIFIED: "مؤهلة",
-  CONVERTED: "تحولت إلى مشروع",
-  REJECTED: "غير مناسبة",
+  INTERESTED: "مهتم",
+  AWAITING_RESPONSE: "بانتظار الرد",
+  NOT_INTERESTED: "غير مهتم",
+  CONVERTED: "تحولت إلى عميل",
 };
 
 const referralStatusClass: Record<string, string> = {
   NEW: "bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200",
   CONTACTED: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200",
-  QUALIFIED: "bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200",
+  INTERESTED: "bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200",
+  AWAITING_RESPONSE: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200",
+  NOT_INTERESTED: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
   CONVERTED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200",
-  REJECTED: "bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200",
 };
 
 const commissionStatus: Record<CommissionStatus, string> = {
-  PENDING: "قيد التحقق",
-  APPROVED: "معتمدة ومستحقة",
+  VERIFYING: "قيد التحقق",
+  ON_HOLD: "معلّقة",
+  NOT_ELIGIBLE: "غير مستحقة",
+  DUE: "مستحقة",
   PAID: "مدفوعة",
-  CANCELLED: "ملغاة",
 };
 
 const commissionStatusClass: Record<CommissionStatus, string> = {
-  PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200",
-  APPROVED: "bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-200",
+  VERIFYING: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200",
+  ON_HOLD: "bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-200",
+  NOT_ELIGIBLE: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+  DUE: "bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-200",
   PAID: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200",
-  CANCELLED: "bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200",
 };
 
 function money(amount: string | number, currency: string) {

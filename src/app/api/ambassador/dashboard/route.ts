@@ -126,10 +126,10 @@ export async function GET(request: NextRequest) {
     if (!Number.isFinite(amount)) continue;
     const currency = referral.commissionCurrency.toUpperCase();
     const summary = summaries.get(currency) || { currency, pending: 0, approved: 0, paid: 0, cancelled: 0 };
-    if (referral.commissionStatus === "PENDING") summary.pending += amount;
-    if (referral.commissionStatus === "APPROVED") summary.approved += amount;
+    if (["VERIFYING", "ON_HOLD"].includes(referral.commissionStatus)) summary.pending += amount;
+    if (referral.commissionStatus === "DUE") summary.approved += amount;
     if (referral.commissionStatus === "PAID") summary.paid += amount;
-    if (referral.commissionStatus === "CANCELLED") summary.cancelled += amount;
+    if (referral.commissionStatus === "NOT_ELIGIBLE") summary.cancelled += amount;
     summaries.set(currency, summary);
   }
 
@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
     stats: {
       referrals: referrals.length,
       converted: referrals.filter((item) => item.status === "CONVERTED").length,
-      qualified: referrals.filter((item) => item.status === "QUALIFIED").length,
+      qualified: referrals.filter((item) => item.status === "INTERESTED").length,
       commissionsByCurrency: Array.from(summaries.values()).map((item) => ({
         currency: item.currency,
         pending: item.pending.toFixed(2),
