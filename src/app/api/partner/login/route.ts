@@ -41,10 +41,15 @@ export async function POST(request: NextRequest) {
   const email = isEmail ? normalizedIdentifier : "";
   const phone = isEmail ? "" : normalizedIdentifier;
 
-  const user = await db.user.findFirst({
+  const matchingUsers = await db.user.findMany({
     where: isEmail ? { email } : { phone },
     include: { partner: true, ambassador: true, adminProfile: true },
+    take: 2,
   });
+  if (!isEmail && matchingUsers.length > 1) {
+    return NextResponse.json({ error: "هذا الهاتف مرتبط بأكثر من حساب. استخدم البريد الإلكتروني للدخول." }, { status: 409 });
+  }
+  const user = matchingUsers[0];
 
   if (!user?.passwordHash || !verifyPassword(password, user.passwordHash)) {
     const credentialLimit = await consumeRateLimit(request, {
