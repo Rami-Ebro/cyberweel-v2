@@ -33,9 +33,23 @@ enum ApplicationStatus {
 }
 
 enum CommissionStatus {
-  PENDING
-  APPROVED
+  VERIFYING
+  ON_HOLD
+  NOT_ELIGIBLE
+  DUE
   PAID
+}
+
+enum CommissionType {
+  FIXED
+  PERCENTAGE
+}
+
+enum ReferralDecision {
+  PENDING_REVIEW
+  ACCEPTED
+  REJECTED
+  CONVERTED_TO_CLIENT
   CANCELLED
 }
 
@@ -49,9 +63,10 @@ enum ProjectPaymentStatus {
 enum ReferralStatus {
   NEW
   CONTACTED
-  QUALIFIED
+  INTERESTED
+  AWAITING_RESPONSE
+  NOT_INTERESTED
   CONVERTED
-  REJECTED
 }
 
 enum ClientProjectStatus {
@@ -89,6 +104,7 @@ model User {
   clientProjects      ClientProject[]
   clientMessages      ClientMessage[]
   clientNotifications ClientNotification[]
+  updatedReferrals     PartnerReferral[]    @relation("ReferralUpdatedBy")
   passwordResetTokens PasswordResetToken[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -233,10 +249,16 @@ model PartnerReferral {
   sourcePath  String?
   source      String?
   contactMethod String?
-  adminDecision String?
+  adminDecision ReferralDecision?
+  adminNotes String?
+  commissionType CommissionType?
   commissionAmount Decimal? @db.Decimal(12, 2)
+  commissionRate Decimal? @db.Decimal(5, 2)
+  commissionBaseAmount Decimal? @db.Decimal(12, 2)
   commissionCurrency String @default("USD")
-  commissionStatus CommissionStatus @default(PENDING)
+  commissionStatus CommissionStatus @default(VERIFYING)
+  updatedById String?
+  updatedBy User? @relation("ReferralUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   notes       String?
   clientProject ClientProject?
   createdAt   DateTime       @default(now())
@@ -245,6 +267,7 @@ model PartnerReferral {
   @@index([partnerId])
   @@index([partnerId, status])
   @@index([ambassadorId, status])
+  @@index([updatedById])
   @@index([createdAt])
 }
 
