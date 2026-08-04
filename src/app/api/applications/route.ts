@@ -15,6 +15,10 @@ export async function POST(request: NextRequest) {
   const market = typeof body?.market === "string" ? body.market.trim() : "";
   const details = typeof body?.details === "string" ? body.details.trim() : "";
   if (!type || !name || name.length > 120 || !/^\S+@\S+\.\S+$/.test(email) || email.length > 254 || phone.length > 40 || details.length > 5000 || (type === "PARTNER" && !specialty) || (type === "AMBASSADOR" && !market)) return NextResponse.json({ error: "INVALID_APPLICATION" }, { status: 400 });
-  const application = await db.collaborationApplication.create({ data: { type, name, email, phone: phone || null, specialty: specialty || null, market: market || null, details: details || null }, select: { id: true } });
+  const application = await db.$transaction(async (tx) => {
+    const created = await tx.collaborationApplication.create({ data: { type, name, email, phone: phone || null, specialty: specialty || null, market: market || null, details: details || null }, select: { id: true } });
+    await tx.adminNotification.create({ data: { title: type === "PARTNER" ? "طلب شريك تنفيذ جديد" : "طلب سفير جديد", body: `${name} — ${email}`, href: type === "PARTNER" ? "/admin/partners?section=partners" : "/admin/ambassadors", kind: type === "PARTNER" ? "PARTNER_APPLICATION" : "AMBASSADOR_APPLICATION" } });
+    return created;
+  });
   return NextResponse.json({ ok: true, applicationId: application.id }, { status: 201 });
 }
