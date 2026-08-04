@@ -62,8 +62,9 @@ export function AdminNotificationCenter() {
 
   return (
     <div className="relative">
-      <button type="button" onClick={() => setOpen((value) => !value)} className="relative grid h-12 w-12 place-items-center rounded-xl border border-[#D8D2C4] bg-white shadow-sm" aria-label="إشعارات الإدارة" aria-expanded={open}>
+      <button type="button" onClick={() => setOpen((value) => !value)} className="relative inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 font-bold shadow-sm transition hover:border-[#B89A5A] hover:bg-[#FFFDF8]" aria-label="إشعارات الإدارة" aria-expanded={open}>
         <Bell className="h-5 w-5" />
+        <span>الإشعارات</span>
         {unread > 0 && <span className="absolute -left-1 -top-1 min-w-5 rounded-full bg-red-600 px-1.5 py-0.5 text-center text-xs font-black text-white">{unread > 99 ? "99+" : unread}</span>}
       </button>
       {open && (
