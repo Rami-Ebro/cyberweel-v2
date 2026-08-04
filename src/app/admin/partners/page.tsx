@@ -936,6 +936,28 @@ function ApplicationCard({
 }) {
   const [notes, setNotes] = useState("");
   const [password, setPassword] = useState("");
+  const [pendingAction, setPendingAction] = useState<"ACCEPTED" | "REJECTED" | null>(null);
+
+  async function acceptApplication() {
+    if (busy || pendingAction) return;
+    setPendingAction("ACCEPTED");
+    try {
+      await decide(application.id, "ACCEPTED", notes, password);
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function rejectApplication() {
+    if (busy || pendingAction) return;
+    if (!window.confirm("هل أنت متأكد من رفض طلب الشريك؟ لن يتم إنشاء حساب لهذا الطلب.")) return;
+    setPendingAction("REJECTED");
+    try {
+      await decide(application.id, "REJECTED", notes, "");
+    } finally {
+      setPendingAction(null);
+    }
+  }
 
   return (
     <article className="rounded-2xl border border-[#D8D2C4] p-5">
@@ -970,18 +992,20 @@ function ApplicationCard({
           />
           <div className="grid grid-cols-2 gap-2">
             <button
-              disabled={busy || password.length < 10}
-              onClick={() => decide(application.id, "ACCEPTED", notes, password)}
+              type="button"
+              disabled={busy || pendingAction !== null || password.length < 10}
+              onClick={() => void acceptApplication()}
               className="rounded-xl bg-emerald-600 px-4 py-3 font-black text-white disabled:opacity-40"
             >
-              {busy ? "جارٍ إنشاء الحساب…" : "قبول وإنشاء الحساب"}
+              {pendingAction === "ACCEPTED" ? "جارٍ إنشاء الحساب…" : "قبول وإنشاء الحساب"}
             </button>
             <button
-              disabled={busy || !notes.trim()}
-              onClick={() => { if (window.confirm("هل أنت متأكد من رفض طلب الشريك؟ لن يتم إنشاء حساب لهذا الطلب.")) void decide(application.id, "REJECTED", notes, ""); }}
+              type="button"
+              disabled={busy || pendingAction !== null || !notes.trim()}
+              onClick={() => void rejectApplication()}
               className="rounded-xl bg-red-600 px-4 py-3 font-black text-white disabled:opacity-40"
             >
-              {busy ? "جارٍ رفض الطلب…" : "رفض الطلب"}
+              {pendingAction === "REJECTED" ? "جارٍ رفض الطلب…" : "رفض الطلب"}
             </button>
           </div>
         </div>
