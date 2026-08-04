@@ -1,7 +1,8 @@
 import { db } from "@/lib/db";
-import { canAdmin } from "@/lib/admin-permissions";
+import { canAdmin, currentAdminAccess } from "@/lib/admin-permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { hashPassword, normalizeEmail } from "@/lib/partner-auth";
+import { sendClientInvitation } from "@/lib/client-invitation";
 
 export async function GET(request: NextRequest) {
   const canView = await Promise.all([
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
           },
         })
       : [],
-    canView[1] ? db.collaborationApplication.findMany({ where: { type: "PARTNER" }, orderBy: { createdAt: "desc" } }) : [],
+    canView[1] ? db.collaborationApplication.findMany({ where: { type: "PARTNER" }, orderBy: { createdAt: "desc" }, include: { decidedBy: { select: { name: true, email: true } } } }) : [],
     canView[0]
       ? Promise.all([
           db.user.count({ where: { role: "CLIENT" } }),
@@ -69,9 +70,11 @@ export async function PATCH(request: NextRequest) {
   if (!id) return NextResponse.json({ error: "طلب غير صالح" }, { status: 400 });
 
   if (body?.entity === "application") {
-    if (!(await canAdmin(request, "partners"))) return NextResponse.json({ error: "لا تملك صلاحية إدارة الشركاء" }, { status: 403 });
+    const access = await currentAdminAccess(request);
+    if (!access || !(access.isOwner || access.permissions.includes("partners"))) return NextResponse.json({ error: "لا تملك صلاحية إدارة الشركاء" }, { status: 403 });
     const notes = typeof body?.notes === "string" ? body.notes.trim() : "";
-    if (!["ACCEPTED", "REJECTED"].includes(status) || !notes) return NextResponse.json({ error: "ملاحظة القرار مطلوبة" }, { status: 400 });
+    if (!["ACCEPTED", "REJECTED"].includes(status)) return NextResponse.json({ error: "قرار غير صالح" }, { status: 400 });
+    if (status === "REJECTED" && !notes) return NextResponse.json({ error: "سبب الرفض مطلوب" }, { status: 400 });
     const application = await db.collaborationApplication.findUnique({ where: { id } });
     if (!application || application.type !== "PARTNER") return NextResponse.json({ error: "الطلب غير موجود" }, { status: 404 });
     if (application.status !== "PENDING") return NextResponse.json({ error: "ALREADY_DECIDED" }, { status: 409 });
@@ -88,12 +91,27 @@ export async function PATCH(request: NextRequest) {
         select: { id: true },
       });
       if (existingUser) return NextResponse.json({ error: "EMAIL_EXISTS" }, { status: 409 });
-      await db.$transaction(async (tx) => {
-        await tx.user.create({ data: { name: application.name, email: normalizeEmail(application.email), phone: application.phone, passwordHash: hashPassword(password), role: "PARTNER", partner: { create: { status: "ACTIVE", specialty: application.specialty, decisionNotes: notes, decidedAt: new Date() } } } });
-        await tx.collaborationApplication.update({ where: { id }, data: { status: "ACCEPTED", decisionNotes: notes, decidedAt: new Date() } });
-      });
-    } else await db.collaborationApplication.update({ where: { id }, data: { status: "REJECTED", decisionNotes: notes, decidedAt: new Date() } });
-    return NextResponse.json({ ok: true });
+      let user: { id: string; email: string };
+      try {
+        user = await db.$transaction(async (tx) => {
+        const claimed = await tx.collaborationApplication.updateMany({ where: { id, status: "PENDING" }, data: { status: "ACCEPTED", reviewState: "ACCEPTED", decisionNotes: notes || null, decidedAt: new Date(), decidedById: access.userId } });
+        if (claimed.count !== 1) throw new Error("ALREADY_DECIDED");
+        const created = await tx.user.create({ data: { name: application.name, email: normalizeEmail(application.email), phone: application.phone, passwordHash: hashPassword(password), role: "PARTNER", partner: { create: { applicationId: application.id, status: "ACTIVE", specialty: application.specialty, decisionNotes: notes || null, decidedAt: new Date() } } } });
+        await tx.adminNotification.create({ data: { title: "تم إنشاء حساب شريك التنفيذ", body: `${application.name} — ${application.email}`, href: "/admin/partners?section=partners", kind: "PARTNER_ACCEPTED" } });
+        return created;
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message === "ALREADY_DECIDED") return NextResponse.json({ error: "ALREADY_DECIDED" }, { status: 409 });
+        throw error;
+      }
+      const invitation = await sendClientInvitation(user.id, user.email, request.nextUrl.origin);
+      return NextResponse.json({ ok: true, invitationSent: invitation.sent, inviteError: invitation.error });
+    } else {
+      const rejected = await db.collaborationApplication.updateMany({ where: { id, status: "PENDING" }, data: { status: "REJECTED", reviewState: "REJECTED", decisionNotes: notes, decidedAt: new Date(), decidedById: access.userId } });
+      if (rejected.count !== 1) return NextResponse.json({ error: "ALREADY_DECIDED" }, { status: 409 });
+      await db.adminNotification.create({ data: { title: "تم رفض طلب شريك التنفيذ", body: `${application.name} — ${notes}`, href: "/admin/partners?section=partners", kind: "PARTNER_REJECTED" } });
+      return NextResponse.json({ ok: true });
+    }
   }
 
   if (body?.entity === "project") {
