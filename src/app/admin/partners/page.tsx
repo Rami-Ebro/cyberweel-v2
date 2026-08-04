@@ -23,7 +23,7 @@ import { Logo } from "@/components/brand/logo";
 import { formatDate } from "@/lib/date-format";
 
 type PartnerStatus = "PENDING" | "ACTIVE" | "SUSPENDED";
-type ReferralStatus = "NEW" | "CONTACTED" | "QUALIFIED" | "CONVERTED" | "REJECTED";
+type ReferralStatus = "NEW" | "CONTACTED" | "INTERESTED" | "AWAITING_RESPONSE" | "NOT_INTERESTED" | "CONVERTED";
 type ApplicationStatus = "PENDING" | "ACCEPTED" | "REJECTED";
 type PaymentStatus = "PENDING" | "APPROVED" | "PAID" | "CANCELLED";
 
@@ -105,9 +105,10 @@ const partnerLabel: Record<PartnerStatus, string> = {
 const referralLabel: Record<ReferralStatus, string> = {
   NEW: "جديد",
   CONTACTED: "تم التواصل",
-  QUALIFIED: "مؤهل",
-  CONVERTED: "مشروع",
-  REJECTED: "غير مناسب",
+  INTERESTED: "مهتم",
+  AWAITING_RESPONSE: "بانتظار الرد",
+  NOT_INTERESTED: "غير مهتم",
+  CONVERTED: "تحول إلى عميل",
 };
 
 const paymentLabel: Record<PaymentStatus, string> = {
