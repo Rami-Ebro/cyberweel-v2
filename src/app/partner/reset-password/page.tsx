@@ -47,7 +47,7 @@ function ResetPasswordForm() {
 
   return (
     <div className="mx-auto max-w-md rounded-3xl border border-[#D8D2C4] bg-white p-7 shadow-xl">
-      <p className="text-sm font-bold text-[#B89A5A]">بوابة شركاء CyberWeel</p>
+      <p className="text-sm font-bold text-[#B89A5A]">بوابة حسابات CyberWeel</p>
       <h1 className="mt-2 text-3xl font-black">كلمة مرور جديدة</h1>
 
       {!token ? (
@@ -73,7 +73,7 @@ function ResetPasswordForm() {
       ) : null}
 
       {message && <p className={`mt-4 rounded-xl p-3 text-sm font-semibold ${done ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{message}</p>}
-      <p className="mt-6 text-sm text-slate-600"><Link href="/partner/login" className="font-bold text-[#9A7D43]">العودة إلى تسجيل الدخول</Link></p>
+      <p className="mt-6 text-sm text-slate-600"><Link href="/login" className="font-bold text-[#9A7D43]">العودة إلى تسجيل الدخول</Link></p>
     </div>
   );
 }
