@@ -93,8 +93,12 @@ enum ClientInvoiceType {
 model User {
   id                  String               @id @default(cuid())
   email               String               @unique
-  phone               String?              @unique
+  phone               String?
   name                String?
+  company             String?
+  preferredLanguage   String               @default("ar")
+  clientSource        String?
+  internalNotes       String?
   passwordHash        String?
   role                UserRole             @default(CLIENT)
   isActive            Boolean              @default(true)
@@ -105,6 +109,7 @@ model User {
   clientMessages      ClientMessage[]
   clientNotifications ClientNotification[]
   updatedReferrals     PartnerReferral[]    @relation("ReferralUpdatedBy")
+  convertedReferrals  PartnerReferral[]    @relation("ConvertedReferralClient")
   passwordResetTokens PasswordResetToken[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -245,6 +250,7 @@ model PartnerReferral {
   name        String?
   email       String?
   phone       String?
+  company     String?
   status      ReferralStatus @default(NEW)
   sourcePath  String?
   source      String?
@@ -261,6 +267,9 @@ model PartnerReferral {
   updatedBy User? @relation("ReferralUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   notes       String?
   clientProject ClientProject?
+  convertedClientId String?
+  convertedClient User? @relation("ConvertedReferralClient", fields: [convertedClientId], references: [id], onDelete: SetNull)
+  convertedAt DateTime?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
@@ -268,6 +277,7 @@ model PartnerReferral {
   @@index([partnerId, status])
   @@index([ambassadorId, status])
   @@index([updatedById])
+  @@index([convertedClientId])
   @@index([createdAt])
 }
 
