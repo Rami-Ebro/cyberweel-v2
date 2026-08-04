@@ -15,6 +15,7 @@ type UploadPayload = {
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const ALLOWED_CONTENT_TYPES = [
+  "application/octet-stream",
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -26,6 +27,7 @@ const ALLOWED_CONTENT_TYPES = [
   "image/webp",
   "text/plain",
 ];
+const ALLOWED_EXTENSIONS = new Set(["pdf", "doc", "docx", "xls", "xlsx", "zip", "png", "jpg", "jpeg", "webp", "txt"]);
 
 function parsePayload(value: string | null): UploadPayload | null {
   try {
@@ -58,7 +60,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         if (!(await canAdmin(request, "clients"))) throw new Error("غير مصرح");
         const payload = parsePayload(clientPayload);
-        if (!payload || payload.clientId !== clientId || payload.size <= 0 || payload.size > MAX_FILE_SIZE) {
+        const extension = payload?.originalName.split(".").pop()?.toLowerCase() ?? "";
+        if (!payload || payload.clientId !== clientId || payload.size <= 0 || payload.size > MAX_FILE_SIZE || !ALLOWED_EXTENSIONS.has(extension)) {
           throw new Error("بيانات الملف غير صالحة");
         }
 

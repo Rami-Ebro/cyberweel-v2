@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { BarChart3, Bell, BriefcaseBusiness, ChevronDown, Eye, EyeOff, FileText, Mail, Paperclip, PauseCircle, PlayCircle, Plus, ReceiptText, RefreshCw, Trash2, UserCog } from "lucide-react";
@@ -127,7 +127,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
         try {
           for (const file of attachments) {
             const cleanName = file.name.replace(/[^\p{L}\p{N}._-]+/gu, "-");
-            await upload(
+            const blob = await upload(
               `clients/${params.clientId}/projects/${projectId}/${crypto.randomUUID()}-${cleanName}`,
               file,
               {
@@ -142,10 +142,30 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
                 multipart: file.size > 5 * 1024 * 1024,
               },
             );
+            const completeResponse = await fetch(
+              `/api/admin/clients/${params.clientId}/project-files/complete`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  projectId,
+                  originalName: file.name,
+                  size: file.size,
+                  url: blob.url,
+                }),
+              },
+            );
+            if (!completeResponse.ok) {
+              const completeResult = await completeResponse.json().catch(() => null);
+              throw new Error(completeResult?.error || `تعذر تسجيل الملف ${file.name}`);
+            }
           }
-        } catch {
+        } catch (error) {
+          console.error("[project-attachments] Upload failed", error);
           await load(false);
-          return setNotice("تم حفظ المشروع، لكن تعذر رفع بعض المرفقات. تحقق من ربط Vercel Blob ثم أعد رفعها.");
+          return setNotice(error instanceof Error && error.message
+            ? `تم حفظ المشروع، لكن تعذر رفع المرفق: ${error.message}`
+            : "تم حفظ المشروع، لكن تعذر رفع بعض المرفقات. تحقق من ربط Vercel Blob ثم أعد رفعها.");
         }
       }
 
@@ -515,6 +535,12 @@ function ProjectLinksFields({ initialLinks = [] }: { initialLinks?: string[] }) 
 function ProjectAttachmentsInput({ files = [] }: { files?: Project["files"] }) {
   const attachments = files.filter((file) => file.kind === "PROJECT_ATTACHMENT");
   const [selectedNames, setSelectedNames] = useState<string[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function clearSelection() {
+    setSelectedNames([]);
+    if (inputRef.current) inputRef.current.value = "";
+  }
 
   return <fieldset className="grid gap-3 rounded-xl border border-[#D8D2C4] p-4">
     <div>
@@ -530,8 +556,9 @@ function ProjectAttachmentsInput({ files = [] }: { files?: Project["files"] }) {
     </div>}
     <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[#B89A5A] bg-[#F7F3EB] p-4 font-bold">
       <Paperclip className="h-5 w-5" />
-      <span>اختيار ملفات من الجهاز</span>
+      <span>{selectedNames.length ? "استبدال الملفات المختارة" : "اختيار ملفات من الجهاز"}</span>
       <input
+        ref={inputRef}
         name="attachments"
         type="file"
         multiple
@@ -540,7 +567,10 @@ function ProjectAttachmentsInput({ files = [] }: { files?: Project["files"] }) {
         className="sr-only"
       />
     </label>
-    {!!selectedNames.length && <div className="rounded-lg bg-emerald-50 p-3 text-sm font-bold text-emerald-800">تم اختيار: {selectedNames.join("، ")}</div>}
+    {!!selectedNames.length && <div className="flex items-start justify-between gap-3 rounded-lg bg-emerald-50 p-3 text-sm font-bold text-emerald-800" aria-live="polite">
+      <div className="min-w-0"><p>الملفات الجاهزة للرفع:</p>{selectedNames.map((name) => <p key={name} className="mt-1 truncate" dir="auto">{name}</p>)}</div>
+      <button type="button" onClick={clearSelection} className="shrink-0 rounded-lg p-2 text-emerald-900 hover:bg-emerald-100" aria-label="إزالة الملفات المختارة"><Trash2 className="h-4 w-4" /></button>
+    </div>}
   </fieldset>;
 }
 

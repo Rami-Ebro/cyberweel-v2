@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent, type InvalidEvent } from "react";
+import { useRef, useState, type FormEvent, type InvalidEvent } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, Paperclip, Send, Share2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,6 +39,7 @@ export function MailtoForm({
   const [submitting, setSubmitting] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const { t } = useI18n();
   const isArabic = t.dir === "rtl";
 
@@ -120,6 +121,16 @@ export function MailtoForm({
     }
 
     setSelectedFiles(nextFiles);
+  };
+
+  const removeSelectedFile = (fileIndex: number) => {
+    setSelectedFiles((files) => files.filter((_, index) => index !== fileIndex));
+    if (attachmentInputRef.current) attachmentInputRef.current.value = "";
+  };
+
+  const clearSelectedFiles = () => {
+    setSelectedFiles([]);
+    if (attachmentInputRef.current) attachmentInputRef.current.value = "";
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -278,16 +289,15 @@ export function MailtoForm({
               <span>
                 {selectedFiles.length
                   ? isArabic
-                    ? `تم اختيار ${selectedFiles.length} ملف`
-                    : selectedFiles.length === 1
-                      ? "1 file selected"
-                      : `${selectedFiles.length} files selected`
+                    ? "استبدال الملفات المختارة"
+                    : "Replace selected files"
                   : isArabic
                     ? "اختر ملفات تساعدنا على فهم رسالتك"
                     : "Choose files that help us understand your message"}
               </span>
             </label>
             <input
+              ref={attachmentInputRef}
               id="attachments"
               name="attachments"
               type="file"
@@ -296,6 +306,36 @@ export function MailtoForm({
               className="sr-only"
               onChange={(event) => handleFiles(event.target.files, event.currentTarget)}
             />
+            {!!selectedFiles.length && (
+              <div className="mt-3 grid gap-2" aria-live="polite">
+                {selectedFiles.map((file, index) => (
+                  <div
+                    key={`${file.name}-${file.size}-${file.lastModified}`}
+                    className="flex items-center justify-between gap-3 rounded-md border border-border bg-white px-3 py-2 text-sm"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-ink" dir="auto">{file.name}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{formatFileSize(file.size, isArabic)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeSelectedFile(index)}
+                      className="focus-ring shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-700"
+                      aria-label={isArabic ? `إزالة ${file.name}` : `Remove ${file.name}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={clearSelectedFiles}
+                  className="w-fit text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-ink"
+                >
+                  {isArabic ? "إزالة كل الملفات" : "Remove all files"}
+                </button>
+              </div>
+            )}
             <p className="mt-2 text-xs text-muted-foreground">
               {isArabic
                 ? "حتى 3 ملفات بصيغة PDF أو Word أو Excel أو صورة، وبحجم إجمالي لا يتجاوز 4 ميغابايت"
@@ -364,4 +404,10 @@ export function MailtoForm({
       )}
     </>
   );
+}
+
+function formatFileSize(bytes: number, isArabic: boolean) {
+  if (bytes < 1024) return `${bytes} ${isArabic ? "بايت" : "B"}`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} ${isArabic ? "ك.ب" : "KB"}`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} ${isArabic ? "م.ب" : "MB"}`;
 }
