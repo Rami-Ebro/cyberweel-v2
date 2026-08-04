@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 
 type Ambassador = {
@@ -36,6 +37,8 @@ export default function AmbassadorsAdmin() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const pendingApplications = data.applications.filter((application) => application.status === "PENDING");
+  const decidedApplications = data.applications.filter((application) => application.status !== "PENDING");
 
   async function load() {
     const response = await fetch("/api/admin/ambassadors", { cache: "no-store" });
@@ -155,9 +158,9 @@ export default function AmbassadorsAdmin() {
           })}
         </section>
 
-        <h2 className="mt-10 text-2xl font-black">طلبات السفراء</h2>
+        <h2 className="mt-10 text-2xl font-black">طلبات السفراء المعلّقة</h2>
         <div className="mt-4 grid gap-3">
-          {data.applications.map((application) => (
+          {pendingApplications.map((application) => (
             <ApplicationCard
               key={application.id}
               application={application}
@@ -165,8 +168,27 @@ export default function AmbassadorsAdmin() {
               onDecision={decideApplication}
             />
           ))}
-          {!data.applications.length && <p className="rounded-xl bg-white p-5 text-slate-500">لا توجد طلبات سفراء.</p>}
+          {!pendingApplications.length && <p className="rounded-xl bg-white p-5 text-slate-500">لا توجد طلبات سفراء معلّقة.</p>}
         </div>
+
+        {decidedApplications.length > 0 && (
+          <details className="mt-7 rounded-2xl bg-white shadow-sm">
+            <summary className="cursor-pointer list-none p-5 text-lg font-black">
+              سجل قرارات طلبات السفراء ({decidedApplications.length})
+              <span className="mr-2 text-sm font-normal text-slate-500">مقبولة ومرفوضة — سجل تاريخي</span>
+            </summary>
+            <div className="grid gap-3 border-t border-[#E6E0D4] p-5">
+              {decidedApplications.map((application) => (
+                <ApplicationCard
+                  key={application.id}
+                  application={application}
+                  busy={false}
+                  onDecision={decideApplication}
+                />
+              ))}
+            </div>
+          </details>
+        )}
     </AdminShell>
   );
 }
@@ -180,6 +202,8 @@ function ApplicationCard({
   busy: boolean;
   onDecision: (id: string, status: "ACCEPTED" | "REJECTED", notes: string, password: string) => Promise<void>;
 }) {
+  const [showPassword, setShowPassword] = useState(false);
+
   async function submit(formElement: HTMLFormElement, status: "ACCEPTED" | "REJECTED") {
     const form = new FormData(formElement);
     await onDecision(
@@ -211,13 +235,24 @@ function ApplicationCard({
           className="mt-4 grid gap-3 md:grid-cols-2"
         >
           <input name="notes" required placeholder="ملاحظة القرار" className="rounded-lg border p-3" />
-          <input
-            name="password"
-            type="password"
-            minLength={10}
-            placeholder="كلمة مرور مؤقتة عند القبول"
-            className="rounded-lg border p-3"
-          />
+          <div className="relative">
+            <input
+              name="password"
+              type={showPassword ? "text" : "password"}
+              minLength={10}
+              autoComplete="new-password"
+              placeholder="كلمة مرور مؤقتة عند القبول"
+              className="w-full rounded-lg border p-3 pl-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+            >
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
+          </div>
           <div className="flex gap-2 md:col-span-2">
             <button
               type="submit"
@@ -237,7 +272,12 @@ function ApplicationCard({
           </div>
         </form>
       ) : (
-        application.decisionNotes && <p className="mt-3 text-sm text-slate-500">القرار: {application.decisionNotes}</p>
+        <div className="mt-3 text-sm text-slate-500">
+          <p className="font-bold text-slate-700">
+            حالة القرار: {application.status === "ACCEPTED" ? "مقبول — تم إنشاء الحساب" : "مرفوض — لم يُنشأ حساب"}
+          </p>
+          {application.decisionNotes && <p className="mt-1">ملاحظات الإدارة: {application.decisionNotes}</p>}
+        </div>
       )}
     </article>
   );
