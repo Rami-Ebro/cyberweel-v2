@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
-  BarChart3, Bell, CheckCircle2, FolderKanban, Home, Link2, LogOut,
+  BarChart3, CheckCircle2, FolderKanban, Home, Link2, LogOut,
   ReceiptText, ShieldCheck, UserCog, UserRound, UsersRound,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { AdminNotificationCenter } from "@/components/admin/admin-notification-center";
 
 export type AdminNavKey = "overview" | "clients" | "projects" | "invoices" | "referrals" | "partners" | "ambassadors" | "account" | "team" | "smart-links";
 
@@ -28,42 +29,6 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
   active: AdminNavKey; eyebrow?: string; title: string; description?: string; actions?: ReactNode; children: ReactNode; wide?: boolean;
 }) {
   const router = useRouter();
-  const [notifications, setNotifications] = useState<Array<{ id: string; title: string; body: string | null; href: string; readAt: string | null; createdAt: string }>>([]);
-  const [unread, setUnread] = useState(0);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-
-  async function loadNotifications() {
-    const response = await fetch("/api/admin/notifications", { cache: "no-store" });
-    if (!response.ok) return;
-    const data = await response.json();
-    setNotifications(data.notifications || []);
-    setUnread(data.unread || 0);
-  }
-  useEffect(() => {
-    const refresh = () => void loadNotifications();
-    void Promise.resolve().then(loadNotifications);
-    window.addEventListener("admin-notifications-refresh", refresh);
-    return () => window.removeEventListener("admin-notifications-refresh", refresh);
-  }, []);
-
-  async function openNotification(id: string, href: string) {
-    const item = notifications.find((notification) => notification.id === id);
-    if (item && !item.readAt) {
-      const readAt = new Date().toISOString();
-      setNotifications((current) => current.map((notification) => notification.id === id ? { ...notification, readAt } : notification));
-      setUnread((value) => Math.max(0, value - 1));
-      await fetch("/api/admin/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
-    }
-    setNotificationsOpen(false);
-    router.push(href);
-  }
-
-  async function markAllRead() {
-    const readAt = new Date().toISOString();
-    setNotifications((current) => current.map((notification) => ({ ...notification, readAt: notification.readAt || readAt })));
-    setUnread(0);
-    await fetch("/api/admin/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true }) });
-  }
   async function logout() {
     await fetch("/api/partner/logout", { method: "POST" });
     router.replace("/login");
@@ -95,9 +60,8 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
             <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div><p className="text-sm font-bold text-[#9A7D43]">{eyebrow}</p><h1 className="mt-1 text-3xl font-black">{title}</h1>{description && <p className="mt-2 max-w-3xl text-slate-500">{description}</p>}</div>
               <div className="relative flex flex-wrap gap-2">
-                <button type="button" onClick={() => setNotificationsOpen((value) => !value)} className="relative grid h-12 w-12 place-items-center rounded-xl border border-[#D8D2C4] bg-white shadow-sm" aria-label="إشعارات الإدارة"><Bell className="h-5 w-5" />{unread > 0 && <span className="absolute -left-1 -top-1 min-w-5 rounded-full bg-red-600 px-1.5 py-0.5 text-center text-xs font-black text-white">{unread > 99 ? "99+" : unread}</span>}</button>
+                <AdminNotificationCenter />
                 {actions}
-                {notificationsOpen && <div className="absolute left-0 top-14 z-50 w-[min(92vw,420px)] rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-2xl"><div className="flex items-center justify-between gap-3 border-b border-[#EEE7DA] px-2 pb-3"><div><strong>إشعارات الإدارة</strong><p className="text-xs text-slate-500">{unread} غير مقروء</p></div><button type="button" onClick={() => void markAllRead()} disabled={!unread} className="text-xs font-bold text-[#9A7D43] disabled:opacity-40">تحديد الكل كمقروء</button></div><div className="mt-2 max-h-96 space-y-2 overflow-y-auto">{notifications.map((notification) => <button key={notification.id} type="button" onClick={() => void openNotification(notification.id, notification.href)} className={`w-full rounded-xl p-3 text-right ${notification.readAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827]"}`}><div className="flex items-start justify-between gap-3"><strong className="text-sm">{notification.title}</strong>{!notification.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-600" />}</div>{notification.body && <p className="mt-1 text-xs text-slate-500">{notification.body}</p>}</button>)}{!notifications.length && <p className="p-5 text-center text-sm text-slate-500">لا توجد إشعارات بعد.</p>}</div></div>}
               </div>
             </header>
             {children}
