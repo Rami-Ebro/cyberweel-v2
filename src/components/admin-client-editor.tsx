@@ -302,7 +302,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
                   <input type="hidden" name="projectId" value={project.id} />
                   <ProjectCoreFields project={project} />
                   <ProjectLinksFields initialLinks={project.links} />
-                  <ProjectAttachmentsInput files={project.files} />
+                  <ProjectAttachmentsInput key={project.files.map((file) => file.id).join(":")} files={project.files} />
                   <label className="grid gap-2 font-bold">
                     ملاحظات داخلية اختيارية
                     <textarea name="notes" defaultValue={project.notes || ""} placeholder="لا تظهر هذه الملاحظات للعميل" rows={3} className="field font-normal" />
@@ -534,12 +534,35 @@ function ProjectLinksFields({ initialLinks = [] }: { initialLinks?: string[] }) 
 
 function ProjectAttachmentsInput({ files = [] }: { files?: Project["files"] }) {
   const attachments = files.filter((file) => file.kind === "PROJECT_ATTACHMENT");
-  const [selectedNames, setSelectedNames] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function clearSelection() {
-    setSelectedNames([]);
+    setSelectedFiles([]);
     if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function addFiles(fileList: FileList | null) {
+    const addedFiles = Array.from(fileList || []);
+    const mergedFiles = [...selectedFiles, ...addedFiles].filter(
+      (file, index, allFiles) => allFiles.findIndex((candidate) => projectFileIdentity(candidate) === projectFileIdentity(file)) === index,
+    );
+    setSelectedFiles(mergedFiles);
+    if (inputRef.current && typeof DataTransfer !== "undefined") {
+      const transfer = new DataTransfer();
+      mergedFiles.forEach((file) => transfer.items.add(file));
+      inputRef.current.files = transfer.files;
+    }
+  }
+
+  function removeFile(fileIndex: number) {
+    const remainingFiles = selectedFiles.filter((_, index) => index !== fileIndex);
+    setSelectedFiles(remainingFiles);
+    if (inputRef.current && typeof DataTransfer !== "undefined") {
+      const transfer = new DataTransfer();
+      remainingFiles.forEach((file) => transfer.items.add(file));
+      inputRef.current.files = transfer.files;
+    }
   }
 
   return <fieldset className="grid gap-3 rounded-xl border border-[#D8D2C4] p-4">
@@ -556,22 +579,30 @@ function ProjectAttachmentsInput({ files = [] }: { files?: Project["files"] }) {
     </div>}
     <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[#B89A5A] bg-[#F7F3EB] p-4 font-bold">
       <Paperclip className="h-5 w-5" />
-      <span>{selectedNames.length ? "استبدال الملفات المختارة" : "اختيار ملفات من الجهاز"}</span>
+      <span>{selectedFiles.length ? "إضافة ملفات أخرى" : "اختيار ملفات من الجهاز"}</span>
       <input
         ref={inputRef}
         name="attachments"
         type="file"
         multiple
         accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.png,.jpg,.jpeg,.webp,.txt"
-        onChange={(event) => setSelectedNames(Array.from(event.target.files || []).map((file) => file.name))}
+        onChange={(event) => addFiles(event.target.files)}
         className="sr-only"
       />
     </label>
-    {!!selectedNames.length && <div className="flex items-start justify-between gap-3 rounded-lg bg-emerald-50 p-3 text-sm font-bold text-emerald-800" aria-live="polite">
-      <div className="min-w-0"><p>الملفات الجاهزة للرفع:</p>{selectedNames.map((name) => <p key={name} className="mt-1 truncate" dir="auto">{name}</p>)}</div>
-      <button type="button" onClick={clearSelection} className="shrink-0 rounded-lg p-2 text-emerald-900 hover:bg-emerald-100" aria-label="إزالة الملفات المختارة"><Trash2 className="h-4 w-4" /></button>
+    {!!selectedFiles.length && <div className="grid gap-2 rounded-lg bg-emerald-50 p-3 text-sm font-bold text-emerald-800" aria-live="polite">
+      <p>الملفات الجاهزة للرفع:</p>
+      {selectedFiles.map((file, index) => <div key={projectFileIdentity(file)} className="flex items-center justify-between gap-3 rounded-lg bg-white/70 px-3 py-2">
+        <p className="min-w-0 truncate" dir="auto">{file.name}</p>
+        <button type="button" onClick={() => removeFile(index)} className="shrink-0 rounded-lg p-2 text-emerald-900 hover:bg-emerald-100" aria-label={`إزالة ${file.name}`}><Trash2 className="h-4 w-4" /></button>
+      </div>)}
+      <button type="button" onClick={clearSelection} className="w-fit text-xs underline underline-offset-4">إزالة كل الملفات</button>
     </div>}
   </fieldset>;
+}
+
+function projectFileIdentity(file: File) {
+  return `${file.name}:${file.size}:${file.lastModified}`;
 }
 
 function ProjectSelect({ projects, optional = false }: { projects: Project[]; optional?: boolean }) {
