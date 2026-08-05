@@ -150,6 +150,15 @@ export default function AdminPartnersPage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
+  function selectSection(nextSection: Section) {
+    setSection(nextSection);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("section", nextSection);
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+  }
+
   async function load() {
     setLoading(true);
     const dashboardPromise = fetch("/api/admin/partners", { cache: "no-store" });
@@ -310,7 +319,7 @@ export default function AdminPartnersPage() {
       formElement.reset();
       setMessage("تم إنشاء المشروع وإسناده إلى الشريك بنجاح.");
       await load();
-      setSection("projects");
+      selectSection("projects");
     }
     setUpdatingId(null);
   }
@@ -412,7 +421,7 @@ export default function AdminPartnersPage() {
           <nav className="mt-6 grid gap-2">
             {(admin?.isOwner || admin?.permissions.includes("overview")) && (
               <button
-                onClick={() => setSection("overview")}
+                onClick={() => selectSection("overview")}
                 className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${
                   section === "overview"
                     ? "bg-[#B89A5A] text-[#111827]"
@@ -431,7 +440,7 @@ export default function AdminPartnersPage() {
             )}
             {(admin?.isOwner || admin?.permissions.includes("projects")) && (
               <button
-                onClick={() => setSection("projects")}
+                onClick={() => selectSection("projects")}
                 className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${
                   section === "projects"
                     ? "bg-[#B89A5A] text-[#111827]"
@@ -456,7 +465,7 @@ export default function AdminPartnersPage() {
             )}
             {(admin?.isOwner || admin?.permissions.includes("partners")) && (
               <button
-                onClick={() => setSection("partners")}
+                onClick={() => selectSection("partners")}
                 className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${
                   section === "partners"
                     ? "bg-[#B89A5A] text-[#111827]"
@@ -474,7 +483,7 @@ export default function AdminPartnersPage() {
               </Link>
             )}
             <button
-              onClick={() => setSection("account")}
+              onClick={() => selectSection("account")}
               className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${
                 section === "account"
                   ? "bg-[#B89A5A] text-[#111827]"
@@ -560,7 +569,7 @@ export default function AdminPartnersPage() {
                     label: "المشاريع",
                     value: stats.projects,
                     actionLabel: "فتح إدارة المشاريع",
-                    action: () => setSection("projects"),
+                    action: () => selectSection("projects"),
                   },
                   {
                     label: "الفواتير",
@@ -578,7 +587,7 @@ export default function AdminPartnersPage() {
                     label: "الشركاء",
                     value: stats.partners,
                     actionLabel: "فتح إدارة الشركاء",
-                    action: () => setSection("partners"),
+                    action: () => selectSection("partners"),
                   },
                   {
                     label: "السفراء",
