@@ -21,6 +21,11 @@ export async function GET(request: NextRequest) {
         orderBy: { updatedAt: "desc" },
         include: {
           files: { orderBy: { createdAt: "desc" } },
+          submissions: {
+            where: { status: { not: "UPLOADING" } },
+            orderBy: { createdAt: "desc" },
+            include: { files: { orderBy: { createdAt: "asc" } } },
+          },
           invoices: { orderBy: { createdAt: "desc" } },
           messages: { orderBy: { createdAt: "desc" }, take: 10 },
         },
@@ -36,7 +41,7 @@ export async function GET(request: NextRequest) {
     project.invoices.map((invoice) => ({ ...invoice, amount: Number(invoice.amount), projectTitle: project.title })),
   );
   const files = client.clientProjects.flatMap((project) =>
-    project.files.map((file) => ({
+    project.files.filter((file) => file.source !== "CLIENT").map((file) => ({
       ...file,
       url: file.storageProvider === "VERCEL_BLOB" ? `/api/client/files/${file.id}` : file.url,
       projectTitle: project.title,
@@ -44,6 +49,16 @@ export async function GET(request: NextRequest) {
   );
   const unreadMessages = client.clientMessages.filter((message) => message.fromAdmin && !message.readAt).length;
   const notifications = client.clientNotifications;
+  const submissions = client.clientProjects.flatMap((project) =>
+    project.submissions.map((submission) => ({
+      ...submission,
+      projectTitle: project.title,
+      files: submission.files.map((file) => ({
+        ...file,
+        url: file.storageProvider === "VERCEL_BLOB" ? `/api/client/files/${file.id}` : file.url,
+      })),
+    })),
+  );
 
   return NextResponse.json({
     client: { id: client.id, name: client.name, email: client.email, createdAt: client.createdAt },
@@ -74,9 +89,17 @@ export async function GET(request: NextRequest) {
         ...file,
         url: file.storageProvider === "VERCEL_BLOB" ? `/api/client/files/${file.id}` : file.url,
       })),
+      submissions: project.submissions.map((submission) => ({
+        ...submission,
+        files: submission.files.map((file) => ({
+          ...file,
+          url: file.storageProvider === "VERCEL_BLOB" ? `/api/client/files/${file.id}` : file.url,
+        })),
+      })),
       invoices: project.invoices.map((invoice) => ({ ...invoice, amount: Number(invoice.amount) })),
     })),
     files,
+    submissions,
     invoices,
     payments: invoices.filter((invoice) => invoice.status === "PAID" || invoice.paidAt),
     messages: client.clientMessages,
