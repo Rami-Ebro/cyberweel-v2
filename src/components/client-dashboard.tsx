@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { BarChart3, Bell, BriefcaseBusiness, FileText, Home, LogOut, Mail, Pencil, ReceiptText, RefreshCw, Send, UserCog } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { DateText } from "@/components/ui/date-text";
+import { ClientSubmissionPanel, type ClientSubmissionView } from "@/components/client-submission-panel";
 
 type Section = "overview" | "projects" | "files" | "invoices" | "messages" | "account";
 type Client = { id: string; name: string | null; email: string; createdAt: string };
@@ -23,7 +24,7 @@ type Project = {
   dueAt: string | null;
   updatedAt: string;
 };
-type FileItem = { id: string; name: string; url: string; kind: string | null; size: number | null; createdAt: string; projectTitle: string };
+type FileItem = { id: string; name: string; url: string; kind: string | null; size: number | null; source?: string; storageProvider?: string | null; createdAt: string; projectTitle: string };
 type Invoice = { id: string; number: string; type: "STANDARD" | "RETURN"; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; projectTitle: string };
 type Message = { id: string; subject: string | null; body: string; fromAdmin: boolean; readAt: string | null; createdAt: string };
 type Notification = { id: string; title: string; body: string | null; section: Section; readAt: string | null; createdAt: string };
@@ -48,6 +49,7 @@ export function ClientDashboard({
   const [stats, setStats] = useState<Stats | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
+  const [submissions, setSubmissions] = useState<ClientSubmissionView[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -75,11 +77,18 @@ export function ClientDashboard({
     else if (isAdminMirror) {
       const adminClient = data.client;
       const adminProjects = adminClient?.clientProjects || [];
-      const adminFiles = adminProjects.flatMap((project: Project & { files?: Array<FileItem & { storageProvider?: string | null }> }) =>
-        (project.files || []).map((file) => ({
+      const adminFiles = adminProjects.flatMap((project: Project & { files?: FileItem[] }) =>
+        (project.files || []).filter((file) => file.source !== "CLIENT").map((file) => ({
           ...file,
           url: file.storageProvider === "VERCEL_BLOB" ? `/api/client/files/${file.id}` : file.url,
           projectTitle: project.title,
+        })),
+      );
+      const adminSubmissions = adminProjects.flatMap((project: Project & { submissions?: Array<Omit<ClientSubmissionView, "projectTitle">> }) =>
+        (project.submissions || []).map((submission) => ({
+          ...submission,
+          projectTitle: project.title,
+          files: submission.files.map((file) => ({ ...file, url: `/api/client/files/${file.id}` })),
         })),
       );
       const adminInvoices = adminProjects.flatMap((project: Project & { invoices?: Invoice[] }) =>
@@ -91,6 +100,7 @@ export function ClientDashboard({
       setClient(adminClient ? { id: adminClient.id, name: adminClient.name, email: adminClient.email, createdAt: adminClient.createdAt } : null);
       setProjects(adminProjects);
       setFiles(adminFiles);
+      setSubmissions(adminSubmissions);
       setInvoices(adminInvoices);
       setMessages(adminMessages);
       setNotifications(adminNotifications);
@@ -107,6 +117,7 @@ export function ClientDashboard({
       setStats(data.stats);
       setProjects(data.projects || []);
       setFiles(data.files || []);
+      setSubmissions(data.submissions || []);
       setInvoices(data.invoices || []);
       setMessages(data.messages || []);
       setNotifications(data.notifications || []);
@@ -309,7 +320,13 @@ export function ClientDashboard({
             {!projects.length && <Empty text="لا توجد مشاريع حتى الآن." />}
           </section>}
 
-          {!loading && section === "files" && <section className="mt-7"><div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الملفات والتسليمات</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("files")} />}</div><div className="mt-5 grid gap-3">{files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="flex flex-col justify-between gap-3 rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm sm:flex-row sm:items-center"><div><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></div><span className="text-sm font-bold text-[#9A7D43]">فتح الملف</span></a>)}{!files.length && <Empty text="لا توجد ملفات أو تسليمات بعد." />}</div></section>}
+          {!loading && section === "files" && <section className="mt-7 grid gap-7">
+            <div>
+              <div className="flex items-center justify-between gap-3"><div><h2 className="text-2xl font-black">تسليمات وملفات CyberWeel</h2><p className="mt-1 text-sm text-slate-500">الملفات التي أرسلها لك فريقنا.</p></div>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("files")} />}</div>
+              <div className="mt-5 grid gap-3">{files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="flex flex-col justify-between gap-3 rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm sm:flex-row sm:items-center"><div><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></div><span className="text-sm font-bold text-[#9A7D43]">فتح الملف</span></a>)}{!files.length && <Empty text="لا توجد تسليمات من الفريق بعد." />}</div>
+            </div>
+            {client && <ClientSubmissionPanel projects={projects.map(({ id, title }) => ({ id, title }))} submissions={submissions} clientId={client.id} canSubmit={!isAdminMirror} onSubmitted={() => load(false)} />}
+          </section>}
 
           {!loading && section === "invoices" && <section className="mt-7"><div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الفواتير</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("invoices")} />}</div><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[820px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">رقم الفاتورة</th><th className="p-4">النوع</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-4 font-bold">{invoice.number}</td><td className="p-4">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</td><td className="p-4">{invoice.projectTitle}</td><td className="p-4">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{invoiceLabel[invoice.status] || invoice.status}</td><td className="p-4"><DateText value={invoice.dueAt} /></td></tr>)}</tbody></table>{!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}</div></section>}
 
