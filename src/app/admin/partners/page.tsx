@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   BarChart3,
   CheckCircle2,
+  ChevronDown,
   Eye,
   EyeOff,
   FolderKanban,
@@ -839,12 +840,20 @@ export default function AdminPartnersPage() {
 
           {!loading && section === "projects" && (
             <div className="mt-7 grid gap-6">
-              <section className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
-                <h2 className="text-2xl font-black">إنشاء مشروع عميل</h2>
-                <p className="mt-2 text-sm text-slate-500">
-                  اختر العميل أولًا، ثم اختر شريكًا واحدًا أو عدة شركاء، أو اترك المشروع دون إسناد مؤقتًا.
-                </p>
-                <form onSubmit={createProject} className="mt-6 grid gap-4 md:grid-cols-2">
+              <details className="group rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-6">
+                  <div>
+                    <h2 className="text-2xl font-black">إنشاء مشروع عميل</h2>
+                    <p className="mt-2 text-sm text-slate-500">
+                      اختر العميل أولًا، ثم اختر شريكًا واحدًا أو عدة شركاء، أو اترك المشروع دون إسناد مؤقتًا.
+                    </p>
+                  </div>
+                  <span className="flex shrink-0 items-center gap-2 rounded-xl bg-[#F7F3EB] px-4 py-2 text-sm font-black text-[#9A7D43]">
+                    فتح النموذج
+                    <ChevronDown className="h-5 w-5 transition group-open:rotate-180" />
+                  </span>
+                </summary>
+                <form onSubmit={createProject} className="grid gap-4 border-t border-[#E6E0D4] p-6 md:grid-cols-2">
                   <Field label="العميل">
                     <select name="clientId" required className="field">
                       <option value="">اختر العميل</option>
@@ -939,7 +948,7 @@ export default function AdminPartnersPage() {
                     {updatingId === "new-project" ? "جارٍ الإنشاء..." : "إنشاء مشروع العميل"}
                   </button>
                 </form>
-              </section>
+              </details>
 
               <section className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between gap-4">
