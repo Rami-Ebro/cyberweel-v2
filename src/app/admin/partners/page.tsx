@@ -54,6 +54,7 @@ type Partner = {
 };
 
 type ReferralOwner = { user: { name: string | null; email: string } };
+type Client = { id: string; name: string | null; email: string; company: string | null };
 type Referral = {
   id: string;
   name: string | null;
@@ -140,6 +141,7 @@ export default function AdminPartnersPage() {
   const router = useRouter();
   const [section, setSection] = useState<Section>("overview");
   const [partners, setPartners] = useState<Partner[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -198,6 +200,7 @@ export default function AdminPartnersPage() {
         setMessage(dashboard.error || "تعذر تحميل لوحة الإدارة");
       } else {
         setPartners(dashboard.partners || []);
+        setClients(dashboard.clients || []);
         setApplications(dashboard.applications || []);
         setReferrals(dashboard.referrals || []);
         setStats(dashboard.stats || null);
@@ -285,8 +288,9 @@ export default function AdminPartnersPage() {
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     const partnerId = String(form.get("partnerId") || "");
-    if (!partnerId) {
-      setMessage("اختر الشريك الذي سيُسند إليه المشروع.");
+    const clientId = String(form.get("clientId") || "");
+    if (!clientId) {
+      setMessage("اختر العميل صاحب المشروع.");
       return;
     }
 
@@ -297,7 +301,8 @@ export default function AdminPartnersPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         entity: "project",
-        id: partnerId,
+        clientId,
+        partnerId: partnerId || null,
         title: form.get("title"),
         description: form.get("description"),
         tasks: toList(form.get("tasks")),
@@ -317,7 +322,11 @@ export default function AdminPartnersPage() {
       setMessage(data.error || "تعذر إنشاء المشروع وإسناده");
     } else {
       formElement.reset();
-      setMessage("تم إنشاء المشروع وإسناده إلى الشريك بنجاح.");
+      setMessage(
+        data.assignment
+          ? "تم إنشاء مشروع العميل وإسناده إلى الشريك بنجاح."
+          : "تم إنشاء مشروع العميل بنجاح دون إسناده إلى شريك.",
+      );
       await load();
       selectSection("projects");
     }
@@ -767,14 +776,24 @@ export default function AdminPartnersPage() {
           {!loading && section === "projects" && (
             <div className="mt-7 grid gap-6">
               <section className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
-                <h2 className="text-2xl font-black">إنشاء مشروع وإسناده</h2>
+                <h2 className="text-2xl font-black">إنشاء مشروع عميل</h2>
                 <p className="mt-2 text-sm text-slate-500">
-                  سيظهر المشروع داخل لوحة الشريك المحدد فقط، مع المهام والتسليمات والمستحقات.
+                  اختر العميل أولًا، ويمكن إسناد المشروع إلى شريك الآن أو تركه دون شريك مؤقتًا.
                 </p>
                 <form onSubmit={createProject} className="mt-6 grid gap-4 md:grid-cols-2">
-                  <Field label="الشريك">
-                    <select name="partnerId" required className="field">
-                      <option value="">اختر الشريك</option>
+                  <Field label="العميل">
+                    <select name="clientId" required className="field">
+                      <option value="">اختر العميل</option>
+                      {clients.map((client) => (
+                        <option key={client.id} value={client.id}>
+                          {client.name || client.email}{client.company ? ` — ${client.company}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="الشريك (اختياري)">
+                    <select name="partnerId" className="field">
+                      <option value="">بدون شريك حاليًا</option>
                       {partners
                         .filter((partner) => partner.status === "ACTIVE")
                         .map((partner) => (
@@ -788,7 +807,8 @@ export default function AdminPartnersPage() {
                     <input name="title" required className="field" />
                   </Field>
                   <Field label="حالة المشروع">
-                    <select name="projectStatus" defaultValue="ASSIGNED" className="field">
+                    <select name="projectStatus" defaultValue="PLANNING" className="field">
+                      <option value="PLANNING">تخطيط</option>
                       <option value="ASSIGNED">مسند</option>
                       <option value="IN_PROGRESS">قيد التنفيذ</option>
                       <option value="REVIEW">قيد المراجعة</option>
@@ -840,7 +860,7 @@ export default function AdminPartnersPage() {
                     disabled={updatingId === "new-project"}
                     className="rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white disabled:opacity-50 md:col-span-2"
                   >
-                    {updatingId === "new-project" ? "جارٍ الإسناد..." : "إنشاء المشروع وإسناده"}
+                    {updatingId === "new-project" ? "جارٍ الإنشاء..." : "إنشاء مشروع العميل"}
                   </button>
                 </form>
               </section>

@@ -14,26 +14,37 @@ export async function GET(request: NextRequest) {
       email: true,
       phone: true,
       role: true,
+      clientEnabled: true,
       isActive: true,
       partner: { select: { status: true } },
+      ambassador: { select: { status: true } },
       adminProfile: { select: { isActive: true } },
     },
   });
 
   if (!user) return NextResponse.json({ authenticated: false });
   if (!user.isActive) return NextResponse.json({ authenticated: false });
-  if (user.role === "PARTNER" && user.partner?.status !== "ACTIVE") {
-    return NextResponse.json({ authenticated: false });
-  }
   if (user.role === "ADMIN" && user.adminProfile && !user.adminProfile.isActive) {
     return NextResponse.json({ authenticated: false });
   }
 
-  const dashboardUrl = user.role === "ADMIN"
-    ? "/admin/partners"
-    : user.role === "CLIENT"
-      ? "/client/dashboard"
-      : "/partner/dashboard";
+  const dashboardLinks = [
+    ...(user.role === "ADMIN" || user.adminProfile?.isActive
+      ? [{ capability: "ADMIN", label: "الإدارة", url: "/admin/partners" }]
+      : []),
+    ...(user.role === "CLIENT" || user.clientEnabled
+      ? [{ capability: "CLIENT", label: "العميل", url: "/client/dashboard" }]
+      : []),
+    ...(user.partner?.status === "ACTIVE"
+      ? [{ capability: "PARTNER", label: "شريك التنفيذ", url: "/partner/dashboard" }]
+      : []),
+    ...(user.ambassador?.status === "ACTIVE"
+      ? [{ capability: "AMBASSADOR", label: "السفير", url: "/ambassador/dashboard" }]
+      : []),
+  ];
+
+  if (dashboardLinks.length === 0) return NextResponse.json({ authenticated: false });
+  const dashboardUrl = dashboardLinks.find((link) => link.capability === user.role)?.url ?? dashboardLinks[0].url;
 
   return NextResponse.json({
     authenticated: true,
@@ -43,6 +54,7 @@ export async function GET(request: NextRequest) {
       identifier: user.phone || user.email,
       role: user.role,
       dashboardUrl,
+      dashboardLinks,
       settingsUrl: "/account/settings",
     },
   });

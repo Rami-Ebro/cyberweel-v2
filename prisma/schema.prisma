@@ -101,6 +101,8 @@ model User {
   internalNotes       String?
   passwordHash        String?
   role                UserRole             @default(CLIENT)
+  /// Enables client dashboard access when the same auth user also has another role.
+  clientEnabled       Boolean              @default(false)
   isActive            Boolean              @default(true)
   partner             Partner?
   ambassador          Ambassador?
@@ -114,6 +116,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+
+  @@index([name])
 }
 
 model RateLimitBucket {
@@ -243,6 +247,8 @@ model PartnerProject {
   id          String    @id @default(cuid())
   partnerId   String
   partner     Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  clientProjectId String? @unique
+  clientProject   ClientProject? @relation(fields: [clientProjectId], references: [id], onDelete: SetNull)
   title       String
   description String?
   tasks       String[]  @default([])
@@ -323,6 +329,7 @@ model ClientProject {
   files       ClientFile[]
   invoices    ClientInvoice[]
   messages    ClientMessage[]
+  partnerAssignment PartnerProject?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 

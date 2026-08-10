@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const [user, file] = await Promise.all([
     db.user.findUnique({
       where: { id: session.userId },
-      select: { id: true, role: true, isActive: true },
+      select: { id: true, role: true, clientEnabled: true, isActive: true },
     }),
     db.clientFile.findUnique({
       where: { id: fileId },
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
   if (!user?.isActive || !file) return NextResponse.json({ error: "الملف غير متاح" }, { status: 404 });
 
-  const isClientOwner = user.role === "CLIENT" && file.project.clientId === user.id;
+  const isClientOwner = (user.role === "CLIENT" || user.clientEnabled) && file.project.clientId === user.id;
   const isAllowedAdmin = user.role === "ADMIN" && (await canAdmin(request, "files"));
   if (!isClientOwner && !isAllowedAdmin) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 

@@ -41,7 +41,6 @@ async function currentAmbassador(request: NextRequest) {
 
   if (
     !user?.isActive ||
-    user.role !== "AMBASSADOR" ||
     !user.ambassador ||
     user.ambassador.status !== "ACTIVE"
   ) {
@@ -104,7 +103,7 @@ export async function GET(request: NextRequest) {
   const user = await dashboardAmbassador(request);
   if (!user) return NextResponse.json({ error: "FORBIDDEN", redirectTo: "/login" }, { status: 401 });
   if (!user.isAdminPreview && !user.ambassador!.profileCompletedAt) {
-    return NextResponse.json({ error: "PROFILE_REQUIRED", redirectTo: "/complete-profile" }, { status: 428 });
+    return NextResponse.json({ error: "PROFILE_REQUIRED", redirectTo: "/complete-profile?capability=AMBASSADOR" }, { status: 428 });
   }
 
   const rawReferrals = await db.partnerReferral.findMany({

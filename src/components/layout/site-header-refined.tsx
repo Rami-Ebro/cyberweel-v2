@@ -16,8 +16,9 @@ const HEADER_ITEMS = NAV_ITEMS.filter((item) => item.id !== "share-challenge");
 type SignedInAccount = {
   name: string;
   identifier: string;
-  role: "ADMIN" | "PARTNER" | "CLIENT";
+  role: "ADMIN" | "PARTNER" | "AMBASSADOR" | "CLIENT";
   dashboardUrl: string;
+  dashboardLinks: Array<{ capability: string; label: string; url: string }>;
   settingsUrl: string;
 };
 
@@ -75,12 +76,14 @@ export function SiteHeaderRefined() {
     window.location.assign("/");
   }
 
-  const AccountLinks = ({ mobile = false }: { mobile?: boolean }) => account ? (
+  const renderAccountLinks = (mobile = false) => account ? (
     <>
-      <a href={account.dashboardUrl} onClick={() => { setAccountOpen(false); setMobileOpen(false); }} className={cn("focus-ring flex items-center gap-3 font-semibold text-ink transition hover:bg-muted", mobile ? "rounded-md px-4 py-3" : "rounded-lg px-3 py-2.5 text-sm")}>
-        <LayoutDashboard className="h-4 w-4 text-accent" />
-        {isArabic ? "لوحة التحكم" : "Dashboard"}
-      </a>
+      {(account.dashboardLinks?.length ? account.dashboardLinks : [{ capability: account.role, label: "", url: account.dashboardUrl }]).map((dashboard) => (
+        <a key={dashboard.capability} href={dashboard.url} onClick={() => { setAccountOpen(false); setMobileOpen(false); }} className={cn("focus-ring flex items-center gap-3 font-semibold text-ink transition hover:bg-muted", mobile ? "rounded-md px-4 py-3" : "rounded-lg px-3 py-2.5 text-sm")}>
+          <LayoutDashboard className="h-4 w-4 text-accent" />
+          {dashboard.label ? (isArabic ? `لوحة ${dashboard.label}` : `${dashboard.label} dashboard`) : (isArabic ? "لوحة التحكم" : "Dashboard")}
+        </a>
+      ))}
       <a href={account.settingsUrl} onClick={() => { setAccountOpen(false); setMobileOpen(false); }} className={cn("focus-ring flex items-center gap-3 font-semibold text-ink transition hover:bg-muted", mobile ? "rounded-md px-4 py-3" : "rounded-lg px-3 py-2.5 text-sm")}>
         <Settings className="h-4 w-4 text-accent" />
         {isArabic ? "إعدادات الحساب" : "Account settings"}
@@ -118,7 +121,7 @@ export function SiteHeaderRefined() {
                     <p className="truncate font-black text-ink">{account.name}</p>
                     <p dir="ltr" className="mt-1 truncate text-xs text-muted-foreground">{account.identifier}</p>
                   </div>
-                  <div className="mt-1 grid gap-1"><AccountLinks /></div>
+                  <div className="mt-1 grid gap-1">{renderAccountLinks()}</div>
                 </div>
               )}
             </div>
@@ -144,7 +147,7 @@ export function SiteHeaderRefined() {
                       <span className="grid h-10 w-10 place-items-center rounded-full bg-ink font-black text-floral">{accountInitial}</span>
                       <div className="min-w-0"><p className="truncate font-black text-ink">{account.name}</p><p dir="ltr" className="truncate text-xs text-muted-foreground">{account.identifier}</p></div>
                     </div>
-                    <div className="mt-1 grid gap-1"><AccountLinks mobile /></div>
+                    <div className="mt-1 grid gap-1">{renderAccountLinks(true)}</div>
                   </div>
                 ) : (
                   <a href="/login" className="focus-ring flex w-full items-center justify-center gap-2 rounded-md bg-ink px-5 py-3 text-sm font-semibold text-floral transition-colors hover:bg-ink/90"><LogIn className="h-4 w-4" />{loginLabel}</a>

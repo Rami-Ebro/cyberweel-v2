@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
       role: true,
       partner: {
         select: {
+          status: true,
           phone: true,
           specialty: true,
           experience: true,
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
       },
       ambassador: {
         select: {
+          status: true,
           phone: true,
           country: true,
           contactMethod: true,
@@ -35,13 +37,31 @@ export async function GET(request: NextRequest) {
       },
     },
   });
-  if (!user || !["PARTNER", "AMBASSADOR"].includes(user.role)) {
+  if (!user) {
     return NextResponse.json({ error: "INVALID_ROLE" }, { status: 403 });
   }
 
+  const requested = request.nextUrl.searchParams.get("capability");
+  const role =
+    requested === "PARTNER" && user.partner?.status === "ACTIVE"
+      ? "PARTNER"
+      : requested === "AMBASSADOR" && user.ambassador?.status === "ACTIVE"
+        ? "AMBASSADOR"
+        : user.role === "PARTNER" && user.partner?.status === "ACTIVE"
+          ? "PARTNER"
+          : user.role === "AMBASSADOR" && user.ambassador?.status === "ACTIVE"
+            ? "AMBASSADOR"
+            : user.partner?.status === "ACTIVE"
+              ? "PARTNER"
+              : user.ambassador?.status === "ACTIVE"
+                ? "AMBASSADOR"
+                : null;
+
+  if (!role) return NextResponse.json({ error: "INVALID_ROLE" }, { status: 403 });
+
   return NextResponse.json({
-    role: user.role,
-    profile: user.role === "AMBASSADOR" ? user.ambassador : user.partner,
+    role,
+    profile: role === "AMBASSADOR" ? user.ambassador : user.partner,
   });
 }
 
@@ -58,7 +78,19 @@ export async function POST(request: NextRequest) {
   });
   if (!user?.isActive) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
 
-  if (user.role === "PARTNER" && user.partner && user.partner.status === "ACTIVE") {
+  const requested = body?.capability;
+  const capability =
+    requested === "PARTNER" && user.partner?.status === "ACTIVE"
+      ? "PARTNER"
+      : requested === "AMBASSADOR" && user.ambassador?.status === "ACTIVE"
+        ? "AMBASSADOR"
+        : user.role === "PARTNER" && user.partner?.status === "ACTIVE"
+          ? "PARTNER"
+          : user.role === "AMBASSADOR" && user.ambassador?.status === "ACTIVE"
+            ? "AMBASSADOR"
+            : null;
+
+  if (capability === "PARTNER" && user.partner) {
     const specialty = value(body?.specialty);
     const experience = value(body?.experience, 5000);
     const availability = value(body?.availability);
@@ -80,7 +112,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, redirectTo: "/partner/dashboard" });
   }
 
-  if (user.role === "AMBASSADOR" && user.ambassador && user.ambassador.status === "ACTIVE") {
+  if (capability === "AMBASSADOR" && user.ambassador) {
     const phone = value(body?.phone, 40);
     const country = value(body?.country);
     const contactMethod = value(body?.contactMethod);

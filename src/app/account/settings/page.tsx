@@ -11,12 +11,13 @@ type Account = {
   name: string | null;
   email: string;
   phone: string | null;
-  role: "ADMIN" | "PARTNER" | "CLIENT";
+  role: "ADMIN" | "PARTNER" | "AMBASSADOR" | "CLIENT";
 };
 
 const roleLabel: Record<Account["role"], string> = {
   ADMIN: "إدارة",
   PARTNER: "شريك",
+  AMBASSADOR: "سفير",
   CLIENT: "عميل",
 };
 

@@ -7,7 +7,11 @@ export async function GET(request: NextRequest) {
   if (!session) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
 
   const client = await db.user.findFirst({
-    where: { id: session.userId, role: "CLIENT", isActive: true },
+    where: {
+      id: session.userId,
+      isActive: true,
+      OR: [{ role: "CLIENT" }, { clientEnabled: true }],
+    },
     select: {
       id: true,
       name: true,
