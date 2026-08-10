@@ -31,7 +31,6 @@ async function currentPartner(request: NextRequest) {
   if (
     !user ||
     !user.isActive ||
-    user.role !== "PARTNER" ||
     !user.partner ||
     user.partner.status !== "ACTIVE"
   ) {

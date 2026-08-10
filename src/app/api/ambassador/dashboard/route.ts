@@ -41,7 +41,6 @@ async function currentAmbassador(request: NextRequest) {
 
   if (
     !user?.isActive ||
-    user.role !== "AMBASSADOR" ||
     !user.ambassador ||
     user.ambassador.status !== "ACTIVE"
   ) {

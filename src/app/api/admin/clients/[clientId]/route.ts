@@ -8,7 +8,7 @@ type RouteContext = { params: Promise<{ clientId: string }> };
 async function allowedClient(request: NextRequest, clientId: string) {
   if (!(await canAdmin(request, "clients"))) return null;
   return db.user.findFirst({
-    where: { id: clientId, role: "CLIENT" },
+    where: { id: clientId, OR: [{ role: "CLIENT" }, { clientEnabled: true }] },
     select: { id: true },
   });
 }

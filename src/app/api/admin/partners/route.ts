@@ -1,10 +1,16 @@
 import { db } from "@/lib/db";
 import { canAdmin, currentAdminAccess } from "@/lib/admin-permissions";
 import { NextRequest, NextResponse } from "next/server";
-import { hashPassword, normalizeEmail } from "@/lib/partner-auth";
 import { sendClientInvitation } from "@/lib/client-invitation";
+import {
+  AcceptApplicationError,
+  acceptErrorMessage,
+  decideCollaborationApplication,
+} from "@/lib/accept-collaboration";
+import { clientAccessWhere } from "@/lib/user-identity";
 
 export async function GET(request: NextRequest) {
+  const scope = request.nextUrl.searchParams.get("scope");
   const canView = await Promise.all([
     canAdmin(request, "overview"),
     canAdmin(request, "partners"),
@@ -13,27 +19,52 @@ export async function GET(request: NextRequest) {
   ]);
   if (!canView.some(Boolean)) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
-  const [partners, referrals, applications, overviewStats] = await Promise.all([
-    canView[1]
+  const wantOverview = !scope || scope === "all" || scope === "overview";
+  const wantPartners = !scope || scope === "all" || scope === "partners";
+  const wantProjects = !scope || scope === "all" || scope === "projects";
+  const wantReferrals = !scope || scope === "all" || scope === "overview" || scope === "projects";
+
+  const [partners, referrals, applications, overviewStats, clients] = await Promise.all([
+    canView[1] && wantPartners
       ? db.partner.findMany({
           orderBy: { createdAt: "desc" },
-          include: { user: { select: { name: true, email: true, phone: true, isActive: true } }, assignments: { orderBy: { createdAt: "desc" } }, _count: { select: { referrals: true } } },
+          include: {
+            user: { select: { name: true, email: true, phone: true, isActive: true } },
+            assignments: { orderBy: { createdAt: "desc" }, include: { clientProject: { select: { id: true, title: true, clientId: true } } } },
+            _count: { select: { referrals: true } },
+          },
         })
-      : [],
-    canView[2] || canView[3] || canView[0]
+      : wantProjects && canView[3]
+        ? db.partner.findMany({
+            orderBy: { createdAt: "desc" },
+            where: { status: "ACTIVE" },
+            include: {
+              user: { select: { name: true, email: true, phone: true, isActive: true } },
+              assignments: { orderBy: { createdAt: "desc" }, include: { clientProject: { select: { id: true, title: true, clientId: true } } } },
+              _count: { select: { referrals: true } },
+            },
+          })
+        : [],
+    (canView[2] || canView[3] || canView[0]) && wantReferrals
       ? db.partnerReferral.findMany({
           orderBy: { createdAt: "desc" },
-          take: 250,
+          take: scope === "overview" ? 8 : 250,
           include: {
             partner: { include: { user: { select: { name: true, email: true } } } },
             ambassador: { include: { user: { select: { name: true, email: true } } } },
           },
         })
       : [],
-    canView[1] ? db.collaborationApplication.findMany({ where: { type: "PARTNER" }, orderBy: { createdAt: "desc" }, include: { decidedBy: { select: { name: true, email: true } } } }) : [],
-    canView[0]
+    canView[1] && wantPartners
+      ? db.collaborationApplication.findMany({
+          where: { type: "PARTNER" },
+          orderBy: { createdAt: "desc" },
+          include: { decidedBy: { select: { name: true, email: true } } },
+        })
+      : [],
+    canView[0] && wantOverview
       ? Promise.all([
-          db.user.count({ where: { role: "CLIENT" } }),
+          db.user.count({ where: { OR: [{ role: "CLIENT" }, { clientEnabled: true }] } }),
           db.clientProject.count(),
           db.clientInvoice.count(),
           db.partnerReferral.count(),
@@ -41,6 +72,13 @@ export async function GET(request: NextRequest) {
           db.ambassador.count(),
         ])
       : Promise.resolve([0, 0, 0, 0, 0, 0]),
+    canView[3] && wantProjects
+      ? db.user.findMany({
+          where: clientAccessWhere(),
+          orderBy: { name: "asc" },
+          select: { id: true, name: true, email: true, company: true },
+        })
+      : [],
   ]);
 
   const stats = {
@@ -56,6 +94,7 @@ export async function GET(request: NextRequest) {
     partners,
     applications,
     referrals,
+    clients,
     stats,
     access: { overview: canView[0], partners: canView[1], referrals: canView[2], projects: canView[3] },
   });
@@ -67,65 +106,71 @@ export async function PATCH(request: NextRequest) {
   const status = body?.status;
   const entity = body?.entity === "referral" ? "referral" : "partner";
 
-  if (!id) return NextResponse.json({ error: "طلب غير صالح" }, { status: 400 });
+  if (!id && body?.entity !== "project") {
+    return NextResponse.json({ error: "طلب غير صالح" }, { status: 400 });
+  }
 
   if (body?.entity === "application") {
     const access = await currentAdminAccess(request);
-    if (!access || !(access.isOwner || access.permissions.includes("partners"))) return NextResponse.json({ error: "لا تملك صلاحية إدارة الشركاء" }, { status: 403 });
+    if (!access || !(access.isOwner || access.permissions.includes("partners"))) {
+      return NextResponse.json({ error: "لا تملك صلاحية إدارة الشركاء" }, { status: 403 });
+    }
     const notes = typeof body?.notes === "string" ? body.notes.trim() : "";
-    if (!["ACCEPTED", "REJECTED"].includes(status)) return NextResponse.json({ error: "قرار غير صالح" }, { status: 400 });
-    if (status === "REJECTED" && !notes) return NextResponse.json({ error: "سبب الرفض مطلوب" }, { status: 400 });
-    const application = await db.collaborationApplication.findUnique({ where: { id } });
-    if (!application || application.type !== "PARTNER") return NextResponse.json({ error: "الطلب غير موجود" }, { status: 404 });
-    if (application.status !== "PENDING") return NextResponse.json({ error: "ALREADY_DECIDED" }, { status: 409 });
-    if (status === "ACCEPTED") {
-      const password = typeof body?.password === "string" ? body.password : "";
-      if (password.length < 10) return NextResponse.json({ error: "كلمة مرور مؤقتة من 10 أحرف مطلوبة" }, { status: 400 });
-      const existingEmail = await db.user.findUnique({
-        where: { email: normalizeEmail(application.email) },
-        select: { id: true },
+    if (!["ACCEPTED", "REJECTED"].includes(status)) {
+      return NextResponse.json({ error: "قرار غير صالح" }, { status: 400 });
+    }
+
+    try {
+      const result = await decideCollaborationApplication({
+        applicationId: id,
+        type: "PARTNER",
+        status,
+        notes,
+        password: typeof body?.password === "string" ? body.password : "",
+        decidedById: access.userId,
       });
-      if (existingEmail) return NextResponse.json({ error: "EMAIL_EXISTS" }, { status: 409 });
-      if (application.phone) {
-        const existingPhone = await db.user.findFirst({
-          where: { phone: application.phone },
-          select: { id: true },
+
+      if (status === "ACCEPTED" && result.userId && result.email && !result.idempotent) {
+        const invitation = await sendClientInvitation(result.userId, result.email, request.nextUrl.origin).catch((error) => {
+          console.error("[partner-acceptance] Invitation failed after account creation", error);
+          return { sent: false, error: "EMAIL_SEND_FAILED" };
         });
-        if (existingPhone) return NextResponse.json({ error: "PHONE_EXISTS" }, { status: 409 });
-      }
-      let user: { id: string; email: string };
-      try {
-        user = await db.$transaction(async (tx) => {
-        const claimed = await tx.collaborationApplication.updateMany({ where: { id, status: "PENDING" }, data: { status: "ACCEPTED", reviewState: "ACCEPTED", decisionNotes: notes || null, decidedAt: new Date(), decidedById: access.userId } });
-        if (claimed.count !== 1) throw new Error("ALREADY_DECIDED");
-        const created = await tx.user.create({ data: { name: application.name, email: normalizeEmail(application.email), phone: application.phone, passwordHash: hashPassword(password), role: "PARTNER", partner: { create: { applicationId: application.id, status: "ACTIVE", specialty: application.specialty, decisionNotes: notes || null, decidedAt: new Date() } } } });
-        await tx.adminNotification.create({ data: { title: "تم إنشاء حساب شريك التنفيذ", body: `${application.name} — ${application.email}`, href: "/admin/partners?section=partners", kind: "PARTNER_ACCEPTED" } });
-        return created;
+        return NextResponse.json({
+          ok: true,
+          idempotent: false,
+          invitationSent: invitation.sent,
+          inviteError: invitation.error,
         });
-      } catch (error) {
-        if (error instanceof Error && error.message === "ALREADY_DECIDED") return NextResponse.json({ error: "ALREADY_DECIDED" }, { status: 409 });
-        throw error;
       }
-      const invitation = await sendClientInvitation(user.id, user.email, request.nextUrl.origin).catch((error) => {
-        console.error("[partner-acceptance] Invitation failed after account creation", error);
-        return { sent: false, error: "EMAIL_SEND_FAILED" };
-      });
-      return NextResponse.json({ ok: true, invitationSent: invitation.sent, inviteError: invitation.error });
-    } else {
-      const rejected = await db.collaborationApplication.updateMany({ where: { id, status: "PENDING" }, data: { status: "REJECTED", reviewState: "REJECTED", decisionNotes: notes, decidedAt: new Date(), decidedById: access.userId } });
-      if (rejected.count !== 1) return NextResponse.json({ error: "ALREADY_DECIDED" }, { status: 409 });
-      await db.adminNotification.create({ data: { title: "تم رفض طلب شريك التنفيذ", body: `${application.name} — ${notes}`, href: "/admin/partners?section=partners", kind: "PARTNER_REJECTED" } });
-      return NextResponse.json({ ok: true });
+
+      return NextResponse.json({ ok: true, idempotent: Boolean(result.idempotent) });
+    } catch (error) {
+      if (error instanceof AcceptApplicationError) {
+        return NextResponse.json({ error: error.code, message: acceptErrorMessage(error.code) }, { status: error.status });
+      }
+      throw error;
     }
   }
 
   if (body?.entity === "project") {
-    if (!(await canAdmin(request, "projects"))) return NextResponse.json({ error: "لا تملك صلاحية إدارة المشاريع" }, { status: 403 });
+    if (!(await canAdmin(request, "projects"))) {
+      return NextResponse.json({ error: "لا تملك صلاحية إدارة المشاريع" }, { status: 403 });
+    }
+
+    const clientId = typeof body?.clientId === "string" ? body.clientId.trim() : "";
+    const partnerId = typeof body?.partnerId === "string" ? body.partnerId.trim() : id;
     const title = typeof body?.title === "string" ? body.title.trim() : "";
+    if (!clientId) return NextResponse.json({ error: "العميل مطلوب" }, { status: 400 });
     if (!title) return NextResponse.json({ error: "اسم المشروع مطلوب" }, { status: 400 });
 
+    const client = await db.user.findFirst({
+      where: { id: clientId, OR: [{ role: "CLIENT" }, { clientEnabled: true }] },
+      select: { id: true },
+    });
+    if (!client) return NextResponse.json({ error: "العميل غير موجود" }, { status: 404 });
+
     const projectStatus = typeof body?.projectStatus === "string" ? body.projectStatus : "ASSIGNED";
-    if (!["ASSIGNED", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD"].includes(projectStatus)) {
+    if (!["ASSIGNED", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD", "PLANNING"].includes(projectStatus)) {
       return NextResponse.json({ error: "حالة المشروع غير صالحة" }, { status: 400 });
     }
 
@@ -134,9 +179,10 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "نسبة التقدم يجب أن تكون بين 0 و100" }, { status: 400 });
     }
 
-    const feeAmount = body?.feeAmount === undefined || body?.feeAmount === null || body?.feeAmount === ""
-      ? null
-      : String(body.feeAmount).trim();
+    const feeAmount =
+      body?.feeAmount === undefined || body?.feeAmount === null || body?.feeAmount === ""
+        ? null
+        : String(body.feeAmount).trim();
     if (feeAmount && !/^\d{1,10}(\.\d{1,2})?$/.test(feeAmount)) {
       return NextResponse.json({ error: "قيمة المستحقات غير صالحة" }, { status: 400 });
     }
@@ -158,25 +204,83 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "موعد التسليم غير صالح" }, { status: 400 });
     }
 
-    const project = await db.partnerProject.create({
-      data: {
-        partnerId: id,
-        title,
-        description: typeof body.description === "string" ? body.description.trim() || null : null,
-        tasks: Array.isArray(body.tasks) ? body.tasks.filter((x: unknown): x is string => typeof x === "string").map((x: string) => x.trim()).filter(Boolean) : [],
-        deliverables: Array.isArray(body.deliverables) ? body.deliverables.filter((x: unknown): x is string => typeof x === "string").map((x: string) => x.trim()).filter(Boolean) : [],
-        files: Array.isArray(body.files) ? body.files.filter((x: unknown): x is string => typeof x === "string") : [],
-        updates: Array.isArray(body.updates) ? body.updates.filter((x: unknown): x is string => typeof x === "string").map((x: string) => x.trim()).filter(Boolean) : [],
-        status: projectStatus,
-        progress,
-        feeAmount,
-        feeCurrency,
-        paymentStatus,
-        paidAt: paymentStatus === "PAID" ? new Date() : null,
-        dueAt,
-      },
+    const clientStatus =
+      projectStatus === "ASSIGNED" || projectStatus === "PLANNING"
+        ? "PLANNING"
+        : projectStatus === "IN_PROGRESS"
+          ? "IN_PROGRESS"
+          : projectStatus === "REVIEW"
+            ? "REVIEW"
+            : projectStatus === "COMPLETED"
+              ? "COMPLETED"
+              : "ON_HOLD";
+
+    const stringList = (value: unknown) =>
+      Array.isArray(value)
+        ? value.filter((x: unknown): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean)
+        : [];
+
+    let partner = null as { id: string } | null;
+    if (partnerId) {
+      partner = await db.partner.findFirst({
+        where: { id: partnerId, status: "ACTIVE" },
+        select: { id: true },
+      });
+      if (!partner) return NextResponse.json({ error: "الشريك غير موجود أو غير نشط" }, { status: 404 });
+    }
+
+    const created = await db.$transaction(async (tx) => {
+      const clientProject = await tx.clientProject.create({
+        data: {
+          clientId,
+          title,
+          description: typeof body.description === "string" ? body.description.trim() || null : null,
+          agreementDetails: typeof body.agreementDetails === "string" ? body.agreementDetails.trim() || null : null,
+          financialPlan: typeof body.financialPlan === "string" ? body.financialPlan.trim() || null : null,
+          currency: feeCurrency,
+          stages: typeof body.stages === "string" ? body.stages.trim() || null : null,
+          notes: typeof body.notes === "string" ? body.notes.trim() || null : null,
+          status: clientStatus,
+          progress,
+          dueAt,
+        },
+      });
+
+      const partnerProject = partner
+        ? await tx.partnerProject.create({
+            data: {
+              partnerId: partner.id,
+              clientProjectId: clientProject.id,
+              title,
+              description: typeof body.description === "string" ? body.description.trim() || null : null,
+              tasks: stringList(body.tasks),
+              deliverables: stringList(body.deliverables),
+              files: stringList(body.files),
+              updates: stringList(body.updates),
+              status: projectStatus === "PLANNING" ? "ASSIGNED" : projectStatus,
+              progress,
+              feeAmount,
+              feeCurrency,
+              paymentStatus,
+              paidAt: paymentStatus === "PAID" ? new Date() : null,
+              dueAt,
+            },
+          })
+        : null;
+
+      await tx.clientNotification.create({
+        data: {
+          clientId,
+          title: "تمت إضافة مشروع جديد",
+          body: title,
+          section: "projects",
+        },
+      });
+
+      return { clientProject, partnerProject };
     });
-    return NextResponse.json({ project }, { status: 201 });
+
+    return NextResponse.json({ project: created.clientProject, assignment: created.partnerProject }, { status: 201 });
   }
 
   if (entity === "referral") {
