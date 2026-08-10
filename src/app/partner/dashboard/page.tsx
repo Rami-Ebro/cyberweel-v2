@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
-import { formatDate } from "@/lib/date-format";
+import { DateText } from "@/components/ui/date-text";
 
 type SectionKey = "overview" | "projects" | "dues" | "profile";
 type DuesSummary = { currency: string; outstanding: string; paid: string };
@@ -267,7 +267,7 @@ export default function PartnerDashboardPage() {
               {project.description && <p className="mt-2 max-w-3xl leading-7 text-slate-600 dark:text-slate-300">{project.description}</p>}
             </div>
             <div className="grid min-w-52 gap-2 text-sm text-slate-600 dark:text-slate-300">
-              <span className="flex items-center gap-2"><CalendarDays size={17} className="text-[#bd9850]" />موعد التسليم: {project.dueAt ? formatDate(project.dueAt) : "غير محدد"}</span>
+              <span className="flex items-center gap-2"><CalendarDays size={17} className="text-[#bd9850]" />موعد التسليم: <DateText value={project.dueAt} fallback="غير محدد" /></span>
               <span className="flex items-center gap-2"><CircleDollarSign size={17} className="text-[#bd9850]" />المستحق: {project.feeAmount ? money(project.feeAmount, project.feeCurrency) : "غير محدد"}</span>
             </div>
           </div>
@@ -318,7 +318,7 @@ export default function PartnerDashboardPage() {
 
           <section className="rounded-2xl bg-slate-50 p-5 xl:col-span-2 dark:bg-slate-800/60">
             <h4 className="mb-4 flex items-center gap-2 font-black text-slate-950 dark:text-white"><Clock3 size={18} className="text-[#bd9850]" />تحديثات المشروع</h4>
-            {project.updates.length ? <div className="grid gap-3 md:grid-cols-2">{project.updates.slice().reverse().map((value, index) => { const update = splitUpdate(value); return <div key={`${value}-${index}`} className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"><p className="text-sm leading-6 text-slate-700 dark:text-slate-200">{update.note}</p>{update.date && <time className="mt-2 block text-xs text-slate-400">{formatDate(update.date)}</time>}</div>; })}</div> : <p className="text-sm text-slate-500">لا توجد تحديثات مسجلة.</p>}
+            {project.updates.length ? <div className="grid gap-3 md:grid-cols-2">{project.updates.slice().reverse().map((value, index) => { const update = splitUpdate(value); return <div key={`${value}-${index}`} className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"><p className="text-sm leading-6 text-slate-700 dark:text-slate-200">{update.note}</p>{update.date && <DateText value={update.date} className="mt-2 block text-xs text-slate-400" />}</div>; })}</div> : <p className="text-sm text-slate-500">لا توجد تحديثات مسجلة.</p>}
           </section>
         </div>
       </article>
@@ -410,13 +410,13 @@ export default function PartnerDashboardPage() {
             <div><p className="text-sm font-black text-[#9f7d3d]">الحالي والسابق</p><h2 className="mt-1 text-3xl font-black">مستحقات المشاريع</h2><p className="mt-2 text-slate-600 dark:text-slate-300">كل مبلغ مرتبط بمشروع محدد وحالة دفع واضحة.</p></div>
             <div className="grid gap-4 sm:grid-cols-2">{data.stats.duesByCurrency.map((item) => <div key={item.currency} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"><p className="font-bold text-slate-500">{item.currency}</p><div className="mt-4 grid grid-cols-2 gap-4"><div><span className="text-xs text-slate-500">غير مدفوع</span><strong className="mt-1 block text-xl">{money(item.outstanding, item.currency)}</strong></div><div><span className="text-xs text-slate-500">مدفوع سابقًا</span><strong className="mt-1 block text-xl">{money(item.paid, item.currency)}</strong></div></div></div>)}</div>
             <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-              <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-right"><thead className="bg-slate-50 text-sm text-slate-500 dark:bg-slate-800/70 dark:text-slate-300"><tr><th className="px-5 py-4">المشروع</th><th className="px-5 py-4">الفترة</th><th className="px-5 py-4">المبلغ</th><th className="px-5 py-4">الحالة</th><th className="px-5 py-4">تاريخ الدفع</th></tr></thead><tbody>{data.projects.map((project) => <tr key={project.id} className="border-t border-slate-100 dark:border-slate-800"><td className="px-5 py-4 font-black">{project.title}</td><td className="px-5 py-4 text-sm text-slate-500">{project.status === "COMPLETED" ? "سابق" : "حالي"}</td><td className="px-5 py-4 font-bold">{project.feeAmount ? money(project.feeAmount, project.feeCurrency) : "غير محدد"}</td><td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${paymentStatusClass[project.paymentStatus]}`}>{paymentStatus[project.paymentStatus]}</span></td><td className="px-5 py-4 text-sm text-slate-500">{project.paidAt ? formatDate(project.paidAt) : "—"}</td></tr>)}</tbody></table></div>
+              <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-right"><thead className="bg-slate-50 text-sm text-slate-500 dark:bg-slate-800/70 dark:text-slate-300"><tr><th className="px-5 py-4">المشروع</th><th className="px-5 py-4">الفترة</th><th className="px-5 py-4">المبلغ</th><th className="px-5 py-4">الحالة</th><th className="px-5 py-4">تاريخ الدفع</th></tr></thead><tbody>{data.projects.map((project) => <tr key={project.id} className="border-t border-slate-100 dark:border-slate-800"><td className="px-5 py-4 font-black">{project.title}</td><td className="px-5 py-4 text-sm text-slate-500">{project.status === "COMPLETED" ? "سابق" : "حالي"}</td><td className="px-5 py-4 font-bold">{project.feeAmount ? money(project.feeAmount, project.feeCurrency) : "غير محدد"}</td><td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${paymentStatusClass[project.paymentStatus]}`}>{paymentStatus[project.paymentStatus]}</span></td><td className="px-5 py-4 text-sm text-slate-500"><DateText value={project.paidAt} /></td></tr>)}</tbody></table></div>
             </div>
           </section>}
 
           {activeSection === "profile" && <section className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-9 dark:border-slate-700 dark:bg-slate-900">
             <p className="text-sm font-black text-[#9f7d3d]">بيانات الحساب</p><h2 className="mt-1 text-3xl font-black">الملف الشخصي</h2>
-            <dl className="mt-8 grid gap-4 sm:grid-cols-2"><div className="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800"><dt className="text-sm text-slate-500">الاسم</dt><dd className="mt-2 font-black">{data.partner.name}</dd></div><div className="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800"><dt className="text-sm text-slate-500">البريد الإلكتروني</dt><dd className="mt-2 break-all font-black">{data.partner.email}</dd></div><div className="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800"><dt className="text-sm text-slate-500">عضو منذ</dt><dd className="mt-2 font-black">{formatDate(data.partner.joinedAt)}</dd></div><div className="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800"><dt className="text-sm text-slate-500">نوع الحساب</dt><dd className="mt-2 font-black">شريك تنفيذ</dd></div></dl>
+            <dl className="mt-8 grid gap-4 sm:grid-cols-2"><div className="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800"><dt className="text-sm text-slate-500">الاسم</dt><dd className="mt-2 font-black">{data.partner.name}</dd></div><div className="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800"><dt className="text-sm text-slate-500">البريد الإلكتروني</dt><dd className="mt-2 break-all font-black">{data.partner.email}</dd></div><div className="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800"><dt className="text-sm text-slate-500">عضو منذ</dt><dd className="mt-2 font-black"><DateText value={data.partner.joinedAt} /></dd></div><div className="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800"><dt className="text-sm text-slate-500">نوع الحساب</dt><dd className="mt-2 font-black">شريك تنفيذ</dd></div></dl>
             <Link href="/partner/forgot-password" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3 font-black text-white dark:bg-[#bd9850] dark:text-slate-950">تغيير كلمة المرور <ArrowLeft size={17} /></Link>
           </section>}
         </div>

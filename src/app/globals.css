@@ -210,14 +210,22 @@
 /* Native date fields inherit RTL from Arabic pages, which reverses the
    browser's day/month/year hint. Keep the field controls LTR while labels
    and the surrounding layout remain RTL. */
-input[type="date"] {
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
   direction: ltr;
-  text-align: right;
+  text-align: left;
+  unicode-bidi: isolate;
 }
 
 input[type="date"]::-webkit-datetime-edit,
-input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="datetime-local"]::-webkit-datetime-edit,
+input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper,
+input[type="time"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit-fields-wrapper {
   direction: ltr;
+  text-align: left;
 }
 
 /* ─────────────────────────────────────────────────────────────

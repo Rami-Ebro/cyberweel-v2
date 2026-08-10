@@ -15,20 +15,16 @@ function parseDate(value: string | Date) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function isolate(value: string) {
-  return `\u2066${value}\u2069`;
-}
-
-/** Displays every date consistently as day/month/year and protects it inside RTL text. */
+/** Displays every date consistently as day/month/year. */
 export function formatDate(value: string | Date | null | undefined, fallback = "—") {
   if (!value) return fallback;
   const date = parseDate(value);
-  return date ? isolate(dateFormatter.format(date)) : fallback;
+  return date ? dateFormatter.format(date) : fallback;
 }
 
 /** Displays date and 24-hour time as day/month/year، hour:minute. */
 export function formatDateTime(value: string | Date | null | undefined, fallback = "—") {
   if (!value) return fallback;
   const date = parseDate(value);
-  return date ? isolate(`${dateFormatter.format(date)}، ${timeFormatter.format(date)}`) : fallback;
+  return date ? `${dateFormatter.format(date)}, ${timeFormatter.format(date)}` : fallback;
 }
