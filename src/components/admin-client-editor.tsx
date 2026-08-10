@@ -15,9 +15,11 @@ type Project = {
   agreementDetails: string | null; financialPlan: string | null; currency: string; stages: string | null;
   links: string[]; notes: string | null;
   dueAt: string | null; updatedAt: string;
-  files: Array<{ id: string; name: string; url: string; kind: string | null; size: number | null; storageProvider: string | null; createdAt: string }>;
+  files: Array<{ id: string; name: string; url: string; kind: string | null; size: number | null; storageProvider: string | null; source: string; submissionId: string | null; createdAt: string }>;
+  submissions: Submission[];
   invoices: Array<{ id: string; number: string; type: "STANDARD" | "RETURN"; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; createdAt: string }>;
 };
+type Submission = { id: string; projectId: string; note: string | null; links: string[]; status: string; createdAt: string; files: Project["files"] };
 type Message = { id: string; subject: string | null; body: string; fromAdmin: boolean; createdAt: string; projectId: string | null };
 type Notification = { id: string; title: string; body: string | null; section: string; readAt: string | null; createdAt: string };
 type Client = {
@@ -31,6 +33,7 @@ const projectStatuses = [
   ["COMPLETED", "مكتمل"], ["ON_HOLD", "متوقف مؤقتًا"],
 ] as const;
 const invoiceStatuses = [["DRAFT", "مسودة"], ["DUE", "مستحقة"], ["OVERDUE", "متأخرة"]] as const;
+const submissionStatuses = [["RECEIVED", "تم الاستلام"], ["REVIEWED", "تمت المراجعة"], ["APPROVED", "معتمد"], ["NEEDS_MORE_INFO", "يحتاج استكمالًا"], ["ARCHIVED", "مؤرشف"]] as const;
 
 export function AdminClientEditor({ initialSection = "overview", onPreview }: { initialSection?: Section; onPreview: (notice?: string) => void }) {
   const params = useParams<{ clientId: string }>();
@@ -185,6 +188,26 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
     }
   }
 
+  async function updateSubmission(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setSaving(true);
+    setNotice("");
+    try {
+      const response = await fetch(`/api/admin/clients/${params.clientId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "submission", submissionId: form.get("submissionId"), status: form.get("status") }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) return setNotice(result?.error || "تعذر تحديث حالة المواد");
+      await load(false);
+      setNotice("تم تحديث حالة المواد المرسلة");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function changeClientPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!client) return;
@@ -229,7 +252,10 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
 
   const projects = client?.clientProjects || [];
   const files = projects
-    .flatMap((project) => project.files.map((file) => ({ ...file, projectId: project.id, projectTitle: project.title })))
+    .flatMap((project) => project.files.filter((file) => file.source !== "CLIENT").map((file) => ({ ...file, projectId: project.id, projectTitle: project.title })))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const submissions = projects
+    .flatMap((project) => (project.submissions || []).map((submission) => ({ ...submission, projectTitle: project.title })))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const invoices = projects.flatMap((project) => project.invoices.map((invoice) => ({ ...invoice, projectId: project.id, projectTitle: project.title })));
   const sortedInvoices = [...invoices].sort((a, b) => {
@@ -304,7 +330,10 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
                   <input type="hidden" name="projectId" value={project.id} />
                   <ProjectCoreFields project={project} />
                   <ProjectLinksFields initialLinks={project.links} />
-                  <ProjectAttachmentsInput key={project.files.map((file) => file.id).join(":")} files={project.files} />
+                  <ProjectAttachmentsInput
+                    key={project.files.filter((file) => file.source !== "CLIENT").map((file) => file.id).join(":")}
+                    files={project.files.filter((file) => file.source !== "CLIENT")}
+                  />
                   <label className="grid gap-2 font-bold">
                     ملاحظات داخلية اختيارية
                     <textarea name="notes" defaultValue={project.notes || ""} placeholder="لا تظهر هذه الملاحظات للعميل" rows={3} className="field font-normal" />
@@ -340,8 +369,9 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
             </CreationPanel>
           </div>}
 
-          {!loading && client && section === "files" && <div className="mt-7 grid gap-5">
-            <ListEmpty empty={!files.length} text="لا توجد ملفات بعد.">{files.map((file) => <a key={file.id} href={file.storageProvider === "VERCEL_BLOB" ? `/api/client/files/${file.id}` : file.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></a>)}</ListEmpty>
+          {!loading && client && section === "files" && <div className="mt-7 grid gap-7">
+            <section><h2 className="text-xl font-black">تسليمات وملفات CyberWeel</h2><div className="mt-4"><ListEmpty empty={!files.length} text="لا توجد ملفات من الفريق بعد.">{files.map((file) => <a key={file.id} href={file.storageProvider === "VERCEL_BLOB" ? `/api/client/files/${file.id}` : file.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></a>)}</ListEmpty></div></section>
+            <section><h2 className="text-xl font-black">مواد أرسلها العميل</h2><div className="mt-4 grid gap-4">{submissions.map((submission) => <article key={submission.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><strong>{submission.projectTitle}</strong><p className="mt-1 text-xs text-slate-500"><DateText value={submission.createdAt} withTime /></p></div><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-xs font-black text-[#9A7D43]">{submissionStatuses.find(([value]) => value === submission.status)?.[1] || submission.status}</span></div>{submission.note && <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">{submission.note}</p>}{!!submission.links.length && <div className="mt-4 grid gap-2">{submission.links.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer" dir="ltr" className="break-all text-left text-sm font-bold text-[#9A7D43] underline">{link}</a>)}</div>}{!!submission.files.length && <div className="mt-4 grid gap-2 sm:grid-cols-2">{submission.files.map((file) => <a key={file.id} href={`/api/client/files/${file.id}`} target="_blank" rel="noreferrer" className="rounded-lg bg-[#F7F3EB] px-3 py-3 text-sm font-bold">{file.name}</a>)}</div>}<form onSubmit={updateSubmission} className="mt-5 flex flex-wrap items-end gap-3"><input type="hidden" name="submissionId" value={submission.id} /><label className="grid min-w-56 gap-2 text-sm font-bold">حالة المراجعة<select name="status" defaultValue={submission.status} className="field font-normal">{submissionStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><SaveButton saving={saving} label="حفظ الحالة" /></form></article>)}{!submissions.length && <ListEmpty empty text="لم يرسل العميل مواد بعد.">{null}</ListEmpty>}</div></section>
             <CreationPanel title="إضافة ملف أو تسليم" description="الملفات الحالية في الأعلى، والإضافة عند الحاجة فقط." open={fileFormOpen} onToggle={() => setFileFormOpen((value) => !value)}>
               <form onSubmit={(event) => void submit(event, "POST", "تمت إضافة الملف وإشعار العميل")} className="grid gap-3"><input type="hidden" name="action" value="file" /><ProjectSelect projects={projects} /><input name="name" required placeholder="اسم الملف أو التسليم" className="field" /><input name="url" type="url" required placeholder="رابط الملف https://..." className="field" /><select name="kind" className="field"><option value="DELIVERABLE">تسليم نهائي</option><option value="WORKING">ملف عمل</option><option value="REFERENCE">مرجع</option><option value="CONTRACT">اتفاق أو عقد</option><option value="OTHER">أخرى</option></select><SaveButton saving={saving} label="إضافة الملف" /></form>
             </CreationPanel>
