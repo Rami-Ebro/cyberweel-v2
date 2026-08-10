@@ -4,6 +4,7 @@ import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ReceiptText, RefreshCw } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { DateText } from "@/components/ui/date-text";
+import { DateInput } from "@/components/ui/date-input";
 
 type Project = {
   id: string;
@@ -188,7 +189,7 @@ export default function AdminInvoicesPage() {
               <label className="grid gap-2 font-bold">الحالة<select name="status" defaultValue="DUE" className="field font-normal"><option value="DRAFT">مسودة</option><option value="DUE">مستحقة</option><option value="OVERDUE">متأخرة</option><option value="CANCELLED">ملغاة</option></select></label>
               <label className="grid gap-2 font-bold">المبلغ<input name="amount" type="number" min="0.01" step="0.01" required className="field font-normal" /></label>
               <label className="grid gap-2 font-bold">العملة<select key={selectedProject?.id || "currency"} name="currency" defaultValue={selectedProject?.currency || "USD"} className="field font-normal">{["USD", "EUR", "SYP", "TRY"].map((currency) => <option key={currency}>{currency}</option>)}</select></label>
-              <label className="grid gap-2 font-bold md:col-span-2">تاريخ الاستحقاق<input name="dueAt" type="date" lang="en-GB" dir="ltr" className="field font-normal" /></label>
+              <label className="grid gap-2 font-bold md:col-span-2">تاريخ الاستحقاق<DateInput name="dueAt" className="field font-normal" /></label>
               <button disabled={saving || !selectedProject} className="rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white disabled:opacity-40 md:col-span-2">{saving ? "جارٍ الإصدار…" : "إصدار الفاتورة وإشعار العميل"}</button>
               {!clients.length && <p className="text-sm font-bold text-amber-700 md:col-span-2">لا يوجد عملاء بعد. أنشئ حساب عميل ومشروعًا أولًا.</p>}
             </form>

@@ -13,6 +13,7 @@ import {
   KeyRound,
   Link2,
   LogOut,
+  Pencil,
   RefreshCw,
   ShieldCheck,
   UserCog,
@@ -22,6 +23,7 @@ import {
 import { Logo } from "@/components/brand/logo";
 import { AdminNotificationCenter } from "@/components/admin/admin-notification-center";
 import { DateText } from "@/components/ui/date-text";
+import { DateInput } from "@/components/ui/date-input";
 
 type PartnerStatus = "PENDING" | "ACTIVE" | "SUSPENDED";
 type ReferralStatus = "NEW" | "CONTACTED" | "INTERESTED" | "AWAITING_RESPONSE" | "NOT_INTERESTED" | "CONVERTED";
@@ -316,6 +318,11 @@ export default function AdminPartnersPage() {
         partnerId: partnerId || null,
         title: form.get("title"),
         description: form.get("description"),
+        agreementDetails: form.get("agreementDetails"),
+        financialPlan: form.get("financialPlan"),
+        stages: form.get("stages"),
+        links: toList(form.get("links")),
+        notes: form.get("notes"),
         tasks: toList(form.get("tasks")),
         deliverables: toList(form.get("deliverables")),
         files: toList(form.get("files")),
@@ -819,7 +826,7 @@ export default function AdminPartnersPage() {
                     <input name="progress" type="number" min="0" max="100" defaultValue="0" className="field" />
                   </Field>
                   <Field label="موعد التسليم">
-                    <input name="dueAt" type="date" lang="en-GB" dir="ltr" className="field" />
+                    <DateInput name="dueAt" className="field" />
                   </Field>
                   <Field label="حالة المستحق">
                     <select name="paymentStatus" defaultValue="PENDING" className="field">
@@ -843,6 +850,29 @@ export default function AdminPartnersPage() {
                   <Field label="الوصف" wide>
                     <textarea name="description" rows={3} className="field" />
                   </Field>
+                  <div className="rounded-xl bg-[#F7F3EB] p-4 md:col-span-2">
+                    <p className="font-black">المعلومات الظاهرة للعميل</p>
+                    <p className="mt-1 text-sm text-slate-500">تظهر هذه التفاصيل مباشرة داخل قسم المشاريع في حساب العميل.</p>
+                  </div>
+                  <Field label="تفاصيل الاتفاق ونطاق العمل" wide>
+                    <textarea name="agreementDetails" rows={5} className="field" />
+                  </Field>
+                  <Field label="الخطة المالية" wide>
+                    <textarea name="financialPlan" rows={4} className="field" />
+                  </Field>
+                  <Field label="مراحل المشروع" wide>
+                    <textarea name="stages" rows={5} placeholder="اكتب كل مرحلة في سطر مستقل" className="field" />
+                  </Field>
+                  <Field label="روابط المشروع للعميل — رابط في كل سطر" wide>
+                    <textarea name="links" rows={4} className="field" />
+                  </Field>
+                  <Field label="ملاحظات داخلية — لا تظهر للعميل" wide>
+                    <textarea name="notes" rows={3} className="field" />
+                  </Field>
+                  <div className="rounded-xl bg-[#F7F3EB] p-4 md:col-span-2">
+                    <p className="font-black">بيانات شريك التنفيذ</p>
+                    <p className="mt-1 text-sm text-slate-500">تُستخدم عند إسناد المشروع إلى شريك، ولا تحل محل معلومات العميل أعلاه.</p>
+                  </div>
                   <Field label="المهام — مهمة في كل سطر">
                     <textarea name="tasks" rows={4} className="field" />
                   </Field>
@@ -892,6 +922,13 @@ export default function AdminPartnersPage() {
                                 : "الشريك: غير مسند"}
                             </p>
                             {project.description && <p className="mt-3">{project.description}</p>}
+                            <Link
+                              href={`/admin/clients/${project.clientId}?manage=projects`}
+                              className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[#B89A5A] px-4 py-2 text-sm font-black text-[#9A7D43] transition hover:bg-[#F7F3EB]"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              تعديل المشروع ومعلومات العميل
+                            </Link>
                           </div>
                           <div className="grid min-w-64 grid-cols-2 gap-2 text-sm">
                             <ProjectFact label="الحالة" value={project.status} />

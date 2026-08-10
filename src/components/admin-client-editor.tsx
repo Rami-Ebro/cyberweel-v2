@@ -7,6 +7,7 @@ import { upload } from "@vercel/blob/client";
 import { BarChart3, Bell, BriefcaseBusiness, ChevronDown, Eye, EyeOff, FileText, Mail, Paperclip, PauseCircle, PlayCircle, Plus, ReceiptText, RefreshCw, Trash2, UserCog, X } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { DateText } from "@/components/ui/date-text";
+import { DateInput } from "@/components/ui/date-input";
 
 type Section = "overview" | "projects" | "files" | "invoices" | "messages" | "account";
 type Project = {
@@ -471,22 +472,9 @@ function ProjectDueDateInput({ value }: { value: string | null }) {
 }
 
 function NativeDateInput({ label, ariaLabel, value = "" }: { label: string; ariaLabel: string; value?: string }) {
-  const [dateValue, setDateValue] = useState(value);
   return <label className="grid gap-2 font-bold">
     <span>{label}</span>
-    <span className="relative">
-      {!dateValue && <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-4 z-10 flex items-center text-sm font-normal text-slate-400">يوم / شهر / سنة</span>}
-      <input
-        name="dueAt"
-        type="date"
-        lang="en-GB"
-        dir="ltr"
-        value={dateValue}
-        onChange={(event) => setDateValue(event.target.value)}
-        aria-label={ariaLabel}
-        className={`field w-full font-normal ${dateValue ? "" : "[&::-webkit-datetime-edit]:text-transparent"}`}
-      />
-    </span>
+    <DateInput name="dueAt" defaultValue={value} aria-label={ariaLabel} className="field font-normal" />
   </label>;
 }
 

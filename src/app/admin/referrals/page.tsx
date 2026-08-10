@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleDollarSign, Clock3, MessageSquareText, UserRound } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { DateText } from "@/components/ui/date-text";
+import { DateInput } from "@/components/ui/date-input";
 
 type ReferralStatus = "NEW" | "CONTACTED" | "INTERESTED" | "AWAITING_RESPONSE" | "NOT_INTERESTED" | "CONVERTED";
 type ReferralDecision = "PENDING_REVIEW" | "ACCEPTED" | "REJECTED" | "CONVERTED_TO_CLIENT" | "CANCELLED";
@@ -143,8 +144,8 @@ export default function ReferralAdmin() {
           {Object.entries(sourceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
         <input name="contactMethod" placeholder="طريقة التواصل" className="rounded-xl border border-[#D8D2C4] p-3" />
-        <label className="grid gap-1 text-xs font-bold text-slate-500">من تاريخ<input type="date" name="from" lang="en-GB" dir="ltr" className="rounded-xl border border-[#D8D2C4] p-3 text-base text-slate-900" /></label>
-        <label className="grid gap-1 text-xs font-bold text-slate-500">إلى تاريخ<input type="date" name="to" lang="en-GB" dir="ltr" className="rounded-xl border border-[#D8D2C4] p-3 text-base text-slate-900" /></label>
+        <label className="grid gap-1 text-xs font-bold text-slate-500">من تاريخ<DateInput name="from" className="rounded-xl border border-[#D8D2C4] p-3 text-base text-slate-900" /></label>
+        <label className="grid gap-1 text-xs font-bold text-slate-500">إلى تاريخ<DateInput name="to" className="rounded-xl border border-[#D8D2C4] p-3 text-base text-slate-900" /></label>
         <button className="self-end rounded-xl bg-[#111827] p-3 font-bold text-white transition hover:bg-[#1F2937]">تطبيق الفلاتر</button>
       </form>
 

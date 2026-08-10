@@ -299,6 +299,7 @@ export async function PATCH(request: NextRequest) {
           financialPlan: typeof body.financialPlan === "string" ? body.financialPlan.trim() || null : null,
           currency: feeCurrency,
           stages: typeof body.stages === "string" ? body.stages.trim() || null : null,
+          links: stringList(body.links),
           notes: typeof body.notes === "string" ? body.notes.trim() || null : null,
           status: clientStatus,
           progress,
