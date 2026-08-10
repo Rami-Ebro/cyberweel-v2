@@ -24,6 +24,7 @@ export function DateText({
     <time
       dateTime={date.toISOString()}
       dir="ltr"
+      lang="en-GB"
       className={cn("inline-block whitespace-nowrap text-left tabular-nums [unicode-bidi:isolate]", className)}
     >
       {withTime ? formatDateTime(date, fallback) : formatDate(date, fallback)}

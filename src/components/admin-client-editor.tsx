@@ -479,6 +479,8 @@ function NativeDateInput({ label, ariaLabel, value = "" }: { label: string; aria
       <input
         name="dueAt"
         type="date"
+        lang="en-GB"
+        dir="ltr"
         value={dateValue}
         onChange={(event) => setDateValue(event.target.value)}
         aria-label={ariaLabel}

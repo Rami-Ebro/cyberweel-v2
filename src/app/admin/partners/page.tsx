@@ -819,7 +819,7 @@ export default function AdminPartnersPage() {
                     <input name="progress" type="number" min="0" max="100" defaultValue="0" className="field" />
                   </Field>
                   <Field label="موعد التسليم">
-                    <input name="dueAt" type="date" className="field" />
+                    <input name="dueAt" type="date" lang="en-GB" dir="ltr" className="field" />
                   </Field>
                   <Field label="حالة المستحق">
                     <select name="paymentStatus" defaultValue="PENDING" className="field">
