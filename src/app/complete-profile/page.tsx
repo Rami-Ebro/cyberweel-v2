@@ -16,7 +16,9 @@ export default function CompleteProfilePage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/profile", { cache: "no-store" })
+    const capability = new URLSearchParams(window.location.search).get("capability");
+    const query = capability ? `?capability=${encodeURIComponent(capability)}` : "";
+    fetch(`/api/profile${query}`, { cache: "no-store" })
       .then(async (response) => {
         const payload = await response.json();
         if (!response.ok) {
@@ -35,7 +37,7 @@ export default function CompleteProfilePage() {
     setSaving(true);
     setMessage("");
     try {
-      const body = Object.fromEntries(new FormData(event.currentTarget));
+      const body = { ...Object.fromEntries(new FormData(event.currentTarget)), capability: role };
       const response = await fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

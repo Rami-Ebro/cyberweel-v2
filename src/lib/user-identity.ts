@@ -8,10 +8,16 @@ export function normalizeDisplayName(value: string) {
   return value.trim().replace(/\s+/g, " ");
 }
 
-export async function findNameConflict(name: string, excludeUserId?: string) {
+type UserIdentityDb = Pick<typeof db, "user">;
+
+export async function findNameConflict(
+  name: string,
+  excludeUserId?: string,
+  client: UserIdentityDb = db,
+) {
   const normalized = normalizeDisplayName(name);
   if (normalized.length < 2) return null;
-  const rows = await db.user.findMany({
+  const rows = await client.user.findMany({
     where: {
       name: { equals: normalized, mode: "insensitive" },
       ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
@@ -22,8 +28,12 @@ export async function findNameConflict(name: string, excludeUserId?: string) {
   return rows[0] || null;
 }
 
-export async function assertNameAvailable(name: string, excludeUserId?: string) {
-  const conflict = await findNameConflict(name, excludeUserId);
+export async function assertNameAvailable(
+  name: string,
+  excludeUserId?: string,
+  client: UserIdentityDb = db,
+) {
+  const conflict = await findNameConflict(name, excludeUserId, client);
   if (conflict) {
     const error = new Error("NAME_TAKEN") as Error & { code: string };
     error.code = "NAME_TAKEN";

@@ -3,6 +3,7 @@ import type { ClientInvoiceStatus } from "@prisma/client";
 import { canAdmin } from "@/lib/admin-permissions";
 import { db } from "@/lib/db";
 import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security";
+import { clientAccessWhere } from "@/lib/user-identity";
 
 const invoiceStatuses = new Set<ClientInvoiceStatus>([
   "DRAFT",
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
   const year = new Date().getUTCFullYear();
   const [clients, invoices, sequence] = await Promise.all([
     db.user.findMany({
-      where: { role: "CLIENT" },
+      where: clientAccessWhere(),
       orderBy: { createdAt: "desc" },
       select: {
         id: true,

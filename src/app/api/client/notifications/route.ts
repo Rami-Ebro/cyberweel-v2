@@ -1,13 +1,14 @@
 import { db } from "@/lib/db";
 import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
 import { NextRequest, NextResponse } from "next/server";
+import { clientAccessWhere } from "@/lib/user-identity";
 
 export async function POST(request: NextRequest) {
   const session = readPartnerSession(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
   if (!session) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
 
   const client = await db.user.findFirst({
-    where: { id: session.userId, role: "CLIENT", isActive: true },
+    where: clientAccessWhere(session.userId),
     select: { id: true },
   });
   if (!client) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });

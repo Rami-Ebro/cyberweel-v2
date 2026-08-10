@@ -164,7 +164,7 @@ export async function PATCH(request: NextRequest) {
     if (!title) return NextResponse.json({ error: "اسم المشروع مطلوب" }, { status: 400 });
 
     const client = await db.user.findFirst({
-      where: { id: clientId, OR: [{ role: "CLIENT" }, { clientEnabled: true }] },
+      where: clientAccessWhere(clientId),
       select: { id: true },
     });
     if (!client) return NextResponse.json({ error: "العميل غير موجود" }, { status: 404 });

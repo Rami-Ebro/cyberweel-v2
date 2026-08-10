@@ -42,7 +42,6 @@ async function ensurePartnerForUser(
     specialty: string | null;
   },
   notes: string,
-  password?: string,
 ) {
   const existing = await tx.partner.findUnique({ where: { userId } });
   if (existing) {
@@ -72,13 +71,6 @@ async function ensurePartnerForUser(
     });
   }
 
-  if (password && password.length >= 10) {
-    await tx.user.update({
-      where: { id: userId },
-      data: { passwordHash: hashPassword(password) },
-    });
-  }
-
   return tx.partner.create({
     data: {
       userId,
@@ -95,7 +87,6 @@ async function ensureAmbassadorForUser(
   tx: Tx,
   userId: string,
   notes: string,
-  password?: string,
 ) {
   const existing = await tx.ambassador.findUnique({ where: { userId } });
   if (existing) {
@@ -106,13 +97,6 @@ async function ensureAmbassadorForUser(
         decisionNotes: notes || existing.decisionNotes,
         decidedAt: new Date(),
       },
-    });
-  }
-
-  if (password && password.length >= 10) {
-    await tx.user.update({
-      where: { id: userId },
-      data: { passwordHash: hashPassword(password) },
     });
   }
 
@@ -162,7 +146,7 @@ async function resolveOrCreateUser(
       (role === "PARTNER" && existing.partner) || (role === "AMBASSADOR" && existing.ambassador);
 
     if (!sameCapability) {
-      await assertNameAvailable(name, existing.id).catch(() => {
+      await assertNameAvailable(name, existing.id, tx).catch(() => {
         throw new AcceptApplicationError("NAME_TAKEN", 409);
       });
     }
@@ -172,13 +156,12 @@ async function resolveOrCreateUser(
       data: {
         name: existing.name || name,
         phone: existing.phone || phone,
-        passwordHash: password.length >= 10 ? hashPassword(password) : existing.passwordHash,
         isActive: true,
       },
     });
   }
 
-  await assertNameAvailable(name).catch(() => {
+  await assertNameAvailable(name, undefined, tx).catch(() => {
     throw new AcceptApplicationError("NAME_TAKEN", 409);
   });
 
@@ -326,7 +309,6 @@ export async function decideCollaborationApplication(
             user.id,
             application,
             notes || application.decisionNotes || "",
-            password
           );
         }
 
@@ -343,7 +325,6 @@ export async function decideCollaborationApplication(
           tx,
           user.id,
           notes || application.decisionNotes || "",
-          password
         );
       }
 
@@ -362,9 +343,9 @@ export async function decideCollaborationApplication(
     const user = await resolveOrCreateUser(tx, application, role, password);
 
     if (input.type === "PARTNER") {
-      await ensurePartnerForUser(tx, user.id, application, notes, password);
+      await ensurePartnerForUser(tx, user.id, application, notes);
     } else {
-      await ensureAmbassadorForUser(tx, user.id, notes, password);
+      await ensureAmbassadorForUser(tx, user.id, notes);
     }
 
     await markApplication(tx, application.id, "ACCEPTED", notes, input.decidedById);

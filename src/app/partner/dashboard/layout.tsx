@@ -7,9 +7,9 @@ export default async function PartnerDashboardLayout({ children }: { children: R
   if (await hasAdminPermission("partners")) {
     return children;
   }
-  if (!user?.partner || user.role !== "PARTNER" || user.partner.status !== "ACTIVE") {
+  if (!user?.partner || user.partner.status !== "ACTIVE") {
     redirect("/login");
   }
-  if (!user.partner.profileCompletedAt) redirect("/complete-profile");
+  if (!user.partner.profileCompletedAt) redirect("/complete-profile?capability=PARTNER");
   return children;
 }
