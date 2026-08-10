@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { BadgeCheck, CircleDollarSign, Clock3, MessageSquareText, UserRound } from "lucide-react";
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { BadgeCheck, ChevronDown, CircleDollarSign, Clock3, MessageSquareText, UserRound } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { DateText } from "@/components/ui/date-text";
 import { DateInput } from "@/components/ui/date-input";
@@ -82,6 +82,7 @@ export default function ReferralAdmin() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set());
 
   async function load(query = "") {
     const response = await fetch(`/api/admin/referrals?${query}`, { cache: "no-store" });
@@ -116,6 +117,11 @@ export default function ReferralAdmin() {
       const payload = await response.json();
       if (!response.ok) throw new Error(errorLabels[payload.error] || "تعذر حفظ الإحالة");
       setItems((current) => current.map((item) => item.id === referral.id ? payload.referral : item));
+      setCollapsedIds((current) => {
+        const next = new Set(current);
+        next.add(referral.id);
+        return next;
+      });
       setMessage(`تم حفظ إحالة «${referral.name || "دون اسم"}» بنجاح.`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "تعذر حفظ الإحالة");
@@ -150,7 +156,21 @@ export default function ReferralAdmin() {
       </form>
 
       <div className="mt-6 grid gap-5">
-        {items.map((referral) => <ReferralEditor key={referral.id} referral={referral} busy={busyId === referral.id} onSave={saveReferral} />)}
+        {items.map((referral) => (
+          <ReferralEditor
+            key={referral.id}
+            referral={referral}
+            busy={busyId === referral.id}
+            collapsed={collapsedIds.has(referral.id)}
+            onCollapse={() => setCollapsedIds((current) => new Set(current).add(referral.id))}
+            onExpand={() => setCollapsedIds((current) => {
+              const next = new Set(current);
+              next.delete(referral.id);
+              return next;
+            })}
+            onSave={saveReferral}
+          />
+        ))}
         {!items.length && <p className="rounded-2xl border border-dashed border-[#D8D2C4] bg-white p-10 text-center text-slate-500">لا توجد إحالات مطابقة.</p>}
       </div>
     </AdminShell>
@@ -168,7 +188,21 @@ type ReferralDraft = {
   commissionStatus: CommissionStatus;
 };
 
-function ReferralEditor({ referral, busy, onSave }: { referral: Referral; busy: boolean; onSave: (referral: Referral, values: ReferralDraft) => Promise<void> }) {
+function ReferralEditor({
+  referral,
+  busy,
+  collapsed,
+  onCollapse,
+  onExpand,
+  onSave,
+}: {
+  referral: Referral;
+  busy: boolean;
+  collapsed: boolean;
+  onCollapse: () => void;
+  onExpand: () => void;
+  onSave: (referral: Referral, values: ReferralDraft) => Promise<void>;
+}) {
   const [showConversion, setShowConversion] = useState(false);
   const [conversionBusy, setConversionBusy] = useState(false);
   const [conversionMessage, setConversionMessage] = useState("");
@@ -222,6 +256,35 @@ function ReferralEditor({ referral, busy, onSave }: { referral: Referral; busy: 
     }
   }
 
+  if (collapsed) {
+    const clientName = referral.convertedClient?.name || referral.name || referral.convertedClient?.email || "دون اسم";
+    const decision = referral.adminDecision || "PENDING_REVIEW";
+    return (
+      <article className="rounded-2xl border border-[#E2DACB] bg-white p-5 shadow-sm">
+        <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+          <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <SummaryFact label="اسم العميل" value={clientName} />
+            <SummaryFact
+              label="حالة الإحالة"
+              value={<span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusColors[referral.status]}`}>{referralLabels[referral.status]}</span>}
+            />
+            <SummaryFact label="نتيجة القرار" value={decisionLabels[decision]} />
+            <SummaryFact label="آخر تحديث" value={<DateText value={referral.updatedAt} withTime />} />
+          </div>
+          <button
+            type="button"
+            aria-expanded="false"
+            onClick={onExpand}
+            className="flex shrink-0 items-center justify-center gap-2 rounded-xl border border-[#B89A5A] bg-[#FCFAF6] px-5 py-3 font-black text-[#9A7D43] transition hover:bg-[#F7F3EB]"
+          >
+            عرض التفاصيل
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article className="overflow-hidden rounded-2xl border border-[#E2DACB] bg-white shadow-sm">
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[#EEE7DA] bg-[#FCFAF6] p-5">
@@ -232,9 +295,15 @@ function ReferralEditor({ referral, busy, onSave }: { referral: Referral; busy: 
           </div>
           <p className="mt-2 text-sm text-slate-600">{referral.email || "—"}{referral.phone ? ` · ${referral.phone}` : ""}</p>
         </div>
-        <div className="grid gap-1 text-xs text-slate-500 sm:text-left">
-          <span>{sourceLabels[referral.source || ""] || "إحالة مباشرة"} · {referral.contactMethod || "وسيلة التواصل غير محددة"}</span>
-          <span>{owner ? `عن طريق ${owner.name || owner.email}` : "دون مسوّق مرتبط"} · <DateText value={referral.createdAt} /></span>
+        <div className="flex items-start gap-3">
+          <div className="grid gap-1 text-xs text-slate-500 sm:text-left">
+            <span>{sourceLabels[referral.source || ""] || "إحالة مباشرة"} · {referral.contactMethod || "وسيلة التواصل غير محددة"}</span>
+            <span>{owner ? `عن طريق ${owner.name || owner.email}` : "دون مسوّق مرتبط"} · <DateText value={referral.createdAt} /></span>
+          </div>
+          <button type="button" aria-expanded="true" onClick={onCollapse} className="flex shrink-0 items-center gap-1 rounded-lg border border-[#D8D2C4] bg-white px-3 py-2 text-xs font-black text-slate-600 hover:bg-[#F7F3EB]">
+            طي التفاصيل
+            <ChevronDown className="h-4 w-4 rotate-180" />
+          </button>
         </div>
       </header>
 
@@ -324,6 +393,15 @@ function ReferralEditor({ referral, busy, onSave }: { referral: Referral; busy: 
 
 function SectionTitle({ icon: Icon, title, subtitle }: { icon: typeof UserRound; title: string; subtitle: string }) {
   return <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white shadow-sm"><Icon className="h-5 w-5" /></span><div><h3 className="font-black">{title}</h3><p className="mt-1 text-xs text-slate-500">{subtitle}</p></div></div>;
+}
+
+function SummaryFact({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs font-bold text-slate-500">{label}</p>
+      <div className="mt-2 truncate font-black text-[#111827]">{value}</div>
+    </div>
+  );
 }
 
 const errorLabels: Record<string, string> = {

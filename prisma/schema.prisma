@@ -247,7 +247,7 @@ model PartnerProject {
   id          String    @id @default(cuid())
   partnerId   String
   partner     Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  clientProjectId String? @unique
+  clientProjectId String?
   clientProject   ClientProject? @relation(fields: [clientProjectId], references: [id], onDelete: SetNull)
   title       String
   description String?
@@ -266,6 +266,8 @@ model PartnerProject {
   updatedAt   DateTime  @updatedAt
 
   @@index([partnerId, status])
+  @@index([clientProjectId])
+  @@unique([partnerId, clientProjectId])
 }
 
 model PartnerReferral {
@@ -330,7 +332,7 @@ model ClientProject {
   submissions ClientSubmission[]
   invoices    ClientInvoice[]
   messages    ClientMessage[]
-  partnerAssignment PartnerProject?
+  partnerAssignments PartnerProject[]
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 

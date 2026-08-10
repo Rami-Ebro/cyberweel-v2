@@ -47,6 +47,16 @@ type PartnerProject = {
   createdAt: string;
 };
 
+type ProjectPartner = {
+  assignmentId: string;
+  id: string;
+  name: string;
+  email: string;
+  feeAmount: string | null;
+  feeCurrency: string;
+  paymentStatus: PaymentStatus;
+};
+
 type ProjectListItem = Omit<PartnerProject, "files" | "updates"> & {
   agreementDetails: string | null;
   financialPlan: string | null;
@@ -58,9 +68,8 @@ type ProjectListItem = Omit<PartnerProject, "files" | "updates"> & {
   clientId: string;
   clientName: string;
   clientEmail: string;
-  partnerId: string | null;
-  partnerName: string | null;
-  partnerEmail: string | null;
+  partnerIds: string[];
+  partners: ProjectPartner[];
 };
 
 type Partner = {
@@ -307,7 +316,7 @@ export default function AdminPartnersPage() {
     event.preventDefault();
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    const partnerId = String(form.get("partnerId") || "");
+    const partnerIds = form.getAll("partnerIds").map(String).filter(Boolean);
     const clientId = String(form.get("clientId") || "");
     if (!clientId) {
       setMessage("اختر العميل صاحب المشروع.");
@@ -322,7 +331,7 @@ export default function AdminPartnersPage() {
       body: JSON.stringify({
         entity: "project",
         clientId,
-        partnerId: partnerId || null,
+        partnerIds,
         title: form.get("title"),
         description: form.get("description"),
         agreementDetails: form.get("agreementDetails"),
@@ -348,8 +357,8 @@ export default function AdminPartnersPage() {
     } else {
       formElement.reset();
       setMessage(
-        data.assignment
-          ? "تم إنشاء مشروع العميل وإسناده إلى الشريك بنجاح."
+        data.assignments?.length
+          ? `تم إنشاء مشروع العميل وإسناده إلى ${data.assignments.length} شريك بنجاح.`
           : "تم إنشاء مشروع العميل بنجاح دون إسناده إلى شريك.",
       );
       await load();
@@ -379,6 +388,7 @@ export default function AdminPartnersPage() {
           stages: form.get("stages"),
           links: toList(form.get("links")),
           notes: form.get("notes"),
+          partnerIds: form.getAll("partnerIds").map(String).filter(Boolean),
           projectStatus: form.get("projectStatus"),
           progress: Number(form.get("progress")),
           dueAt: form.get("dueAt") || null,
@@ -832,7 +842,7 @@ export default function AdminPartnersPage() {
               <section className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
                 <h2 className="text-2xl font-black">إنشاء مشروع عميل</h2>
                 <p className="mt-2 text-sm text-slate-500">
-                  اختر العميل أولًا، ويمكن إسناد المشروع إلى شريك الآن أو تركه دون شريك مؤقتًا.
+                  اختر العميل أولًا، ثم اختر شريكًا واحدًا أو عدة شركاء، أو اترك المشروع دون إسناد مؤقتًا.
                 </p>
                 <form onSubmit={createProject} className="mt-6 grid gap-4 md:grid-cols-2">
                   <Field label="العميل">
@@ -845,18 +855,7 @@ export default function AdminPartnersPage() {
                       ))}
                     </select>
                   </Field>
-                  <Field label="الشريك (اختياري)">
-                    <select name="partnerId" className="field">
-                      <option value="">بدون شريك حاليًا</option>
-                      {partners
-                        .filter((partner) => partner.status === "ACTIVE")
-                        .map((partner) => (
-                          <option key={partner.id} value={partner.id}>
-                            {partner.user.name || partner.user.email}
-                          </option>
-                        ))}
-                    </select>
-                  </Field>
+                  <PartnerMultiSelect partners={partners} />
                   <Field label="اسم المشروع">
                     <input name="title" required className="field" />
                   </Field>
@@ -918,8 +917,8 @@ export default function AdminPartnersPage() {
                     <textarea name="notes" rows={3} className="field" />
                   </Field>
                   <div className="rounded-xl bg-[#F7F3EB] p-4 md:col-span-2">
-                    <p className="font-black">بيانات شريك التنفيذ</p>
-                    <p className="mt-1 text-sm text-slate-500">تُستخدم عند إسناد المشروع إلى شريك، ولا تحل محل معلومات العميل أعلاه.</p>
+                    <p className="font-black">بيانات شركاء التنفيذ</p>
+                    <p className="mt-1 text-sm text-slate-500">عند اختيار عدة شركاء تُنشأ لكل شريك نسخة مستقلة من المهام والتسليمات والمستحق الأولي.</p>
                   </div>
                   <Field label="المهام — مهمة في كل سطر">
                     <textarea name="tasks" rows={4} className="field" />
@@ -965,9 +964,9 @@ export default function AdminPartnersPage() {
                               العميل: {project.clientName} · {project.clientEmail}
                             </p>
                             <p className="mt-1 text-sm text-slate-500">
-                              {project.partnerId
-                                ? <>الشريك: {project.partnerName} · {project.partnerEmail}</>
-                                : "الشريك: غير مسند"}
+                              {project.partners.length
+                                ? <>الشركاء: {project.partners.map((partner) => partner.name).join("، ")}</>
+                                : "الشركاء: غير مسند"}
                             </p>
                             {project.description && <p className="mt-3">{project.description}</p>}
                             <details className="mt-4 rounded-xl border border-[#D8D2C4] bg-[#F7F3EB] open:p-4">
@@ -979,9 +978,7 @@ export default function AdminPartnersPage() {
                                 <Field label="العميل">
                                   <input value={`${project.clientName} — ${project.clientEmail}`} disabled className="field bg-slate-100" />
                                 </Field>
-                                <Field label="الشريك">
-                                  <input value={project.partnerName || "غير مسند — الشريك اختياري"} disabled className="field bg-slate-100" />
-                                </Field>
+                                <PartnerMultiSelect partners={partners} selectedIds={project.partnerIds} lockSelected />
                                 <Field label="اسم المشروع">
                                   <input name="title" required defaultValue={project.title} className="field" />
                                 </Field>
@@ -1035,19 +1032,21 @@ export default function AdminPartnersPage() {
                             <ProjectFact
                               label="المستحق"
                               value={
-                                project.feeAmount
+                                project.partners.length > 1
+                                  ? "حسب كل شريك"
+                                  : project.feeAmount
                                   ? `${project.feeAmount} ${project.feeCurrency}`
                                   : "غير محدد"
                               }
                             />
-                            <ProjectFact label="الدفع" value={paymentLabel[project.paymentStatus]} />
+                            <ProjectFact label="الدفع" value={project.partners.length > 1 ? "حسب كل شريك" : paymentLabel[project.paymentStatus]} />
                             <ProjectFact
                               label="التسليم"
                               value={<DateText value={project.dueAt} fallback="غير محدد" />}
                             />
                             <ProjectFact
-                              label="المحتوى"
-                              value={`${project.tasks.length} مهام · ${project.deliverables.length} تسليمات`}
+                              label="الشركاء"
+                              value={project.partners.length ? `${project.partners.length} شريك` : "غير مسند"}
                             />
                           </div>
                         </div>
@@ -1278,6 +1277,49 @@ function Field({
       {label}
       {children}
     </label>
+  );
+}
+
+function PartnerMultiSelect({
+  partners,
+  selectedIds = [],
+  lockSelected = false,
+}: {
+  partners: Partner[];
+  selectedIds?: string[];
+  lockSelected?: boolean;
+}) {
+  const selected = new Set(selectedIds);
+  const activePartners = partners.filter((partner) => partner.status === "ACTIVE");
+  return (
+    <fieldset className="grid gap-2 md:col-span-2">
+      <legend className="font-bold">شركاء التنفيذ — اختياري ويمكن اختيار أكثر من شريك</legend>
+      <div className="grid gap-2 rounded-xl border border-[#D8D2C4] bg-white p-3 sm:grid-cols-2">
+        {activePartners.map((partner) => {
+          const alreadyAssigned = selected.has(partner.id);
+          return (
+            <label key={partner.id} className={`flex items-center gap-3 rounded-lg border p-3 ${alreadyAssigned ? "border-emerald-200 bg-emerald-50" : "border-[#E6E0D4] bg-[#FCFAF6]"}`}>
+              <input
+                type="checkbox"
+                name="partnerIds"
+                value={partner.id}
+                defaultChecked={alreadyAssigned}
+                disabled={lockSelected && alreadyAssigned}
+                className="h-4 w-4"
+              />
+              <span className="min-w-0">
+                <strong className="block truncate text-sm">{partner.user.name || partner.user.email}</strong>
+                <span className="block truncate text-xs text-slate-500">{partner.user.email}</span>
+              </span>
+            </label>
+          );
+        })}
+        {!activePartners.length && <p className="p-2 text-sm text-slate-500">لا يوجد شركاء نشطون متاحون للإسناد.</p>}
+      </div>
+      {lockSelected && selectedIds.length > 0 && (
+        <p className="text-xs text-slate-500">الشركاء المسندون حاليًا مقفلون هنا لحماية مهامهم ومستحقاتهم؛ يمكنك إضافة شركاء آخرين دون حذف الإسنادات السابقة.</p>
+      )}
+    </fieldset>
   );
 }
 
