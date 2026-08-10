@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { AdminNotificationCenter } from "@/components/admin/admin-notification-center";
-import { formatDate } from "@/lib/date-format";
+import { DateText } from "@/components/ui/date-text";
 
 type PartnerStatus = "PENDING" | "ACTIVE" | "SUSPENDED";
 type ReferralStatus = "NEW" | "CONTACTED" | "INTERESTED" | "AWAITING_RESPONSE" | "NOT_INTERESTED" | "CONVERTED";
@@ -715,7 +715,7 @@ export default function AdminPartnersPage() {
                         </div>
                         <p className="text-xs text-slate-500">
                           {application.decidedBy ? `${application.decidedBy.name || application.decidedBy.email} · ` : ""}
-                          {application.decidedAt ? formatDate(application.decidedAt) : ""}
+                          <DateText value={application.decidedAt} fallback="" />
                         </p>
                       </div>
                     ))}
@@ -903,7 +903,7 @@ export default function AdminPartnersPage() {
                             <ProjectFact label="الدفع" value={paymentLabel[project.paymentStatus]} />
                             <ProjectFact
                               label="التسليم"
-                              value={project.dueAt ? formatDate(project.dueAt) : "غير محدد"}
+                              value={<DateText value={project.dueAt} fallback="غير محدد" />}
                             />
                             <ProjectFact
                               label="المحتوى"
@@ -1055,7 +1055,7 @@ function ApplicationCard({
             {application.market ? ` · السوق: ${application.market}` : ""}
           </p>
           {application.details && <p className="mt-3 rounded-xl bg-[#F7F3EB] p-4">{application.details}</p>}
-          <p className="mt-2 text-xs text-slate-400">تاريخ الطلب: {formatDate(application.createdAt)}</p>
+          <p className="mt-2 text-xs text-slate-400">تاريخ الطلب: <DateText value={application.createdAt} /></p>
         </div>
         <div className="grid gap-3">
           <textarea
@@ -1141,7 +1141,7 @@ function Field({
   );
 }
 
-function ProjectFact({ label, value }: { label: string; value: string }) {
+function ProjectFact({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="rounded-xl bg-[#F7F3EB] p-3">
       <p className="text-xs font-bold text-slate-500">{label}</p>

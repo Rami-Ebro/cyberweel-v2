@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleDollarSign, Clock3, MessageSquareText, UserRound } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { formatDate, formatDateTime } from "@/lib/date-format";
+import { DateText } from "@/components/ui/date-text";
 
 type ReferralStatus = "NEW" | "CONTACTED" | "INTERESTED" | "AWAITING_RESPONSE" | "NOT_INTERESTED" | "CONVERTED";
 type ReferralDecision = "PENDING_REVIEW" | "ACCEPTED" | "REJECTED" | "CONVERTED_TO_CLIENT" | "CANCELLED";
@@ -233,7 +233,7 @@ function ReferralEditor({ referral, busy, onSave }: { referral: Referral; busy: 
         </div>
         <div className="grid gap-1 text-xs text-slate-500 sm:text-left">
           <span>{sourceLabels[referral.source || ""] || "إحالة مباشرة"} · {referral.contactMethod || "وسيلة التواصل غير محددة"}</span>
-          <span>{owner ? `عن طريق ${owner.name || owner.email}` : "دون مسوّق مرتبط"} · {formatDate(referral.createdAt)}</span>
+          <span>{owner ? `عن طريق ${owner.name || owner.email}` : "دون مسوّق مرتبط"} · <DateText value={referral.createdAt} /></span>
         </div>
       </header>
 
@@ -314,7 +314,7 @@ function ReferralEditor({ referral, busy, onSave }: { referral: Referral; busy: 
       </section>
 
       <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-[#EEE7DA] px-5 py-4">
-        <div className="flex items-center gap-2 text-xs text-slate-500"><Clock3 className="h-4 w-4" /><span>{referral.updatedBy ? `آخر تعديل: ${referral.updatedBy.name || referral.updatedBy.email} · ${formatDateTime(referral.updatedAt)}` : "لم يُسجّل تعديل إداري بعد"}</span></div>
+        <div className="flex items-center gap-2 text-xs text-slate-500"><Clock3 className="h-4 w-4" />{referral.updatedBy ? <span>آخر تعديل: {referral.updatedBy.name || referral.updatedBy.email} · <DateText value={referral.updatedAt} withTime /></span> : <span>لم يُسجّل تعديل إداري بعد</span>}</div>
         <button disabled={busy} onClick={() => void onSave(referral, draft)} className="rounded-xl bg-[#111827] px-6 py-3 font-black text-white transition hover:bg-[#1F2937] disabled:cursor-wait disabled:opacity-50">{busy ? "جارٍ الحفظ..." : "حفظ التغييرات"}</button>
       </footer>
     </article>

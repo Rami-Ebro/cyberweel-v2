@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BarChart3, Bell, BriefcaseBusiness, FileText, Home, LogOut, Mail, Pencil, ReceiptText, RefreshCw, Send, UserCog } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
-import { formatDate, formatDateTime } from "@/lib/date-format";
+import { DateText } from "@/components/ui/date-text";
 
 type Section = "overview" | "projects" | "files" | "invoices" | "messages" | "account";
 type Client = { id: string; name: string | null; email: string; createdAt: string };
@@ -231,7 +231,7 @@ export function ClientDashboard({
                           {!notification.readAt && <span className="h-2 w-2 shrink-0 rounded-full bg-red-600" />}
                         </span>
                         <time dateTime={notification.createdAt} dir="ltr" className="shrink-0 text-xs text-slate-500">
-                          {formatDate(notification.createdAt)}
+                          <DateText value={notification.createdAt} />
                         </time>
                       </div>
                       {notification.body && <p className="mt-1 text-xs leading-5 text-slate-500">{notification.body}</p>}
@@ -286,14 +286,14 @@ export function ClientDashboard({
                 <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A]" style={{ width: `${Math.max(0, Math.min(100, project.progress))}%` }} /></div>
                 <div className="mt-3 flex flex-wrap justify-between gap-3 text-sm text-slate-500">
                   <span>الإنجاز: {project.progress}%</span>
-                  <span>آخر تحديث: {formatDate(project.updatedAt)}</span>
+                  <span>آخر تحديث: <DateText value={project.updatedAt} /></span>
                 </div>
 
                 <div className="mt-6 grid gap-3 md:grid-cols-2">
                   <ProjectDetail title="تفاصيل الاتفاق ونطاق العمل" value={project.agreementDetails} />
                   <ProjectDetail title={`الخطة المالية — ${project.currency || "USD"}`} value={project.financialPlan} />
                   <ProjectDetail title="مراحل المشروع" value={project.stages} />
-                  <ProjectDetail title="موعد التسليم" value={project.dueAt ? formatDate(project.dueAt) : null} />
+                  <ProjectDetail title="موعد التسليم" value={<DateText value={project.dueAt} fallback="لم تُضف معلومات بعد." />} />
                 </div>
 
                 {!!project.links?.length && (
@@ -311,7 +311,7 @@ export function ClientDashboard({
 
           {!loading && section === "files" && <section className="mt-7"><div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الملفات والتسليمات</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("files")} />}</div><div className="mt-5 grid gap-3">{files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="flex flex-col justify-between gap-3 rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm sm:flex-row sm:items-center"><div><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></div><span className="text-sm font-bold text-[#9A7D43]">فتح الملف</span></a>)}{!files.length && <Empty text="لا توجد ملفات أو تسليمات بعد." />}</div></section>}
 
-          {!loading && section === "invoices" && <section className="mt-7"><div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الفواتير</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("invoices")} />}</div><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[820px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">رقم الفاتورة</th><th className="p-4">النوع</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-4 font-bold">{invoice.number}</td><td className="p-4">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</td><td className="p-4">{invoice.projectTitle}</td><td className="p-4">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{invoiceLabel[invoice.status] || invoice.status}</td><td className="p-4">{invoice.dueAt ? formatDate(invoice.dueAt) : "—"}</td></tr>)}</tbody></table>{!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}</div></section>}
+          {!loading && section === "invoices" && <section className="mt-7"><div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الفواتير</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("invoices")} />}</div><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[820px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">رقم الفاتورة</th><th className="p-4">النوع</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-4 font-bold">{invoice.number}</td><td className="p-4">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</td><td className="p-4">{invoice.projectTitle}</td><td className="p-4">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{invoiceLabel[invoice.status] || invoice.status}</td><td className="p-4"><DateText value={invoice.dueAt} /></td></tr>)}</tbody></table>{!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}</div></section>}
 
           {!loading && section === "messages" && <section className="mt-7">
             <h2 className="text-2xl font-black">الرسائل والتحديثات</h2>
@@ -330,7 +330,7 @@ export function ClientDashboard({
                 <button disabled={sendingMessage} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50">{sendingMessage ? "جارٍ الإرسال..." : "إرسال الرسالة"}</button>
               </div>
             </form>
-            <div className="mt-5 grid gap-3">{messages.map((message) => <article key={message.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex items-center justify-between gap-3"><strong>{message.subject || (message.fromAdmin ? "تحديث من فريق CyberWeel" : isAdminMirror ? "رسالة العميل" : "رسالتك")}</strong><span className="text-xs text-slate-500">{formatDateTime(message.createdAt)}</span></div><span className={`mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-bold ${message.fromAdmin ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>{message.fromAdmin ? (isAdminMirror ? "أنت" : "فريق CyberWeel") : (isAdminMirror ? "العميل" : "أنت")}</span><p className="mt-3 whitespace-pre-wrap leading-7 text-slate-600">{message.body}</p></article>)}{!messages.length && <Empty text="لا توجد رسائل بعد." />}</div>
+            <div className="mt-5 grid gap-3">{messages.map((message) => <article key={message.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex items-center justify-between gap-3"><strong>{message.subject || (message.fromAdmin ? "تحديث من فريق CyberWeel" : isAdminMirror ? "رسالة العميل" : "رسالتك")}</strong><span className="text-xs text-slate-500"><DateText value={message.createdAt} withTime /></span></div><span className={`mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-bold ${message.fromAdmin ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>{message.fromAdmin ? (isAdminMirror ? "أنت" : "فريق CyberWeel") : (isAdminMirror ? "العميل" : "أنت")}</span><p className="mt-3 whitespace-pre-wrap leading-7 text-slate-600">{message.body}</p></article>)}{!messages.length && <Empty text="لا توجد رسائل بعد." />}</div>
           </section>}
 
           {!loading && section === "account" && <section className="mt-7 max-w-2xl rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الحساب</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("account")} />}</div><p className="mt-2 text-sm text-slate-500">بيانات حسابك للعرض فقط. لتعديلها تواصل مع فريق CyberWeel.</p><div className="mt-7 grid gap-4"><div className="rounded-xl bg-[#F7F3EB] p-4"><p className="text-xs font-bold text-slate-500">الاسم</p><p className="mt-1 font-black">{client?.name || "—"}</p></div><div className="rounded-xl bg-[#F7F3EB] p-4"><p className="text-xs font-bold text-slate-500">البريد الإلكتروني</p><p dir="ltr" className="mt-1 w-fit font-bold">{client?.email}</p></div></div></section>}
@@ -352,11 +352,11 @@ function Empty({ text }: { text: string }) {
   return <div className="rounded-2xl border border-dashed border-[#D8D2C4] bg-white p-10 text-center text-slate-500">{text}</div>;
 }
 
-function ProjectDetail({ title, value }: { title: string; value: string | null }) {
+function ProjectDetail({ title, value }: { title: string; value: ReactNode }) {
   return (
     <div className="rounded-xl bg-[#F7F3EB] p-4">
       <p className="text-xs font-black text-slate-500">{title}</p>
-      <p className="mt-2 whitespace-pre-wrap leading-7">{value || "لم تُضف معلومات بعد."}</p>
+      <p className="mt-2 whitespace-pre-wrap leading-7">{value ?? "لم تُضف معلومات بعد."}</p>
     </div>
   );
 }

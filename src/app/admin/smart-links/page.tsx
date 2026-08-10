@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { requireAdminPermission } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
-import { formatDate } from "@/lib/date-format";
+import { DateText } from "@/components/ui/date-text";
 import { toggleSmartLink } from "./actions";
 import { DeleteSmartLinkButton } from "./delete-smart-link-button";
 import { QrCodeActions } from "./qr-code-actions";
@@ -128,7 +128,7 @@ export default async function SmartLinksAdminPage() {
                           {smartLink._count.scans.toLocaleString("ar")}
                         </TableCell>
                         <TableCell className="whitespace-nowrap align-top text-sm text-muted-foreground">
-                          {formatDate(smartLink.createdAt)}
+                          <DateText value={smartLink.createdAt} />
                         </TableCell>
                         <TableCell className="align-top text-left">
                           <div className="flex min-w-max flex-wrap justify-end gap-2">
