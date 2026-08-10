@@ -37,6 +37,19 @@ function parseProjectLinks(value: unknown) {
   };
 }
 
+function stringList(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
+    : [];
+}
+
+function partnerIdsFromBody(body: unknown, legacyId = "") {
+  const record = body && typeof body === "object" ? body as Record<string, unknown> : {};
+  const ids = stringList(record.partnerIds);
+  const legacyPartnerId = typeof record.partnerId === "string" ? record.partnerId.trim() : legacyId;
+  return [...new Set(ids.length ? ids : legacyPartnerId ? [legacyPartnerId] : [])];
+}
+
 export async function GET(request: NextRequest) {
   const scope = request.nextUrl.searchParams.get("scope");
   const canView = await Promise.all([
@@ -125,7 +138,8 @@ export async function GET(request: NextRequest) {
             dueAt: true,
             createdAt: true,
             client: { select: { id: true, name: true, email: true } },
-            partnerAssignment: {
+            partnerAssignments: {
+              orderBy: { createdAt: "asc" },
               select: {
                 id: true,
                 status: true,
@@ -150,7 +164,8 @@ export async function GET(request: NextRequest) {
   ]);
 
   const projects = clientProjects.map((project) => {
-    const assignment = project.partnerAssignment;
+    const assignments = project.partnerAssignments;
+    const assignment = assignments[0];
     return {
       id: project.id,
       title: project.title,
@@ -162,21 +177,28 @@ export async function GET(request: NextRequest) {
       notes: project.notes,
       clientStatus: project.status,
       projectCurrency: project.currency,
-      status: assignment?.status || project.status,
-      progress: assignment?.progress ?? project.progress,
-      tasks: assignment?.tasks || [],
-      deliverables: assignment?.deliverables || [],
+      status: project.status,
+      progress: project.progress,
+      tasks: [...new Set(assignments.flatMap((item) => item.tasks))],
+      deliverables: [...new Set(assignments.flatMap((item) => item.deliverables))],
       feeAmount: assignment?.feeAmount || null,
       feeCurrency: assignment?.feeCurrency || project.currency,
       paymentStatus: assignment?.paymentStatus || "PENDING",
-      dueAt: assignment?.dueAt || project.dueAt,
+      dueAt: project.dueAt,
       createdAt: project.createdAt,
       clientId: project.client.id,
       clientName: project.client.name || project.client.email,
       clientEmail: project.client.email,
-      partnerId: assignment?.partner.id || null,
-      partnerName: assignment?.partner.user.name || assignment?.partner.user.email || null,
-      partnerEmail: assignment?.partner.user.email || null,
+      partnerIds: assignments.map((item) => item.partner.id),
+      partners: assignments.map((item) => ({
+        assignmentId: item.id,
+        id: item.partner.id,
+        name: item.partner.user.name || item.partner.user.email,
+        email: item.partner.user.email,
+        feeAmount: item.feeAmount,
+        feeCurrency: item.feeCurrency,
+        paymentStatus: item.paymentStatus,
+      })),
     };
   });
 
@@ -290,9 +312,19 @@ export async function PATCH(request: NextRequest) {
 
     const existing = await db.clientProject.findUnique({
       where: { id: projectId },
-      select: { id: true, clientId: true, partnerAssignment: { select: { id: true } } },
+      select: { id: true, clientId: true, partnerAssignments: { select: { id: true, partnerId: true } } },
     });
     if (!existing) return NextResponse.json({ error: "المشروع غير موجود" }, { status: 404 });
+
+    const requestedPartnerIds = partnerIdsFromBody(body);
+    const existingPartnerIds = new Set(existing.partnerAssignments.map((assignment) => assignment.partnerId));
+    const newPartnerIds = requestedPartnerIds.filter((partnerId) => !existingPartnerIds.has(partnerId));
+    if (newPartnerIds.length) {
+      const activePartners = await db.partner.count({ where: { id: { in: newPartnerIds }, status: "ACTIVE" } });
+      if (activePartners !== newPartnerIds.length) {
+        return NextResponse.json({ error: "أحد الشركاء المحددين غير موجود أو غير نشط" }, { status: 404 });
+      }
+    }
 
     const updated = await db.$transaction(async (tx) => {
       const clientProject = await tx.clientProject.update({
@@ -312,14 +344,29 @@ export async function PATCH(request: NextRequest) {
         },
       });
 
-      if (existing.partnerAssignment) {
-        await tx.partnerProject.update({
-          where: { id: existing.partnerAssignment.id },
+      if (existing.partnerAssignments.length) {
+        await tx.partnerProject.updateMany({
+          where: { clientProjectId: existing.id },
           data: {
             title,
             description: clientProject.description,
             status: projectStatus === "PLANNING" ? "ASSIGNED" : projectStatus,
             progress,
+            dueAt,
+          },
+        });
+      }
+
+      for (const partnerId of newPartnerIds) {
+        await tx.partnerProject.create({
+          data: {
+            partnerId,
+            clientProjectId: existing.id,
+            title,
+            description: clientProject.description,
+            status: projectStatus === "PLANNING" ? "ASSIGNED" : projectStatus,
+            progress,
+            feeCurrency: currency,
             dueAt,
           },
         });
@@ -336,7 +383,7 @@ export async function PATCH(request: NextRequest) {
       return clientProject;
     });
 
-    return NextResponse.json({ project: updated });
+    return NextResponse.json({ project: updated, assignmentsAdded: newPartnerIds.length });
   }
 
   if (body?.entity === "project") {
@@ -345,7 +392,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const clientId = typeof body?.clientId === "string" ? body.clientId.trim() : "";
-    const partnerId = typeof body?.partnerId === "string" ? body.partnerId.trim() : id;
+    const partnerIds = partnerIdsFromBody(body, id);
     const title = typeof body?.title === "string" ? body.title.trim() : "";
     if (!clientId) return NextResponse.json({ error: "العميل مطلوب" }, { status: 400 });
     if (!title) return NextResponse.json({ error: "اسم المشروع مطلوب" }, { status: 400 });
@@ -402,18 +449,15 @@ export async function PATCH(request: NextRequest) {
               ? "COMPLETED"
               : "ON_HOLD";
 
-    const stringList = (value: unknown) =>
-      Array.isArray(value)
-        ? value.filter((x: unknown): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean)
-        : [];
-
-    let partner = null as { id: string } | null;
-    if (partnerId) {
-      partner = await db.partner.findFirst({
-        where: { id: partnerId, status: "ACTIVE" },
+    let activePartners: Array<{ id: string }> = [];
+    if (partnerIds.length) {
+      activePartners = await db.partner.findMany({
+        where: { id: { in: partnerIds }, status: "ACTIVE" },
         select: { id: true },
       });
-      if (!partner) return NextResponse.json({ error: "الشريك غير موجود أو غير نشط" }, { status: 404 });
+      if (activePartners.length !== partnerIds.length) {
+        return NextResponse.json({ error: "أحد الشركاء المحددين غير موجود أو غير نشط" }, { status: 404 });
+      }
     }
 
     const created = await db.$transaction(async (tx) => {
@@ -434,8 +478,8 @@ export async function PATCH(request: NextRequest) {
         },
       });
 
-      const partnerProject = partner
-        ? await tx.partnerProject.create({
+      const partnerProjects = await Promise.all(activePartners.map((partner) =>
+        tx.partnerProject.create({
             data: {
               partnerId: partner.id,
               clientProjectId: clientProject.id,
@@ -453,8 +497,8 @@ export async function PATCH(request: NextRequest) {
               paidAt: paymentStatus === "PAID" ? new Date() : null,
               dueAt,
             },
-          })
-        : null;
+          }),
+      ));
 
       await tx.clientNotification.create({
         data: {
@@ -465,10 +509,10 @@ export async function PATCH(request: NextRequest) {
         },
       });
 
-      return { clientProject, partnerProject };
+      return { clientProject, partnerProjects };
     });
 
-    return NextResponse.json({ project: created.clientProject, assignment: created.partnerProject }, { status: 201 });
+    return NextResponse.json({ project: created.clientProject, assignments: created.partnerProjects }, { status: 201 });
   }
 
   if (entity === "referral") {
