@@ -327,6 +327,7 @@ model ClientProject {
   startsAt    DateTime?
   dueAt       DateTime?
   files       ClientFile[]
+  submissions ClientSubmission[]
   invoices    ClientInvoice[]
   messages    ClientMessage[]
   partnerAssignment PartnerProject?
@@ -341,14 +342,34 @@ model ClientFile {
   id        String        @id @default(cuid())
   projectId String
   project   ClientProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  submissionId String?
+  submission ClientSubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   name      String
   url       String
   kind      String?
   size      Int?
   storageProvider String?
+  source    String        @default("ADMIN")
   createdAt DateTime      @default(now())
 
   @@index([projectId])
+  @@index([submissionId])
+  @@index([source])
+}
+
+model ClientSubmission {
+  id        String        @id @default(cuid())
+  projectId String
+  project   ClientProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  note      String?
+  links     String[]      @default([])
+  status    String        @default("UPLOADING")
+  files     ClientFile[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([projectId, createdAt])
+  @@index([status])
 }
 
 model ClientInvoice {

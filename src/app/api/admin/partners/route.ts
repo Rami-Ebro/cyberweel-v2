@@ -8,6 +8,34 @@ import {
   decideCollaborationApplication,
 } from "@/lib/accept-collaboration";
 import { clientAccessWhere } from "@/lib/user-identity";
+import type { ClientProjectStatus } from "@prisma/client";
+
+function normalizeProjectLink(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed.replace(/^\/+/, "")}`;
+  try {
+    const url = new URL(candidate);
+    if (!["http:", "https:"].includes(url.protocol) || !url.hostname || !url.hostname.includes(".")) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function parseProjectLinks(value: unknown) {
+  const raw = Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : typeof value === "string"
+      ? value.split(/\r?\n/)
+      : [];
+  const values = raw.map((item) => item.trim()).filter(Boolean);
+  const parsed = values.map((original) => ({ original, normalized: normalizeProjectLink(original) }));
+  return {
+    links: [...new Set(parsed.flatMap((item) => item.normalized ? [item.normalized] : []))],
+    invalid: parsed.filter((item) => !item.normalized).map((item) => item.original),
+  };
+}
 
 export async function GET(request: NextRequest) {
   const scope = request.nextUrl.searchParams.get("scope");
@@ -86,6 +114,11 @@ export async function GET(request: NextRequest) {
             id: true,
             title: true,
             description: true,
+            agreementDetails: true,
+            financialPlan: true,
+            stages: true,
+            links: true,
+            notes: true,
             status: true,
             progress: true,
             currency: true,
@@ -122,6 +155,13 @@ export async function GET(request: NextRequest) {
       id: project.id,
       title: project.title,
       description: project.description,
+      agreementDetails: project.agreementDetails,
+      financialPlan: project.financialPlan,
+      stages: project.stages,
+      links: project.links,
+      notes: project.notes,
+      clientStatus: project.status,
+      projectCurrency: project.currency,
       status: assignment?.status || project.status,
       progress: assignment?.progress ?? project.progress,
       tasks: assignment?.tasks || [],
@@ -210,6 +250,93 @@ export async function PATCH(request: NextRequest) {
       }
       throw error;
     }
+  }
+
+  if (body?.entity === "project_update") {
+    if (!(await canAdmin(request, "projects"))) {
+      return NextResponse.json({ error: "لا تملك صلاحية إدارة المشاريع" }, { status: 403 });
+    }
+
+    const projectId = typeof body?.projectId === "string" ? body.projectId.trim() : id;
+    const title = typeof body?.title === "string" ? body.title.trim() : "";
+    if (!projectId) return NextResponse.json({ error: "المشروع مطلوب" }, { status: 400 });
+    if (!title) return NextResponse.json({ error: "اسم المشروع مطلوب" }, { status: 400 });
+
+    const allowedStatuses = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD"] as const;
+    const projectStatus = typeof body?.projectStatus === "string" && (allowedStatuses as readonly string[]).includes(body.projectStatus)
+      ? (body.projectStatus as ClientProjectStatus)
+      : null;
+    if (!projectStatus) return NextResponse.json({ error: "حالة المشروع غير صالحة" }, { status: 400 });
+
+    const progress = Number(body?.progress);
+    if (!Number.isInteger(progress) || progress < 0 || progress > 100) {
+      return NextResponse.json({ error: "نسبة التقدم يجب أن تكون بين 0 و100" }, { status: 400 });
+    }
+
+    const currency = typeof body?.currency === "string" ? body.currency.trim().toUpperCase() : "";
+    if (!/^[A-Z]{3}$/.test(currency)) {
+      return NextResponse.json({ error: "رمز العملة غير صالح" }, { status: 400 });
+    }
+
+    const dueAt = body?.dueAt ? new Date(body.dueAt) : null;
+    if (dueAt && Number.isNaN(dueAt.getTime())) {
+      return NextResponse.json({ error: "موعد التسليم غير صالح" }, { status: 400 });
+    }
+
+    const parsedLinks = parseProjectLinks(body?.links);
+    if (parsedLinks.invalid.length) {
+      return NextResponse.json({ error: `الرابط غير صالح: ${parsedLinks.invalid[0]}` }, { status: 400 });
+    }
+
+    const existing = await db.clientProject.findUnique({
+      where: { id: projectId },
+      select: { id: true, clientId: true, partnerAssignment: { select: { id: true } } },
+    });
+    if (!existing) return NextResponse.json({ error: "المشروع غير موجود" }, { status: 404 });
+
+    const updated = await db.$transaction(async (tx) => {
+      const clientProject = await tx.clientProject.update({
+        where: { id: existing.id },
+        data: {
+          title,
+          description: typeof body?.description === "string" ? body.description.trim() || null : null,
+          agreementDetails: typeof body?.agreementDetails === "string" ? body.agreementDetails.trim() || null : null,
+          financialPlan: typeof body?.financialPlan === "string" ? body.financialPlan.trim() || null : null,
+          currency,
+          stages: typeof body?.stages === "string" ? body.stages.trim() || null : null,
+          links: parsedLinks.links,
+          notes: typeof body?.notes === "string" ? body.notes.trim() || null : null,
+          status: projectStatus,
+          progress,
+          dueAt,
+        },
+      });
+
+      if (existing.partnerAssignment) {
+        await tx.partnerProject.update({
+          where: { id: existing.partnerAssignment.id },
+          data: {
+            title,
+            description: clientProject.description,
+            status: projectStatus === "PLANNING" ? "ASSIGNED" : projectStatus,
+            progress,
+            dueAt,
+          },
+        });
+      }
+
+      await tx.clientNotification.create({
+        data: {
+          clientId: existing.clientId,
+          title: "تم تحديث المشروع",
+          body: `${title} — الإنجاز ${progress}%`,
+          section: "projects",
+        },
+      });
+      return clientProject;
+    });
+
+    return NextResponse.json({ project: updated });
   }
 
   if (body?.entity === "project") {
