@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   const wantProjects = !scope || scope === "all" || scope === "projects";
   const wantReferrals = !scope || scope === "all" || scope === "overview" || scope === "projects";
 
-  const [partners, referrals, applications, overviewStats, clients] = await Promise.all([
+  const [partners, referrals, applications, overviewStats, clients, clientProjects] = await Promise.all([
     canView[1] && wantPartners
       ? db.partner.findMany({
           orderBy: { createdAt: "desc" },
@@ -79,7 +79,66 @@ export async function GET(request: NextRequest) {
           select: { id: true, name: true, email: true, company: true },
         })
       : [],
+    canView[3] && wantProjects
+      ? db.clientProject.findMany({
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            status: true,
+            progress: true,
+            currency: true,
+            dueAt: true,
+            createdAt: true,
+            client: { select: { id: true, name: true, email: true } },
+            partnerAssignment: {
+              select: {
+                id: true,
+                status: true,
+                progress: true,
+                tasks: true,
+                deliverables: true,
+                feeAmount: true,
+                feeCurrency: true,
+                paymentStatus: true,
+                dueAt: true,
+                partner: {
+                  select: {
+                    id: true,
+                    user: { select: { name: true, email: true } },
+                  },
+                },
+              },
+            },
+          },
+        })
+      : [],
   ]);
+
+  const projects = clientProjects.map((project) => {
+    const assignment = project.partnerAssignment;
+    return {
+      id: project.id,
+      title: project.title,
+      description: project.description,
+      status: assignment?.status || project.status,
+      progress: assignment?.progress ?? project.progress,
+      tasks: assignment?.tasks || [],
+      deliverables: assignment?.deliverables || [],
+      feeAmount: assignment?.feeAmount || null,
+      feeCurrency: assignment?.feeCurrency || project.currency,
+      paymentStatus: assignment?.paymentStatus || "PENDING",
+      dueAt: assignment?.dueAt || project.dueAt,
+      createdAt: project.createdAt,
+      clientId: project.client.id,
+      clientName: project.client.name || project.client.email,
+      clientEmail: project.client.email,
+      partnerId: assignment?.partner.id || null,
+      partnerName: assignment?.partner.user.name || assignment?.partner.user.email || null,
+      partnerEmail: assignment?.partner.user.email || null,
+    };
+  });
 
   const stats = {
     clients: overviewStats[0],
@@ -95,6 +154,7 @@ export async function GET(request: NextRequest) {
     applications,
     referrals,
     clients,
+    projects,
     stats,
     access: { overview: canView[0], partners: canView[1], referrals: canView[2], projects: canView[3] },
   });
