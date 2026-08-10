@@ -76,6 +76,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
           orderBy: { updatedAt: "desc" },
           include: {
             files: { orderBy: { createdAt: "desc" } },
+            submissions: {
+              where: { status: { not: "UPLOADING" } },
+              orderBy: { createdAt: "desc" },
+              include: { files: { orderBy: { createdAt: "asc" } } },
+            },
             invoices: { orderBy: { createdAt: "desc" } },
           },
         },
@@ -258,6 +263,28 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     });
     await notify(clientId, "تم تحديث المشروع", `${updated.title} — الإنجاز ${updated.progress}%`, "projects");
     return NextResponse.json({ project: updated });
+  }
+
+  if (action === "submission") {
+    const submissionId = typeof body?.submissionId === "string" ? body.submissionId : "";
+    const allowedStatuses = ["RECEIVED", "REVIEWED", "APPROVED", "NEEDS_MORE_INFO", "ARCHIVED"];
+    const submissionStatus = typeof body?.status === "string" ? body.status : "";
+    if (!allowedStatuses.includes(submissionStatus)) return NextResponse.json({ error: "حالة المراجعة غير صالحة" }, { status: 400 });
+    const submission = await db.clientSubmission.findFirst({
+      where: { id: submissionId, project: { clientId }, status: { not: "UPLOADING" } },
+      include: { project: { select: { title: true } } },
+    });
+    if (!submission) return NextResponse.json({ error: "الإرسال غير موجود" }, { status: 404 });
+    const updated = await db.clientSubmission.update({ where: { id: submission.id }, data: { status: submissionStatus } });
+    if (submissionStatus === "APPROVED" || submissionStatus === "NEEDS_MORE_INFO") {
+      await notify(
+        clientId,
+        submissionStatus === "APPROVED" ? "تم اعتماد المواد المرسلة" : "نحتاج استكمال مواد المشروع",
+        submission.project.title,
+        "files",
+      );
+    }
+    return NextResponse.json({ submission: updated });
   }
 
   return NextResponse.json({ error: "الإجراء غير معروف" }, { status: 400 });
