@@ -48,6 +48,13 @@ type PartnerProject = {
 };
 
 type ProjectListItem = Omit<PartnerProject, "files" | "updates"> & {
+  agreementDetails: string | null;
+  financialPlan: string | null;
+  stages: string | null;
+  links: string[];
+  notes: string | null;
+  clientStatus: "PLANNING" | "IN_PROGRESS" | "REVIEW" | "COMPLETED" | "ON_HOLD";
+  projectCurrency: string;
   clientId: string;
   clientName: string;
   clientEmail: string;
@@ -349,6 +356,47 @@ export default function AdminPartnersPage() {
       selectSection("projects");
     }
     setUpdatingId(null);
+  }
+
+  async function updateProject(event: FormEvent<HTMLFormElement>, projectId: string) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setUpdatingId(projectId);
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/partners", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entity: "project_update",
+          id: projectId,
+          projectId,
+          title: form.get("title"),
+          description: form.get("description"),
+          agreementDetails: form.get("agreementDetails"),
+          financialPlan: form.get("financialPlan"),
+          currency: form.get("currency"),
+          stages: form.get("stages"),
+          links: toList(form.get("links")),
+          notes: form.get("notes"),
+          projectStatus: form.get("projectStatus"),
+          progress: Number(form.get("progress")),
+          dueAt: form.get("dueAt") || null,
+        }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        setMessage(data?.error || "تعذر تحديث المشروع");
+        return;
+      }
+      setMessage("تم تحديث المشروع وإشعار العميل بنجاح.");
+      await load();
+      selectSection("projects");
+    } catch {
+      setMessage("تعذر الاتصال بالخادم. لم يُحفظ التعديل.");
+    } finally {
+      setUpdatingId(null);
+    }
   }
 
   async function saveAccount(event: FormEvent<HTMLFormElement>) {
@@ -922,13 +970,64 @@ export default function AdminPartnersPage() {
                                 : "الشريك: غير مسند"}
                             </p>
                             {project.description && <p className="mt-3">{project.description}</p>}
-                            <Link
-                              href={`/admin/clients/${project.clientId}?manage=projects`}
-                              className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[#B89A5A] px-4 py-2 text-sm font-black text-[#9A7D43] transition hover:bg-[#F7F3EB]"
-                            >
-                              <Pencil className="h-4 w-4" />
-                              تعديل المشروع ومعلومات العميل
-                            </Link>
+                            <details className="mt-4 rounded-xl border border-[#D8D2C4] bg-[#F7F3EB] open:p-4">
+                              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-4 py-2 text-sm font-black text-[#9A7D43]">
+                                <Pencil className="h-4 w-4" />
+                                تعديل المشروع هنا
+                              </summary>
+                              <form onSubmit={(event) => updateProject(event, project.id)} className="mt-4 grid gap-4 md:grid-cols-2">
+                                <Field label="العميل">
+                                  <input value={`${project.clientName} — ${project.clientEmail}`} disabled className="field bg-slate-100" />
+                                </Field>
+                                <Field label="الشريك">
+                                  <input value={project.partnerName || "غير مسند — الشريك اختياري"} disabled className="field bg-slate-100" />
+                                </Field>
+                                <Field label="اسم المشروع">
+                                  <input name="title" required defaultValue={project.title} className="field" />
+                                </Field>
+                                <Field label="الحالة">
+                                  <select name="projectStatus" defaultValue={project.clientStatus} className="field">
+                                    <option value="PLANNING">التخطيط</option>
+                                    <option value="IN_PROGRESS">قيد التنفيذ</option>
+                                    <option value="REVIEW">قيد المراجعة</option>
+                                    <option value="COMPLETED">مكتمل</option>
+                                    <option value="ON_HOLD">متوقف مؤقتًا</option>
+                                  </select>
+                                </Field>
+                                <Field label="نسبة التقدم">
+                                  <input name="progress" type="number" min="0" max="100" required defaultValue={project.progress} className="field" />
+                                </Field>
+                                <Field label="موعد التسليم">
+                                  <DateInput name="dueAt" defaultValue={project.dueAt?.slice(0, 10) || ""} className="field" />
+                                </Field>
+                                <Field label="العملة">
+                                  <select name="currency" defaultValue={project.projectCurrency || "USD"} className="field">
+                                    {["USD", "EUR", "SYP", "TRY"].map((currency) => <option key={currency}>{currency}</option>)}
+                                  </select>
+                                </Field>
+                                <Field label="الوصف" wide>
+                                  <textarea name="description" rows={3} defaultValue={project.description || ""} className="field" />
+                                </Field>
+                                <Field label="تفاصيل الاتفاق ونطاق العمل" wide>
+                                  <textarea name="agreementDetails" rows={4} defaultValue={project.agreementDetails || ""} className="field" />
+                                </Field>
+                                <Field label="الخطة المالية" wide>
+                                  <textarea name="financialPlan" rows={3} defaultValue={project.financialPlan || ""} className="field" />
+                                </Field>
+                                <Field label="مراحل المشروع" wide>
+                                  <textarea name="stages" rows={4} defaultValue={project.stages || ""} className="field" />
+                                </Field>
+                                <Field label="روابط المشروع — رابط في كل سطر" wide>
+                                  <textarea name="links" rows={3} dir="ltr" defaultValue={project.links.join("\n")} className="field text-left" />
+                                </Field>
+                                <Field label="ملاحظات داخلية — لا تظهر للعميل" wide>
+                                  <textarea name="notes" rows={3} defaultValue={project.notes || ""} className="field" />
+                                </Field>
+                                <button disabled={updatingId === project.id} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50 md:col-span-2">
+                                  {updatingId === project.id ? "جارٍ الحفظ..." : "حفظ تعديلات المشروع"}
+                                </button>
+                              </form>
+                            </details>
                           </div>
                           <div className="grid min-w-64 grid-cols-2 gap-2 text-sm">
                             <ProjectFact label="الحالة" value={project.status} />
