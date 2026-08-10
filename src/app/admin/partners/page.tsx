@@ -45,6 +45,15 @@ type PartnerProject = {
   createdAt: string;
 };
 
+type ProjectListItem = Omit<PartnerProject, "files" | "updates"> & {
+  clientId: string;
+  clientName: string;
+  clientEmail: string;
+  partnerId: string | null;
+  partnerName: string | null;
+  partnerEmail: string | null;
+};
+
 type Partner = {
   id: string;
   status: PartnerStatus;
@@ -142,6 +151,7 @@ export default function AdminPartnersPage() {
   const [section, setSection] = useState<Section>("overview");
   const [partners, setPartners] = useState<Partner[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -201,6 +211,7 @@ export default function AdminPartnersPage() {
       } else {
         setPartners(dashboard.partners || []);
         setClients(dashboard.clients || []);
+        setProjects(dashboard.projects || []);
         setApplications(dashboard.applications || []);
         setReferrals(dashboard.referrals || []);
         setStats(dashboard.stats || null);
@@ -369,18 +380,6 @@ export default function AdminPartnersPage() {
   }
 
   const latestReferrals = useMemo(() => referrals.slice(0, 8), [referrals]);
-  const projects = useMemo(
-    () =>
-      partners.flatMap((partner) =>
-        partner.assignments.map((project) => ({
-          ...project,
-          partnerId: partner.id,
-          partnerName: partner.user.name || partner.user.email,
-          partnerEmail: partner.user.email,
-        })),
-      ),
-    [partners],
-  );
   const pendingApplications = useMemo(
     () => applications.filter((application) => application.status === "PENDING"),
     [applications],
@@ -868,9 +867,9 @@ export default function AdminPartnersPage() {
               <section className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-2xl font-black">المشاريع المسندة فعليًا</h2>
+                    <h2 className="text-2xl font-black">جميع مشاريع العملاء</h2>
                     <p className="mt-1 text-sm text-slate-500">
-                      هذه القائمة مصدرها مهام الشركاء، وليست الإحالات المحوّلة.
+                      تشمل المشاريع المسندة لشريك والمشاريع التي لم تُسند بعد.
                     </p>
                   </div>
                   <span className="rounded-xl bg-[#F7F3EB] px-4 py-2 font-bold">
@@ -885,7 +884,12 @@ export default function AdminPartnersPage() {
                           <div>
                             <h3 className="text-lg font-black">{project.title}</h3>
                             <p className="mt-1 text-sm text-slate-500">
-                              الشريك: {project.partnerName} · {project.partnerEmail}
+                              العميل: {project.clientName} · {project.clientEmail}
+                            </p>
+                            <p className="mt-1 text-sm text-slate-500">
+                              {project.partnerId
+                                ? <>الشريك: {project.partnerName} · {project.partnerEmail}</>
+                                : "الشريك: غير مسند"}
                             </p>
                             {project.description && <p className="mt-3">{project.description}</p>}
                           </div>
@@ -915,7 +919,7 @@ export default function AdminPartnersPage() {
                     ))
                   ) : (
                     <p className="rounded-xl bg-[#F7F3EB] p-5 text-slate-500">
-                      لا توجد مشاريع مسندة بعد.
+                      لا توجد مشاريع عملاء بعد.
                     </p>
                   )}
                 </div>
