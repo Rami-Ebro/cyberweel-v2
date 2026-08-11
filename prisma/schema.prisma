@@ -176,6 +176,11 @@ model Partner {
   experience     String?
   availability   String?
   portfolioUrl   String?
+  contactMethod  String?
+  workTypes      String?
+  clientAcquisition String?
+  payoutMethods  String?
+  adminNotes     String?
   decisionNotes  String?
   decidedAt      DateTime?
   assignments    PartnerProject[]

@@ -5,6 +5,7 @@ import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
+  ArrowLeft,
   CheckCircle2,
   ChevronDown,
   Eye,
@@ -75,9 +76,12 @@ type ProjectListItem = Omit<PartnerProject, "files" | "updates"> & {
 
 type Partner = {
   id: string;
+  applicationId: string | null;
   status: PartnerStatus;
+  profileCompletedAt: string | null;
+  specialty: string | null;
   createdAt: string;
-  user: { name: string | null; email: string; phone: string | null };
+  user: { name: string | null; email: string; phone: string | null; isActive: boolean };
   assignments: PartnerProject[];
 };
 
@@ -132,11 +136,12 @@ type Admin = {
 type Section = "overview" | "partners" | "projects" | "account";
 type DecisionResult = { ok: boolean; message: string };
 
-const partnerLabel: Record<PartnerStatus, string> = {
-  ACTIVE: "نشط",
-  PENDING: "بانتظار الموافقة",
-  SUSPENDED: "معلّق",
-};
+function partnerOperationalStatus(partner: Partner) {
+  if (partner.status === "SUSPENDED" || !partner.user.isActive) return { label: "موقوف", className: "bg-rose-100 text-rose-800" };
+  if (partner.status === "PENDING") return { label: "قيد المراجعة", className: "bg-amber-100 text-amber-800" };
+  if (!partner.profileCompletedAt) return { label: "غير مكتمل البيانات", className: "bg-sky-100 text-sky-800" };
+  return { label: "فعال", className: "bg-emerald-100 text-emerald-800" };
+}
 
 const referralLabel: Record<ReferralStatus, string> = {
   NEW: "جديد",
@@ -247,43 +252,6 @@ export default function AdminPartnersPage() {
     void Promise.resolve().then(() => load());
   }, []);
 
-  async function changePartnerStatus(id: string, status: PartnerStatus) {
-    setUpdatingId(id);
-    const response = await fetch("/api/admin/partners", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status, entity: "partner" }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      setMessage(data.error || "تعذر تحديث حالة الشريك");
-    } else {
-      setPartners((items) => items.map((item) => (item.id === id ? { ...item, status } : item)));
-      setMessage(`تم تحديث حالة الشريك إلى ${partnerLabel[status]}`);
-    }
-    setUpdatingId(null);
-  }
-
-  async function savePartnerAccount(event: FormEvent<HTMLFormElement>, partnerId: string) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    setUpdatingId(partnerId);
-    setMessage("");
-    try {
-      const response = await fetch("/api/admin/partners", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entity: "account", id: partnerId, name: form.get("name"), email: form.get("email"), phone: form.get("phone") }),
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) return setMessage(data?.error || "تعذر تعديل بيانات الشريك");
-      setMessage("تم تعديل بيانات الشريك بنجاح");
-      await load();
-    } finally {
-      setUpdatingId(null);
-    }
-  }
-
   async function decideApplication(
     id: string,
     status: "ACCEPTED" | "REJECTED",
@@ -329,6 +297,31 @@ export default function AdminPartnersPage() {
       const errorMessage = "تعذر الاتصال بالخادم. لم يُحفظ القرار، حاول مرة أخرى.";
       setMessage(errorMessage);
       return { ok: false, message: errorMessage };
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function updateApplicationReview(id: string, reviewState: "NEW" | "IN_REVIEW" | "NEEDS_INFO") {
+    setUpdatingId(id);
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/partners", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity: "application_review", id, reviewState }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        setMessage(data?.error || "تعذر تحديث حالة مراجعة الطلب");
+        return false;
+      }
+      setApplications((items) => items.map((item) => item.id === id ? { ...item, reviewState } : item));
+      setMessage(reviewState === "IN_REVIEW" ? "تم نقل الطلب إلى قيد المراجعة" : reviewState === "NEEDS_INFO" ? "تم تعليم الطلب بأنه يحتاج معلومات إضافية" : "تمت إعادة الطلب إلى حالة جديد");
+      return true;
+    } catch {
+      setMessage("تعذر الاتصال بالخادم. لم تتغير حالة الطلب.");
+      return false;
     } finally {
       setUpdatingId(null);
     }
@@ -771,6 +764,7 @@ export default function AdminPartnersPage() {
                         application={application}
                         busy={updatingId === application.id}
                         decide={decideApplication}
+                        updateReview={updateApplicationReview}
                       />
                     ))
                   ) : (
@@ -800,71 +794,68 @@ export default function AdminPartnersPage() {
                           <p className="mt-1 text-sm text-slate-500">{application.email}</p>
                           {application.decisionNotes && <p className="mt-2 text-sm">ملاحظات الإدارة: {application.decisionNotes}</p>}
                         </div>
-                        <p className="text-xs text-slate-500">
-                          {application.decidedBy ? `${application.decidedBy.name || application.decidedBy.email} · ` : ""}
-                          <DateText value={application.decidedAt} fallback="" />
-                        </p>
+                        <div className="grid justify-items-end gap-2">
+                          <p className="text-xs text-slate-500">
+                            {application.decidedBy ? `${application.decidedBy.name || application.decidedBy.email} · ` : ""}
+                            <DateText value={application.decidedAt} fallback="" />
+                          </p>
+                          {partners.find((partner) => partner.applicationId === application.id) && (
+                            <Link href={`/admin/partners/${partners.find((partner) => partner.applicationId === application.id)!.id}`} className="inline-flex items-center gap-2 rounded-lg border border-[#111827] bg-white px-3 py-2 text-xs font-black">
+                              فتح ملف الشريك <ArrowLeft className="h-4 w-4" />
+                            </Link>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
                 </details>
               )}
 
-              <section className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-black">حسابات الشركاء</h2>
-                  <span className="rounded-xl bg-[#F7F3EB] px-4 py-2 font-bold">
-                    {partners.length} شريك
-                  </span>
+              <section className="overflow-hidden rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3 p-6">
+                  <div>
+                    <h2 className="text-2xl font-black">قائمة الشركاء</h2>
+                    <p className="mt-1 text-sm text-slate-500">افتح ملف الشريك لإدارة بياناته وحالته والمشاريع المسندة إليه.</p>
+                  </div>
+                  <span className="rounded-xl bg-[#F7F3EB] px-4 py-2 font-bold">{partners.length} شريك</span>
                 </div>
-                <div className="mt-6 grid gap-4">
-                  {partners.map((partner) => (
-                    <article key={partner.id} className="rounded-2xl border border-[#D8D2C4] p-5">
-                      <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
-                        <div>
-                          <h3 className="font-black">{partner.user.name || "دون اسم"}</h3>
-                          <p className="mt-1 text-sm text-slate-500">{partner.user.email}{partner.user.phone ? ` · ${partner.user.phone}` : ""}</p>
-                          <p className="mt-2 text-sm">
-                            {partner.assignments.length} مشروع مسند · {partnerLabel[partner.status]}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Link
-                            href={`/partner/dashboard?adminPreview=${partner.id}`}
-                            className="rounded-lg border border-[#111827] px-4 py-2 text-sm font-black"
-                          >
-                            معاينة اللوحة
-                          </Link>
-                          {(["ACTIVE", "PENDING", "SUSPENDED"] as PartnerStatus[]).map((status) => (
-                            <button
-                              key={status}
-                              disabled={updatingId === partner.id || partner.status === status}
-                              onClick={() => changePartnerStatus(partner.id, status)}
-                              className={`rounded-lg px-4 py-2 text-sm font-black text-white disabled:opacity-40 ${
-                                status === "ACTIVE"
-                                  ? "bg-emerald-600"
-                                  : status === "PENDING"
-                                    ? "bg-amber-500"
-                                    : "bg-red-600"
-                              }`}
-                            >
-                              {status === "ACTIVE" ? "تفعيل" : status === "PENDING" ? "انتظار" : "تعليق"}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <details className="mt-4 rounded-xl border border-[#D8D2C4] bg-[#F7F3EB]">
-                        <summary className="flex cursor-pointer list-none items-center gap-2 p-4 font-black text-[#9A7D43]"><Pencil className="h-4 w-4" />تعديل بيانات الشريك</summary>
-                        <form onSubmit={(event) => void savePartnerAccount(event, partner.id)} className="grid gap-3 border-t border-[#D8D2C4] p-4 md:grid-cols-3">
-                          <Field label="الاسم"><input name="name" required minLength={2} defaultValue={partner.user.name || ""} className="field" /></Field>
-                          <Field label="البريد الإلكتروني"><input name="email" type="email" required defaultValue={partner.user.email} className="field" /></Field>
-                          <Field label="رقم الهاتف"><input name="phone" defaultValue={partner.user.phone || ""} className="field" /></Field>
-                          <button disabled={updatingId === partner.id} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50 md:col-span-3">{updatingId === partner.id ? "جارٍ الحفظ..." : "حفظ بيانات الشريك"}</button>
-                        </form>
-                      </details>
-                    </article>
-                  ))}
-                </div>
+                {partners.length ? (
+                  <div className="overflow-x-auto border-t border-[#E6E0D4]">
+                    <table className="w-full min-w-[980px] text-right">
+                      <thead className="bg-[#F7F3EB] text-sm text-slate-500">
+                        <tr>
+                          <th className="px-5 py-4">اسم الشريك</th>
+                          <th className="px-5 py-4">البريد الإلكتروني</th>
+                          <th className="px-5 py-4">رقم التواصل</th>
+                          <th className="px-5 py-4">نوع الشريك</th>
+                          <th className="px-5 py-4">تاريخ التسجيل</th>
+                          <th className="px-5 py-4">الحالة</th>
+                          <th className="px-5 py-4">المشاريع</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {partners.map((partner) => {
+                          const operationalStatus = partnerOperationalStatus(partner);
+                          return (
+                            <tr key={partner.id} className="border-t border-[#E6E0D4] transition hover:bg-[#FCFAF6]">
+                              <td className="px-5 py-4">
+                                <Link href={`/admin/partners/${partner.id}`} className="inline-flex items-center gap-2 font-black text-[#8A6E38] hover:underline">
+                                  {partner.user.name || "دون اسم"}<ArrowLeft className="h-4 w-4" />
+                                </Link>
+                              </td>
+                              <td className="px-5 py-4 text-sm" dir="ltr">{partner.user.email}</td>
+                              <td className="px-5 py-4 text-sm" dir="ltr">{partner.user.phone || "غير محدد"}</td>
+                              <td className="px-5 py-4 text-sm">شريك تنفيذ</td>
+                              <td className="px-5 py-4 text-sm"><DateText value={partner.createdAt} /></td>
+                              <td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${operationalStatus.className}`}>{operationalStatus.label}</span></td>
+                              <td className="px-5 py-4 text-sm font-bold">{partner.assignments.length}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : <p className="border-t border-[#E6E0D4] p-8 text-center text-slate-500">لا توجد حسابات شركاء حالية.</p>}
               </section>
             </div>
           )}
@@ -1182,6 +1173,7 @@ function ApplicationCard({
   application,
   busy,
   decide,
+  updateReview,
 }: {
   application: Application;
   busy: boolean;
@@ -1191,12 +1183,20 @@ function ApplicationCard({
     notes: string,
     password: string,
   ) => Promise<DecisionResult>;
+  updateReview: (id: string, reviewState: "NEW" | "IN_REVIEW" | "NEEDS_INFO") => Promise<boolean>;
 }) {
   const [notes, setNotes] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [pendingAction, setPendingAction] = useState<"ACCEPTED" | "REJECTED" | null>(null);
   const [decisionMessage, setDecisionMessage] = useState<DecisionResult | null>(null);
+  const [open, setOpen] = useState(false);
+
+  async function startReview(reviewState: "IN_REVIEW" | "NEEDS_INFO") {
+    if (busy || pendingAction) return;
+    const ok = await updateReview(application.id, reviewState);
+    if (ok) setOpen(true);
+  }
 
   async function acceptApplication() {
     if (busy || pendingAction) return;
@@ -1242,8 +1242,13 @@ function ApplicationCard({
           {application.details && <p className="mt-3 rounded-xl bg-[#F7F3EB] p-4">{application.details}</p>}
           <p className="mt-2 text-xs text-slate-400">تاريخ الطلب: <DateText value={application.createdAt} /></p>
         </div>
-        <details className="group rounded-xl border border-[#D8D2C4] bg-[#F7F3EB]">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 font-black text-[#9A7D43]">مراجعة الطلب واتخاذ القرار<ChevronDown className="h-5 w-5 transition group-open:rotate-180" /></summary>
+        <div className="grid content-start gap-3">
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" disabled={busy} onClick={() => void startReview("IN_REVIEW")} className="rounded-xl bg-[#111827] px-3 py-2 text-sm font-black text-white disabled:opacity-40">مراجعة الطلب</button>
+            <button type="button" disabled={busy} onClick={() => void startReview("NEEDS_INFO")} className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-black text-amber-800 disabled:opacity-40">يحتاج معلومات</button>
+          </div>
+          <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)} className="group rounded-xl border border-[#D8D2C4] bg-[#F7F3EB]">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 font-black text-[#9A7D43]">فتح الطلب واتخاذ القرار<ChevronDown className="h-5 w-5 transition group-open:rotate-180" /></summary>
         <div className="grid gap-3 border-t border-[#D8D2C4] p-4">
           <textarea
             value={notes}
@@ -1306,7 +1311,8 @@ function ApplicationCard({
             </p>
           )}
         </div>
-        </details>
+          </details>
+        </div>
       </div>
     </article>
   );
