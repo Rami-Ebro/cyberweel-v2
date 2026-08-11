@@ -1,4 +1,4 @@
-import { Activity, Link2, MousePointerClick, Power } from "lucide-react";
+import { Activity, ChevronDown, Link2, MousePointerClick, Power } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,12 +47,15 @@ export default async function SmartLinksAdminPage() {
         </section>
 
         <Card className="mt-8">
-          <CardHeader className="border-b">
-            <CardTitle className="font-display text-2xl text-ink">إنشاء رابط جديد</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <details className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+            <CardHeader><CardTitle className="font-display text-2xl text-ink">إنشاء رابط جديد</CardTitle></CardHeader>
+            <ChevronDown className="ml-6 size-5 transition group-open:rotate-180" />
+          </summary>
+          <CardContent className="border-t pt-6">
             <CreateSmartLinkForm />
           </CardContent>
+          </details>
         </Card>
 
         <Card className="mt-8 overflow-hidden">
