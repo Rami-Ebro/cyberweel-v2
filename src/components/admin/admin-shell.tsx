@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { type ReactNode } from "react";
 import {
   BarChart3, CheckCircle2, FolderKanban, Home, Link2, LogOut,
-  ReceiptText, ShieldCheck, UserCog, UserRound, UsersRound,
+  ReceiptText, ShieldCheck, UserCog, UserRound, UsersRound, History,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { AdminNotificationCenter } from "@/components/admin/admin-notification-center";
 
-export type AdminNavKey = "overview" | "clients" | "projects" | "invoices" | "referrals" | "partners" | "ambassadors" | "account" | "team" | "smart-links";
+export type AdminNavKey = "overview" | "clients" | "projects" | "invoices" | "referrals" | "partners" | "ambassadors" | "account" | "team" | "smart-links" | "audit-log";
 
 const items: Array<{ key: AdminNavKey; label: string; href: string; icon: typeof BarChart3 }> = [
   { key: "overview", label: "نظرة عامة", href: "/admin/partners?section=overview", icon: BarChart3 },
@@ -22,6 +22,7 @@ const items: Array<{ key: AdminNavKey; label: string; href: string; icon: typeof
   { key: "ambassadors", label: "السفراء", href: "/admin/ambassadors", icon: UsersRound },
   { key: "account", label: "حساب الإدارة", href: "/admin/partners?section=account", icon: UserCog },
   { key: "team", label: "إدارة الفريق والصلاحيات", href: "/admin/team", icon: ShieldCheck },
+  { key: "audit-log", label: "سجل النشاطات", href: "/admin/audit-log", icon: History },
   { key: "smart-links", label: "الروابط الذكية", href: "/admin/smart-links", icon: Link2 },
 ];
 

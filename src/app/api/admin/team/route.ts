@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { ADMIN_PERMISSIONS, currentAdminAccess } from "@/lib/admin-permissions";
 import { hashPassword, normalizeEmail, normalizePhone } from "@/lib/partner-auth";
 import { AdminUserProfileError, validatedAdminUserProfile } from "@/lib/admin-user-profile";
+import { writeAdminAudit } from "@/lib/admin-audit";
 
 async function requireOwner(request: NextRequest) {
   const access = await currentAdminAccess(request);
@@ -37,7 +38,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!(await requireOwner(request))) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
+  const owner = await requireOwner(request);
+  if (!owner) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
@@ -57,8 +59,7 @@ export async function POST(request: NextRequest) {
   const exists = await db.user.findFirst({ where: { OR: [{ email }, ...(phone ? [{ phone }] : [])] }, select: { id: true } });
   if (exists) return NextResponse.json({ error: "البريد أو رقم واتساب مستخدم مسبقًا" }, { status: 409 });
 
-  const member = await db.user.create({
-    data: {
+  const member = await db.$transaction(async (tx) => { const created = await tx.user.create({ data: {
       name,
       email,
       phone,
@@ -66,8 +67,7 @@ export async function POST(request: NextRequest) {
       role: "ADMIN",
       adminProfile: { create: { isOwner: false, isActive: true, permissions } },
     },
-    select: { id: true, name: true, email: true, phone: true, adminProfile: true },
-  });
+    select: { id: true, name: true, email: true, phone: true, adminProfile: true } }); await writeAdminAudit(tx, { actorId: owner.userId, action: "ADMIN_MEMBER_CREATED", category: "POSITIVE", entityType: "ADMIN_USER", entityId: created.id, entityLabel: created.name || created.email, after: { name: created.name, email: created.email, phone: created.phone, permissions } }); return created; });
 
   return NextResponse.json({ member }, { status: 201 });
 }
@@ -82,7 +82,7 @@ export async function PATCH(request: NextRequest) {
 
   const target = await db.user.findFirst({
     where: { id: userId, role: "ADMIN" },
-    select: { id: true, name: true, email: true, phone: true, adminProfile: { select: { isOwner: true } } },
+    select: { id: true, name: true, email: true, phone: true, adminProfile: { select: { isOwner: true, isActive: true, permissions: true } } },
   });
   if (!target) return NextResponse.json({ error: "حساب الإدارة غير موجود" }, { status: 404 });
   if (target.adminProfile?.isOwner) {
@@ -105,9 +105,7 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
-  const updated = await db.user.update({
-    where: { id: userId },
-    data: {
+  const updated = await db.$transaction(async (tx) => { const member = await tx.user.update({ where: { id: userId }, data: {
       ...(profile || {}),
       ...(password ? { passwordHash: hashPassword(password) } : {}),
       adminProfile: {
@@ -120,8 +118,10 @@ export async function PATCH(request: NextRequest) {
         },
       },
     },
-    select: { id: true, name: true, email: true, phone: true, adminProfile: true },
-  });
+    select: { id: true, name: true, email: true, phone: true, adminProfile: true } });
+    const removedPermissions = (target.adminProfile?.permissions || []).filter((permission) => !(permissions || target.adminProfile?.permissions || []).includes(permission));
+    const sensitive = isActive === false || removedPermissions.length > 0;
+    await writeAdminAudit(tx, { actorId: owner.userId, action: removedPermissions.length ? "ADMIN_PERMISSIONS_UPDATED" : isActive === false ? "ADMIN_ACCOUNT_SUSPENDED" : isActive === true ? "ADMIN_ACCOUNT_ACTIVATED" : "ADMIN_PROFILE_UPDATED", category: sensitive ? "SENSITIVE" : isActive === true ? "POSITIVE" : "NORMAL", entityType: "ADMIN_USER", entityId: userId, entityLabel: member.name || member.email, before: { name: target.name, email: target.email, phone: target.phone, isActive: target.adminProfile?.isActive, permissions: target.adminProfile?.permissions }, after: { name: member.name, email: member.email, phone: member.phone, isActive: member.adminProfile?.isActive, permissions: member.adminProfile?.permissions } }); return member; });
 
   return NextResponse.json({ member: updated });
 }

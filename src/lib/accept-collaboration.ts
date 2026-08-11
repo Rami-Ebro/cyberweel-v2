@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { hashPassword, normalizeEmail, normalizePhone } from "@/lib/partner-auth";
 import { assertNameAvailable, normalizeDisplayName, NAME_TAKEN_MESSAGE } from "@/lib/user-identity";
 import type { ApplicationType, Prisma } from "@prisma/client";
+import { writeAdminAudit } from "@/lib/admin-audit";
 
 export class AcceptApplicationError extends Error {
   code: string;
@@ -39,7 +40,20 @@ async function ensurePartnerForUser(
   application: {
     id: string;
     name: string;
+    phone: string | null;
     specialty: string | null;
+    countryRegion: string | null;
+    partnerType: string | null;
+    workAreas: string[];
+    supportServices: string[];
+    experienceLevel: string | null;
+    experienceYears: number | null;
+    availabilityType: string | null;
+    weeklyHours: number | null;
+    cooperationTypes: string[];
+    shortBio: string | null;
+    paymentMethods: string[];
+    otherPaymentMethod: string | null;
   },
   notes: string,
 ) {
@@ -51,6 +65,20 @@ async function ensurePartnerForUser(
         status: "ACTIVE",
         applicationId: existing.applicationId || application.id,
         specialty: existing.specialty || application.specialty,
+        phone: existing.phone || application.phone,
+        countryRegion: existing.countryRegion || application.countryRegion,
+        partnerType: existing.partnerType || application.partnerType,
+        workAreas: existing.workAreas.length ? existing.workAreas : application.workAreas,
+        supportServices: existing.supportServices.length ? existing.supportServices : application.supportServices,
+        experienceLevel: existing.experienceLevel || application.experienceLevel,
+        experienceYears: existing.experienceYears ?? application.experienceYears,
+        availabilityType: existing.availabilityType || application.availabilityType,
+        weeklyHours: existing.weeklyHours ?? application.weeklyHours,
+        cooperationTypes: existing.cooperationTypes.length ? existing.cooperationTypes : application.cooperationTypes,
+        shortBio: existing.shortBio || application.shortBio,
+        paymentMethods: existing.paymentMethods.length ? existing.paymentMethods : application.paymentMethods,
+        otherPaymentMethod: existing.otherPaymentMethod || application.otherPaymentMethod,
+        profileCompletedAt: existing.profileCompletedAt || (application.partnerType ? new Date() : null),
         decisionNotes: notes || existing.decisionNotes,
         decidedAt: new Date(),
       },
@@ -65,6 +93,20 @@ async function ensurePartnerForUser(
         userId,
         status: "ACTIVE",
         specialty: linked.specialty || application.specialty,
+        phone: linked.phone || application.phone,
+        countryRegion: linked.countryRegion || application.countryRegion,
+        partnerType: linked.partnerType || application.partnerType,
+        workAreas: linked.workAreas.length ? linked.workAreas : application.workAreas,
+        supportServices: linked.supportServices.length ? linked.supportServices : application.supportServices,
+        experienceLevel: linked.experienceLevel || application.experienceLevel,
+        experienceYears: linked.experienceYears ?? application.experienceYears,
+        availabilityType: linked.availabilityType || application.availabilityType,
+        weeklyHours: linked.weeklyHours ?? application.weeklyHours,
+        cooperationTypes: linked.cooperationTypes.length ? linked.cooperationTypes : application.cooperationTypes,
+        shortBio: linked.shortBio || application.shortBio,
+        paymentMethods: linked.paymentMethods.length ? linked.paymentMethods : application.paymentMethods,
+        otherPaymentMethod: linked.otherPaymentMethod || application.otherPaymentMethod,
+        profileCompletedAt: linked.profileCompletedAt || (application.partnerType ? new Date() : null),
         decisionNotes: notes || linked.decisionNotes,
         decidedAt: new Date(),
       },
@@ -77,6 +119,21 @@ async function ensurePartnerForUser(
       applicationId: application.id,
       status: "ACTIVE",
       specialty: application.specialty,
+      phone: application.phone,
+      countryRegion: application.countryRegion,
+      partnerType: application.partnerType,
+      workAreas: application.workAreas,
+      supportServices: application.supportServices,
+      experienceLevel: application.experienceLevel,
+      experienceYears: application.experienceYears,
+      availabilityType: application.availabilityType,
+      weeklyHours: application.weeklyHours,
+      cooperationTypes: application.cooperationTypes,
+      shortBio: application.shortBio,
+      paymentMethods: application.paymentMethods,
+      otherPaymentMethod: application.otherPaymentMethod,
+      payoutMethods: application.paymentMethods.join("، ") || null,
+      profileCompletedAt: application.partnerType ? new Date() : null,
       decisionNotes: notes || null,
       decidedAt: new Date(),
     },
@@ -266,6 +323,7 @@ export async function decideCollaborationApplication(
                 : "AMBASSADOR_REJECTED",
           },
         });
+        if (input.type === "PARTNER") await writeAdminAudit(tx, { actorId: input.decidedById, action: "PARTNER_APPLICATION_REJECTED", category: "SENSITIVE", entityType: "PARTNER_APPLICATION", entityId: application.id, entityLabel: application.name, before: { status: application.status, reviewState: application.reviewState }, after: { status: "REJECTED", reviewState: "REJECTED", notes } });
 
         return {
           ok: true,
@@ -342,8 +400,10 @@ export async function decideCollaborationApplication(
     const role = input.type === "PARTNER" ? "PARTNER" : "AMBASSADOR";
     const user = await resolveOrCreateUser(tx, application, role, password);
 
+    let partnerId: string | null = null;
     if (input.type === "PARTNER") {
-      await ensurePartnerForUser(tx, user.id, application, notes);
+      const partner = await ensurePartnerForUser(tx, user.id, application, notes);
+      partnerId = partner.id;
     } else {
       await ensureAmbassadorForUser(tx, user.id, notes);
     }
@@ -358,6 +418,10 @@ export async function decideCollaborationApplication(
         kind: input.type === "PARTNER" ? "PARTNER_ACCEPTED" : "AMBASSADOR_ACCEPTED",
       },
     });
+    if (input.type === "PARTNER") {
+      await writeAdminAudit(tx, { actorId: input.decidedById, action: "PARTNER_APPLICATION_ACCEPTED", category: "POSITIVE", entityType: "PARTNER_APPLICATION", entityId: application.id, entityLabel: application.name, before: { status: application.status, reviewState: application.reviewState }, after: { status: "ACCEPTED", reviewState: "ACCEPTED" } });
+      await writeAdminAudit(tx, { actorId: input.decidedById, action: "PARTNER_ACCOUNT_ACTIVATED", category: "POSITIVE", entityType: "PARTNER", entityId: partnerId, entityLabel: application.name, before: { active: false }, after: { active: true, status: "ACTIVE" } });
+    }
 
     return {
       ok: true as const,

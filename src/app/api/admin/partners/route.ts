@@ -10,6 +10,7 @@ import {
 import { clientAccessWhere } from "@/lib/user-identity";
 import type { ClientProjectStatus } from "@prisma/client";
 import { AdminUserProfileError, validatedAdminUserProfile } from "@/lib/admin-user-profile";
+import { writeAdminAudit } from "@/lib/admin-audit";
 
 function normalizeProjectLink(value: string) {
   const trimmed = value.trim();
@@ -86,6 +87,7 @@ export async function GET(request: NextRequest) {
               status: true,
               reviewState: true,
               decisionNotes: true,
+              decidedAt: true,
               createdAt: true,
             },
           },
@@ -124,7 +126,23 @@ export async function GET(request: NextRequest) {
     ]);
 
     if (!partner) return NextResponse.json({ error: "الشريك غير موجود" }, { status: 404 });
-    return NextResponse.json({ partner, projectOptions });
+    const statusHistory = await db.adminAuditLog.findMany({
+      where: { OR: [{ entityType: "PARTNER", entityId: partner.id }, ...(partner.application?.id ? [{ entityType: "PARTNER_APPLICATION", entityId: partner.application.id }] : [])] },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, action: true, createdAt: true, actor: { select: { name: true, email: true } } },
+    });
+    const journey = [...statusHistory];
+    if (partner.application && !journey.some((event) => event.action === "PARTNER_APPLICATION_SUBMITTED")) {
+      journey.push({ id: `legacy-submitted-${partner.application.id}`, action: "PARTNER_APPLICATION_SUBMITTED", createdAt: partner.application.createdAt, actor: null });
+    }
+    if (partner.application?.status === "ACCEPTED" && partner.application.decidedAt && !journey.some((event) => event.action === "PARTNER_APPLICATION_ACCEPTED")) {
+      journey.push({ id: `legacy-accepted-${partner.application.id}`, action: "PARTNER_APPLICATION_ACCEPTED", createdAt: partner.application.decidedAt, actor: null });
+    }
+    if (!journey.some((event) => event.action === (partner.status === "SUSPENDED" ? "PARTNER_ACCOUNT_SUSPENDED" : "PARTNER_ACCOUNT_ACTIVATED"))) {
+      journey.push({ id: `legacy-status-${partner.id}`, action: partner.status === "SUSPENDED" ? "PARTNER_ACCOUNT_SUSPENDED" : partner.status === "ACTIVE" ? "PARTNER_ACCOUNT_ACTIVATED" : "PARTNER_REVIEW_STARTED", createdAt: partner.updatedAt, actor: null });
+    }
+    journey.sort((first, second) => first.createdAt.getTime() - second.createdAt.getTime());
+    return NextResponse.json({ partner: { ...partner, statusHistory: journey }, projectOptions });
   }
 
   const wantOverview = !scope || scope === "all" || scope === "overview";
@@ -300,18 +318,21 @@ export async function PATCH(request: NextRequest) {
   }
 
   if (body?.entity === "application_review") {
-    if (!(await canAdmin(request, "partners"))) {
+    const access = await currentAdminAccess(request);
+    if (!access || !(access.isOwner || access.permissions.includes("partners"))) {
       return NextResponse.json({ error: "لا تملك صلاحية إدارة طلبات الشركاء" }, { status: 403 });
     }
     const reviewState = textValue(body?.reviewState, 30);
     if (!["NEW", "IN_REVIEW", "NEEDS_INFO"].includes(reviewState)) {
       return NextResponse.json({ error: "حالة المراجعة غير صالحة" }, { status: 400 });
     }
+    const existing = await db.collaborationApplication.findFirst({ where: { id, type: "PARTNER", status: "PENDING" }, select: { reviewState: true, name: true } });
     const updated = await db.collaborationApplication.updateMany({
       where: { id, type: "PARTNER", status: "PENDING" },
       data: { reviewState },
     });
     if (!updated.count) return NextResponse.json({ error: "الطلب غير موجود أو سبق اتخاذ قرار بشأنه" }, { status: 404 });
+    await writeAdminAudit(db, { actorId: access.userId, action: reviewState === "NEEDS_INFO" ? "PARTNER_INFO_REQUESTED" : "PARTNER_REVIEW_STARTED", category: "NORMAL", entityType: "PARTNER_APPLICATION", entityId: id, entityLabel: existing?.name, before: { reviewState: existing?.reviewState || "NEW" }, after: { reviewState } });
     return NextResponse.json({ ok: true, reviewState });
   }
 
@@ -361,9 +382,10 @@ export async function PATCH(request: NextRequest) {
     if (!(await canAdmin(request, "partners"))) {
       return NextResponse.json({ error: "لا تملك صلاحية إدارة الشركاء" }, { status: 403 });
     }
+    const access = await currentAdminAccess(request);
     const partner = await db.partner.findUnique({
       where: { id },
-      select: { id: true, userId: true, profileCompletedAt: true },
+      include: { user: { select: { name: true, email: true, phone: true } } },
     });
     if (!partner) return NextResponse.json({ error: "الشريك غير موجود" }, { status: 404 });
 
@@ -387,7 +409,10 @@ export async function PATCH(request: NextRequest) {
         email: body?.email,
         phone: body?.phone,
       });
-      const completed = Boolean(profile.phone && specialty && experience && availability);
+      const workAreas = stringList(body?.workAreas); const supportServices = stringList(body?.supportServices); const cooperationTypes = stringList(body?.cooperationTypes); const paymentMethods = stringList(body?.paymentMethods);
+      const experienceYears = body?.experienceYears === "" || body?.experienceYears == null ? null : Number(body.experienceYears);
+      const weeklyHours = body?.weeklyHours === "" || body?.weeklyHours == null ? null : Number(body.weeklyHours);
+      const completed = Boolean(profile.phone && (workAreas.length || specialty) && (body?.experienceLevel || experience) && (body?.availabilityType || availability));
       const updated = await db.$transaction(async (tx) => {
         const user = await tx.user.update({
           where: { id: partner.userId },
@@ -404,11 +429,22 @@ export async function PATCH(request: NextRequest) {
             portfolioUrl: portfolioUrl || null,
             contactMethod: textValue(body?.contactMethod, 1000) || null,
             workTypes: textValue(body?.workTypes, 3000) || null,
-            clientAcquisition: textValue(body?.clientAcquisition, 3000) || null,
             payoutMethods: textValue(body?.payoutMethods, 3000) || null,
+            countryRegion: textValue(body?.countryRegion, 200) || null,
+            partnerType: textValue(body?.partnerType, 120) || null,
+            workAreas, supportServices,
+            experienceLevel: textValue(body?.experienceLevel, 120) || null,
+            experienceYears: Number.isInteger(experienceYears) && experienceYears! >= 0 ? experienceYears : null,
+            availabilityType: ["FULL_TIME", "PART_TIME"].includes(body?.availabilityType) ? body.availabilityType : null,
+            weeklyHours: Number.isInteger(weeklyHours) && weeklyHours! > 0 ? weeklyHours : null,
+            cooperationTypes,
+            shortBio: textValue(body?.shortBio, 2000) || null,
+            paymentMethods,
+            otherPaymentMethod: textValue(body?.otherPaymentMethod, 120) || null,
             profileCompletedAt: completed ? partner.profileCompletedAt || new Date() : null,
           },
         });
+        await writeAdminAudit(tx, { actorId: access?.userId, action: "PARTNER_PROFILE_UPDATED", category: "NORMAL", entityType: "PARTNER", entityId: id, entityLabel: profile.name, before: { name: partner.user.name, email: partner.user.email, phone: partner.user.phone, specialty: partner.specialty, status: partner.status }, after: { name: profile.name, email: profile.email, phone: profile.phone, specialty, workAreas, supportServices, experienceYears, availabilityType: body?.availabilityType } });
         return { user, partner: partnerProfile };
       });
       return NextResponse.json(updated);
@@ -433,7 +469,7 @@ export async function PATCH(request: NextRequest) {
     const author = admin?.name || admin?.email || "الإدارة";
     const entry = `[${new Date().toISOString()}] ${author}: ${note}`;
     const adminNotes = partner.adminNotes ? `${partner.adminNotes}\n\n${entry}` : entry;
-    await db.partner.update({ where: { id }, data: { adminNotes } });
+    await db.$transaction(async (tx) => { await tx.partner.update({ where: { id }, data: { adminNotes } }); await writeAdminAudit(tx, { actorId: access.userId, action: "PARTNER_NOTE_ADDED", category: "NORMAL", entityType: "PARTNER", entityId: id, entityLabel: author, after: { note } }); });
     return NextResponse.json({ ok: true, adminNotes });
   }
 
@@ -455,8 +491,8 @@ export async function PATCH(request: NextRequest) {
     if (!project) return NextResponse.json({ error: "المشروع غير موجود" }, { status: 404 });
     if (existing) return NextResponse.json({ error: "المشروع مسند لهذا الشريك بالفعل" }, { status: 409 });
 
-    const assignment = await db.partnerProject.create({
-      data: {
+    const access = await currentAdminAccess(request);
+    const assignment = await db.$transaction(async (tx) => { const created = await tx.partnerProject.create({ data: {
         partnerId: id,
         clientProjectId: project.id,
         title: project.title,
@@ -465,8 +501,7 @@ export async function PATCH(request: NextRequest) {
         progress: project.progress,
         feeCurrency: project.currency,
         dueAt: project.dueAt,
-      },
-    });
+      } }); await writeAdminAudit(tx, { actorId: access?.userId, action: "PARTNER_PROJECT_ASSIGNED", category: "POSITIVE", entityType: "PARTNER", entityId: id, entityLabel: project.title, after: { projectId: project.id, assignmentId: created.id } }); return created; });
     return NextResponse.json({ assignment }, { status: 201 });
   }
 
@@ -491,7 +526,8 @@ export async function PATCH(request: NextRequest) {
   }
 
   if (body?.entity === "project_update") {
-    if (!(await canAdmin(request, "projects"))) {
+    const access = await currentAdminAccess(request);
+    if (!access || !(access.isOwner || access.permissions.includes("projects"))) {
       return NextResponse.json({ error: "لا تملك صلاحية إدارة المشاريع" }, { status: 403 });
     }
 
@@ -528,7 +564,7 @@ export async function PATCH(request: NextRequest) {
 
     const existing = await db.clientProject.findUnique({
       where: { id: projectId },
-      select: { id: true, clientId: true, partnerAssignments: { select: { id: true, partnerId: true } } },
+      select: { id: true, clientId: true, title: true, status: true, progress: true, currency: true, dueAt: true, partnerAssignments: { select: { id: true, partnerId: true } } },
     });
     if (!existing) return NextResponse.json({ error: "المشروع غير موجود" }, { status: 404 });
 
@@ -596,6 +632,8 @@ export async function PATCH(request: NextRequest) {
           section: "projects",
         },
       });
+      await writeAdminAudit(tx, { actorId: access.userId, action: "PROJECT_UPDATED", category: "NORMAL", entityType: "CLIENT_PROJECT", entityId: existing.id, entityLabel: title, before: { title: existing.title, status: existing.status, progress: existing.progress, currency: existing.currency, dueAt: existing.dueAt?.toISOString() || null, partnerIds: [...existingPartnerIds] }, after: { title, status: projectStatus, progress, currency, dueAt: dueAt?.toISOString() || null, partnerIds: requestedPartnerIds } });
+      for (const assignedPartnerId of newPartnerIds) await writeAdminAudit(tx, { actorId: access.userId, action: "PARTNER_PROJECT_ASSIGNED", category: "POSITIVE", entityType: "PARTNER", entityId: assignedPartnerId, entityLabel: title, after: { projectId: existing.id } });
       return clientProject;
     });
 
@@ -603,7 +641,8 @@ export async function PATCH(request: NextRequest) {
   }
 
   if (body?.entity === "project") {
-    if (!(await canAdmin(request, "projects"))) {
+    const access = await currentAdminAccess(request);
+    if (!access || !(access.isOwner || access.permissions.includes("projects"))) {
       return NextResponse.json({ error: "لا تملك صلاحية إدارة المشاريع" }, { status: 403 });
     }
 
@@ -725,6 +764,9 @@ export async function PATCH(request: NextRequest) {
         },
       });
 
+      await writeAdminAudit(tx, { actorId: access.userId, action: "PROJECT_CREATED", category: "POSITIVE", entityType: "CLIENT_PROJECT", entityId: clientProject.id, entityLabel: title, after: { clientId, status: clientStatus, progress, partnerIds } });
+      for (const assignedPartnerId of partnerIds) await writeAdminAudit(tx, { actorId: access.userId, action: "PARTNER_PROJECT_ASSIGNED", category: "POSITIVE", entityType: "PARTNER", entityId: assignedPartnerId, entityLabel: title, after: { projectId: clientProject.id } });
+
       return { clientProject, partnerProjects };
     });
 
@@ -740,17 +782,19 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ referral });
   }
 
-  if (!(await canAdmin(request, "partners"))) return NextResponse.json({ error: "لا تملك صلاحية إدارة الشركاء" }, { status: 403 });
+  const access = await currentAdminAccess(request);
+  if (!access || !(access.isOwner || access.permissions.includes("partners"))) return NextResponse.json({ error: "لا تملك صلاحية إدارة الشركاء" }, { status: 403 });
   if (!["ACTIVE", "PENDING", "SUSPENDED"].includes(status)) {
     return NextResponse.json({ error: "حالة الشريك غير صالحة" }, { status: 400 });
   }
-  const existingPartner = await db.partner.findUnique({ where: { id }, select: { id: true, userId: true } });
+  const existingPartner = await db.partner.findUnique({ where: { id }, select: { id: true, userId: true, status: true, user: { select: { name: true, email: true, isActive: true } } } });
   if (!existingPartner) return NextResponse.json({ error: "الشريك غير موجود" }, { status: 404 });
   const partner = await db.$transaction(async (tx) => {
     const updatedPartner = await tx.partner.update({ where: { id }, data: { status } });
     if (status === "ACTIVE" || status === "SUSPENDED") {
       await tx.user.update({ where: { id: existingPartner.userId }, data: { isActive: status === "ACTIVE" } });
     }
+    await writeAdminAudit(tx, { actorId: access.userId, action: status === "ACTIVE" ? "PARTNER_ACCOUNT_ACTIVATED" : status === "SUSPENDED" ? "PARTNER_ACCOUNT_SUSPENDED" : "PARTNER_REVIEW_STARTED", category: status === "ACTIVE" ? "POSITIVE" : status === "SUSPENDED" ? "SENSITIVE" : "NORMAL", entityType: "PARTNER", entityId: id, entityLabel: existingPartner.user.name || existingPartner.user.email, before: { status: existingPartner.status, active: existingPartner.user.isActive }, after: { status, active: status === "ACTIVE" } });
     return updatedPartner;
   });
   return NextResponse.json({ partner });

@@ -57,8 +57,19 @@ type PartnerDetails = {
   portfolioUrl: string | null;
   contactMethod: string | null;
   workTypes: string | null;
-  clientAcquisition: string | null;
   payoutMethods: string | null;
+  countryRegion: string | null;
+  partnerType: string | null;
+  workAreas: string[];
+  supportServices: string[];
+  experienceLevel: string | null;
+  experienceYears: number | null;
+  availabilityType: string | null;
+  weeklyHours: number | null;
+  cooperationTypes: string[];
+  shortBio: string | null;
+  paymentMethods: string[];
+  otherPaymentMethod: string | null;
   adminNotes: string | null;
   decisionNotes: string | null;
   createdAt: string;
@@ -71,6 +82,7 @@ type PartnerDetails = {
   } | null;
   assignments: Assignment[];
   _count: { referrals: number };
+  statusHistory?: Array<{ id: string; action: string; createdAt: string; actor: { name: string | null; email: string } | null }>;
 };
 
 const projectStatusLabel: Record<string, string> = {
@@ -152,8 +164,16 @@ export default function AdminPartnerDetailsPage() {
         portfolioUrl: data.get("portfolioUrl"),
         contactMethod: data.get("contactMethod"),
         workTypes: data.get("workTypes"),
-        clientAcquisition: data.get("clientAcquisition"),
         payoutMethods: data.get("payoutMethods"),
+        countryRegion: data.get("countryRegion"), partnerType: data.get("partnerType"),
+        workAreas: String(data.get("workAreas") || "").split("،").map((v) => v.trim()).filter(Boolean),
+        supportServices: String(data.get("supportServices") || "").split("،").map((v) => v.trim()).filter(Boolean),
+        experienceLevel: data.get("experienceLevel"), experienceYears: data.get("experienceYears"),
+        availabilityType: data.get("availabilityType"), weeklyHours: data.get("weeklyHours"),
+        cooperationTypes: String(data.get("cooperationTypes") || "").split("،").map((v) => v.trim()).filter(Boolean),
+        shortBio: data.get("shortBio"),
+        paymentMethods: String(data.get("paymentMethods") || "").split("،").map((v) => v.trim()).filter(Boolean),
+        otherPaymentMethod: data.get("otherPaymentMethod"),
       }, "تم حفظ بيانات الشريك وقدراته بنجاح");
     } finally {
       setSaving("");
@@ -227,21 +247,24 @@ export default function AdminPartnerDetailsPage() {
                 <Fact label="البريد" value={partner.user.email} ltr />
                 <Fact label="الهاتف" value={partner.user.phone || partner.phone || "غير محدد"} ltr />
                 <Fact label="طريقة التواصل" value={partner.contactMethod || "غير محددة"} />
+                <Fact label="الدولة / المنطقة" value={partner.countryRegion || partner.application?.market || "غير محددة"} />
+                <Fact label="نوع الشريك" value={partner.partnerType || "غير محدد"} />
                 <Fact label="تاريخ التسجيل" value={<DateText value={partner.createdAt} />} />
                 <Fact label="آخر تحديث" value={<DateText value={partner.updatedAt} />} />
               </dl>
-              <div className="mt-5 rounded-xl bg-[#F7F3EB] p-4"><p className="text-xs font-bold text-slate-500">نبذة الشريك</p><p className="mt-2 whitespace-pre-wrap leading-7">{partner.application?.details || partner.experience || "لم تُضف نبذة بعد."}</p></div>
+              <div className="mt-5 rounded-xl bg-[#F7F3EB] p-4"><p className="text-xs font-bold text-slate-500">نبذة الشريك</p><p className="mt-2 whitespace-pre-wrap leading-7">{partner.shortBio || partner.application?.details || partner.experience || "لم تُضف نبذة بعد."}</p></div>
               {partner.portfolioUrl && <a href={partner.portfolioUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 font-black text-[#8A6E38]">فتح معرض الأعمال <ExternalLink className="h-4 w-4" /></a>}
             </article>
 
             <article className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
               <p className="text-sm font-bold text-[#9A7D43]">قدرات الشريك</p><h2 className="mt-1 text-2xl font-black">الملاءمة التشغيلية</h2>
               <dl className="mt-6 grid gap-4">
-                <Fact label="مجالات الخبرة" value={partner.specialty || "غير محددة"} />
-                <Fact label="نوع الأعمال التي يستطيع تنفيذها" value={partner.workTypes || partner.experience || "غير محدد"} />
-                <Fact label="مستوى التفرغ" value={partner.availability || "غير محدد"} />
-                <Fact label="طريقة جلب العملاء" value={partner.clientAcquisition || "غير محددة"} />
-                <Fact label="طرق استلام الدفعات" value={partner.payoutMethods || "غير محددة"} />
+                <Fact label="مجالات الخبرة" value={partner.workAreas.join("، ") || partner.specialty || "غير محددة"} />
+                <Fact label="الخدمات التي يستطيع دعمها" value={partner.supportServices.join("، ") || partner.workTypes || "غير محددة"} />
+                <Fact label="مستوى الخبرة" value={[partner.experienceLevel, partner.experienceYears != null ? `${partner.experienceYears} سنوات` : ""].filter(Boolean).join(" · ") || "غير محدد"} />
+                <Fact label="مستوى التفرغ" value={partner.availabilityType === "FULL_TIME" ? "متفرغ بالكامل" : partner.availabilityType === "PART_TIME" ? `متفرغ جزئياً${partner.weeklyHours ? ` · ${partner.weeklyHours} ساعة أسبوعياً` : ""}` : partner.availability || "غير محدد"} />
+                <Fact label="نوع التعاون المفضل" value={partner.cooperationTypes.join("، ") || "غير محدد"} />
+                <Fact label="طرق استلام الدفعات" value={[...partner.paymentMethods, partner.otherPaymentMethod].filter(Boolean).join("، ") || partner.payoutMethods || "غير محددة"} />
               </dl>
             </article>
           </section>
@@ -253,11 +276,22 @@ export default function AdminPartnerDetailsPage() {
               <Field label="البريد الإلكتروني"><input required type="email" name="email" defaultValue={partner.user.email} className="field" dir="ltr" /></Field>
               <Field label="رقم الهاتف"><input name="phone" defaultValue={partner.user.phone || partner.phone || ""} className="field" dir="ltr" /></Field>
               <Field label="طريقة التواصل المفضلة"><input name="contactMethod" defaultValue={partner.contactMethod || ""} className="field" placeholder="واتساب، بريد، مكالمة..." /></Field>
+              <Field label="الدولة / المنطقة"><input name="countryRegion" defaultValue={partner.countryRegion || ""} className="field" /></Field>
+              <Field label="نوع الشريك"><input name="partnerType" defaultValue={partner.partnerType || ""} className="field" /></Field>
               <Field label="مجالات الخبرة"><textarea name="specialty" rows={3} defaultValue={partner.specialty || ""} className="field" /></Field>
+              <Field label="مجالات العمل (افصل بـ ،)"><textarea name="workAreas" rows={3} defaultValue={partner.workAreas.join("، ")} className="field" /></Field>
+              <Field label="الخدمات (افصل بـ ،)"><textarea name="supportServices" rows={3} defaultValue={partner.supportServices.join("، ")} className="field" /></Field>
+              <Field label="مستوى الخبرة"><input name="experienceLevel" defaultValue={partner.experienceLevel || ""} className="field" /></Field>
+              <Field label="سنوات الخبرة"><input type="number" min="0" max="70" name="experienceYears" defaultValue={partner.experienceYears ?? ""} className="field" /></Field>
               <Field label="مستوى التفرغ"><textarea name="availability" rows={3} defaultValue={partner.availability || ""} className="field" placeholder="كامل، جزئي، عدد الساعات..." /></Field>
+              <Field label="نوع التفرغ"><select name="availabilityType" defaultValue={partner.availabilityType || ""} className="field"><option value="">غير محدد</option><option value="FULL_TIME">متفرغ بالكامل</option><option value="PART_TIME">متفرغ جزئياً</option></select></Field>
+              <Field label="الساعات الأسبوعية"><input type="number" min="1" max="168" name="weeklyHours" defaultValue={partner.weeklyHours ?? ""} className="field" /></Field>
               <Field label="الخبرة المهنية / نبذة الشريك"><textarea name="experience" rows={5} defaultValue={partner.experience || ""} className="field" /></Field>
               <Field label="أنواع الأعمال التي يستطيع تنفيذها"><textarea name="workTypes" rows={5} defaultValue={partner.workTypes || ""} className="field" /></Field>
-              <Field label="طريقة جلب العملاء"><textarea name="clientAcquisition" rows={3} defaultValue={partner.clientAcquisition || ""} className="field" /></Field>
+              <Field label="أنواع التعاون المفضلة (افصل بـ ،)"><textarea name="cooperationTypes" rows={3} defaultValue={partner.cooperationTypes.join("، ")} className="field" /></Field>
+              <Field label="نبذة قصيرة"><textarea name="shortBio" rows={3} defaultValue={partner.shortBio || ""} className="field" /></Field>
+              <Field label="طرق الدفع المنظمة (افصل بـ ،)"><textarea name="paymentMethods" rows={3} defaultValue={partner.paymentMethods.join("، ")} className="field" /></Field>
+              <Field label="طريقة دفع أخرى"><input name="otherPaymentMethod" defaultValue={partner.otherPaymentMethod || ""} className="field" /></Field>
               <Field label="طرق استلام الدفعات"><textarea name="payoutMethods" rows={3} defaultValue={partner.payoutMethods || ""} className="field" /></Field>
               <Field label="رابط معرض الأعمال" wide><input name="portfolioUrl" type="url" defaultValue={partner.portfolioUrl || ""} className="field" dir="ltr" placeholder="https://..." /></Field>
               <button disabled={saving === "profile"} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50 md:col-span-2">{saving === "profile" ? "جارٍ الحفظ..." : "حفظ بيانات الشريك"}</button>
@@ -295,6 +329,10 @@ export default function AdminPartnerDetailsPage() {
               <form onSubmit={addNote} className="mt-5 grid gap-3"><textarea required name="note" rows={3} maxLength={2000} className="field" placeholder="أضف ملاحظة داخلية جديدة..." /><button disabled={saving === "note"} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50">{saving === "note" ? "جارٍ الإضافة..." : "إضافة ملاحظة إدارية"}</button></form>
               <div className="mt-5 max-h-72 overflow-y-auto rounded-xl bg-[#F7F3EB] p-4"><p className="whitespace-pre-wrap text-sm leading-7 text-slate-600">{partner.adminNotes || "لا توجد ملاحظات إدارية بعد."}</p></div>
             </article>
+          </section>
+          <section className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
+            <p className="text-sm font-bold text-[#9A7D43]">تاريخ حالة الشريك</p><h2 className="mt-1 text-2xl font-black">رحلة الحساب</h2>
+            <div className="mt-5 grid gap-3">{partner.statusHistory?.length ? partner.statusHistory.map((event) => <div key={event.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#F7F3EB] p-4"><span className="font-black">{({ PARTNER_APPLICATION_SUBMITTED: "تقديم الطلب", PARTNER_REVIEW_STARTED: "المراجعة", PARTNER_INFO_REQUESTED: "طلب معلومات إضافية", PARTNER_APPLICATION_ACCEPTED: "القبول", PARTNER_ACCOUNT_ACTIVATED: "التفعيل", PARTNER_ACCOUNT_SUSPENDED: "الإيقاف" } as Record<string, string>)[event.action] || event.action}</span><span className="text-sm text-slate-500"><DateText value={event.createdAt} withTime /> · {event.actor?.name || event.actor?.email || "النظام"}</span></div>) : <p className="rounded-xl bg-[#F7F3EB] p-5 text-slate-500">لا توجد أحداث مسجلة لهذا الحساب بعد.</p>}</div>
           </section>
         </div>
       )}
