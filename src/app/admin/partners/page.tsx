@@ -77,7 +77,7 @@ type Partner = {
   id: string;
   status: PartnerStatus;
   createdAt: string;
-  user: { name: string | null; email: string };
+  user: { name: string | null; email: string; phone: string | null };
   assignments: PartnerProject[];
 };
 
@@ -123,6 +123,7 @@ type Admin = {
   id: string;
   name: string | null;
   email: string;
+  phone: string | null;
   createdAt: string;
   isOwner: boolean;
   permissions: string[];
@@ -261,6 +262,26 @@ export default function AdminPartnersPage() {
       setMessage(`تم تحديث حالة الشريك إلى ${partnerLabel[status]}`);
     }
     setUpdatingId(null);
+  }
+
+  async function savePartnerAccount(event: FormEvent<HTMLFormElement>, partnerId: string) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setUpdatingId(partnerId);
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/partners", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity: "account", id: partnerId, name: form.get("name"), email: form.get("email"), phone: form.get("phone") }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) return setMessage(data?.error || "تعذر تعديل بيانات الشريك");
+      setMessage("تم تعديل بيانات الشريك بنجاح");
+      await load();
+    } finally {
+      setUpdatingId(null);
+    }
   }
 
   async function decideApplication(
@@ -420,6 +441,7 @@ export default function AdminPartnersPage() {
       body: JSON.stringify({
         name: form.get("name"),
         email: form.get("email"),
+        phone: form.get("phone"),
         currentPassword: form.get("currentPassword"),
         newPassword: form.get("newPassword"),
       }),
@@ -801,7 +823,7 @@ export default function AdminPartnersPage() {
                       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
                         <div>
                           <h3 className="font-black">{partner.user.name || "دون اسم"}</h3>
-                          <p className="mt-1 text-sm text-slate-500">{partner.user.email}</p>
+                          <p className="mt-1 text-sm text-slate-500">{partner.user.email}{partner.user.phone ? ` · ${partner.user.phone}` : ""}</p>
                           <p className="mt-2 text-sm">
                             {partner.assignments.length} مشروع مسند · {partnerLabel[partner.status]}
                           </p>
@@ -831,6 +853,15 @@ export default function AdminPartnersPage() {
                           ))}
                         </div>
                       </div>
+                      <details className="mt-4 rounded-xl border border-[#D8D2C4] bg-[#F7F3EB]">
+                        <summary className="flex cursor-pointer list-none items-center gap-2 p-4 font-black text-[#9A7D43]"><Pencil className="h-4 w-4" />تعديل بيانات الشريك</summary>
+                        <form onSubmit={(event) => void savePartnerAccount(event, partner.id)} className="grid gap-3 border-t border-[#D8D2C4] p-4 md:grid-cols-3">
+                          <Field label="الاسم"><input name="name" required minLength={2} defaultValue={partner.user.name || ""} className="field" /></Field>
+                          <Field label="البريد الإلكتروني"><input name="email" type="email" required defaultValue={partner.user.email} className="field" /></Field>
+                          <Field label="رقم الهاتف"><input name="phone" defaultValue={partner.user.phone || ""} className="field" /></Field>
+                          <button disabled={updatingId === partner.id} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50 md:col-span-3">{updatingId === partner.id ? "جارٍ الحفظ..." : "حفظ بيانات الشريك"}</button>
+                        </form>
+                      </details>
                     </article>
                   ))}
                 </div>
@@ -1072,7 +1103,8 @@ export default function AdminPartnersPage() {
           )}
 
           {!loading && section === "account" && (
-            <section className="mt-7 max-w-2xl rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
+            <details className="group mt-7 max-w-2xl rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-6">
               <div className="flex items-center gap-3">
                 <span className="grid h-12 w-12 place-items-center rounded-xl bg-[#111827] text-white">
                   <ShieldCheck className="h-6 w-6" />
@@ -1082,12 +1114,17 @@ export default function AdminPartnersPage() {
                   <p className="text-sm text-slate-500">تعديل الاسم والبريد وكلمة المرور</p>
                 </div>
               </div>
-              <form onSubmit={saveAccount} className="mt-7 grid gap-4">
+              <ChevronDown className="h-5 w-5 transition group-open:rotate-180" />
+              </summary>
+              <form onSubmit={saveAccount} className="grid gap-4 border-t border-[#D8D2C4] p-6">
                 <Field label="الاسم">
                   <input name="name" defaultValue={admin?.name || ""} className="field" />
                 </Field>
                 <Field label="البريد الإلكتروني">
                   <input name="email" type="email" defaultValue={admin?.email || ""} required className="field" />
+                </Field>
+                <Field label="رقم الهاتف">
+                  <input name="phone" defaultValue={admin?.phone || ""} className="field" />
                 </Field>
                 <div className="mt-3 flex items-center gap-2 font-black">
                   <KeyRound className="h-5 w-5" />
@@ -1110,7 +1147,7 @@ export default function AdminPartnersPage() {
                   حفظ التعديلات
                 </button>
               </form>
-            </section>
+            </details>
           )}
         </section>
       </div>
@@ -1205,7 +1242,9 @@ function ApplicationCard({
           {application.details && <p className="mt-3 rounded-xl bg-[#F7F3EB] p-4">{application.details}</p>}
           <p className="mt-2 text-xs text-slate-400">تاريخ الطلب: <DateText value={application.createdAt} /></p>
         </div>
-        <div className="grid gap-3">
+        <details className="group rounded-xl border border-[#D8D2C4] bg-[#F7F3EB]">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 font-black text-[#9A7D43]">مراجعة الطلب واتخاذ القرار<ChevronDown className="h-5 w-5 transition group-open:rotate-180" /></summary>
+        <div className="grid gap-3 border-t border-[#D8D2C4] p-4">
           <textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
@@ -1267,6 +1306,7 @@ function ApplicationCard({
             </p>
           )}
         </div>
+        </details>
       </div>
     </article>
   );
