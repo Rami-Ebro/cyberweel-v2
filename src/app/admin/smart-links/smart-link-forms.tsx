@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { Loader2, Plus, Save } from "lucide-react";
+import { ChevronDown, Loader2, Plus, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -45,10 +45,13 @@ export function CreateSmartLinkForm() {
 
   useEffect(() => {
     if (state.status === "success") {
-      setTitle("");
-      setSlug("");
-      setDestinationUrl("");
-      formRef.current?.reset();
+      const timer = window.setTimeout(() => {
+        setTitle("");
+        setSlug("");
+        setDestinationUrl("");
+        formRef.current?.reset();
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [state.status]);
 
@@ -139,9 +142,11 @@ export function EditDestinationForm({
   );
 
   return (
+    <details className="group min-w-[18rem] rounded-lg border border-border bg-white">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-bold text-camel">تعديل الوجهة<ChevronDown className="size-4 transition group-open:rotate-180" /></summary>
     <form action={action} className="grid gap-2">
       <input type="hidden" name="id" value={id} />
-      <div dir="ltr" className="flex min-w-[18rem] gap-2">
+      <div dir="ltr" className="flex min-w-[18rem] gap-2 border-t p-2">
         <Input
           name="destinationUrl"
           type="url"
@@ -162,5 +167,6 @@ export function EditDestinationForm({
       </div>
       <FormMessage state={state} />
     </form>
+    </details>
   );
 }
