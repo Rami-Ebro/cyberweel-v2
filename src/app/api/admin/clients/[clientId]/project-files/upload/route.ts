@@ -10,6 +10,8 @@ type UploadPayload = {
   clientId: string;
   projectId: string;
   originalName: string;
+  displayName?: string;
+  kind?: string;
   size: number;
 };
 
@@ -28,6 +30,7 @@ const ALLOWED_CONTENT_TYPES = [
   "text/plain",
 ];
 const ALLOWED_EXTENSIONS = new Set(["pdf", "doc", "docx", "xls", "xlsx", "zip", "png", "jpg", "jpeg", "webp", "txt"]);
+const ALLOWED_KINDS = new Set(["PROJECT_ATTACHMENT", "DELIVERABLE", "WORKING", "REFERENCE", "CONTRACT", "OTHER"]);
 
 function parsePayload(value: string | null): UploadPayload | null {
   try {
@@ -46,6 +49,10 @@ function parsePayload(value: string | null): UploadPayload | null {
 
 function cleanFilename(value: string) {
   return value.replace(/[\r\n"]/g, "").trim().slice(0, 180) || "project-file";
+}
+
+function fileKind(value: unknown) {
+  return typeof value === "string" && ALLOWED_KINDS.has(value) ? value : "PROJECT_ATTACHMENT";
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
@@ -80,6 +87,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
           tokenPayload: JSON.stringify({
             ...payload,
             originalName: cleanFilename(payload.originalName),
+            displayName: cleanFilename(payload.displayName || payload.originalName),
+            kind: fileKind(payload.kind),
           }),
         };
       },
@@ -101,13 +110,23 @@ export async function POST(request: NextRequest, context: RouteContext) {
           await db.clientFile.create({
             data: {
               projectId: project.id,
-              name: cleanFilename(payload.originalName),
+              name: cleanFilename(payload.displayName || payload.originalName),
               url: blob.url,
-              kind: "PROJECT_ATTACHMENT",
+              kind: fileKind(payload.kind),
               size: Math.round(payload.size),
               storageProvider: "VERCEL_BLOB",
             },
           });
+          if (fileKind(payload.kind) !== "PROJECT_ATTACHMENT") {
+            await db.clientNotification.create({
+              data: {
+                clientId: payload.clientId,
+                title: "ملف أو تسليم جديد",
+                body: cleanFilename(payload.displayName || payload.originalName),
+                section: "files",
+              },
+            });
+          }
         }
       },
     });
