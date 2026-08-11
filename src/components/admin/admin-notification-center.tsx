@@ -1,7 +1,6 @@
 "use client";
 
 import { Bell } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type AdminNotification = {
@@ -9,12 +8,12 @@ type AdminNotification = {
   title: string;
   body: string | null;
   href: string;
+  kind: string;
   readAt: string | null;
   createdAt: string;
 };
 
 export function AdminNotificationCenter() {
-  const router = useRouter();
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
@@ -46,7 +45,19 @@ export function AdminNotificationCenter() {
       });
     }
     setOpen(false);
-    router.push(notification.href);
+    const fallbackByKind: Record<string, string> = {
+      PARTNER_APPLICATION: "/admin/partners?section=partners",
+      PARTNER_ACCEPTED: "/admin/partners?section=partners",
+      PARTNER_REJECTED: "/admin/partners?section=partners",
+      AMBASSADOR_APPLICATION: "/admin/ambassadors",
+      AMBASSADOR_ACCEPTED: "/admin/ambassadors",
+      AMBASSADOR_REJECTED: "/admin/ambassadors",
+      CLIENT_SUBMISSION: "/admin/clients",
+    };
+    const target = notification.href?.startsWith("/") && !notification.href.startsWith("//")
+      ? notification.href
+      : fallbackByKind[notification.kind] || "/admin/partners?section=overview";
+    window.location.assign(target);
   }
 
   async function markAllRead() {
@@ -78,6 +89,7 @@ export function AdminNotificationCenter() {
               <button key={notification.id} type="button" onClick={() => void openNotification(notification)} className={`w-full rounded-xl p-3 text-right ${notification.readAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827]"}`}>
                 <div className="flex items-start justify-between gap-3"><strong className="text-sm">{notification.title}</strong>{!notification.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-600" />}</div>
                 {notification.body && <p className="mt-1 text-xs text-slate-500">{notification.body}</p>}
+                <p className="mt-2 text-[11px] font-black text-[#9A7D43]">فتح التفاصيل ←</p>
               </button>
             ))}
             {!notifications.length && <p className="p-5 text-center text-sm text-slate-500">لا توجد إشعارات بعد.</p>}
