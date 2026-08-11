@@ -14,6 +14,7 @@ export const ADMIN_PERMISSIONS = [
   "messages",
   "smart_links",
   "team",
+  "audit_log",
   "settings",
 ] as const;
 

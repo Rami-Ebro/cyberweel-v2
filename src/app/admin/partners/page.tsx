@@ -80,6 +80,7 @@ type Partner = {
   status: PartnerStatus;
   profileCompletedAt: string | null;
   specialty: string | null;
+  partnerType: string | null;
   createdAt: string;
   user: { name: string | null; email: string; phone: string | null; isActive: boolean };
   assignments: PartnerProject[];
@@ -112,6 +113,17 @@ type Application = {
   decidedAt: string | null;
   decidedBy: { name: string | null; email: string } | null;
   createdAt: string;
+  countryRegion: string | null;
+  partnerType: string | null;
+  workAreas: string[];
+  supportServices: string[];
+  experienceLevel: string | null;
+  experienceYears: number | null;
+  availabilityType: string | null;
+  weeklyHours: number | null;
+  cooperationTypes: string[];
+  paymentMethods: string[];
+  otherPaymentMethod: string | null;
 };
 
 type Stats = {
@@ -845,7 +857,7 @@ export default function AdminPartnersPage() {
                               </td>
                               <td className="px-5 py-4 text-sm" dir="ltr">{partner.user.email}</td>
                               <td className="px-5 py-4 text-sm" dir="ltr">{partner.user.phone || "غير محدد"}</td>
-                              <td className="px-5 py-4 text-sm">شريك تنفيذ</td>
+                              <td className="px-5 py-4 text-sm">{partner.partnerType || "شريك تنفيذ"}</td>
                               <td className="px-5 py-4 text-sm"><DateText value={partner.createdAt} /></td>
                               <td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${operationalStatus.className}`}>{operationalStatus.label}</span></td>
                               <td className="px-5 py-4 text-sm font-bold">{partner.assignments.length}</td>
@@ -1235,10 +1247,8 @@ function ApplicationCard({
           <p className="mt-1 text-sm text-slate-500">
             {application.email} {application.phone ? `· ${application.phone}` : ""}
           </p>
-          <p className="mt-2 text-sm">
-            {application.specialty || "التخصص غير محدد"}
-            {application.market ? ` · السوق: ${application.market}` : ""}
-          </p>
+          <p className="mt-2 text-sm">{application.partnerType || "نوع الشريك غير محدد"} · {application.countryRegion || application.market || "المنطقة غير محددة"}</p>
+          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2"><p><strong>المجالات:</strong> {application.workAreas.join("، ") || application.specialty || "غير محددة"}</p><p><strong>الخدمات:</strong> {application.supportServices.join("، ") || "غير محددة"}</p><p><strong>الخبرة:</strong> {[application.experienceLevel, application.experienceYears != null ? `${application.experienceYears} سنوات` : ""].filter(Boolean).join(" · ") || "غير محددة"}</p><p><strong>التفرغ:</strong> {application.availabilityType === "FULL_TIME" ? "كامل" : application.availabilityType === "PART_TIME" ? `جزئي${application.weeklyHours ? ` · ${application.weeklyHours} ساعة` : ""}` : "غير محدد"}</p><p><strong>التعاون:</strong> {application.cooperationTypes.join("، ") || "غير محدد"}</p><p><strong>الدفع:</strong> {[...application.paymentMethods, application.otherPaymentMethod].filter(Boolean).join("، ") || "غير محدد"}</p></div>
           {application.details && <p className="mt-3 rounded-xl bg-[#F7F3EB] p-4">{application.details}</p>}
           <p className="mt-2 text-xs text-slate-400">تاريخ الطلب: <DateText value={application.createdAt} /></p>
         </div>

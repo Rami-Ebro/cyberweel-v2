@@ -91,31 +91,32 @@ enum ClientInvoiceType {
 }
 
 model User {
-  id                  String               @id @default(cuid())
-  email               String               @unique
+  id                  String                     @id @default(cuid())
+  email               String                     @unique
   phone               String?
   name                String?
   company             String?
-  preferredLanguage   String               @default("ar")
+  preferredLanguage   String                     @default("ar")
   clientSource        String?
   internalNotes       String?
   passwordHash        String?
-  role                UserRole             @default(CLIENT)
+  role                UserRole                   @default(CLIENT)
   /// Enables client dashboard access when the same auth user also has another role.
-  clientEnabled       Boolean              @default(false)
-  isActive            Boolean              @default(true)
+  clientEnabled       Boolean                    @default(false)
+  isActive            Boolean                    @default(true)
   partner             Partner?
   ambassador          Ambassador?
   adminProfile        AdminProfile?
   clientProjects      ClientProject[]
   clientMessages      ClientMessage[]
   clientNotifications ClientNotification[]
-  updatedReferrals     PartnerReferral[]    @relation("ReferralUpdatedBy")
-  convertedReferrals  PartnerReferral[]    @relation("ConvertedReferralClient")
+  updatedReferrals    PartnerReferral[]          @relation("ReferralUpdatedBy")
+  convertedReferrals  PartnerReferral[]          @relation("ConvertedReferralClient")
   decidedApplications CollaborationApplication[] @relation("ApplicationDecidedBy")
+  adminAuditLogs      AdminAuditLog[]            @relation("AdminAuditActor")
   passwordResetTokens PasswordResetToken[]
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
 
   @@index([name])
 }
@@ -135,57 +136,69 @@ model RateLimitBucket {
 }
 
 model AdminProfile {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  isOwner     Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  permissions String[] @default([])
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isOwner     Boolean   @default(false)
+  isActive    Boolean   @default(true)
+  permissions String[]  @default([])
   lastLoginAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([isActive])
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
-  tokenHash String   @unique
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
   @@index([expiresAt])
 }
 
 model Partner {
-  id             String            @id @default(cuid())
-  referralNumber Int               @unique @default(autoincrement())
-  status         PartnerStatus     @default(PENDING)
-  userId         String            @unique
-  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  applicationId  String?           @unique
-  application    CollaborationApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
-  referrals      PartnerReferral[]
+  id                 String                    @id @default(cuid())
+  referralNumber     Int                       @unique @default(autoincrement())
+  status             PartnerStatus             @default(PENDING)
+  userId             String                    @unique
+  user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applicationId      String?                   @unique
+  application        CollaborationApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  referrals          PartnerReferral[]
   profileCompletedAt DateTime?
-  phone          String?
-  specialty      String?
-  experience     String?
-  availability   String?
-  portfolioUrl   String?
-  contactMethod  String?
-  workTypes      String?
-  clientAcquisition String?
-  payoutMethods  String?
-  adminNotes     String?
-  decisionNotes  String?
-  decidedAt      DateTime?
-  assignments    PartnerProject[]
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  phone              String?
+  specialty          String?
+  experience         String?
+  availability       String?
+  portfolioUrl       String?
+  contactMethod      String?
+  workTypes          String?
+  clientAcquisition  String?
+  payoutMethods      String?
+  countryRegion      String?
+  partnerType        String?
+  workAreas          String[]                  @default([])
+  supportServices    String[]                  @default([])
+  experienceLevel    String?
+  experienceYears    Int?
+  availabilityType   String?
+  weeklyHours        Int?
+  cooperationTypes   String[]                  @default([])
+  shortBio           String?
+  paymentMethods     String[]                  @default([])
+  otherPaymentMethod String?
+  adminNotes         String?
+  decisionNotes      String?
+  decidedAt          DateTime?
+  assignments        PartnerProject[]
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
 
   @@index([status])
 }
@@ -197,115 +210,147 @@ model Ambassador {
   userId             String            @unique
   user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   phone              String?
-  country             String?
-  contactMethod       String?
-  payoutMethod        String?
-  payoutDetails       String?
+  country            String?
+  contactMethod      String?
+  payoutMethod       String?
+  payoutDetails      String?
   profileCompletedAt DateTime?
   decisionNotes      String?
-  decidedAt           DateTime?
+  decidedAt          DateTime?
   referrals          PartnerReferral[]
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
   @@index([status])
 }
 
 model CollaborationApplication {
-  id            String            @id @default(cuid())
-  type          ApplicationType
-  status        ApplicationStatus @default(PENDING)
-  name          String
-  email         String
-  phone         String?
-  specialty     String?
-  market        String?
-  details       String?
-  decisionNotes String?
-  reviewState   String            @default("NEW")
-  decidedById  String?
-  decidedBy    User?             @relation("ApplicationDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
-  decidedAt     DateTime?
-  partner       Partner?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  id                 String            @id @default(cuid())
+  type               ApplicationType
+  status             ApplicationStatus @default(PENDING)
+  name               String
+  email              String
+  phone              String?
+  specialty          String?
+  market             String?
+  details            String?
+  countryRegion      String?
+  partnerType        String?
+  workAreas          String[]          @default([])
+  supportServices    String[]          @default([])
+  experienceLevel    String?
+  experienceYears    Int?
+  availabilityType   String?
+  weeklyHours        Int?
+  cooperationTypes   String[]          @default([])
+  shortBio           String?
+  paymentMethods     String[]          @default([])
+  otherPaymentMethod String?
+  decisionNotes      String?
+  reviewState        String            @default("NEW")
+  decidedById        String?
+  decidedBy          User?             @relation("ApplicationDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt          DateTime?
+  partner            Partner?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
   @@index([type, status])
   @@index([decidedById])
   @@index([createdAt])
 }
 
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?
+  actor       User?    @relation("AdminAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  action      String
+  category    String
+  entityType  String
+  entityId    String?
+  entityLabel String?
+  before      Json?
+  after       Json?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([entityType, entityId, createdAt])
+}
+
 model AdminNotification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   title     String
   body      String?
   href      String
   kind      String
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([readAt, createdAt])
   @@index([createdAt])
 }
 
 model PartnerProject {
-  id          String    @id @default(cuid())
-  partnerId   String
-  partner     Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  id              String               @id @default(cuid())
+  partnerId       String
+  partner         Partner              @relation(fields: [partnerId], references: [id], onDelete: Cascade)
   clientProjectId String?
-  clientProject   ClientProject? @relation(fields: [clientProjectId], references: [id], onDelete: SetNull)
-  title       String
-  description String?
-  tasks       String[]  @default([])
-  deliverables String[] @default([])
-  files       String[]  @default([])
-  updates     String[]  @default([])
-  status      String    @default("ASSIGNED")
-  progress    Int       @default(0)
-  feeAmount   Decimal?  @db.Decimal(12, 2)
-  feeCurrency String    @default("USD")
-  paymentStatus ProjectPaymentStatus @default(PENDING)
-  paidAt      DateTime?
-  dueAt       DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  clientProject   ClientProject?       @relation(fields: [clientProjectId], references: [id], onDelete: SetNull)
+  title           String
+  description     String?
+  tasks           String[]             @default([])
+  deliverables    String[]             @default([])
+  files           String[]             @default([])
+  updates         String[]             @default([])
+  status          String               @default("ASSIGNED")
+  progress        Int                  @default(0)
+  feeAmount       Decimal?             @db.Decimal(12, 2)
+  feeCurrency     String               @default("USD")
+  paymentStatus   ProjectPaymentStatus @default(PENDING)
+  paidAt          DateTime?
+  dueAt           DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
+  @@unique([partnerId, clientProjectId])
   @@index([partnerId, status])
   @@index([clientProjectId])
-  @@unique([partnerId, clientProjectId])
 }
 
 model PartnerReferral {
-  id          String         @id @default(cuid())
-  partnerId   String?
-  partner     Partner?       @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  ambassadorId String?
-  ambassador   Ambassador?   @relation(fields: [ambassadorId], references: [id], onDelete: SetNull)
-  name        String?
-  email       String?
-  phone       String?
-  company     String?
-  status      ReferralStatus @default(NEW)
-  sourcePath  String?
-  source      String?
-  contactMethod String?
-  adminDecision ReferralDecision?
-  adminNotes String?
-  commissionType CommissionType?
-  commissionAmount Decimal? @db.Decimal(12, 2)
-  commissionRate Decimal? @db.Decimal(5, 2)
-  commissionBaseAmount Decimal? @db.Decimal(12, 2)
-  commissionCurrency String @default("USD")
-  commissionStatus CommissionStatus @default(VERIFYING)
-  updatedById String?
-  updatedBy User? @relation("ReferralUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  notes       String?
-  clientProject ClientProject?
-  convertedClientId String?
-  convertedClient User? @relation("ConvertedReferralClient", fields: [convertedClientId], references: [id], onDelete: SetNull)
-  convertedAt DateTime?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id                   String            @id @default(cuid())
+  partnerId            String?
+  partner              Partner?          @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  ambassadorId         String?
+  ambassador           Ambassador?       @relation(fields: [ambassadorId], references: [id], onDelete: SetNull)
+  name                 String?
+  email                String?
+  phone                String?
+  company              String?
+  status               ReferralStatus    @default(NEW)
+  sourcePath           String?
+  source               String?
+  contactMethod        String?
+  adminDecision        ReferralDecision?
+  adminNotes           String?
+  commissionType       CommissionType?
+  commissionAmount     Decimal?          @db.Decimal(12, 2)
+  commissionRate       Decimal?          @db.Decimal(5, 2)
+  commissionBaseAmount Decimal?          @db.Decimal(12, 2)
+  commissionCurrency   String            @default("USD")
+  commissionStatus     CommissionStatus  @default(VERIFYING)
+  updatedById          String?
+  updatedBy            User?             @relation("ReferralUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  notes                String?
+  clientProject        ClientProject?
+  convertedClientId    String?
+  convertedClient      User?             @relation("ConvertedReferralClient", fields: [convertedClientId], references: [id], onDelete: SetNull)
+  convertedAt          DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 
   @@index([partnerId])
   @@index([partnerId, status])
@@ -316,48 +361,48 @@ model PartnerReferral {
 }
 
 model ClientProject {
-  id          String               @id @default(cuid())
-  clientId    String
-  client      User                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  referralId  String?              @unique
-  referral    PartnerReferral?     @relation(fields: [referralId], references: [id], onDelete: SetNull)
-  title       String
-  description String?
-  agreementDetails String?
-  financialPlan    String?
-  currency         String               @default("USD")
-  stages           String?
-  links            String[]             @default([])
-  notes            String?
-  status      ClientProjectStatus  @default(PLANNING)
-  progress    Int                  @default(0)
-  startsAt    DateTime?
-  dueAt       DateTime?
-  files       ClientFile[]
-  submissions ClientSubmission[]
-  invoices    ClientInvoice[]
-  messages    ClientMessage[]
+  id                 String              @id @default(cuid())
+  clientId           String
+  client             User                @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  referralId         String?             @unique
+  referral           PartnerReferral?    @relation(fields: [referralId], references: [id], onDelete: SetNull)
+  title              String
+  description        String?
+  agreementDetails   String?
+  financialPlan      String?
+  currency           String              @default("USD")
+  stages             String?
+  links              String[]            @default([])
+  notes              String?
+  status             ClientProjectStatus @default(PLANNING)
+  progress           Int                 @default(0)
+  startsAt           DateTime?
+  dueAt              DateTime?
+  files              ClientFile[]
+  submissions        ClientSubmission[]
+  invoices           ClientInvoice[]
+  messages           ClientMessage[]
   partnerAssignments PartnerProject[]
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([clientId])
   @@index([clientId, status])
 }
 
 model ClientFile {
-  id        String        @id @default(cuid())
-  projectId String
-  project   ClientProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  submissionId String?
-  submission ClientSubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  name      String
-  url       String
-  kind      String?
-  size      Int?
+  id              String            @id @default(cuid())
+  projectId       String
+  project         ClientProject     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  submissionId    String?
+  submission      ClientSubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  name            String
+  url             String
+  kind            String?
+  size            Int?
   storageProvider String?
-  source    String        @default("ADMIN")
-  createdAt DateTime      @default(now())
+  source          String            @default("ADMIN")
+  createdAt       DateTime          @default(now())
 
   @@index([projectId])
   @@index([submissionId])
@@ -422,14 +467,14 @@ model ClientMessage {
 }
 
 model ClientNotification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   clientId  String
-  client    User     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client    User      @relation(fields: [clientId], references: [id], onDelete: Cascade)
   title     String
   body      String?
   section   String
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([clientId, readAt])
   @@index([clientId, createdAt])

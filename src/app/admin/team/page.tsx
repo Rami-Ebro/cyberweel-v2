@@ -16,6 +16,7 @@ const labels: Record<string, string> = {
   messages: "إدارة الرسائل",
   smart_links: "إدارة الروابط الذكية",
   team: "إدارة فريق الإدارة",
+  audit_log: "عرض سجل النشاطات",
   settings: "إدارة الإعدادات",
 };
 
