@@ -44,6 +44,10 @@ function stringList(value: unknown) {
     : [];
 }
 
+function textValue(value: unknown, max = 2000) {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
 function partnerIdsFromBody(body: unknown, legacyId = "") {
   const record = body && typeof body === "object" ? body as Record<string, unknown> : {};
   const ids = stringList(record.partnerIds);
@@ -53,6 +57,7 @@ function partnerIdsFromBody(body: unknown, legacyId = "") {
 
 export async function GET(request: NextRequest) {
   const scope = request.nextUrl.searchParams.get("scope");
+  const partnerId = request.nextUrl.searchParams.get("partnerId")?.trim();
   const canView = await Promise.all([
     canAdmin(request, "overview"),
     canAdmin(request, "partners"),
@@ -60,6 +65,67 @@ export async function GET(request: NextRequest) {
     canAdmin(request, "projects"),
   ]);
   if (!canView.some(Boolean)) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
+
+  if (partnerId) {
+    if (!canView[1]) return NextResponse.json({ error: "لا تملك صلاحية إدارة الشركاء" }, { status: 403 });
+
+    const [partner, projectOptions] = await Promise.all([
+      db.partner.findUnique({
+        where: { id: partnerId },
+        include: {
+          user: { select: { name: true, email: true, phone: true, isActive: true, createdAt: true } },
+          application: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              specialty: true,
+              market: true,
+              details: true,
+              status: true,
+              reviewState: true,
+              decisionNotes: true,
+              createdAt: true,
+            },
+          },
+          assignments: {
+            orderBy: { createdAt: "desc" },
+            include: {
+              clientProject: {
+                select: {
+                  id: true,
+                  title: true,
+                  status: true,
+                  progress: true,
+                  currency: true,
+                  dueAt: true,
+                  client: { select: { id: true, name: true, email: true } },
+                },
+              },
+            },
+          },
+          _count: { select: { referrals: true } },
+        },
+      }),
+      db.clientProject.findMany({
+        orderBy: { createdAt: "desc" },
+        where: { partnerAssignments: { none: { partnerId } } },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          progress: true,
+          currency: true,
+          dueAt: true,
+          client: { select: { id: true, name: true, email: true } },
+        },
+      }),
+    ]);
+
+    if (!partner) return NextResponse.json({ error: "الشريك غير موجود" }, { status: 404 });
+    return NextResponse.json({ partner, projectOptions });
+  }
 
   const wantOverview = !scope || scope === "all" || scope === "overview";
   const wantPartners = !scope || scope === "all" || scope === "partners";
@@ -233,6 +299,22 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "طلب غير صالح" }, { status: 400 });
   }
 
+  if (body?.entity === "application_review") {
+    if (!(await canAdmin(request, "partners"))) {
+      return NextResponse.json({ error: "لا تملك صلاحية إدارة طلبات الشركاء" }, { status: 403 });
+    }
+    const reviewState = textValue(body?.reviewState, 30);
+    if (!["NEW", "IN_REVIEW", "NEEDS_INFO"].includes(reviewState)) {
+      return NextResponse.json({ error: "حالة المراجعة غير صالحة" }, { status: 400 });
+    }
+    const updated = await db.collaborationApplication.updateMany({
+      where: { id, type: "PARTNER", status: "PENDING" },
+      data: { reviewState },
+    });
+    if (!updated.count) return NextResponse.json({ error: "الطلب غير موجود أو سبق اتخاذ قرار بشأنه" }, { status: 404 });
+    return NextResponse.json({ ok: true, reviewState });
+  }
+
   if (body?.entity === "application") {
     const access = await currentAdminAccess(request);
     if (!access || !(access.isOwner || access.permissions.includes("partners"))) {
@@ -273,6 +355,119 @@ export async function PATCH(request: NextRequest) {
       }
       throw error;
     }
+  }
+
+  if (body?.entity === "partner_profile") {
+    if (!(await canAdmin(request, "partners"))) {
+      return NextResponse.json({ error: "لا تملك صلاحية إدارة الشركاء" }, { status: 403 });
+    }
+    const partner = await db.partner.findUnique({
+      where: { id },
+      select: { id: true, userId: true, profileCompletedAt: true },
+    });
+    if (!partner) return NextResponse.json({ error: "الشريك غير موجود" }, { status: 404 });
+
+    const specialty = textValue(body?.specialty, 1000);
+    const experience = textValue(body?.experience, 5000);
+    const availability = textValue(body?.availability, 1000);
+    const portfolioUrl = textValue(body?.portfolioUrl, 500);
+    if (portfolioUrl) {
+      try {
+        const url = new URL(portfolioUrl);
+        if (!["http:", "https:"].includes(url.protocol)) throw new Error("invalid");
+      } catch {
+        return NextResponse.json({ error: "رابط معرض الأعمال غير صالح" }, { status: 400 });
+      }
+    }
+
+    try {
+      const profile = await validatedAdminUserProfile({
+        userId: partner.userId,
+        name: body?.name,
+        email: body?.email,
+        phone: body?.phone,
+      });
+      const completed = Boolean(profile.phone && specialty && experience && availability);
+      const updated = await db.$transaction(async (tx) => {
+        const user = await tx.user.update({
+          where: { id: partner.userId },
+          data: profile,
+          select: { name: true, email: true, phone: true, isActive: true },
+        });
+        const partnerProfile = await tx.partner.update({
+          where: { id },
+          data: {
+            phone: profile.phone,
+            specialty: specialty || null,
+            experience: experience || null,
+            availability: availability || null,
+            portfolioUrl: portfolioUrl || null,
+            contactMethod: textValue(body?.contactMethod, 1000) || null,
+            workTypes: textValue(body?.workTypes, 3000) || null,
+            clientAcquisition: textValue(body?.clientAcquisition, 3000) || null,
+            payoutMethods: textValue(body?.payoutMethods, 3000) || null,
+            profileCompletedAt: completed ? partner.profileCompletedAt || new Date() : null,
+          },
+        });
+        return { user, partner: partnerProfile };
+      });
+      return NextResponse.json(updated);
+    } catch (error) {
+      if (error instanceof AdminUserProfileError) return NextResponse.json({ error: error.message }, { status: error.status });
+      throw error;
+    }
+  }
+
+  if (body?.entity === "partner_note") {
+    const access = await currentAdminAccess(request);
+    if (!access || !(access.isOwner || access.permissions.includes("partners"))) {
+      return NextResponse.json({ error: "لا تملك صلاحية إدارة الشركاء" }, { status: 403 });
+    }
+    const note = textValue(body?.note, 2000);
+    if (!note) return NextResponse.json({ error: "اكتب الملاحظة الإدارية أولًا" }, { status: 400 });
+    const [partner, admin] = await Promise.all([
+      db.partner.findUnique({ where: { id }, select: { adminNotes: true } }),
+      db.user.findUnique({ where: { id: access.userId }, select: { name: true, email: true } }),
+    ]);
+    if (!partner) return NextResponse.json({ error: "الشريك غير موجود" }, { status: 404 });
+    const author = admin?.name || admin?.email || "الإدارة";
+    const entry = `[${new Date().toISOString()}] ${author}: ${note}`;
+    const adminNotes = partner.adminNotes ? `${partner.adminNotes}\n\n${entry}` : entry;
+    await db.partner.update({ where: { id }, data: { adminNotes } });
+    return NextResponse.json({ ok: true, adminNotes });
+  }
+
+  if (body?.entity === "partner_assignment") {
+    if (!(await canAdmin(request, "partners"))) {
+      return NextResponse.json({ error: "لا تملك صلاحية إدارة الشركاء" }, { status: 403 });
+    }
+    const projectId = textValue(body?.projectId, 100);
+    if (!projectId) return NextResponse.json({ error: "اختر المشروع أولًا" }, { status: 400 });
+    const [partner, project, existing] = await Promise.all([
+      db.partner.findUnique({ where: { id }, include: { user: { select: { isActive: true } } } }),
+      db.clientProject.findUnique({ where: { id: projectId } }),
+      db.partnerProject.findFirst({ where: { partnerId: id, clientProjectId: projectId }, select: { id: true } }),
+    ]);
+    if (!partner) return NextResponse.json({ error: "الشريك غير موجود" }, { status: 404 });
+    if (partner.status !== "ACTIVE" || !partner.user.isActive) {
+      return NextResponse.json({ error: "يجب تفعيل حساب الشريك قبل إسناد مشروع جديد" }, { status: 409 });
+    }
+    if (!project) return NextResponse.json({ error: "المشروع غير موجود" }, { status: 404 });
+    if (existing) return NextResponse.json({ error: "المشروع مسند لهذا الشريك بالفعل" }, { status: 409 });
+
+    const assignment = await db.partnerProject.create({
+      data: {
+        partnerId: id,
+        clientProjectId: project.id,
+        title: project.title,
+        description: project.description,
+        status: project.status === "PLANNING" ? "ASSIGNED" : project.status,
+        progress: project.progress,
+        feeCurrency: project.currency,
+        dueAt: project.dueAt,
+      },
+    });
+    return NextResponse.json({ assignment }, { status: 201 });
   }
 
   if (body?.entity === "account") {
@@ -549,6 +744,14 @@ export async function PATCH(request: NextRequest) {
   if (!["ACTIVE", "PENDING", "SUSPENDED"].includes(status)) {
     return NextResponse.json({ error: "حالة الشريك غير صالحة" }, { status: 400 });
   }
-  const partner = await db.partner.update({ where: { id }, data: { status } });
+  const existingPartner = await db.partner.findUnique({ where: { id }, select: { id: true, userId: true } });
+  if (!existingPartner) return NextResponse.json({ error: "الشريك غير موجود" }, { status: 404 });
+  const partner = await db.$transaction(async (tx) => {
+    const updatedPartner = await tx.partner.update({ where: { id }, data: { status } });
+    if (status === "ACTIVE" || status === "SUSPENDED") {
+      await tx.user.update({ where: { id: existingPartner.userId }, data: { isActive: status === "ACTIVE" } });
+    }
+    return updatedPartner;
+  });
   return NextResponse.json({ partner });
 }
