@@ -7,9 +7,14 @@ export const runtime = "nodejs";
 type RouteContext = { params: Promise<{ clientId: string }> };
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
+const ALLOWED_KINDS = new Set(["PROJECT_ATTACHMENT", "DELIVERABLE", "WORKING", "REFERENCE", "CONTRACT", "OTHER"]);
 
 function cleanFilename(value: string) {
   return value.replace(/[\r\n"]/g, "").trim().slice(0, 180) || "project-file";
+}
+
+function fileKind(value: unknown) {
+  return typeof value === "string" && ALLOWED_KINDS.has(value) ? value : "PROJECT_ATTACHMENT";
 }
 
 function isVercelBlobUrl(value: string) {
@@ -30,6 +35,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const body = await request.json().catch(() => null);
   const projectId = typeof body?.projectId === "string" ? body.projectId : "";
   const originalName = typeof body?.originalName === "string" ? cleanFilename(body.originalName) : "";
+  const displayName = typeof body?.displayName === "string" ? cleanFilename(body.displayName) : originalName;
+  const kind = fileKind(body?.kind);
   const url = typeof body?.url === "string" ? body.url : "";
   const size = Number(body?.size);
 
@@ -52,13 +59,24 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const file = await db.clientFile.create({
     data: {
       projectId,
-      name: originalName,
+      name: displayName,
       url,
-      kind: "PROJECT_ATTACHMENT",
+      kind,
       size: Math.round(size),
       storageProvider: "VERCEL_BLOB",
     },
   });
+
+  if (kind !== "PROJECT_ATTACHMENT") {
+    await db.clientNotification.create({
+      data: {
+        clientId,
+        title: "ملف أو تسليم جديد",
+        body: displayName,
+        section: "files",
+      },
+    });
+  }
 
   return NextResponse.json({ file }, { status: 201 });
 }
