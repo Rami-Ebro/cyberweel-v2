@@ -51,6 +51,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [nextInvoiceNumber, setNextInvoiceNumber] = useState("");
   const [newProjectFormVersion, setNewProjectFormVersion] = useState(0);
+  const [newFileFormVersion, setNewFileFormVersion] = useState(0);
   const [showAccountPassword, setShowAccountPassword] = useState(false);
 
   async function load(clearNotice = true) {
@@ -183,6 +184,92 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
       const success = method === "POST" ? "تم حفظ المشروع وإشعار العميل" : "تم تحديث المشروع وإشعار العميل";
       setNotice(success);
       onPreview(success);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveFile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const formData = new FormData(formElement);
+    const projectId = String(formData.get("projectId") || "");
+    const name = String(formData.get("name") || "").trim();
+    const url = String(formData.get("url") || "").trim();
+    const kind = String(formData.get("kind") || "OTHER");
+    const attachments = formData.getAll("attachments").filter((item): item is File => item instanceof File && item.size > 0);
+    const oversized = attachments.find((file) => file.size > 25 * 1024 * 1024);
+
+    if (!projectId) return setNotice("اختر المشروع أولًا");
+    if (!attachments.length && !url) return setNotice("اختر ملفًا من الجهاز أو أضف رابطًا");
+    if (url && !name) return setNotice("اكتب اسم الملف أو التسليم عند إضافة رابط");
+    if (oversized) return setNotice(`الملف ${oversized.name} أكبر من 25 ميغابايت`);
+
+    setSaving(true);
+    setNotice("");
+    try {
+      for (const file of attachments) {
+        const cleanName = file.name.replace(/[^\p{L}\p{N}._-]+/gu, "-");
+        const blob = await upload(
+          `clients/${params.clientId}/projects/${projectId}/${crypto.randomUUID()}-${cleanName}`,
+          file,
+          {
+            access: "private",
+            handleUploadUrl: `/api/admin/clients/${params.clientId}/project-files/upload`,
+            clientPayload: JSON.stringify({
+              clientId: params.clientId,
+              projectId,
+              originalName: file.name,
+              displayName: attachments.length === 1 && name ? name : file.name,
+              kind,
+              size: file.size,
+            }),
+            multipart: file.size > 5 * 1024 * 1024,
+          },
+        );
+        const completeResponse = await fetch(
+          `/api/admin/clients/${params.clientId}/project-files/complete`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              projectId,
+              originalName: file.name,
+              displayName: attachments.length === 1 && name ? name : file.name,
+              kind,
+              size: file.size,
+              url: blob.url,
+            }),
+          },
+        );
+        if (!completeResponse.ok) {
+          const completeResult = await completeResponse.json().catch(() => null);
+          throw new Error(completeResult?.error || `تعذر تسجيل الملف ${file.name}`);
+        }
+      }
+
+      if (url) {
+        const response = await fetch(`/api/admin/clients/${params.clientId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "file", projectId, name, url, kind }),
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(data?.error || "تعذر إضافة رابط الملف");
+      }
+
+      formElement.reset();
+      setNewFileFormVersion((value) => value + 1);
+      setFileFormOpen(false);
+      await load(false);
+      const success = attachments.length > 1
+        ? `تم إرسال ${attachments.length} ملفات إلى العميل`
+        : "تمت إضافة الملف وإشعار العميل";
+      setNotice(success);
+      onPreview(success);
+    } catch (error) {
+      console.error("[client-deliveries] Upload failed", error);
+      setNotice(error instanceof Error && error.message ? error.message : "تعذر إرسال الملفات إلى العميل");
     } finally {
       setSaving(false);
     }
@@ -373,7 +460,17 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
             <section><h2 className="text-xl font-black">تسليمات وملفات CyberWeel</h2><div className="mt-4"><ListEmpty empty={!files.length} text="لا توجد ملفات من الفريق بعد.">{files.map((file) => <a key={file.id} href={file.storageProvider === "VERCEL_BLOB" ? `/api/client/files/${file.id}` : file.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></a>)}</ListEmpty></div></section>
             <section><h2 className="text-xl font-black">مواد أرسلها العميل</h2><div className="mt-4 grid gap-4">{submissions.map((submission) => <article key={submission.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><strong>{submission.projectTitle}</strong><p className="mt-1 text-xs text-slate-500"><DateText value={submission.createdAt} withTime /></p></div><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-xs font-black text-[#9A7D43]">{submissionStatuses.find(([value]) => value === submission.status)?.[1] || submission.status}</span></div>{submission.note && <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">{submission.note}</p>}{!!submission.links.length && <div className="mt-4 grid gap-2">{submission.links.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer" dir="ltr" className="break-all text-left text-sm font-bold text-[#9A7D43] underline">{link}</a>)}</div>}{!!submission.files.length && <div className="mt-4 grid gap-2 sm:grid-cols-2">{submission.files.map((file) => <a key={file.id} href={`/api/client/files/${file.id}`} target="_blank" rel="noreferrer" className="rounded-lg bg-[#F7F3EB] px-3 py-3 text-sm font-bold">{file.name}</a>)}</div>}<form onSubmit={updateSubmission} className="mt-5 flex flex-wrap items-end gap-3"><input type="hidden" name="submissionId" value={submission.id} /><label className="grid min-w-56 gap-2 text-sm font-bold">حالة المراجعة<select name="status" defaultValue={submission.status} className="field font-normal">{submissionStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><SaveButton saving={saving} label="حفظ الحالة" /></form></article>)}{!submissions.length && <ListEmpty empty text="لم يرسل العميل مواد بعد.">{null}</ListEmpty>}</div></section>
             <CreationPanel title="إضافة ملف أو تسليم" description="الملفات الحالية في الأعلى، والإضافة عند الحاجة فقط." open={fileFormOpen} onToggle={() => setFileFormOpen((value) => !value)}>
-              <form onSubmit={(event) => void submit(event, "POST", "تمت إضافة الملف وإشعار العميل")} className="grid gap-3"><input type="hidden" name="action" value="file" /><ProjectSelect projects={projects} /><input name="name" required placeholder="اسم الملف أو التسليم" className="field" /><input name="url" type="url" required placeholder="رابط الملف https://..." className="field" /><select name="kind" className="field"><option value="DELIVERABLE">تسليم نهائي</option><option value="WORKING">ملف عمل</option><option value="REFERENCE">مرجع</option><option value="CONTRACT">اتفاق أو عقد</option><option value="OTHER">أخرى</option></select><SaveButton saving={saving} label="إضافة الملف" /></form>
+              <form key={newFileFormVersion} onSubmit={(event) => void saveFile(event)} className="grid gap-3">
+                <ProjectSelect projects={projects} />
+                <input name="name" placeholder="اسم العرض — اختياري للملف، ومطلوب عند إضافة رابط" className="field" />
+                <DeliveryFilesInput />
+                <div className="grid gap-2">
+                  <span className="text-center text-xs font-black text-slate-400">أو</span>
+                  <input name="url" type="url" placeholder="رابط ملف اختياري https://..." className="field" />
+                </div>
+                <select name="kind" className="field"><option value="DELIVERABLE">تسليم نهائي</option><option value="WORKING">ملف عمل</option><option value="REFERENCE">مرجع</option><option value="CONTRACT">اتفاق أو عقد</option><option value="OTHER">أخرى</option></select>
+                <SaveButton saving={saving} label="إرسال إلى العميل" />
+              </form>
             </CreationPanel>
           </div>}
 
@@ -625,6 +722,46 @@ function ProjectAttachmentsInput({ files = [] }: { files?: Project["files"] }) {
 
 function projectFileIdentity(file: File) {
   return `${file.name}:${file.size}:${file.lastModified}`;
+}
+
+function DeliveryFilesInput() {
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function syncFiles(files: File[]) {
+    setSelectedFiles(files);
+    if (inputRef.current && typeof DataTransfer !== "undefined") {
+      const transfer = new DataTransfer();
+      files.forEach((file) => transfer.items.add(file));
+      inputRef.current.files = transfer.files;
+    }
+  }
+
+  function addFiles(fileList: FileList | null) {
+    const mergedFiles = [...selectedFiles, ...Array.from(fileList || [])].filter(
+      (file, index, allFiles) => allFiles.findIndex((candidate) => projectFileIdentity(candidate) === projectFileIdentity(file)) === index,
+    );
+    syncFiles(mergedFiles);
+  }
+
+  return <fieldset className="grid gap-3 rounded-xl border border-[#D8D2C4] p-4">
+    <div>
+      <legend className="font-black">رفع ملفات من الجهاز</legend>
+      <p className="mt-1 text-xs text-slate-500">يمكن اختيار عدة ملفات، بحد أقصى 25 ميغابايت لكل ملف.</p>
+    </div>
+    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[#B89A5A] bg-[#F7F3EB] p-4 font-bold">
+      <Paperclip className="h-5 w-5" />
+      <span>{selectedFiles.length ? "إضافة ملفات أخرى" : "اختيار ملفات من الجهاز"}</span>
+      <input ref={inputRef} name="attachments" type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.png,.jpg,.jpeg,.webp,.txt" onChange={(event) => addFiles(event.target.files)} className="sr-only" />
+    </label>
+    {!!selectedFiles.length && <div className="grid gap-2" aria-live="polite">
+      {selectedFiles.map((file, index) => <div key={projectFileIdentity(file)} className="group flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm font-bold text-blue-950">
+        <p className="min-w-0 truncate" dir="auto">{file.name}</p>
+        <button type="button" onClick={() => syncFiles(selectedFiles.filter((_, fileIndex) => fileIndex !== index))} className="shrink-0 rounded-full bg-white p-2 text-blue-700 shadow-sm hover:bg-red-50 hover:text-red-700" aria-label={`إزالة ${file.name}`}><X className="h-4 w-4" /></button>
+      </div>)}
+      <button type="button" onClick={() => syncFiles([])} className="w-fit text-xs underline underline-offset-4">إزالة كل الملفات</button>
+    </div>}
+  </fieldset>;
 }
 
 function ProjectSelect({ projects, optional = false }: { projects: Project[]; optional?: boolean }) {
