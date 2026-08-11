@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import type { Prisma, UserRole } from "@prisma/client";
-import { normalizeEmail, normalizePhone } from "@/lib/partner-auth";
+import { normalizeEmail, normalizePhone, phoneIdentityCandidates } from "@/lib/partner-auth";
 
 export const NAME_TAKEN_MESSAGE = "هذا الاسم مستخدم بالفعل، يرجى اختيار اسم آخر.";
 
@@ -67,4 +67,4 @@ export function clientAccessWhere(userId?: string): Prisma.UserWhereInput {
   return userId ? { id: userId, ...access } : access;
 }
 
-export { normalizeEmail, normalizePhone };
+export { normalizeEmail, normalizePhone, phoneIdentityCandidates };

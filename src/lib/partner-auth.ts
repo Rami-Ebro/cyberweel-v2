@@ -63,6 +63,27 @@ export function normalizePhone(value: string): string {
   return digits ? `${hasPlus ? "+" : ""}${digits}` : "";
 }
 
+export function phoneIdentityCandidates(value: string): string[] {
+  const normalized = normalizePhone(value);
+  if (!normalized) return [];
+
+  const digits = normalized.replace(/\D/g, "");
+  const candidates = new Set<string>([normalized]);
+  if (normalized.startsWith("+")) {
+    candidates.add(digits);
+    candidates.add(`00${digits}`);
+  } else if (digits.startsWith("00") && digits.length > 2) {
+    const internationalDigits = digits.slice(2);
+    candidates.add(internationalDigits);
+    candidates.add(`+${internationalDigits}`);
+  } else if (!digits.startsWith("0")) {
+    candidates.add(`+${digits}`);
+    candidates.add(`00${digits}`);
+  }
+
+  return [...candidates];
+}
+
 export function safeRedirectPath(value: unknown, fallback = "/partner/dashboard"): string {
   return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") ? value : fallback;
 }

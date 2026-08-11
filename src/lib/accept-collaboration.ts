@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { hashPassword, normalizeEmail, normalizePhone } from "@/lib/partner-auth";
+import { hashPassword, normalizeEmail, normalizePhone, phoneIdentityCandidates } from "@/lib/partner-auth";
 import { assertNameAvailable, normalizeDisplayName, NAME_TAKEN_MESSAGE } from "@/lib/user-identity";
 import type { ApplicationType, Prisma } from "@prisma/client";
 import { writeAdminAudit } from "@/lib/admin-audit";
@@ -181,21 +181,33 @@ async function resolveOrCreateUser(
   const phone = application.phone ? normalizePhone(application.phone) || application.phone.trim() : null;
   const name = normalizeDisplayName(application.name);
 
-  const existing = await tx.user.findUnique({
-    where: { email },
-    include: { partner: true, ambassador: true, adminProfile: true },
-  });
+  const [emailOwner, phoneOwners] = await Promise.all([
+    tx.user.findUnique({
+      where: { email },
+      include: { partner: true, ambassador: true, adminProfile: true },
+    }),
+    phone
+      ? tx.user.findMany({
+          where: { phone: { in: phoneIdentityCandidates(phone) } },
+          include: { partner: true, ambassador: true, adminProfile: true },
+          take: 2,
+        })
+      : [],
+  ]);
+
+  if (phoneOwners.length > 1) {
+    throw new AcceptApplicationError("IDENTITY_CONFLICT", 409);
+  }
+  const phoneOwner = phoneOwners[0] || null;
+
+  if (emailOwner && phoneOwner && emailOwner.id !== phoneOwner.id) {
+    throw new AcceptApplicationError("IDENTITY_CONFLICT", 409);
+  }
+
+  const existing = emailOwner || phoneOwner;
 
   if (existing?.adminProfile || existing?.role === "ADMIN") {
     throw new AcceptApplicationError("ADMIN_EMAIL", 409);
-  }
-
-  if (phone) {
-    const phoneOwner = await tx.user.findFirst({
-      where: { phone, ...(existing ? { id: { not: existing.id } } : {}) },
-      select: { id: true },
-    });
-    if (phoneOwner) throw new AcceptApplicationError("PHONE_EXISTS", 409);
   }
 
   if (existing) {
@@ -352,13 +364,14 @@ export async function decideCollaborationApplication(
     if (application.status === "ACCEPTED") {
       const email = normalizeEmail(application.email);
 
-      const user = await tx.user.findUnique({
+      const phone = application.phone ? normalizePhone(application.phone) || application.phone.trim() : null;
+      const user = (await tx.user.findUnique({
         where: { email },
-        include: {
-          partner: true,
-          ambassador: true,
-        },
-      });
+        include: { partner: true, ambassador: true },
+      })) || (phone ? await tx.user.findFirst({
+        where: { phone: { in: phoneIdentityCandidates(phone) } },
+        include: { partner: true, ambassador: true },
+      }) : null);
 
       if (input.type === "PARTNER") {
         if (user) {
@@ -440,6 +453,7 @@ export function acceptErrorMessage(code: string) {
     NOTES_REQUIRED: "سبب الرفض مطلوب",
     NAME_TAKEN: NAME_TAKEN_MESSAGE,
     PHONE_EXISTS: "يوجد حساب مسجل برقم الهاتف، لذلك لم يُنشأ حساب مكرر.",
+    IDENTITY_CONFLICT: "البريد الإلكتروني ورقم الهاتف مرتبطان بحسابين مختلفين.",
     ADMIN_EMAIL: "لا يمكن ربط هذا البريد بحساب شريك أو سفير لأنه حساب إدارة.",
     EMAIL_EXISTS: "يوجد حساب مسجل بهذا البريد الإلكتروني، لذلك لم يُنشأ حساب مكرر.",
   };
