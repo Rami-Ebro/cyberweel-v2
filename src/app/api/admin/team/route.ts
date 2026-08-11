@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { ADMIN_PERMISSIONS, currentAdminAccess } from "@/lib/admin-permissions";
 import { hashPassword, normalizeEmail, normalizePhone } from "@/lib/partner-auth";
+import { AdminUserProfileError, validatedAdminUserProfile } from "@/lib/admin-user-profile";
 
 async function requireOwner(request: NextRequest) {
   const access = await currentAdminAccess(request);
@@ -81,7 +82,7 @@ export async function PATCH(request: NextRequest) {
 
   const target = await db.user.findFirst({
     where: { id: userId, role: "ADMIN" },
-    select: { id: true, adminProfile: { select: { isOwner: true } } },
+    select: { id: true, name: true, email: true, phone: true, adminProfile: { select: { isOwner: true } } },
   });
   if (!target) return NextResponse.json({ error: "حساب الإدارة غير موجود" }, { status: 404 });
   if (target.adminProfile?.isOwner) {
@@ -94,9 +95,20 @@ export async function PATCH(request: NextRequest) {
 
   if (password && password.length < 8) return NextResponse.json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" }, { status: 400 });
 
+  let profile: { name: string; email: string; phone: string | null } | undefined;
+  if (body?.profile === true) {
+    try {
+      profile = await validatedAdminUserProfile({ userId, name: body?.name, email: body?.email, phone: body?.phone });
+    } catch (error) {
+      if (error instanceof AdminUserProfileError) return NextResponse.json({ error: error.message }, { status: error.status });
+      throw error;
+    }
+  }
+
   const updated = await db.user.update({
     where: { id: userId },
     data: {
+      ...(profile || {}),
       ...(password ? { passwordHash: hashPassword(password) } : {}),
       adminProfile: {
         upsert: {
@@ -112,27 +124,4 @@ export async function PATCH(request: NextRequest) {
   });
 
   return NextResponse.json({ member: updated });
-}
-
-export async function DELETE(request: NextRequest) {
-  const owner = await requireOwner(request);
-  if (!owner) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
-
-  const body = await request.json().catch(() => null);
-  const userId = typeof body?.userId === "string" ? body.userId : "";
-  if (!userId || userId === owner.userId) {
-    return NextResponse.json({ error: "لا يمكن حذف حساب المالك الرئيسي" }, { status: 400 });
-  }
-
-  const target = await db.user.findFirst({
-    where: { id: userId, role: "ADMIN" },
-    select: { id: true, adminProfile: { select: { isOwner: true } } },
-  });
-  if (!target) return NextResponse.json({ error: "حساب الإدارة غير موجود" }, { status: 404 });
-  if (target.adminProfile?.isOwner) {
-    return NextResponse.json({ error: "لا يمكن حذف حساب مالك" }, { status: 400 });
-  }
-
-  await db.user.delete({ where: { id: target.id } });
-  return NextResponse.json({ ok: true });
 }

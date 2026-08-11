@@ -66,7 +66,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     db.user.findUnique({
       where: { id: clientId },
       select: {
-        id: true, name: true, email: true, phone: true, isActive: true, createdAt: true,
+        id: true, name: true, email: true, phone: true, company: true, preferredLanguage: true, clientSource: true, internalNotes: true, isActive: true, createdAt: true,
         convertedReferrals: {
           where: { clientProject: null },
           orderBy: { convertedAt: "desc" },

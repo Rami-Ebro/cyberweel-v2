@@ -136,12 +136,44 @@ export default function AdminClientsPage() {
     } finally { setUpdatingId(""); }
   }
 
-  async function resetPassword(client: Client, form: HTMLFormElement) {
-    const input = form.elements.namedItem("password") as HTMLInputElement | null;
-    const password = input?.value || "";
-    if (password.length < 8) return setMessage("أدخل كلمة مرور جديدة من 8 أحرف على الأقل");
-    await updateClient(client, { password });
-    if (input) input.value = "";
+  async function saveClientProfile(client: Client, form: HTMLFormElement, confirmPhoneDuplicate = false) {
+    const data = new FormData(form);
+    const password = String(data.get("password") || "");
+    setUpdatingId(client.id);
+    try {
+      const response = await fetch("/api/admin/clients", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: client.id,
+          profile: true,
+          name: data.get("name"),
+          email: data.get("email"),
+          phone: data.get("phone"),
+          company: data.get("company"),
+          preferredLanguage: data.get("preferredLanguage"),
+          clientSource: data.get("clientSource"),
+          internalNotes: data.get("internalNotes"),
+          password,
+          confirmPhoneDuplicate,
+        }),
+      });
+      const result = await response.json().catch(() => null);
+      if (result?.error === "PHONE_MATCH_REQUIRES_CONFIRMATION" && !confirmPhoneDuplicate) {
+        if (window.confirm("رقم الهاتف مستخدم في حساب آخر. هل تريد حفظه رغم ذلك؟")) {
+          await saveClientProfile(client, form, true);
+        }
+        return;
+      }
+      setMessage(response.ok ? "تم حفظ بيانات العميل" : result?.message || result?.error || "تعذر حفظ بيانات العميل");
+      if (response.ok) {
+        const passwordInput = form.elements.namedItem("password") as HTMLInputElement | null;
+        if (passwordInput) passwordInput.value = "";
+        await load(false);
+      }
+    } finally {
+      setUpdatingId("");
+    }
   }
 
   return (
@@ -151,7 +183,8 @@ export default function AdminClientsPage() {
       <section className="mt-7 grid gap-5">
         <div className="flex items-center gap-3"><UsersRound className="h-6 w-6" /><h2 className="text-2xl font-black">حسابات العملاء</h2></div>
         {loading ? <p className="rounded-2xl bg-white p-8 text-center">جارٍ التحميل...</p> : clients.length ? clients.map((client) => (
-          <form key={client.id} onSubmit={(event) => { event.preventDefault(); void resetPassword(client, event.currentTarget); }} className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
+          <details key={client.id} className="group rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
+            <summary className="flex cursor-pointer list-none flex-wrap justify-between gap-4 p-6">
             <div className="flex flex-wrap justify-between gap-4">
               <div>
                 <Link href={`/admin/clients/${client.id}`} className="text-xl font-black underline decoration-[#B89A5A] decoration-2 underline-offset-4 hover:text-[#9A7D43]">{client.name || "دون اسم"}</Link>
@@ -161,6 +194,18 @@ export default function AdminClientsPage() {
               </div>
               <span className={`rounded-full px-3 py-1 text-xs font-black ${client.isActive ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>{client.isActive ? "الحساب فعال" : "الحساب معلّق"}</span>
             </div>
+            <span className="flex items-center gap-2 font-black text-[#9A7D43]">تعديل البيانات<ChevronDown className="h-5 w-5 transition group-open:rotate-180" /></span>
+            </summary>
+            <form onSubmit={(event) => { event.preventDefault(); void saveClientProfile(client, event.currentTarget); }} className="border-t border-[#D8D2C4] p-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="grid gap-2 font-bold">اسم العميل<input name="name" required minLength={2} defaultValue={client.name || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3 font-normal" /></label>
+              <label className="grid gap-2 font-bold">البريد الإلكتروني<input name="email" type="email" required defaultValue={client.email} className="rounded-xl border border-[#D8D2C4] px-4 py-3 font-normal" /></label>
+              <label className="grid gap-2 font-bold">رقم الهاتف<input name="phone" defaultValue={client.phone || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3 font-normal" /></label>
+              <label className="grid gap-2 font-bold">الشركة<input name="company" defaultValue={client.company || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3 font-normal" /></label>
+              <label className="grid gap-2 font-bold">اللغة<select name="preferredLanguage" defaultValue={client.preferredLanguage || "ar"} className="rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-normal"><option value="ar">العربية</option><option value="en">English</option></select></label>
+              <label className="grid gap-2 font-bold">مصدر العميل<input name="clientSource" defaultValue={client.clientSource || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3 font-normal" /></label>
+              <label className="grid gap-2 font-bold md:col-span-2">ملاحظات داخلية<textarea name="internalNotes" rows={3} defaultValue={client.internalNotes || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3 font-normal" /></label>
+            </div>
             <div className="mt-5 rounded-xl bg-[#F7F3EB] p-4"><p className="font-black">مشاريع العميل</p>
               <div className="mt-3 grid gap-2">{client.clientProjects.length ? client.clientProjects.map((project) => <Link href={`/admin/clients/${client.id}`} key={project.id} className="flex justify-between rounded-lg bg-white px-4 py-3 hover:ring-1 hover:ring-[#B89A5A]"><b>{project.title}</b><span>{project.progress}%</span></Link>) : <p className="text-sm text-slate-500">لا توجد مشاريع مرتبطة.</p>}</div>
             </div>
@@ -169,13 +214,14 @@ export default function AdminClientsPage() {
               <button type="button" onClick={() => setVisiblePasswords((items) => items.includes(client.id) ? items.filter((id) => id !== client.id) : [...items, client.id])} className="absolute left-3 top-1/2 -translate-y-1/2 p-2">{visiblePasswords.includes(client.id) ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>
             </div>
             <div className="mt-5 flex flex-wrap gap-3">
-              <button disabled={updatingId === client.id} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50">تغيير كلمة المرور</button>
+              <button disabled={updatingId === client.id} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50">حفظ التعديلات</button>
               <button type="button" disabled={updatingId === client.id} onClick={() => void sendInvitation(client)} className="flex items-center gap-2 rounded-xl border border-[#B89A5A] px-5 py-3 font-black text-[#9A7D43] disabled:opacity-50"><MailPlus className="h-5 w-5" />إرسال دعوة الدخول</button>
               <button type="button" disabled={updatingId === client.id} onClick={() => void updateClient(client, { isActive: !client.isActive })} className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 font-black text-amber-800">
                 {client.isActive ? <PauseCircle className="h-5 w-5" /> : <PlayCircle className="h-5 w-5" />}{client.isActive ? "تعليق الحساب" : "تفعيل الحساب"}
               </button>
             </div>
-          </form>
+            </form>
+          </details>
         )) : <p className="rounded-2xl bg-white p-8 text-center">لا توجد حسابات عملاء بعد.</p>}
       </section>
 

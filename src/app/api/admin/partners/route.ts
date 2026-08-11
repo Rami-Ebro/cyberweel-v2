@@ -9,6 +9,7 @@ import {
 } from "@/lib/accept-collaboration";
 import { clientAccessWhere } from "@/lib/user-identity";
 import type { ClientProjectStatus } from "@prisma/client";
+import { AdminUserProfileError, validatedAdminUserProfile } from "@/lib/admin-user-profile";
 
 function normalizeProjectLink(value: string) {
   const trimmed = value.trim();
@@ -270,6 +271,26 @@ export async function PATCH(request: NextRequest) {
       if (error instanceof AcceptApplicationError) {
         return NextResponse.json({ error: error.code, message: acceptErrorMessage(error.code) }, { status: error.status });
       }
+      throw error;
+    }
+  }
+
+  if (body?.entity === "account") {
+    if (!(await canAdmin(request, "partners"))) {
+      return NextResponse.json({ error: "لا تملك صلاحية إدارة الشركاء" }, { status: 403 });
+    }
+    const partner = await db.partner.findUnique({ where: { id }, select: { id: true, userId: true } });
+    if (!partner) return NextResponse.json({ error: "حساب الشريك غير موجود" }, { status: 404 });
+    try {
+      const profile = await validatedAdminUserProfile({ userId: partner.userId, name: body?.name, email: body?.email, phone: body?.phone });
+      const updated = await db.$transaction(async (tx) => {
+        const user = await tx.user.update({ where: { id: partner.userId }, data: profile, select: { name: true, email: true, phone: true, isActive: true } });
+        await tx.partner.update({ where: { id: partner.id }, data: { phone: profile.phone } });
+        return user;
+      });
+      return NextResponse.json({ user: updated });
+    } catch (error) {
+      if (error instanceof AdminUserProfileError) return NextResponse.json({ error: error.message }, { status: error.status });
       throw error;
     }
   }

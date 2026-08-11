@@ -6,6 +6,7 @@ import {
   acceptErrorMessage,
   decideCollaborationApplication,
 } from "@/lib/accept-collaboration";
+import { AdminUserProfileError, validatedAdminUserProfile } from "@/lib/admin-user-profile";
 
 export async function GET(request: NextRequest) {
   if (!(await canAdmin(request, "ambassadors"))) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
@@ -37,6 +38,24 @@ export async function PATCH(request: NextRequest) {
   if (!(await canAdmin(request, "ambassadors"))) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   const body = await request.json().catch(() => null);
   const notes = typeof body?.notes === "string" ? body.notes.trim() : "";
+
+  if (body?.entity === "account") {
+    const id = typeof body?.id === "string" ? body.id : "";
+    const ambassador = await db.ambassador.findUnique({ where: { id }, select: { id: true, userId: true } });
+    if (!ambassador) return NextResponse.json({ error: "حساب السفير غير موجود" }, { status: 404 });
+    try {
+      const profile = await validatedAdminUserProfile({ userId: ambassador.userId, name: body?.name, email: body?.email, phone: body?.phone });
+      const updated = await db.$transaction(async (tx) => {
+        const user = await tx.user.update({ where: { id: ambassador.userId }, data: profile, select: { name: true, email: true, phone: true, isActive: true } });
+        await tx.ambassador.update({ where: { id: ambassador.id }, data: { phone: profile.phone } });
+        return user;
+      });
+      return NextResponse.json({ user: updated });
+    } catch (error) {
+      if (error instanceof AdminUserProfileError) return NextResponse.json({ error: error.message }, { status: error.status });
+      throw error;
+    }
+  }
 
   if (body?.entity === "application") {
     if (!body.id || !["ACCEPTED", "REJECTED"].includes(body.status)) {

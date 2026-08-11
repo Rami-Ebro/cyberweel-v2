@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { ChevronDown, Eye, EyeOff, PauseCircle, PlayCircle, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { ChevronDown, Eye, EyeOff, PauseCircle, PlayCircle, ShieldCheck, UserPlus } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { DateText } from "@/components/ui/date-text";
 
@@ -99,10 +99,10 @@ export default function AdminTeamPage() {
       const response = await fetch("/api/admin/team", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: member.id, isActive: member.adminProfile?.isActive ?? true, permissions: selected, password: data.get("password") }),
+        body: JSON.stringify({ userId: member.id, profile: true, name: data.get("name"), email: data.get("email"), phone: data.get("phone"), isActive: member.adminProfile?.isActive ?? true, permissions: selected, password: data.get("password") }),
       });
       const result = await response.json();
-      setMessage(response.ok ? "تم حفظ الصلاحيات وكلمة المرور" : result.error || "تعذر حفظ الصلاحيات");
+      setMessage(response.ok ? "تم حفظ بيانات عضو الإدارة وصلاحياته" : result.error || "تعذر حفظ التعديلات");
       if (response.ok) {
         const passwordInput = form.elements.namedItem("password") as HTMLInputElement | null;
         if (passwordInput) passwordInput.value = "";
@@ -125,23 +125,6 @@ export default function AdminTeamPage() {
       });
       const result = await response.json();
       setMessage(response.ok ? (nextActive ? "تم تفعيل الحساب" : "تم تعليق الحساب") : result.error || "تعذر تحديث الحساب");
-      if (response.ok) await load(false);
-    } finally {
-      setUpdatingMemberId("");
-    }
-  }
-
-  async function deleteMember(member: Member) {
-    if (!window.confirm(`حذف حساب ${member.name || member.email} نهائيًا؟ لا يمكن التراجع عن ذلك.`)) return;
-    setUpdatingMemberId(member.id);
-    try {
-      const response = await fetch("/api/admin/team", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: member.id }),
-      });
-      const result = await response.json();
-      setMessage(response.ok ? "تم حذف حساب الإدارة" : result.error || "تعذر حذف الحساب");
       if (response.ok) await load(false);
     } finally {
       setUpdatingMemberId("");
@@ -205,6 +188,11 @@ export default function AdminTeamPage() {
                       <p>أُنشئ: <DateText value={member.createdAt} withTime /></p>
                       <p>آخر دخول: <DateText value={member.adminProfile?.lastLoginAt} withTime fallback="لم يسجل الدخول بعد" /></p>
                     </div>
+                    <div className="mt-5 grid gap-4 md:grid-cols-3">
+                      <label className="grid gap-2 font-bold">الاسم<input name="name" required minLength={2} disabled={isProtected} defaultValue={member.name || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3 font-normal disabled:bg-slate-100" /></label>
+                      <label className="grid gap-2 font-bold">البريد الإلكتروني<input name="email" type="email" required disabled={isProtected} defaultValue={member.email} className="rounded-xl border border-[#D8D2C4] px-4 py-3 font-normal disabled:bg-slate-100" /></label>
+                      <label className="grid gap-2 font-bold">رقم الهاتف<input name="phone" disabled={isProtected} defaultValue={member.phone || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3 font-normal disabled:bg-slate-100" /></label>
+                    </div>
                     <div className="mt-5">
                       <PermissionGrid permissions={permissions} selected={member.adminProfile?.isOwner ? permissions : member.adminProfile?.permissions || []} disabled={isProtected} />
                     </div>
@@ -223,7 +211,6 @@ export default function AdminTeamPage() {
                           {(member.adminProfile?.isActive ?? true) ? <PauseCircle className="h-5 w-5" /> : <PlayCircle className="h-5 w-5" />}
                           {(member.adminProfile?.isActive ?? true) ? "تعليق الحساب" : "تفعيل الحساب"}
                         </button>
-                        <button type="button" disabled={updatingMemberId === member.id} onClick={() => void deleteMember(member)} className="flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-5 py-3 font-black text-red-700 disabled:opacity-50"><Trash2 className="h-5 w-5" />حذف الحساب</button>
                       </div>
                     </>}
                   </form>
