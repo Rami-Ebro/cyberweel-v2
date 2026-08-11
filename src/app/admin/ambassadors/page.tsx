@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
+import { ChevronDown, Eye, EyeOff, Pencil } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 
 type Ambassador = {
@@ -10,7 +10,7 @@ type Ambassador = {
   referralNumber: number;
   status: "ACTIVE" | "SUSPENDED" | "PENDING";
   profileCompletedAt: string | null;
-  user: { name: string | null; email: string; isActive: boolean };
+  user: { name: string | null; email: string; phone: string | null; isActive: boolean };
   referrals: {
     status: string;
     commissionAmount: string | null;
@@ -72,6 +72,29 @@ export default function AmbassadorsAdmin() {
     }
   }
 
+  async function saveAmbassadorAccount(event: FormEvent<HTMLFormElement>, id: string) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setBusyId(id);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/ambassadors", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity: "account", id, name: form.get("name"), email: form.get("email"), phone: form.get("phone") }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || "تعذر تعديل بيانات السفير");
+      setMessage("تم تعديل بيانات السفير بنجاح.");
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "تعذر تعديل بيانات السفير");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function decideApplication(
     id: string,
     status: "ACCEPTED" | "REJECTED",
@@ -123,7 +146,7 @@ export default function AmbassadorsAdmin() {
                   <div>
                     <h2 className="font-black">{ambassador.user.name || ambassador.user.email}</h2>
                     <p className="text-sm text-slate-500">
-                      {ambassador.user.email} · CWA-{String(ambassador.referralNumber).padStart(4, "0")}
+                      {ambassador.user.email}{ambassador.user.phone ? ` · ${ambassador.user.phone}` : ""} · CWA-{String(ambassador.referralNumber).padStart(4, "0")}
                     </p>
                     <p className="mt-2 text-sm">
                       {ambassador.referrals.length} إحالة · عمولات مسجلة {total.toFixed(2)} · الملف{" "}
@@ -153,6 +176,15 @@ export default function AmbassadorsAdmin() {
                     </Link>
                   </div>
                 </div>
+                <details className="group mt-4 rounded-xl border border-[#D8D2C4] bg-[#F7F3EB]">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 font-black text-[#9A7D43]"><span className="flex items-center gap-2"><Pencil className="h-4 w-4" />تعديل بيانات السفير</span><ChevronDown className="h-5 w-5 transition group-open:rotate-180" /></summary>
+                  <form onSubmit={(event) => void saveAmbassadorAccount(event, ambassador.id)} className="grid gap-3 border-t border-[#D8D2C4] p-4 md:grid-cols-3">
+                    <label className="grid gap-2 font-bold">الاسم<input name="name" required minLength={2} defaultValue={ambassador.user.name || ""} className="rounded-lg border p-3 font-normal" /></label>
+                    <label className="grid gap-2 font-bold">البريد الإلكتروني<input name="email" type="email" required defaultValue={ambassador.user.email} className="rounded-lg border p-3 font-normal" /></label>
+                    <label className="grid gap-2 font-bold">رقم الهاتف<input name="phone" defaultValue={ambassador.user.phone || ""} className="rounded-lg border p-3 font-normal" /></label>
+                    <button disabled={busyId === ambassador.id} className="rounded-lg bg-[#111827] px-4 py-3 font-black text-white disabled:opacity-40 md:col-span-3">{busyId === ambassador.id ? "جارٍ الحفظ..." : "حفظ بيانات السفير"}</button>
+                  </form>
+                </details>
               </article>
             );
           })}
@@ -227,12 +259,14 @@ function ApplicationCard({
       </div>
       {application.details && <p className="mt-3">{application.details}</p>}
       {application.status === "PENDING" ? (
+        <details className="group mt-4 rounded-xl border border-[#D8D2C4] bg-[#F7F3EB]">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 font-black text-[#9A7D43]">مراجعة الطلب واتخاذ القرار<ChevronDown className="h-5 w-5 transition group-open:rotate-180" /></summary>
         <form
           onSubmit={(event) => {
             event.preventDefault();
             void submit(event.currentTarget, "ACCEPTED");
           }}
-          className="mt-4 grid gap-3 md:grid-cols-2"
+          className="grid gap-3 border-t border-[#D8D2C4] p-4 md:grid-cols-2"
         >
           <input name="notes" required placeholder="ملاحظة القرار" className="rounded-lg border p-3" />
           <div className="relative">
@@ -271,6 +305,7 @@ function ApplicationCard({
             </button>
           </div>
         </form>
+        </details>
       ) : (
         <div className="mt-3 text-sm text-slate-500">
           <p className="font-bold text-slate-700">
