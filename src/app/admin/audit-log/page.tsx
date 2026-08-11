@@ -59,9 +59,9 @@ const categoryStyles: Record<AuditCategory, { card: string; filter: string; acti
     active: "border-emerald-300 bg-emerald-100 text-emerald-950 ring-2 ring-emerald-200 shadow-sm",
   },
   SENSITIVE: {
-    card: "border-amber-200 bg-amber-50/90",
-    filter: "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100",
-    active: "border-amber-300 bg-amber-100 text-amber-950 ring-2 ring-amber-200 shadow-sm",
+    card: "border-rose-200 bg-rose-50",
+    filter: "border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100",
+    active: "border-rose-300 bg-rose-100 text-rose-950 ring-2 ring-rose-200 shadow-sm",
   },
   NORMAL: {
     card: "border-sky-200 bg-sky-50/80",

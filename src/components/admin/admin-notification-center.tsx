@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type AdminNotification = {
   id: string;
@@ -17,6 +17,7 @@ export function AdminNotificationCenter() {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
+  const centerRef = useRef<HTMLDivElement>(null);
 
   async function loadNotifications() {
     const response = await fetch("/api/admin/notifications", { cache: "no-store" });
@@ -32,6 +33,25 @@ export function AdminNotificationCenter() {
     window.addEventListener("admin-notifications-refresh", refresh);
     return () => window.removeEventListener("admin-notifications-refresh", refresh);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function closeOutside(event: PointerEvent) {
+      if (centerRef.current && !centerRef.current.contains(event.target as Node)) setOpen(false);
+    }
+
+    function closeWithEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeWithEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeWithEscape);
+    };
+  }, [open]);
 
   async function openNotification(notification: AdminNotification) {
     if (!notification.readAt) {
@@ -72,7 +92,7 @@ export function AdminNotificationCenter() {
   }
 
   return (
-    <div className="relative">
+    <div ref={centerRef} className="relative">
       <button type="button" onClick={() => setOpen((value) => !value)} className="relative inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 font-bold shadow-sm transition hover:border-[#B89A5A] hover:bg-[#FFFDF8]" aria-label="إشعارات الإدارة" aria-expanded={open}>
         <Bell className="h-5 w-5" />
         <span>الإشعارات</span>
