@@ -59,9 +59,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const { clientId } = await context.params;
   const body = await request.json().catch(() => null) as HandleUploadBody | null;
   if (!body) return NextResponse.json({ error: "طلب رفع غير صالح" }, { status: 400 });
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  if (!blobToken) {
+    return NextResponse.json({ error: "خدمة رفع الملفات غير مهيأة حاليًا" }, { status: 503 });
+  }
 
   try {
     const response = await handleUpload({
+      token: blobToken,
       request,
       body,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
