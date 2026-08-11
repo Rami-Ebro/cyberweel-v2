@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
-import { Check, Share2 } from "lucide-react";
+import { Check, Copy, Facebook, Instagram, Linkedin, MessageCircle, MoreHorizontal, Send } from "lucide-react";
 
 const workAreas = ["البرمجة والتطوير", "التصميم وتجربة المستخدم", "التسويق الرقمي", "تحليل الأعمال", "الذكاء الاصطناعي والأتمتة", "إدارة المشاريع", "صناعة المحتوى"];
 const services = ["مواقع ومتاجر إلكترونية", "تطبيقات", "أتمتة وذكاء اصطناعي", "تصميم وهوية", "تسويق ومحتوى", "دعم تقني", "تحليل واستشارات"];
@@ -64,10 +64,51 @@ function PartnerWizard({ arabic }: { arabic: boolean }) {
     setState("error");
   }
 
-  async function sharePartnerPage() {
+  function partnerShareContent() {
     const url = `${window.location.origin}/#/partner`;
     const title = arabic ? "كن شريكًا مع CyberWeel" : "Partner with CyberWeel";
     const text = arabic ? "شاركها مع من تجد فيه الكفاءة ليكون شريكًا في شبكة CyberWeel." : "Share this with someone whose skills would make them a strong CyberWeel partner.";
+
+    return { url, title, text };
+  }
+
+  function openShareUrl(url: string) {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function copyPartnerLink() {
+    const { url } = partnerShareContent();
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 2000);
+      return true;
+    } catch {
+      setShareCopied(false);
+      return false;
+    }
+  }
+
+  function shareTo(platform: "whatsapp" | "telegram" | "facebook" | "linkedin") {
+    const { url, text } = partnerShareContent();
+    const encodedUrl = encodeURIComponent(url);
+    const encodedText = encodeURIComponent(text);
+    const targets = {
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`,
+      telegram: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+    };
+    openShareUrl(targets[platform]);
+  }
+
+  async function shareToInstagram() {
+    openShareUrl("https://www.instagram.com/");
+    await copyPartnerLink();
+  }
+
+  async function sharePartnerPage() {
+    const { url, title, text } = partnerShareContent();
 
     if (navigator.share) {
       try {
@@ -79,15 +120,13 @@ function PartnerWizard({ arabic }: { arabic: boolean }) {
     }
 
     try {
-      await navigator.clipboard.writeText(url);
-      setShareCopied(true);
-      window.setTimeout(() => setShareCopied(false), 2000);
+      await copyPartnerLink();
     } catch {
-      setShareCopied(false);
+      // copyPartnerLink already handles clipboard errors.
     }
   }
 
-  if (state === "done") return <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-emerald-950"><h3 className="text-xl font-black">{arabic ? "تم إرسال طلب الشراكة بنجاح." : "Partnership application submitted successfully."}</h3><p className="mt-3 leading-7">{arabic ? "سيتم مراجعة البيانات وتفعيل الحساب بعد الموافقة من الإدارة." : "Your information will be reviewed and the account activated after administrative approval."}</p><p className="mt-4 inline-flex rounded-full bg-emerald-100 px-4 py-2 text-sm font-black">{arabic ? "حالة الطلب: قيد المراجعة" : "Application status: Under review"}</p><div className="mt-6 border-t border-emerald-200 pt-5"><p className="font-bold">{arabic ? "شارك صفحة «كن شريكًا» مع من تجد فيه الكفاءة؛ فقد تكون أنت بداية شراكة ناجحة." : "Share the partner page with someone whose skills stand out—you might spark a successful partnership."}</p><button type="button" onClick={() => void sharePartnerPage()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 font-black text-white transition hover:opacity-90">{shareCopied ? <Check className="h-5 w-5" /> : <Share2 className="h-5 w-5" />}{shareCopied ? (arabic ? "تم نسخ الرابط" : "Link copied") : (arabic ? "شارك صفحة كن شريكًا" : "Share the partner page")}</button></div></div>;
+  if (state === "done") return <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-emerald-950"><h3 className="text-xl font-black">{arabic ? "تم إرسال طلب الشراكة بنجاح." : "Partnership application submitted successfully."}</h3><p className="mt-3 leading-7">{arabic ? "سيتم مراجعة البيانات وتفعيل الحساب بعد الموافقة من الإدارة." : "Your information will be reviewed and the account activated after administrative approval."}</p><p className="mt-4 inline-flex rounded-full bg-emerald-100 px-4 py-2 text-sm font-black">{arabic ? "حالة الطلب: قيد المراجعة" : "Application status: Under review"}</p><div className="mt-6 border-t border-emerald-200 pt-5"><p className="font-bold">{arabic ? "شارك صفحة «كن شريكًا» مع من تجد فيه الكفاءة؛ فقد تكون أنت بداية شراكة ناجحة." : "Share the partner page with someone whose skills stand out—you might spark a successful partnership."}</p><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3"><button type="button" onClick={() => shareTo("whatsapp")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400"><MessageCircle className="h-5 w-5" />WhatsApp</button><button type="button" onClick={() => shareTo("telegram")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400"><Send className="h-5 w-5" />Telegram</button><button type="button" onClick={() => shareTo("facebook")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400"><Facebook className="h-5 w-5" />Facebook</button><button type="button" onClick={() => shareTo("linkedin")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400"><Linkedin className="h-5 w-5" />LinkedIn</button><button type="button" onClick={() => void shareToInstagram()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400"><Instagram className="h-5 w-5" />Instagram</button><button type="button" onClick={() => void copyPartnerLink()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400">{shareCopied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}{shareCopied ? (arabic ? "تم النسخ" : "Copied") : (arabic ? "نسخ الرابط" : "Copy link")}</button></div><button type="button" onClick={() => void sharePartnerPage()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 font-black text-white transition hover:opacity-90"><MoreHorizontal className="h-5 w-5" />{arabic ? "المزيد من خيارات المشاركة" : "More sharing options"}</button></div></div>;
 
   const titles = ["البيانات الأساسية", "معلومات العمل", "القدرة والتفرغ", "نبذة قصيرة", "معلومات الدفع"];
   const field = "w-full rounded-xl border bg-white p-3 outline-none focus:border-ink";
