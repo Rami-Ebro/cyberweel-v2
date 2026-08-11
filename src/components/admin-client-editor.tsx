@@ -24,6 +24,7 @@ type Message = { id: string; subject: string | null; body: string; fromAdmin: bo
 type Notification = { id: string; title: string; body: string | null; section: string; readAt: string | null; createdAt: string };
 type Client = {
   id: string; name: string | null; email: string; phone: string | null; isActive: boolean; createdAt: string;
+  company: string | null; preferredLanguage: string; clientSource: string | null; internalNotes: string | null;
   clientProjects: Project[]; clientMessages: Message[]; clientNotifications: Notification[];
   convertedReferrals: Array<{ id: string; name: string | null; email: string | null; source: string | null; convertedAt: string | null }>;
 };
@@ -48,6 +49,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
   const [fileFormOpen, setFileFormOpen] = useState(false);
   const [invoiceFormOpen, setInvoiceFormOpen] = useState(false);
   const [messageFormOpen, setMessageFormOpen] = useState(false);
+  const [accountFormOpen, setAccountFormOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [nextInvoiceNumber, setNextInvoiceNumber] = useState("");
   const [newProjectFormVersion, setNewProjectFormVersion] = useState(0);
@@ -295,12 +297,16 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
     }
   }
 
-  async function changeClientPassword(event: FormEvent<HTMLFormElement>) {
+  async function saveClientAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    await submitClientAccount(event.currentTarget);
+  }
+
+  async function submitClientAccount(form: HTMLFormElement, confirmPhoneDuplicate = false) {
     if (!client) return;
-    const form = event.currentTarget;
-    const password = String(new FormData(form).get("password") || "");
-    if (password.length < 8) return setNotice("أدخل كلمة مرور جديدة من 8 أحرف على الأقل");
+    const data = new FormData(form);
+    const password = String(data.get("password") || "");
+    if (password && password.length < 8) return setNotice("كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل");
 
     setSaving(true);
     setNotice("");
@@ -308,12 +314,19 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
       const response = await fetch("/api/admin/clients", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: client.id, password }),
+        body: JSON.stringify({ userId: client.id, profile: true, name: data.get("name"), email: data.get("email"), phone: data.get("phone"), company: data.get("company"), preferredLanguage: data.get("preferredLanguage"), clientSource: data.get("clientSource"), internalNotes: data.get("internalNotes"), password, confirmPhoneDuplicate }),
       });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) return setNotice(data?.error || "تعذر تغيير كلمة مرور العميل");
-      form.reset();
-      onPreview("تم تغيير كلمة مرور العميل");
+      const result = await response.json().catch(() => null);
+      if (result?.error === "PHONE_MATCH_REQUIRES_CONFIRMATION" && !confirmPhoneDuplicate) {
+        if (window.confirm("رقم الهاتف مستخدم في حساب آخر. هل تريد حفظه رغم ذلك؟")) await submitClientAccount(form, true);
+        return;
+      }
+      if (!response.ok) return setNotice(result?.error || "تعذر حفظ بيانات العميل");
+      const passwordInput = form.elements.namedItem("password") as HTMLInputElement | null;
+      if (passwordInput) passwordInput.value = "";
+      setAccountFormOpen(false);
+      await load(false);
+      setNotice("تم حفظ بيانات العميل");
     } finally {
       setSaving(false);
     }
@@ -526,17 +539,27 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
                 <p><b>الهاتف:</b> {client.phone || "—"}</p>
                 <p><b>الحالة:</b> {client.isActive ? "فعال" : "معلّق"}</p>
               </div>
-              <form onSubmit={changeClientPassword} className="grid gap-3">
+              <CreationPanel title="تعديل بيانات العميل" description="الاسم والبريد والهاتف وبيانات الحساب." open={accountFormOpen} onToggle={() => setAccountFormOpen((value) => !value)}>
+              <form onSubmit={(event) => void saveClientAccount(event)} className="grid gap-3">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="grid gap-2 font-bold">الاسم<input name="name" required minLength={2} defaultValue={client.name || ""} className="field font-normal" /></label>
+                  <label className="grid gap-2 font-bold">البريد الإلكتروني<input name="email" type="email" required defaultValue={client.email} className="field font-normal" /></label>
+                  <label className="grid gap-2 font-bold">رقم الهاتف<input name="phone" defaultValue={client.phone || ""} className="field font-normal" /></label>
+                  <label className="grid gap-2 font-bold">الشركة<input name="company" defaultValue={client.company || ""} className="field font-normal" /></label>
+                  <label className="grid gap-2 font-bold">اللغة<select name="preferredLanguage" defaultValue={client.preferredLanguage || "ar"} className="field font-normal"><option value="ar">العربية</option><option value="en">English</option></select></label>
+                  <label className="grid gap-2 font-bold">مصدر العميل<input name="clientSource" defaultValue={client.clientSource || ""} className="field font-normal" /></label>
+                  <label className="grid gap-2 font-bold md:col-span-2">ملاحظات داخلية<textarea name="internalNotes" rows={3} defaultValue={client.internalNotes || ""} className="field font-normal" /></label>
+                </div>
                 <label className="grid gap-2 font-bold">كلمة مرور جديدة
                   <span className="relative">
-                    <input name="password" type={showAccountPassword ? "text" : "password"} minLength={8} required autoComplete="new-password" placeholder="8 أحرف على الأقل" className="field w-full pl-12 font-normal" />
+                    <input name="password" type={showAccountPassword ? "text" : "password"} minLength={8} autoComplete="new-password" placeholder="اختيارية — 8 أحرف على الأقل" className="field w-full pl-12 font-normal" />
                     <button type="button" onClick={() => setShowAccountPassword((value) => !value)} aria-label={showAccountPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"} className="absolute left-3 top-1/2 -translate-y-1/2 p-2">
                       {showAccountPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </span>
                 </label>
                 <div className="flex flex-wrap gap-3">
-                  <SaveButton saving={saving} label="حفظ كلمة المرور" />
+                  <SaveButton saving={saving} label="حفظ التعديلات" />
                   <button type="button" disabled={saving} onClick={() => void toggleClientStatus()} className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 font-black text-amber-800 disabled:opacity-50">
                     {client.isActive ? <PauseCircle className="h-5 w-5" /> : <PlayCircle className="h-5 w-5" />}
                     {client.isActive ? "تعليق الحساب" : "تفعيل الحساب"}
@@ -544,6 +567,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
                   <button type="button" onClick={() => onPreview()} className="rounded-xl border border-[#D8D2C4] px-5 py-3 font-black">إلغاء</button>
                 </div>
               </form>
+              </CreationPanel>
             </div>
           </Editor>}
         </section>
