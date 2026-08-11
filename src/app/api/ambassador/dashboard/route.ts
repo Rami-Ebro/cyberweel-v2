@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { canAdmin } from "@/lib/admin-permissions";
 import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
 import { formatPartnerReferralCode } from "@/lib/partner-referral";
+import { utcMonthRange } from "@/lib/ambassador-rewards";
 import {
   consumeRateLimit,
   hasTrustedOrigin,
@@ -106,10 +107,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "PROFILE_REQUIRED", redirectTo: "/complete-profile?capability=AMBASSADOR" }, { status: 428 });
   }
 
-  const rawReferrals = await db.partnerReferral.findMany({
-    where: { ambassadorId: user.ambassador!.id },
-    orderBy: { createdAt: "desc" },
-  });
+  const month = utcMonthRange();
+  const [rawReferrals, rawRewards, rewardLevels, successfulThisMonth] = await Promise.all([
+    db.partnerReferral.findMany({
+      where: { ambassadorId: user.ambassador!.id },
+      orderBy: { createdAt: "desc" },
+    }),
+    db.ambassadorReward.findMany({
+      where: { ambassadorId: user.ambassador!.id },
+      orderBy: { createdAt: "desc" },
+      include: {
+        referral: { select: { name: true, email: true } },
+        project: { select: { title: true, client: { select: { name: true, email: true } } } },
+        projectStage: { select: { name: true } },
+      },
+    }),
+    db.ambassadorRewardLevel.findMany({ where: { isActive: true }, orderBy: { minSuccessfulReferrals: "asc" } }),
+    db.clientProject.count({
+      where: {
+        referral: { ambassadorId: user.ambassador!.id },
+        ambassadorQualifiedAt: { gte: month.start, lt: month.end },
+      },
+    }),
+  ]);
   const referrals = rawReferrals.map(serializeReferral);
   const summaries = new Map<string, {
     currency: string;
@@ -131,6 +151,25 @@ export async function GET(request: NextRequest) {
     if (referral.commissionStatus === "NOT_ELIGIBLE") summary.cancelled += amount;
     summaries.set(currency, summary);
   }
+
+  const rewardSummaries = new Map<string, { currency: string; total: number; expected: number; earned: number; paid: number }>();
+  const rewards = rawRewards.map((reward) => {
+    const value = Number(reward.amount);
+    const summary = rewardSummaries.get(reward.currency) || { currency: reward.currency, total: 0, expected: 0, earned: 0, paid: 0 };
+    if (reward.status !== "CANCELLED") summary.total += value;
+    if (reward.status === "EXPECTED") summary.expected += value;
+    if (reward.status === "EARNED") summary.earned += value;
+    if (reward.status === "PAID") summary.paid += value;
+    rewardSummaries.set(reward.currency, summary);
+    return {
+      ...reward,
+      rate: reward.rate.toString(),
+      baseAmount: reward.baseAmount.toString(),
+      amount: reward.amount.toString(),
+    };
+  });
+  const currentLevel = [...rewardLevels].reverse().find((level) => level.minSuccessfulReferrals <= Math.max(successfulThisMonth, 1)) || rewardLevels[0] || null;
+  const nextLevel = rewardLevels.find((level) => level.minSuccessfulReferrals > successfulThisMonth) || null;
 
   const code = formatPartnerReferralCode(user.ambassador!.referralNumber).replace("CW-", "CWA-");
   return NextResponse.json({
@@ -158,8 +197,24 @@ export async function GET(request: NextRequest) {
         paid: item.paid.toFixed(2),
         cancelled: item.cancelled.toFixed(2),
       })),
+      rewardsByCurrency: Array.from(rewardSummaries.values()).map((item) => ({
+        currency: item.currency,
+        total: item.total.toFixed(2),
+        expected: item.expected.toFixed(2),
+        earned: item.earned.toFixed(2),
+        paid: item.paid.toFixed(2),
+      })),
+      monthlyLevel: {
+        successfulReferrals: successfulThisMonth,
+        name: currentLevel?.name || "البداية",
+        rate: currentLevel?.rate.toString() || "0",
+        nextRate: nextLevel?.rate.toString() || null,
+        nextTarget: nextLevel?.minSuccessfulReferrals || null,
+        remaining: nextLevel ? Math.max(0, nextLevel.minSuccessfulReferrals - successfulThisMonth) : 0,
+      },
     },
     referrals,
+    rewards,
   });
 }
 

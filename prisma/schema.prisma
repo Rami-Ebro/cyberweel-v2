@@ -45,6 +45,26 @@ enum CommissionType {
   PERCENTAGE
 }
 
+enum ProjectStageStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ProjectStagePaymentStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum AmbassadorRewardStatus {
+  EXPECTED
+  EARNED
+  PAID
+  CANCELLED
+}
+
 enum ReferralDecision {
   PENDING_REVIEW
   ACCEPTED
@@ -75,6 +95,7 @@ enum ClientProjectStatus {
   REVIEW
   COMPLETED
   ON_HOLD
+  CANCELLED
 }
 
 enum ClientInvoiceStatus {
@@ -91,32 +112,34 @@ enum ClientInvoiceType {
 }
 
 model User {
-  id                  String                     @id @default(cuid())
-  email               String                     @unique
-  phone               String?
-  name                String?
-  company             String?
-  preferredLanguage   String                     @default("ar")
-  clientSource        String?
-  internalNotes       String?
-  passwordHash        String?
-  role                UserRole                   @default(CLIENT)
+  id                        String                     @id @default(cuid())
+  email                     String                     @unique
+  phone                     String?
+  name                      String?
+  company                   String?
+  preferredLanguage         String                     @default("ar")
+  clientSource              String?
+  internalNotes             String?
+  passwordHash              String?
+  role                      UserRole                   @default(CLIENT)
   /// Enables client dashboard access when the same auth user also has another role.
-  clientEnabled       Boolean                    @default(false)
-  isActive            Boolean                    @default(true)
-  partner             Partner?
-  ambassador          Ambassador?
-  adminProfile        AdminProfile?
-  clientProjects      ClientProject[]
-  clientMessages      ClientMessage[]
-  clientNotifications ClientNotification[]
-  updatedReferrals    PartnerReferral[]          @relation("ReferralUpdatedBy")
-  convertedReferrals  PartnerReferral[]          @relation("ConvertedReferralClient")
-  decidedApplications CollaborationApplication[] @relation("ApplicationDecidedBy")
-  adminAuditLogs      AdminAuditLog[]            @relation("AdminAuditActor")
-  passwordResetTokens PasswordResetToken[]
-  createdAt           DateTime                   @default(now())
-  updatedAt           DateTime                   @updatedAt
+  clientEnabled             Boolean                    @default(false)
+  isActive                  Boolean                    @default(true)
+  partner                   Partner?
+  ambassador                Ambassador?
+  adminProfile              AdminProfile?
+  clientProjects            ClientProject[]
+  clientMessages            ClientMessage[]
+  clientNotifications       ClientNotification[]
+  updatedReferrals          PartnerReferral[]          @relation("ReferralUpdatedBy")
+  convertedReferrals        PartnerReferral[]          @relation("ConvertedReferralClient")
+  decidedApplications       CollaborationApplication[] @relation("ApplicationDecidedBy")
+  adminAuditLogs            AdminAuditLog[]            @relation("AdminAuditActor")
+  approvedProjectStages     ProjectStage[]             @relation("ProjectStageApprovedBy")
+  ambassadorRewardsAsClient AmbassadorReward[]         @relation("AmbassadorRewardClient")
+  passwordResetTokens       PasswordResetToken[]
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
 
   @@index([name])
 }
@@ -172,6 +195,9 @@ model Partner {
   application        CollaborationApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
   referrals          PartnerReferral[]
   profileCompletedAt DateTime?
+  age                Int?
+  educationLevel     String?
+  educationSpecialty String?
   phone              String?
   specialty          String?
   experience         String?
@@ -204,22 +230,24 @@ model Partner {
 }
 
 model Ambassador {
-  id                 String            @id @default(cuid())
-  referralNumber     Int               @unique @default(autoincrement())
-  status             PartnerStatus     @default(PENDING)
-  userId             String            @unique
-  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String             @id @default(cuid())
+  referralNumber     Int                @unique @default(autoincrement())
+  status             PartnerStatus      @default(PENDING)
+  userId             String             @unique
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   phone              String?
   country            String?
   contactMethod      String?
   payoutMethod       String?
   payoutDetails      String?
   profileCompletedAt DateTime?
+  age                Int?
   decisionNotes      String?
   decidedAt          DateTime?
   referrals          PartnerReferral[]
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  rewards            AmbassadorReward[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@index([status])
 }
@@ -231,6 +259,9 @@ model CollaborationApplication {
   name               String
   email              String
   phone              String?
+  age                Int?
+  educationLevel     String?
+  educationSpecialty String?
   specialty          String?
   market             String?
   details            String?
@@ -321,36 +352,37 @@ model PartnerProject {
 }
 
 model PartnerReferral {
-  id                   String            @id @default(cuid())
+  id                   String             @id @default(cuid())
   partnerId            String?
-  partner              Partner?          @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  partner              Partner?           @relation(fields: [partnerId], references: [id], onDelete: Cascade)
   ambassadorId         String?
-  ambassador           Ambassador?       @relation(fields: [ambassadorId], references: [id], onDelete: SetNull)
+  ambassador           Ambassador?        @relation(fields: [ambassadorId], references: [id], onDelete: SetNull)
   name                 String?
   email                String?
   phone                String?
   company              String?
-  status               ReferralStatus    @default(NEW)
+  status               ReferralStatus     @default(NEW)
   sourcePath           String?
   source               String?
   contactMethod        String?
   adminDecision        ReferralDecision?
   adminNotes           String?
   commissionType       CommissionType?
-  commissionAmount     Decimal?          @db.Decimal(12, 2)
-  commissionRate       Decimal?          @db.Decimal(5, 2)
-  commissionBaseAmount Decimal?          @db.Decimal(12, 2)
-  commissionCurrency   String            @default("USD")
-  commissionStatus     CommissionStatus  @default(VERIFYING)
+  commissionAmount     Decimal?           @db.Decimal(12, 2)
+  commissionRate       Decimal?           @db.Decimal(5, 2)
+  commissionBaseAmount Decimal?           @db.Decimal(12, 2)
+  commissionCurrency   String             @default("USD")
+  commissionStatus     CommissionStatus   @default(VERIFYING)
   updatedById          String?
-  updatedBy            User?             @relation("ReferralUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedBy            User?              @relation("ReferralUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   notes                String?
   clientProject        ClientProject?
+  ambassadorRewards    AmbassadorReward[]
   convertedClientId    String?
-  convertedClient      User?             @relation("ConvertedReferralClient", fields: [convertedClientId], references: [id], onDelete: SetNull)
+  convertedClient      User?              @relation("ConvertedReferralClient", fields: [convertedClientId], references: [id], onDelete: SetNull)
   convertedAt          DateTime?
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
   @@index([partnerId])
   @@index([partnerId, status])
@@ -361,33 +393,106 @@ model PartnerReferral {
 }
 
 model ClientProject {
-  id                 String              @id @default(cuid())
-  clientId           String
-  client             User                @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  referralId         String?             @unique
-  referral           PartnerReferral?    @relation(fields: [referralId], references: [id], onDelete: SetNull)
-  title              String
-  description        String?
-  agreementDetails   String?
-  financialPlan      String?
-  currency           String              @default("USD")
-  stages             String?
-  links              String[]            @default([])
-  notes              String?
-  status             ClientProjectStatus @default(PLANNING)
-  progress           Int                 @default(0)
-  startsAt           DateTime?
-  dueAt              DateTime?
-  files              ClientFile[]
-  submissions        ClientSubmission[]
-  invoices           ClientInvoice[]
-  messages           ClientMessage[]
-  partnerAssignments PartnerProject[]
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  id                    String              @id @default(cuid())
+  clientId              String
+  client                User                @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  referralId            String?             @unique
+  referral              PartnerReferral?    @relation(fields: [referralId], references: [id], onDelete: SetNull)
+  title                 String
+  description           String?
+  agreementDetails      String?
+  financialPlan         String?
+  currency              String              @default("USD")
+  stages                String?
+  ambassadorRewardRate  Decimal?            @db.Decimal(5, 2)
+  ambassadorQualifiedAt DateTime?
+  links                 String[]            @default([])
+  notes                 String?
+  status                ClientProjectStatus @default(PLANNING)
+  progress              Int                 @default(0)
+  startsAt              DateTime?
+  dueAt                 DateTime?
+  files                 ClientFile[]
+  submissions           ClientSubmission[]
+  invoices              ClientInvoice[]
+  projectStages         ProjectStage[]
+  ambassadorRewards     AmbassadorReward[]
+  messages              ClientMessage[]
+  partnerAssignments    PartnerProject[]
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
 
   @@index([clientId])
   @@index([clientId, status])
+}
+
+model AmbassadorRewardLevel {
+  id                     String   @id @default(cuid())
+  name                   String
+  minSuccessfulReferrals Int      @unique
+  rate                   Decimal  @db.Decimal(5, 2)
+  isActive               Boolean  @default(true)
+  sortOrder              Int      @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([isActive, minSuccessfulReferrals])
+}
+
+model ProjectStage {
+  id            String                    @id @default(cuid())
+  projectId     String
+  project       ClientProject             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name          String
+  amount        Decimal                   @db.Decimal(12, 2)
+  currency      String                    @default("USD")
+  status        ProjectStageStatus        @default(NOT_STARTED)
+  paymentStatus ProjectStagePaymentStatus @default(PENDING)
+  startsAt      DateTime?
+  completedAt   DateTime?
+  paidAt        DateTime?
+  approvedAt    DateTime?
+  approvedById  String?
+  approvedBy    User?                     @relation("ProjectStageApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  rewards       AmbassadorReward[]
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  @@index([projectId, status])
+  @@index([paymentStatus])
+}
+
+model AmbassadorReward {
+  id             String                 @id @default(cuid())
+  ambassadorId   String
+  ambassador     Ambassador             @relation(fields: [ambassadorId], references: [id], onDelete: Restrict)
+  referralId     String
+  referral       PartnerReferral        @relation(fields: [referralId], references: [id], onDelete: Restrict)
+  clientId       String
+  client         User                   @relation("AmbassadorRewardClient", fields: [clientId], references: [id], onDelete: Restrict)
+  projectId      String
+  project        ClientProject          @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  projectStageId String
+  projectStage   ProjectStage           @relation(fields: [projectStageId], references: [id], onDelete: Restrict)
+  rate           Decimal                @db.Decimal(5, 2)
+  baseAmount     Decimal                @db.Decimal(12, 2)
+  amount         Decimal                @db.Decimal(12, 2)
+  currency       String                 @default("USD")
+  status         AmbassadorRewardStatus @default(EXPECTED)
+  earnedAt       DateTime?
+  paidAt         DateTime?
+  cancelledAt    DateTime?
+  cancelReason   String?
+  adminNotes     String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@unique([ambassadorId, projectStageId])
+  @@index([ambassadorId, status])
+  @@index([projectId])
+  @@index([referralId])
+  @@index([clientId])
+  @@index([status, createdAt])
 }
 
 model ClientFile {

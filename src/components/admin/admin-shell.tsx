@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { type ReactNode } from "react";
 import {
   BarChart3, CheckCircle2, FolderKanban, Home, Link2, LogOut,
-  ReceiptText, ShieldCheck, UserCog, UserRound, UsersRound, History,
+  ReceiptText, ShieldCheck, UserCog, UserRound, UsersRound, History, BadgeDollarSign,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { AdminNotificationCenter } from "@/components/admin/admin-notification-center";
 
-export type AdminNavKey = "overview" | "clients" | "projects" | "invoices" | "referrals" | "partners" | "ambassadors" | "account" | "team" | "smart-links" | "audit-log";
+export type AdminNavKey = "overview" | "clients" | "projects" | "invoices" | "referrals" | "rewards" | "partners" | "ambassadors" | "account" | "team" | "smart-links" | "audit-log";
 
 const items: Array<{ key: AdminNavKey; label: string; href: string; icon: typeof BarChart3 }> = [
   { key: "overview", label: "نظرة عامة", href: "/admin/partners?section=overview", icon: BarChart3 },
@@ -18,6 +18,7 @@ const items: Array<{ key: AdminNavKey; label: string; href: string; icon: typeof
   { key: "projects", label: "المشاريع", href: "/admin/partners?section=projects", icon: FolderKanban },
   { key: "invoices", label: "الفواتير", href: "/admin/invoices", icon: ReceiptText },
   { key: "referrals", label: "الإحالات", href: "/admin/referrals", icon: CheckCircle2 },
+  { key: "rewards", label: "مكافآت السفراء", href: "/admin/rewards", icon: BadgeDollarSign },
   { key: "partners", label: "الشركاء", href: "/admin/partners?section=partners", icon: UsersRound },
   { key: "ambassadors", label: "السفراء", href: "/admin/ambassadors", icon: UsersRound },
   { key: "account", label: "حساب الإدارة", href: "/admin/partners?section=account", icon: UserCog },

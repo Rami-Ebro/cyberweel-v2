@@ -43,11 +43,15 @@ export async function PATCH(request: NextRequest) {
     const id = typeof body?.id === "string" ? body.id : "";
     const ambassador = await db.ambassador.findUnique({ where: { id }, select: { id: true, userId: true } });
     if (!ambassador) return NextResponse.json({ error: "حساب السفير غير موجود" }, { status: 404 });
+    const age = body?.age === "" || body?.age == null ? null : Number(body.age);
+    if (age != null && (!Number.isInteger(age) || age < 1 || age > 120)) {
+      return NextResponse.json({ error: "العمر يجب أن يكون رقمًا صحيحًا بين 1 و120" }, { status: 400 });
+    }
     try {
       const profile = await validatedAdminUserProfile({ userId: ambassador.userId, name: body?.name, email: body?.email, phone: body?.phone });
       const updated = await db.$transaction(async (tx) => {
         const user = await tx.user.update({ where: { id: ambassador.userId }, data: profile, select: { name: true, email: true, phone: true, isActive: true } });
-        await tx.ambassador.update({ where: { id: ambassador.id }, data: { phone: profile.phone } });
+        await tx.ambassador.update({ where: { id: ambassador.id }, data: { phone: profile.phone, age } });
         return user;
       });
       return NextResponse.json({ user: updated });

@@ -1,5 +1,7 @@
 import { db } from "@/lib/db";
-import { canAdmin } from "@/lib/admin-permissions";
+import { canAdmin, currentAdminAccess } from "@/lib/admin-permissions";
+import { rewardRateForNewProject, syncStageReward } from "@/lib/ambassador-rewards";
+import { writeAdminAudit } from "@/lib/admin-audit";
 import type { ClientProjectStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -49,7 +51,7 @@ function parseCurrency(value: unknown) {
 }
 
 function parseProjectStatus(value: unknown): ClientProjectStatus {
-  const allowed = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD"] as const;
+  const allowed = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD", "CANCELLED"] as const;
   return typeof value === "string" && (allowed as readonly string[]).includes(value)
     ? (value as ClientProjectStatus)
     : "PLANNING";
@@ -122,15 +124,21 @@ export async function POST(request: NextRequest, context: RouteContext) {
       if (parsedLinks.invalid.length) {
         return NextResponse.json({ error: `الرابط غير صالح: ${parsedLinks.invalid[0]}. اكتب اسم النطاق مثل example.com أو رابطًا كاملًا.` }, { status: 400 });
       }
-      if (referralId) {
-        const referral = await db.partnerReferral.findFirst({
+      const referral = referralId
+        ? await db.partnerReferral.findFirst({
           where: { id: referralId, convertedClientId: clientId, status: "CONVERTED", clientProject: null },
-          select: { id: true },
-        });
+          select: { id: true, ambassadorId: true },
+        })
+        : null;
+      if (referralId) {
         if (!referral) return NextResponse.json({ error: "الإحالة غير متاحة أو مرتبطة بمشروع مسبقًا" }, { status: 409 });
       }
-      const project = await db.clientProject.create({
-        data: {
+      const admin = await currentAdminAccess(request);
+      const project = await db.$transaction(async (tx) => {
+        const rewardSnapshot = referral?.ambassadorId
+          ? await rewardRateForNewProject(tx, referral.ambassadorId)
+          : null;
+        const created = await tx.clientProject.create({ data: {
           clientId,
           referralId: referralId || null,
           title,
@@ -144,7 +152,27 @@ export async function POST(request: NextRequest, context: RouteContext) {
           status: parseProjectStatus(body.status),
           progress: Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : 0,
           dueAt: body.dueAt ? new Date(body.dueAt) : null,
-        },
+          ambassadorRewardRate: rewardSnapshot?.rate,
+          ambassadorQualifiedAt: rewardSnapshot?.qualifiedAt,
+        } });
+        if (rewardSnapshot) {
+          await writeAdminAudit(tx, {
+            actorId: admin?.userId,
+            action: "AMBASSADOR_REWARD_RATE_LOCKED",
+            category: "POSITIVE",
+            entityType: "CLIENT_PROJECT",
+            entityId: created.id,
+            entityLabel: created.title,
+            after: {
+              ambassadorId: referral?.ambassadorId,
+              referralId,
+              referralPosition: rewardSnapshot.referralPosition,
+              level: rewardSnapshot.levelName,
+              rate: rewardSnapshot.rate.toString(),
+            },
+          });
+        }
+        return created;
       });
       await notify(clientId, "تمت إضافة مشروع جديد", title, "projects");
       return NextResponse.json({ project }, { status: 201 });
@@ -245,9 +273,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (parsedLinks?.invalid.length) {
       return NextResponse.json({ error: `الرابط غير صالح: ${parsedLinks.invalid[0]}. اكتب اسم النطاق مثل example.com أو رابطًا كاملًا.` }, { status: 400 });
     }
-    const updated = await db.clientProject.update({
-      where: { id: project.id },
-      data: {
+    const admin = await currentAdminAccess(request);
+    const updated = await db.$transaction(async (tx) => {
+      const saved = await tx.clientProject.update({ where: { id: project.id }, data: {
         ...(body.title?.trim() ? { title: body.title.trim() } : {}),
         ...(typeof body.description === "string" ? { description: body.description.trim() || null } : {}),
         ...(typeof body.agreementDetails === "string" ? { agreementDetails: body.agreementDetails.trim() || null } : {}),
@@ -259,7 +287,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ...(body.status ? { status: parseProjectStatus(body.status) } : {}),
         ...(Number.isFinite(progress) ? { progress: Math.max(0, Math.min(100, progress)) } : {}),
         ...(body.dueAt !== undefined ? { dueAt: body.dueAt ? new Date(body.dueAt) : null } : {}),
-      },
+      } });
+      if (saved.status === "CANCELLED") {
+        const futureStages = await tx.projectStage.findMany({ where: { projectId: saved.id, status: { in: ["NOT_STARTED", "IN_PROGRESS"] } }, select: { id: true } });
+        for (const stage of futureStages) {
+          await tx.projectStage.update({ where: { id: stage.id }, data: { status: "CANCELLED", paymentStatus: "CANCELLED" } });
+          await syncStageReward(tx, stage.id);
+        }
+        await writeAdminAudit(tx, { actorId: admin?.userId, action: "PROJECT_CANCELLED", category: "SENSITIVE", entityType: "CLIENT_PROJECT", entityId: saved.id, entityLabel: saved.title, after: { cancelledFutureStages: futureStages.length } });
+      }
+      return saved;
     });
     await notify(clientId, "تم تحديث المشروع", `${updated.title} — الإنجاز ${updated.progress}%`, "projects");
     return NextResponse.json({ project: updated });

@@ -65,7 +65,7 @@ type ProjectListItem = Omit<PartnerProject, "files" | "updates"> & {
   stages: string | null;
   links: string[];
   notes: string | null;
-  clientStatus: "PLANNING" | "IN_PROGRESS" | "REVIEW" | "COMPLETED" | "ON_HOLD";
+  clientStatus: "PLANNING" | "IN_PROGRESS" | "REVIEW" | "COMPLETED" | "ON_HOLD" | "CANCELLED";
   projectCurrency: string;
   clientId: string;
   clientName: string;
@@ -104,6 +104,9 @@ type Application = {
   name: string;
   email: string;
   phone: string | null;
+  age: number | null;
+  educationLevel: string | null;
+  educationSpecialty: string | null;
   specialty: string | null;
   market: string | null;
   details: string | null;
@@ -910,6 +913,7 @@ export default function AdminPartnersPage() {
                       <option value="REVIEW">قيد المراجعة</option>
                       <option value="COMPLETED">مكتمل</option>
                       <option value="ON_HOLD">متوقف مؤقتًا</option>
+                      <option value="CANCELLED">ملغى</option>
                     </select>
                   </Field>
                   <Field label="نسبة التقدم">
@@ -1032,6 +1036,7 @@ export default function AdminPartnersPage() {
                                     <option value="REVIEW">قيد المراجعة</option>
                                     <option value="COMPLETED">مكتمل</option>
                                     <option value="ON_HOLD">متوقف مؤقتًا</option>
+                                    <option value="CANCELLED">ملغى</option>
                                   </select>
                                 </Field>
                                 <Field label="نسبة التقدم">
@@ -1248,7 +1253,7 @@ function ApplicationCard({
             {application.email} {application.phone ? `· ${application.phone}` : ""}
           </p>
           <p className="mt-2 text-sm">{application.partnerType || "نوع الشريك غير محدد"} · {application.countryRegion || application.market || "المنطقة غير محددة"}</p>
-          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2"><p><strong>المجالات:</strong> {application.workAreas.join("، ") || application.specialty || "غير محددة"}</p><p><strong>الخدمات:</strong> {application.supportServices.join("، ") || "غير محددة"}</p><p><strong>الخبرة:</strong> {[application.experienceLevel, application.experienceYears != null ? `${application.experienceYears} سنوات` : ""].filter(Boolean).join(" · ") || "غير محددة"}</p><p><strong>التفرغ:</strong> {application.availabilityType === "FULL_TIME" ? "كامل" : application.availabilityType === "PART_TIME" ? `جزئي${application.weeklyHours ? ` · ${application.weeklyHours} ساعة` : ""}` : "غير محدد"}</p><p><strong>التعاون:</strong> {application.cooperationTypes.join("، ") || "غير محدد"}</p><p><strong>الدفع:</strong> {[...application.paymentMethods, application.otherPaymentMethod].filter(Boolean).join("، ") || "غير محدد"}</p></div>
+          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2"><p><strong>العمر:</strong> {application.age != null ? `${application.age} سنة` : "غير محدد"}</p><p><strong>التعليم:</strong> {[application.educationLevel, application.educationSpecialty].filter(Boolean).join(" · ") || "غير محدد"}</p><p><strong>المجالات:</strong> {application.workAreas.join("، ") || application.specialty || "غير محددة"}</p><p><strong>الخدمات:</strong> {application.supportServices.join("، ") || "غير محددة"}</p><p><strong>الخبرة:</strong> {[application.experienceLevel, application.experienceYears != null ? `${application.experienceYears} سنوات` : ""].filter(Boolean).join(" · ") || "غير محددة"}</p><p><strong>التفرغ:</strong> {application.availabilityType === "FULL_TIME" ? "كامل" : application.availabilityType === "PART_TIME" ? `جزئي${application.weeklyHours ? ` · ${application.weeklyHours} ساعة` : ""}` : "غير محدد"}</p><p><strong>التعاون:</strong> {application.cooperationTypes.join("، ") || "غير محدد"}</p><p><strong>الدفع:</strong> {[...application.paymentMethods, application.otherPaymentMethod].filter(Boolean).join("، ") || "غير محدد"}</p></div>
           {application.details && <p className="mt-3 rounded-xl bg-[#F7F3EB] p-4">{application.details}</p>}
           <p className="mt-2 text-xs text-slate-400">تاريخ الطلب: <DateText value={application.createdAt} /></p>
         </div>

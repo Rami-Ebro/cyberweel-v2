@@ -18,6 +18,9 @@ export async function GET(request: NextRequest) {
       partner: {
         select: {
           status: true,
+          age: true,
+          educationLevel: true,
+          educationSpecialty: true,
           phone: true,
           specialty: true,
           experience: true,
@@ -28,6 +31,7 @@ export async function GET(request: NextRequest) {
       ambassador: {
         select: {
           status: true,
+          age: true,
           phone: true,
           country: true,
           contactMethod: true,
@@ -91,16 +95,23 @@ export async function POST(request: NextRequest) {
             : null;
 
   if (capability === "PARTNER" && user.partner) {
+    const age = Number(body?.age);
+    const selectedEducationLevel = value(body?.educationLevel, 120);
+    const educationLevel = selectedEducationLevel === "أخرى" ? value(body?.educationLevelOther, 120) : selectedEducationLevel;
+    const educationSpecialty = value(body?.educationSpecialty, 160);
     const specialty = value(body?.specialty);
     const experience = value(body?.experience, 5000);
     const availability = value(body?.availability);
     const phone = value(body?.phone, 40);
-    if (!specialty || !experience || !availability || !phone) {
+    if (!Number.isInteger(age) || age < 1 || age > 120 || !educationLevel || !specialty || !experience || !availability || !phone) {
       return NextResponse.json({ error: "REQUIRED_FIELDS" }, { status: 400 });
     }
     await db.partner.update({
       where: { id: user.partner.id },
       data: {
+        age,
+        educationLevel,
+        educationSpecialty: educationSpecialty || null,
         specialty,
         experience,
         availability,
@@ -113,17 +124,19 @@ export async function POST(request: NextRequest) {
   }
 
   if (capability === "AMBASSADOR" && user.ambassador) {
+    const age = Number(body?.age);
     const phone = value(body?.phone, 40);
     const country = value(body?.country);
     const contactMethod = value(body?.contactMethod);
     const payoutMethod = value(body?.payoutMethod);
     const payoutDetails = value(body?.payoutDetails, 2000);
-    if (!phone || !country || !contactMethod || !payoutMethod || !payoutDetails) {
+    if (!Number.isInteger(age) || age < 1 || age > 120 || !phone || !country || !contactMethod || !payoutMethod || !payoutDetails) {
       return NextResponse.json({ error: "REQUIRED_FIELDS" }, { status: 400 });
     }
     await db.ambassador.update({
       where: { id: user.ambassador.id },
       data: {
+        age,
         phone,
         country,
         contactMethod,

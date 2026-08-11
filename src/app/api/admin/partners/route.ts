@@ -11,6 +11,7 @@ import { clientAccessWhere } from "@/lib/user-identity";
 import type { ClientProjectStatus } from "@prisma/client";
 import { AdminUserProfileError, validatedAdminUserProfile } from "@/lib/admin-user-profile";
 import { writeAdminAudit } from "@/lib/admin-audit";
+import { syncStageReward } from "@/lib/ambassador-rewards";
 
 function normalizeProjectLink(value: string) {
   const trimmed = value.trim();
@@ -410,8 +411,10 @@ export async function PATCH(request: NextRequest) {
         phone: body?.phone,
       });
       const workAreas = stringList(body?.workAreas); const supportServices = stringList(body?.supportServices); const cooperationTypes = stringList(body?.cooperationTypes); const paymentMethods = stringList(body?.paymentMethods);
+      const age = body?.age === "" || body?.age == null ? null : Number(body.age);
       const experienceYears = body?.experienceYears === "" || body?.experienceYears == null ? null : Number(body.experienceYears);
       const weeklyHours = body?.weeklyHours === "" || body?.weeklyHours == null ? null : Number(body.weeklyHours);
+      if (age != null && (!Number.isInteger(age) || age < 1 || age > 120)) return NextResponse.json({ error: "العمر يجب أن يكون رقمًا صحيحًا بين 1 و120" }, { status: 400 });
       const completed = Boolean(profile.phone && (workAreas.length || specialty) && (body?.experienceLevel || experience) && (body?.availabilityType || availability));
       const updated = await db.$transaction(async (tx) => {
         const user = await tx.user.update({
@@ -423,6 +426,9 @@ export async function PATCH(request: NextRequest) {
           where: { id },
           data: {
             phone: profile.phone,
+            age,
+            educationLevel: textValue(body?.educationLevel, 120) || null,
+            educationSpecialty: textValue(body?.educationSpecialty, 160) || null,
             specialty: specialty || null,
             experience: experience || null,
             availability: availability || null,
@@ -444,7 +450,7 @@ export async function PATCH(request: NextRequest) {
             profileCompletedAt: completed ? partner.profileCompletedAt || new Date() : null,
           },
         });
-        await writeAdminAudit(tx, { actorId: access?.userId, action: "PARTNER_PROFILE_UPDATED", category: "NORMAL", entityType: "PARTNER", entityId: id, entityLabel: profile.name, before: { name: partner.user.name, email: partner.user.email, phone: partner.user.phone, specialty: partner.specialty, status: partner.status }, after: { name: profile.name, email: profile.email, phone: profile.phone, specialty, workAreas, supportServices, experienceYears, availabilityType: body?.availabilityType } });
+        await writeAdminAudit(tx, { actorId: access?.userId, action: "PARTNER_PROFILE_UPDATED", category: "NORMAL", entityType: "PARTNER", entityId: id, entityLabel: profile.name, before: { name: partner.user.name, email: partner.user.email, phone: partner.user.phone, age: partner.age, educationLevel: partner.educationLevel, educationSpecialty: partner.educationSpecialty, specialty: partner.specialty, status: partner.status }, after: { name: profile.name, email: profile.email, phone: profile.phone, age, educationLevel: textValue(body?.educationLevel, 120) || null, educationSpecialty: textValue(body?.educationSpecialty, 160) || null, specialty, workAreas, supportServices, experienceYears, availabilityType: body?.availabilityType } });
         return { user, partner: partnerProfile };
       });
       return NextResponse.json(updated);
@@ -536,7 +542,7 @@ export async function PATCH(request: NextRequest) {
     if (!projectId) return NextResponse.json({ error: "المشروع مطلوب" }, { status: 400 });
     if (!title) return NextResponse.json({ error: "اسم المشروع مطلوب" }, { status: 400 });
 
-    const allowedStatuses = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD"] as const;
+    const allowedStatuses = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD", "CANCELLED"] as const;
     const projectStatus = typeof body?.projectStatus === "string" && (allowedStatuses as readonly string[]).includes(body.projectStatus)
       ? (body.projectStatus as ClientProjectStatus)
       : null;
@@ -595,6 +601,15 @@ export async function PATCH(request: NextRequest) {
           dueAt,
         },
       });
+
+      if (clientProject.status === "CANCELLED") {
+        const futureStages = await tx.projectStage.findMany({ where: { projectId: clientProject.id, status: { in: ["NOT_STARTED", "IN_PROGRESS"] } }, select: { id: true } });
+        for (const stage of futureStages) {
+          await tx.projectStage.update({ where: { id: stage.id }, data: { status: "CANCELLED", paymentStatus: "CANCELLED" } });
+          await syncStageReward(tx, stage.id);
+        }
+        await writeAdminAudit(tx, { actorId: access.userId, action: "PROJECT_CANCELLED", category: "SENSITIVE", entityType: "CLIENT_PROJECT", entityId: clientProject.id, entityLabel: clientProject.title, after: { cancelledFutureStages: futureStages.length } });
+      }
 
       if (existing.partnerAssignments.length) {
         await tx.partnerProject.updateMany({
@@ -659,7 +674,7 @@ export async function PATCH(request: NextRequest) {
     if (!client) return NextResponse.json({ error: "العميل غير موجود" }, { status: 404 });
 
     const projectStatus = typeof body?.projectStatus === "string" ? body.projectStatus : "ASSIGNED";
-    if (!["ASSIGNED", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD", "PLANNING"].includes(projectStatus)) {
+    if (!["ASSIGNED", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD", "PLANNING", "CANCELLED"].includes(projectStatus)) {
       return NextResponse.json({ error: "حالة المشروع غير صالحة" }, { status: 400 });
     }
 
@@ -702,7 +717,9 @@ export async function PATCH(request: NextRequest) {
             ? "REVIEW"
             : projectStatus === "COMPLETED"
               ? "COMPLETED"
-              : "ON_HOLD";
+              : projectStatus === "CANCELLED"
+                ? "CANCELLED"
+                : "ON_HOLD";
 
     let activePartners: Array<{ id: string }> = [];
     if (partnerIds.length) {

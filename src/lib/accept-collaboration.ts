@@ -41,6 +41,9 @@ async function ensurePartnerForUser(
     id: string;
     name: string;
     phone: string | null;
+    age: number | null;
+    educationLevel: string | null;
+    educationSpecialty: string | null;
     specialty: string | null;
     countryRegion: string | null;
     partnerType: string | null;
@@ -65,6 +68,9 @@ async function ensurePartnerForUser(
         status: "ACTIVE",
         applicationId: existing.applicationId || application.id,
         specialty: existing.specialty || application.specialty,
+        age: existing.age ?? application.age,
+        educationLevel: existing.educationLevel || application.educationLevel,
+        educationSpecialty: existing.educationSpecialty || application.educationSpecialty,
         phone: existing.phone || application.phone,
         countryRegion: existing.countryRegion || application.countryRegion,
         partnerType: existing.partnerType || application.partnerType,
@@ -93,6 +99,9 @@ async function ensurePartnerForUser(
         userId,
         status: "ACTIVE",
         specialty: linked.specialty || application.specialty,
+        age: linked.age ?? application.age,
+        educationLevel: linked.educationLevel || application.educationLevel,
+        educationSpecialty: linked.educationSpecialty || application.educationSpecialty,
         phone: linked.phone || application.phone,
         countryRegion: linked.countryRegion || application.countryRegion,
         partnerType: linked.partnerType || application.partnerType,
@@ -119,6 +128,9 @@ async function ensurePartnerForUser(
       applicationId: application.id,
       status: "ACTIVE",
       specialty: application.specialty,
+      age: application.age,
+      educationLevel: application.educationLevel,
+      educationSpecialty: application.educationSpecialty,
       phone: application.phone,
       countryRegion: application.countryRegion,
       partnerType: application.partnerType,
@@ -143,6 +155,7 @@ async function ensurePartnerForUser(
 async function ensureAmbassadorForUser(
   tx: Tx,
   userId: string,
+  application: { age: number | null },
   notes: string,
 ) {
   const existing = await tx.ambassador.findUnique({ where: { userId } });
@@ -151,6 +164,7 @@ async function ensureAmbassadorForUser(
       where: { id: existing.id },
       data: {
         status: "ACTIVE",
+        age: existing.age ?? application.age,
         decisionNotes: notes || existing.decisionNotes,
         decidedAt: new Date(),
       },
@@ -161,6 +175,7 @@ async function ensureAmbassadorForUser(
     data: {
       userId,
       status: "ACTIVE",
+      age: application.age,
       decisionNotes: notes || null,
       decidedAt: new Date(),
     },
@@ -395,6 +410,7 @@ export async function decideCollaborationApplication(
         await ensureAmbassadorForUser(
           tx,
           user.id,
+          application,
           notes || application.decisionNotes || "",
         );
       }
@@ -418,7 +434,7 @@ export async function decideCollaborationApplication(
       const partner = await ensurePartnerForUser(tx, user.id, application, notes);
       partnerId = partner.id;
     } else {
-      await ensureAmbassadorForUser(tx, user.id, notes);
+      await ensureAmbassadorForUser(tx, user.id, application, notes);
     }
 
     await markApplication(tx, application.id, "ACCEPTED", notes, input.decidedById);

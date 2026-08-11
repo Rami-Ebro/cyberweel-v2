@@ -21,7 +21,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { DateText } from "@/components/ui/date-text";
 
 type PartnerStatus = "PENDING" | "ACTIVE" | "SUSPENDED";
-type ProjectStatus = "PLANNING" | "IN_PROGRESS" | "REVIEW" | "COMPLETED" | "ON_HOLD";
+type ProjectStatus = "PLANNING" | "IN_PROGRESS" | "REVIEW" | "COMPLETED" | "ON_HOLD" | "CANCELLED";
 
 type ProjectSummary = {
   id: string;
@@ -50,6 +50,9 @@ type PartnerDetails = {
   id: string;
   status: PartnerStatus;
   profileCompletedAt: string | null;
+  age: number | null;
+  educationLevel: string | null;
+  educationSpecialty: string | null;
   phone: string | null;
   specialty: string | null;
   experience: string | null;
@@ -92,6 +95,7 @@ const projectStatusLabel: Record<string, string> = {
   REVIEW: "قيد المراجعة",
   COMPLETED: "مكتمل",
   ON_HOLD: "متوقف مؤقتًا",
+  CANCELLED: "ملغى",
 };
 
 function profileStatus(partner: PartnerDetails) {
@@ -158,6 +162,9 @@ export default function AdminPartnerDetailsPage() {
         name: data.get("name"),
         email: data.get("email"),
         phone: data.get("phone"),
+        age: data.get("age"),
+        educationLevel: data.get("educationLevel"),
+        educationSpecialty: data.get("educationSpecialty"),
         specialty: data.get("specialty"),
         experience: data.get("experience"),
         availability: data.get("availability"),
@@ -246,6 +253,7 @@ export default function AdminPartnerDetailsPage() {
                 <Fact label="الاسم" value={partner.user.name || "غير محدد"} />
                 <Fact label="البريد" value={partner.user.email} ltr />
                 <Fact label="الهاتف" value={partner.user.phone || partner.phone || "غير محدد"} ltr />
+                <Fact label="العمر" value={partner.age != null ? `${partner.age} سنة` : "غير محدد"} />
                 <Fact label="طريقة التواصل" value={partner.contactMethod || "غير محددة"} />
                 <Fact label="الدولة / المنطقة" value={partner.countryRegion || partner.application?.market || "غير محددة"} />
                 <Fact label="نوع الشريك" value={partner.partnerType || "غير محدد"} />
@@ -261,6 +269,8 @@ export default function AdminPartnerDetailsPage() {
               <dl className="mt-6 grid gap-4">
                 <Fact label="مجالات الخبرة" value={partner.workAreas.join("، ") || partner.specialty || "غير محددة"} />
                 <Fact label="الخدمات التي يستطيع دعمها" value={partner.supportServices.join("، ") || partner.workTypes || "غير محددة"} />
+                <Fact label="المستوى التعليمي / الشهادة" value={partner.educationLevel || "غير محدد"} />
+                <Fact label="التخصص التعليمي" value={partner.educationSpecialty || "غير محدد"} />
                 <Fact label="مستوى الخبرة" value={[partner.experienceLevel, partner.experienceYears != null ? `${partner.experienceYears} سنوات` : ""].filter(Boolean).join(" · ") || "غير محدد"} />
                 <Fact label="مستوى التفرغ" value={partner.availabilityType === "FULL_TIME" ? "متفرغ بالكامل" : partner.availabilityType === "PART_TIME" ? `متفرغ جزئياً${partner.weeklyHours ? ` · ${partner.weeklyHours} ساعة أسبوعياً` : ""}` : partner.availability || "غير محدد"} />
                 <Fact label="نوع التعاون المفضل" value={partner.cooperationTypes.join("، ") || "غير محدد"} />
@@ -275,6 +285,9 @@ export default function AdminPartnerDetailsPage() {
               <Field label="الاسم"><input required minLength={2} name="name" defaultValue={partner.user.name || ""} className="field" /></Field>
               <Field label="البريد الإلكتروني"><input required type="email" name="email" defaultValue={partner.user.email} className="field" dir="ltr" /></Field>
               <Field label="رقم الهاتف"><input name="phone" defaultValue={partner.user.phone || partner.phone || ""} className="field" dir="ltr" /></Field>
+              <Field label="العمر"><input type="number" min="1" max="120" name="age" defaultValue={partner.age ?? ""} className="field" /></Field>
+              <Field label="المستوى التعليمي / الشهادة"><input name="educationLevel" maxLength={120} defaultValue={partner.educationLevel || ""} className="field" /></Field>
+              <Field label="التخصص التعليمي (إن وجد)"><input name="educationSpecialty" maxLength={160} defaultValue={partner.educationSpecialty || ""} className="field" /></Field>
               <Field label="طريقة التواصل المفضلة"><input name="contactMethod" defaultValue={partner.contactMethod || ""} className="field" placeholder="واتساب، بريد، مكالمة..." /></Field>
               <Field label="الدولة / المنطقة"><input name="countryRegion" defaultValue={partner.countryRegion || ""} className="field" /></Field>
               <Field label="نوع الشريك"><input name="partnerType" defaultValue={partner.partnerType || ""} className="field" /></Field>

@@ -31,7 +31,7 @@ type Client = {
 
 const projectStatuses = [
   ["PLANNING", "التخطيط"], ["IN_PROGRESS", "قيد التنفيذ"], ["REVIEW", "المراجعة"],
-  ["COMPLETED", "مكتمل"], ["ON_HOLD", "متوقف مؤقتًا"],
+  ["COMPLETED", "مكتمل"], ["ON_HOLD", "متوقف مؤقتًا"], ["CANCELLED", "ملغى"],
 ] as const;
 const invoiceStatuses = [["DRAFT", "مسودة"], ["DUE", "مستحقة"], ["OVERDUE", "متأخرة"]] as const;
 const submissionStatuses = [["RECEIVED", "تم الاستلام"], ["REVIEWED", "تمت المراجعة"], ["APPROVED", "معتمد"], ["NEEDS_MORE_INFO", "يحتاج استكمالًا"], ["ARCHIVED", "مؤرشف"]] as const;

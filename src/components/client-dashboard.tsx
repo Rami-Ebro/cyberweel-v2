@@ -30,7 +30,7 @@ type Message = { id: string; subject: string | null; body: string; fromAdmin: bo
 type Notification = { id: string; title: string; body: string | null; section: Section; readAt: string | null; createdAt: string };
 type Stats = { projects: number; activeProjects: number; files: number; dueInvoices: number; unreadMessages: number; unreadNotifications: number };
 
-const projectLabel: Record<string, string> = { PLANNING: "التخطيط", IN_PROGRESS: "قيد التنفيذ", REVIEW: "المراجعة", COMPLETED: "مكتمل", ON_HOLD: "متوقف مؤقتًا" };
+const projectLabel: Record<string, string> = { PLANNING: "التخطيط", IN_PROGRESS: "قيد التنفيذ", REVIEW: "المراجعة", COMPLETED: "مكتمل", ON_HOLD: "متوقف مؤقتًا", CANCELLED: "ملغى" };
 const invoiceLabel: Record<string, string> = { DRAFT: "مسودة", DUE: "مستحقة", PAID: "مدفوعة", OVERDUE: "متأخرة", CANCELLED: "ملغاة" };
 
 export function ClientDashboard({
