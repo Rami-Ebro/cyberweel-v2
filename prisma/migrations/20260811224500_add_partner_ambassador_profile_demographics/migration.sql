@@ -1,0 +1,12 @@
+ALTER TABLE "CollaborationApplication"
+  ADD COLUMN IF NOT EXISTS "age" INTEGER,
+  ADD COLUMN IF NOT EXISTS "educationLevel" TEXT,
+  ADD COLUMN IF NOT EXISTS "educationSpecialty" TEXT;
+
+ALTER TABLE "Partner"
+  ADD COLUMN IF NOT EXISTS "age" INTEGER,
+  ADD COLUMN IF NOT EXISTS "educationLevel" TEXT,
+  ADD COLUMN IF NOT EXISTS "educationSpecialty" TEXT;
+
+ALTER TABLE "Ambassador"
+  ADD COLUMN IF NOT EXISTS "age" INTEGER;

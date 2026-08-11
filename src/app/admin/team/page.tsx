@@ -9,6 +9,7 @@ const labels: Record<string, string> = {
   overview: "عرض النظرة العامة",
   partners: "إدارة الشركاء",
   referrals: "إدارة الإحالات",
+  rewards: "إدارة مكافآت السفراء",
   projects: "إدارة المشاريع",
   clients: "إدارة العملاء",
   files: "إدارة الملفات والتسليمات",

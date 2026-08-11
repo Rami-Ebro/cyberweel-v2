@@ -6,6 +6,7 @@ export const ADMIN_PERMISSIONS = [
   "overview",
   "partners",
   "ambassadors",
+  "rewards",
   "referrals",
   "projects",
   "clients",

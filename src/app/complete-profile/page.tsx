@@ -6,12 +6,14 @@ import { BriefcaseBusiness, Megaphone, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 
 type Role = "PARTNER" | "AMBASSADOR";
-type Profile = Record<string, string | null>;
+type Profile = Record<string, string | number | null>;
+const educationLevels = ["الثانوية أو أقل", "دبلوم", "بكالوريوس", "ماجستير", "دكتوراه", "تدريب مهني / شهادة تخصصية"];
 
 export default function CompleteProfilePage() {
   const router = useRouter();
   const [role, setRole] = useState<Role | null>(null);
   const [profile, setProfile] = useState<Profile>({});
+  const [educationLevel, setEducationLevel] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -25,8 +27,13 @@ export default function CompleteProfilePage() {
           router.replace("/login");
           return;
         }
+        const loadedProfile = payload.profile || {};
         setRole(payload.role);
-        setProfile(payload.profile || {});
+        setProfile(loadedProfile);
+        if (payload.role === "PARTNER" && loadedProfile.educationLevel) {
+          const savedEducationLevel = String(loadedProfile.educationLevel);
+          setEducationLevel(educationLevels.includes(savedEducationLevel) ? savedEducationLevel : "أخرى");
+        }
       })
       .catch(() => setMessage("تعذر تحميل بيانات الحساب. حاول مرة أخرى."));
   }, [router]);
@@ -76,13 +83,17 @@ export default function CompleteProfilePage() {
           <div className="mb-6 flex items-center gap-3 rounded-2xl bg-[#f5f1e8] p-4 text-sm leading-7 text-slate-600"><ShieldCheck size={22} className="shrink-0 text-[#9f7d3d]" /><p>تستخدم هذه المعلومات لإدارة العمل أو تسوية العمولات، ولا تُعرض للعامة.</p></div>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-2 text-sm font-black">رقم التواصل<input required name="phone" maxLength={40} defaultValue={profile.phone || ""} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
+            <label className="grid gap-2 text-sm font-black">العمر<input required type="number" min="1" max="120" inputMode="numeric" name="age" defaultValue={profile.age || ""} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
             {isAmbassador ? <>
               <label className="grid gap-2 text-sm font-black">البلد<input required name="country" maxLength={100} defaultValue={profile.country || ""} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
               <label className="grid gap-2 text-sm font-black">طريقة التواصل المفضلة<input required name="contactMethod" maxLength={100} defaultValue={profile.contactMethod || ""} placeholder="واتساب، اتصال، بريد..." className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
               <label className="grid gap-2 text-sm font-black">طريقة استلام العمولة<input required name="payoutMethod" maxLength={100} defaultValue={profile.payoutMethod || ""} placeholder="حوالة، محفظة إلكترونية..." className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
               <label className="grid gap-2 text-sm font-black sm:col-span-2">بيانات استلام العمولة<textarea required name="payoutDetails" maxLength={2000} rows={4} defaultValue={profile.payoutDetails || ""} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
             </> : <>
-              <label className="grid gap-2 text-sm font-black">التخصص<input required name="specialty" maxLength={1000} defaultValue={profile.specialty || ""} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
+              <label className="grid gap-2 text-sm font-black">المستوى التعليمي / الشهادة<select required name="educationLevel" value={educationLevel} onChange={(event) => setEducationLevel(event.target.value)} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10"><option value="" disabled>اختر المستوى التعليمي</option>{educationLevels.map((level) => <option key={level}>{level}</option>)}<option>أخرى</option></select></label>
+              {educationLevel === "أخرى" && <label className="grid gap-2 text-sm font-black">المستوى التعليمي أو الشهادة<input required name="educationLevelOther" maxLength={120} defaultValue={profile.educationLevel && !educationLevels.includes(String(profile.educationLevel)) ? profile.educationLevel : ""} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>}
+              <label className="grid gap-2 text-sm font-black">التخصص <span className="font-normal text-slate-400">إن وجد</span><input name="educationSpecialty" maxLength={160} defaultValue={profile.educationSpecialty || ""} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
+              <label className="grid gap-2 text-sm font-black">التخصص المهني / مجال العمل<input required name="specialty" maxLength={1000} defaultValue={profile.specialty || ""} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
               <label className="grid gap-2 text-sm font-black">التوفر الحالي<input required name="availability" maxLength={1000} defaultValue={profile.availability || ""} placeholder="متاح لمشروع، ساعات أسبوعية..." className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
               <label className="grid gap-2 text-sm font-black">رابط معرض الأعمال <span className="font-normal text-slate-400">اختياري</span><input name="portfolioUrl" maxLength={500} defaultValue={profile.portfolioUrl || ""} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
               <label className="grid gap-2 text-sm font-black sm:col-span-2">الخبرة المهنية<textarea required name="experience" maxLength={5000} rows={5} defaultValue={profile.experience || ""} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>

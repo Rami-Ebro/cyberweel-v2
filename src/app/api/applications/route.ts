@@ -19,6 +19,11 @@ export async function POST(request: NextRequest) {
   const name = typeof body?.name === "string" ? normalizeDisplayName(body.name) : "";
   const email = typeof body?.email === "string" ? normalizeEmail(body.email) : "";
   const phone = typeof body?.phone === "string" ? normalizePhone(body.phone) : "";
+  const age = Number(body?.age);
+  const selectedEducationLevel = typeof body?.educationLevel === "string" ? body.educationLevel.trim() : "";
+  const educationLevelOther = typeof body?.educationLevelOther === "string" ? body.educationLevelOther.trim() : "";
+  const educationLevel = selectedEducationLevel === "أخرى" ? educationLevelOther : selectedEducationLevel;
+  const educationSpecialty = typeof body?.educationSpecialty === "string" ? body.educationSpecialty.trim() : "";
   const specialty = typeof body?.specialty === "string" ? body.specialty.trim() : "";
   const market = typeof body?.market === "string" ? body.market.trim() : "";
   const details = typeof body?.details === "string" ? body.details.trim() : "";
@@ -43,7 +48,8 @@ export async function POST(request: NextRequest) {
     email.length > 254 ||
     phone.length > 40 ||
     details.length > 5000 ||
-    (type === "PARTNER" && (phone.length < 8 || !countryRegion || !partnerType || !workAreas.length || !supportServices.length || !experienceLevel || !Number.isInteger(experienceYears) || experienceYears < 0 || !availabilityType || (availabilityType === "PART_TIME" && (!weeklyHours || weeklyHours < 1 || weeklyHours > 168)) || !paymentMethods.length || (paymentMethods.includes("أخرى") && !otherPaymentMethod) || shortBio.length > 2000)) ||
+    !Number.isInteger(age) || age < 1 || age > 120 ||
+    (type === "PARTNER" && (phone.length < 8 || !educationLevel || educationLevel.length > 120 || educationSpecialty.length > 160 || !countryRegion || !partnerType || !workAreas.length || !supportServices.length || !experienceLevel || !Number.isInteger(experienceYears) || experienceYears < 0 || !availabilityType || (availabilityType === "PART_TIME" && (!weeklyHours || weeklyHours < 1 || weeklyHours > 168)) || !paymentMethods.length || (paymentMethods.includes("أخرى") && !otherPaymentMethod) || shortBio.length > 2000)) ||
     (type === "AMBASSADOR" && !market)
   ) {
     return NextResponse.json({ error: "INVALID_APPLICATION" }, { status: 400 });
@@ -103,6 +109,9 @@ export async function POST(request: NextRequest) {
         name,
         email,
         phone: phone || null,
+        age,
+        educationLevel: type === "PARTNER" ? educationLevel : null,
+        educationSpecialty: type === "PARTNER" ? educationSpecialty || null : null,
         specialty: type === "PARTNER" ? workAreas.join("، ") : specialty || null,
         market: type === "PARTNER" ? countryRegion : market || null,
         details: type === "PARTNER" ? shortBio || null : details || null,

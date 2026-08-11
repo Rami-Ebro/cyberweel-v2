@@ -9,6 +9,7 @@ type Ambassador = {
   id: string;
   referralNumber: number;
   status: "ACTIVE" | "SUSPENDED" | "PENDING";
+  age: number | null;
   profileCompletedAt: string | null;
   user: { name: string | null; email: string; phone: string | null; isActive: boolean };
   referrals: {
@@ -23,6 +24,7 @@ type Application = {
   id: string;
   name: string;
   email: string;
+  age: number | null;
   status: "PENDING" | "ACCEPTED" | "REJECTED";
   market: string | null;
   details: string | null;
@@ -82,7 +84,7 @@ export default function AmbassadorsAdmin() {
       const response = await fetch("/api/admin/ambassadors", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entity: "account", id, name: form.get("name"), email: form.get("email"), phone: form.get("phone") }),
+        body: JSON.stringify({ entity: "account", id, name: form.get("name"), email: form.get("email"), phone: form.get("phone"), age: form.get("age") }),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload?.error || "تعذر تعديل بيانات السفير");
@@ -152,6 +154,7 @@ export default function AmbassadorsAdmin() {
                       {ambassador.referrals.length} إحالة · عمولات مسجلة {total.toFixed(2)} · الملف{" "}
                       {ambassador.profileCompletedAt ? "مكتمل" : "غير مكتمل"} · الحالة {ambassador.status}
                     </p>
+                    <p className="mt-1 text-sm text-slate-500">العمر: {ambassador.age != null ? `${ambassador.age} سنة` : "غير محدد"}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -182,6 +185,7 @@ export default function AmbassadorsAdmin() {
                     <label className="grid gap-2 font-bold">الاسم<input name="name" required minLength={2} defaultValue={ambassador.user.name || ""} className="rounded-lg border p-3 font-normal" /></label>
                     <label className="grid gap-2 font-bold">البريد الإلكتروني<input name="email" type="email" required defaultValue={ambassador.user.email} className="rounded-lg border p-3 font-normal" /></label>
                     <label className="grid gap-2 font-bold">رقم الهاتف<input name="phone" defaultValue={ambassador.user.phone || ""} className="rounded-lg border p-3 font-normal" /></label>
+                    <label className="grid gap-2 font-bold">العمر<input name="age" type="number" min="1" max="120" defaultValue={ambassador.age ?? ""} className="rounded-lg border p-3 font-normal" /></label>
                     <button disabled={busyId === ambassador.id} className="rounded-lg bg-[#111827] px-4 py-3 font-black text-white disabled:opacity-40 md:col-span-3">{busyId === ambassador.id ? "جارٍ الحفظ..." : "حفظ بيانات السفير"}</button>
                   </form>
                 </details>
@@ -252,7 +256,7 @@ function ApplicationCard({
         <div>
           <b>{application.name}</b>
           <p className="text-sm text-slate-500">
-            {application.email} · {application.market || "—"}
+            {application.email} · {application.market || "—"} · العمر {application.age != null ? application.age : "غير محدد"}
           </p>
         </div>
         <span className="rounded-full bg-[#F4F1EA] px-3 py-1 text-xs font-black">{application.status}</span>
