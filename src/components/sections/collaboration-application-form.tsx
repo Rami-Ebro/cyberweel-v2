@@ -18,6 +18,7 @@ function PartnerWizard({ arabic }: { arabic: boolean }) {
   const [availability, setAvailability] = useState("");
   const [otherPayment, setOtherPayment] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   function next() {
     const form = formRef.current;
@@ -28,11 +29,13 @@ function PartnerWizard({ arabic }: { arabic: boolean }) {
     for (const name of requiredGroup) {
       if (!form.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`)) {
         form.querySelector<HTMLInputElement>(`input[name="${name}"]`)?.focus();
+        setErrorMessage("يرجى إكمال الحقول المطلوبة في هذه المرحلة والتأكد من صحة البيانات.");
         setState("error");
         return;
       }
     }
     setState("idle");
+    setErrorMessage("");
     setStep((value) => Math.min(5, value + 1));
   }
 
@@ -40,15 +43,25 @@ function PartnerWizard({ arabic }: { arabic: boolean }) {
     event.preventDefault();
     if (step < 5) return next();
     const form = new FormData(event.currentTarget);
-    if (!form.getAll("paymentMethods").length) return setState("error");
+    if (!form.getAll("paymentMethods").length) {
+      setErrorMessage("اختر طريقة دفع واحدة على الأقل.");
+      return setState("error");
+    }
     setState("sending");
+    setErrorMessage("");
     const body = Object.fromEntries(form.entries()) as Record<string, FormDataEntryValue>;
     const response = await fetch("/api/applications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...body, type: "PARTNER", workAreas: form.getAll("workAreas"), supportServices: form.getAll("supportServices"), paymentMethods: form.getAll("paymentMethods") }),
     });
-    setState(response.ok ? "done" : "error");
+    const result = await response.json().catch(() => null) as { message?: string } | null;
+    if (response.ok) {
+      setState("done");
+      return;
+    }
+    setErrorMessage(result?.message || (arabic ? "تعذر إرسال الطلب. حاول مرة أخرى." : "The application could not be submitted. Please try again."));
+    setState("error");
   }
 
   async function sharePartnerPage() {
@@ -91,8 +104,8 @@ function PartnerWizard({ arabic }: { arabic: boolean }) {
     <section className={step === 3 ? "space-y-4" : "hidden"}><select data-step="3" required name="availabilityType" defaultValue="" onChange={(e) => setAvailability(e.target.value)} className={field}><option value="" disabled>نوع التفرغ</option><option value="FULL_TIME">متفرغ بالكامل</option><option value="PART_TIME">متفرغ جزئياً</option></select>{availability === "PART_TIME" && <input data-step="3" required type="number" min="1" max="168" name="weeklyHours" placeholder="عدد الساعات المتاحة أسبوعياً" className={field} />}</section>
     <section className={step === 4 ? "space-y-3" : "hidden"}><label className="font-black" htmlFor="shortBio">نبذة قصيرة عنك أو عن خبرتك <span className="font-normal text-muted-foreground">(اختياري)</span></label><textarea data-step="4" id="shortBio" name="shortBio" maxLength={2000} rows={6} className={field} /></section>
     <section className={step === 5 ? "space-y-4" : "hidden"}><h4 className="font-black">طرق الدفع المعتمدة</h4><div onChange={() => setOtherPayment(Boolean(formRef.current?.querySelector('input[name="paymentMethods"][value="أخرى"]:checked')))}><CheckGroup name="paymentMethods" options={payments} step={5} /></div>{otherPayment && <input data-step="5" required name="otherPaymentMethod" maxLength={120} placeholder="اكتب طريقة الدفع الأخرى" className={field} />}</section>
-    {state === "error" && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">يرجى إكمال الحقول المطلوبة في هذه المرحلة والتأكد من صحة البيانات.</p>}
-    <div className="flex gap-3"><button type="button" disabled={step === 1 || state === "sending"} onClick={() => { setState("idle"); setStep((v) => Math.max(1, v - 1)); }} className="rounded-xl border px-6 py-3 font-black disabled:opacity-40">السابق</button>{step < 5 ? <button type="button" onClick={next} className="flex-1 rounded-xl bg-ink px-6 py-3 font-black text-white">التالي</button> : <button disabled={state === "sending"} className="flex-1 rounded-xl bg-ink px-6 py-3 font-black text-white">{state === "sending" ? "جارٍ الإرسال..." : "إرسال الطلب للمراجعة"}</button>}</div>
+    {state === "error" && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">{errorMessage || "يرجى إكمال الحقول المطلوبة في هذه المرحلة والتأكد من صحة البيانات."}</p>}
+    <div className="flex gap-3"><button type="button" disabled={step === 1 || state === "sending"} onClick={() => { setState("idle"); setErrorMessage(""); setStep((v) => Math.max(1, v - 1)); }} className="rounded-xl border px-6 py-3 font-black disabled:opacity-40">السابق</button>{step < 5 ? <button type="button" onClick={next} className="flex-1 rounded-xl bg-ink px-6 py-3 font-black text-white">التالي</button> : <button disabled={state === "sending"} className="flex-1 rounded-xl bg-ink px-6 py-3 font-black text-white">{state === "sending" ? "جارٍ الإرسال..." : "إرسال الطلب للمراجعة"}</button>}</div>
   </form>;
 }
 

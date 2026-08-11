@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
 import { consumeRateLimit, hasTrustedOrigin, invalidOriginResponse, rateLimitResponse } from "@/lib/request-security";
 import { NextRequest, NextResponse } from "next/server";
-import { findNameConflict, NAME_TAKEN_MESSAGE, normalizeDisplayName, normalizeEmail } from "@/lib/user-identity";
+import { findNameConflict, NAME_TAKEN_MESSAGE, normalizeDisplayName, normalizeEmail, normalizePhone, phoneIdentityCandidates } from "@/lib/user-identity";
 import { writeAdminAudit } from "@/lib/admin-audit";
+import { assessPartnerApplicationIdentity } from "@/lib/partner-application-identity";
 
 function stringList(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean) : [];
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
   const type = body?.type === "AMBASSADOR" ? "AMBASSADOR" : body?.type === "PARTNER" ? "PARTNER" : null;
   const name = typeof body?.name === "string" ? normalizeDisplayName(body.name) : "";
   const email = typeof body?.email === "string" ? normalizeEmail(body.email) : "";
-  const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
+  const phone = typeof body?.phone === "string" ? normalizePhone(body.phone) : "";
   const specialty = typeof body?.specialty === "string" ? body.specialty.trim() : "";
   const market = typeof body?.market === "string" ? body.market.trim() : "";
   const details = typeof body?.details === "string" ? body.details.trim() : "";
@@ -42,13 +43,55 @@ export async function POST(request: NextRequest) {
     email.length > 254 ||
     phone.length > 40 ||
     details.length > 5000 ||
-    (type === "PARTNER" && (!phone || !countryRegion || !partnerType || !workAreas.length || !supportServices.length || !experienceLevel || !Number.isInteger(experienceYears) || experienceYears < 0 || !availabilityType || (availabilityType === "PART_TIME" && (!weeklyHours || weeklyHours < 1 || weeklyHours > 168)) || !paymentMethods.length || (paymentMethods.includes("أخرى") && !otherPaymentMethod) || shortBio.length > 2000)) ||
+    (type === "PARTNER" && (phone.length < 8 || !countryRegion || !partnerType || !workAreas.length || !supportServices.length || !experienceLevel || !Number.isInteger(experienceYears) || experienceYears < 0 || !availabilityType || (availabilityType === "PART_TIME" && (!weeklyHours || weeklyHours < 1 || weeklyHours > 168)) || !paymentMethods.length || (paymentMethods.includes("أخرى") && !otherPaymentMethod) || shortBio.length > 2000)) ||
     (type === "AMBASSADOR" && !market)
   ) {
     return NextResponse.json({ error: "INVALID_APPLICATION" }, { status: 400 });
   }
 
-  const nameConflict = await findNameConflict(name);
+  const identitySelect = {
+    id: true,
+    role: true,
+    partner: { select: { id: true } },
+    adminProfile: { select: { isActive: true } },
+  } as const;
+  const phoneCandidates = phoneIdentityCandidates(phone);
+  const [emailOwner, phoneOwners] = type === "PARTNER"
+    ? await Promise.all([
+        db.user.findUnique({ where: { email }, select: identitySelect }),
+        db.user.findMany({ where: { phone: { in: phoneCandidates } }, select: identitySelect, take: 2 }),
+      ])
+    : [null, []];
+  if (phoneOwners.length > 1) {
+    return NextResponse.json({
+      error: "IDENTITY_CONFLICT",
+      message: "رقم الهاتف مرتبط بأكثر من حساب. تواصل مع الإدارة لتصحيح البيانات قبل تقديم الطلب.",
+    }, { status: 409 });
+  }
+  const phoneOwner = phoneOwners[0] || null;
+  const identity = assessPartnerApplicationIdentity(emailOwner, phoneOwner);
+  if (!identity.allowed) {
+    return NextResponse.json({ error: identity.code, message: identity.message }, { status: 409 });
+  }
+
+  if (type === "PARTNER") {
+    const pendingApplication = await db.collaborationApplication.findFirst({
+      where: {
+        type: "PARTNER",
+        status: "PENDING",
+        OR: [{ email }, { phone: { in: phoneCandidates } }],
+      },
+      select: { id: true },
+    });
+    if (pendingApplication) {
+      return NextResponse.json({
+        error: "PARTNER_APPLICATION_EXISTS",
+        message: "يوجد طلب شراكة قيد المراجعة بهذا البريد الإلكتروني أو رقم الهاتف.",
+      }, { status: 409 });
+    }
+  }
+
+  const nameConflict = await findNameConflict(name, identity.allowed ? identity.existingUser?.id : undefined);
   if (nameConflict) {
     return NextResponse.json({ error: "NAME_TAKEN", message: NAME_TAKEN_MESSAGE }, { status: 409 });
   }
