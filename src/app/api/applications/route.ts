@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     email.length > 254 ||
     phone.length > 40 ||
     details.length > 5000 ||
-    (type === "PARTNER" && (!phone || !countryRegion || !partnerType || !workAreas.length || !supportServices.length || !experienceLevel || !Number.isInteger(experienceYears) || experienceYears < 0 || !availabilityType || (availabilityType === "PART_TIME" && (!weeklyHours || weeklyHours < 1 || weeklyHours > 168)) || !cooperationTypes.length || !paymentMethods.length || (paymentMethods.includes("أخرى") && !otherPaymentMethod) || shortBio.length > 2000)) ||
+    (type === "PARTNER" && (!phone || !countryRegion || !partnerType || !workAreas.length || !supportServices.length || !experienceLevel || !Number.isInteger(experienceYears) || experienceYears < 0 || !availabilityType || (availabilityType === "PART_TIME" && (!weeklyHours || weeklyHours < 1 || weeklyHours > 168)) || !paymentMethods.length || (paymentMethods.includes("أخرى") && !otherPaymentMethod) || shortBio.length > 2000)) ||
     (type === "AMBASSADOR" && !market)
   ) {
     return NextResponse.json({ error: "INVALID_APPLICATION" }, { status: 400 });
