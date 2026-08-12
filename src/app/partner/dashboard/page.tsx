@@ -147,7 +147,7 @@ export default function PartnerDashboardPage() {
   const [progressDrafts, setProgressDrafts] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    setDarkMode(localStorage.getItem("cyberweel-partner-theme") === "dark");
+    queueMicrotask(() => setDarkMode(localStorage.getItem("cyberweel-partner-theme") === "dark"));
     const previewId = new URLSearchParams(window.location.search).get("adminPreview");
     const endpoint = previewId
       ? `/api/partner/dashboard?adminPreview=${encodeURIComponent(previewId)}`
