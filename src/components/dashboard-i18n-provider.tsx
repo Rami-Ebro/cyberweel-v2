@@ -77,6 +77,23 @@ export function useDashboardI18n() {
   return context;
 }
 
+export function DashboardLanguageButton({ className = "" }: { className?: string }) {
+  const { lang, toggleLang } = useDashboardI18n();
+
+  return (
+    <button
+      type="button"
+      onClick={toggleLang}
+      data-no-dashboard-translate
+      aria-label={lang === "ar" ? "Switch dashboards to English" : "Switch dashboards to Arabic"}
+      className={`inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 text-sm font-black text-[#111827] shadow-sm transition hover:border-[#B89A5A] hover:bg-[#FFFDF8] ${className}`}
+    >
+      <Languages className="h-4 w-4 text-[#9A7D43]" />
+      <span>{lang === "ar" ? "EN" : "AR"}</span>
+    </button>
+  );
+}
+
 export function DashboardI18nProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const active = isDashboardPath(pathname);
@@ -127,17 +144,8 @@ export function DashboardI18nProvider({ children }: { children: ReactNode }) {
   return (
     <DashboardI18nContext.Provider value={context}>
       {children}
-      {active ? (
-        <button
-          type="button"
-          onClick={toggleLang}
-          data-no-dashboard-translate
-          aria-label={lang === "ar" ? "Switch dashboards to English" : "Switch dashboards to Arabic"}
-          className="fixed bottom-5 left-5 z-[100] inline-flex h-11 items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 text-sm font-black text-[#111827] shadow-lg transition hover:border-[#B89A5A] hover:bg-[#FFFDF8]"
-        >
-          <Languages className="h-4 w-4 text-[#9A7D43]" />
-          <span>{lang === "ar" ? "EN" : "AR"}</span>
-        </button>
+      {active && !pathname.startsWith("/admin") && !pathname.startsWith("/client") ? (
+        <DashboardLanguageButton className="fixed bottom-5 left-5 z-[100] h-11 shadow-lg" />
       ) : null}
       {active ? <style jsx global>{`
         html[data-dashboard-lang="en"] [dir="rtl"] { direction: ltr !important; }

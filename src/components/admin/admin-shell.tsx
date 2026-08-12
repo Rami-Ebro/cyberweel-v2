@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { AdminNotificationCenter } from "@/components/admin/admin-notification-center";
+import { DashboardLanguageButton } from "@/components/dashboard-i18n-provider";
 
 export type AdminNavKey = "overview" | "clients" | "projects" | "invoices" | "referrals" | "rewards" | "partners" | "ambassadors" | "account" | "team" | "smart-links" | "audit-log";
 
@@ -63,6 +64,7 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
               <div><p className="text-sm font-bold text-[#9A7D43]">{eyebrow}</p><h1 className="mt-1 text-3xl font-black">{title}</h1>{description && <p className="mt-2 max-w-3xl text-slate-500">{description}</p>}</div>
               <div className="relative flex flex-wrap gap-2">
                 <AdminNotificationCenter />
+                <DashboardLanguageButton />
                 {actions}
               </div>
             </header>
