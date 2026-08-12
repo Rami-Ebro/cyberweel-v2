@@ -189,8 +189,10 @@ export default function AmbassadorDashboardPage() {
   }
 
   useEffect(() => {
-    setDarkMode(localStorage.getItem("cyberweel-ambassador-theme") === "dark");
-    loadDashboard().catch((cause) => setError(cause instanceof Error ? cause.message : "تعذر تحميل البيانات"));
+    queueMicrotask(() => {
+      setDarkMode(localStorage.getItem("cyberweel-ambassador-theme") === "dark");
+      loadDashboard().catch((cause) => setError(cause instanceof Error ? cause.message : "تعذر تحميل البيانات"));
+    });
   }, []);
 
   const filteredReferrals = useMemo(() => {
