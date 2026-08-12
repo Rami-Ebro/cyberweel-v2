@@ -5,6 +5,7 @@ import { BadgeCheck, ChevronDown, CircleDollarSign, Clock3, MessageSquareText, U
 import { AdminShell } from "@/components/admin/admin-shell";
 import { DateText } from "@/components/ui/date-text";
 import { DateInput } from "@/components/ui/date-input";
+import { dashboardErrorMessage } from "@/lib/dashboard-labels";
 
 type ReferralStatus = "NEW" | "CONTACTED" | "INTERESTED" | "AWAITING_RESPONSE" | "NOT_INTERESTED" | "CONVERTED";
 type ReferralDecision = "PENDING_REVIEW" | "ACCEPTED" | "REJECTED" | "CONVERTED_TO_CLIENT" | "CANCELLED";
@@ -87,7 +88,7 @@ export default function ReferralAdmin() {
   async function load(query = "") {
     const response = await fetch(`/api/admin/referrals?${query}`, { cache: "no-store" });
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || "تعذر تحميل الإحالات");
+    if (!response.ok) throw new Error(dashboardErrorMessage(payload.error, "تعذر تحميل الإحالات"));
     setItems(payload.referrals || []);
     setAmbassadors(payload.ambassadors || []);
   }
@@ -115,7 +116,7 @@ export default function ReferralAdmin() {
         body: JSON.stringify({ id: referral.id, ...values }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(errorLabels[payload.error] || "تعذر حفظ الإحالة");
+      if (!response.ok) throw new Error(errorLabels[payload.error] || dashboardErrorMessage(payload.error, "تعذر حفظ الإحالة"));
       setItems((current) => current.map((item) => item.id === referral.id ? payload.referral : item));
       setCollapsedIds((current) => {
         const next = new Set(current);
@@ -246,7 +247,7 @@ function ReferralEditor({
         response = await fetch("/api/admin/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, referralId: referral.id, sendInvite: form.get("sendInvite") === "on", confirmPhoneDuplicate: true }) });
         data = await response.json();
       }
-      if (!response.ok) throw new Error(data.error || "تعذر تحويل الإحالة");
+      if (!response.ok) throw new Error(dashboardErrorMessage(data.error, "تعذر تحويل الإحالة"));
       setConversionMessage(data.reusedExistingClient ? "رُبطت الإحالة بالعميل الموجود بهذا البريد." : "تم إنشاء العميل وربط الإحالة بنجاح.");
       window.setTimeout(() => window.location.reload(), 700);
     } catch (cause) {

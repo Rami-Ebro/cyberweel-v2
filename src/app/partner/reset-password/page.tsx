@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { FormEvent, Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { dashboardErrorMessage } from "@/lib/dashboard-labels";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -37,7 +38,7 @@ function ResetPasswordForm() {
     setLoading(false);
 
     if (!response.ok) {
-      setMessage(data.error || "تعذر تغيير كلمة المرور");
+      setMessage(dashboardErrorMessage(data.error, "تعذر تغيير كلمة المرور"));
       return;
     }
 

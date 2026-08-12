@@ -7,6 +7,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { DateInput } from "@/components/ui/date-input";
 import { DateText } from "@/components/ui/date-text";
 import { formatDateTime } from "@/lib/date-format";
+import { dashboardLabel, localizeDashboardDetails } from "@/lib/dashboard-labels";
 
 type AuditCategory = "POSITIVE" | "SENSITIVE" | "NORMAL";
 type AuditValue = string | number | boolean | null | AuditValue[] | { [key: string]: AuditValue };
@@ -126,7 +127,7 @@ export default function AuditLogPage() {
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <label className="relative xl:col-span-2"><Search className="absolute right-3 top-3.5 h-4 w-4 text-slate-400" /><input value={filters.q} onChange={(event) => setFilters((current) => ({ ...current, q: event.target.value }))} placeholder="بحث بالعنصر أو المعرّف" className="field pr-10" /></label>
         <select value={filters.actorId} onChange={(event) => setFilters((current) => ({ ...current, actorId: event.target.value }))} className="field"><option value="">كل المستخدمين</option>{actors.map((actor) => <option key={actor.id} value={actor.id}>{actor.name || actor.email}</option>)}</select>
-        <select value={filters.action} onChange={(event) => setFilters((current) => ({ ...current, action: event.target.value }))} className="field"><option value="">كل العمليات</option>{actions.map((action) => <option key={action} value={action}>{labels[action] || action}</option>)}</select>
+        <select value={filters.action} onChange={(event) => setFilters((current) => ({ ...current, action: event.target.value }))} className="field"><option value="">كل العمليات</option>{actions.map((action) => <option key={action} value={action}>{labels[action] || dashboardLabel(action, "عملية إدارية")}</option>)}</select>
         <label className="grid gap-1 text-xs font-bold text-slate-500">من تاريخ<DateInput value={filters.from} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value }))} className="field text-base text-slate-900" /></label>
         <label className="grid gap-1 text-xs font-bold text-slate-500">إلى تاريخ<DateInput value={filters.to} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value }))} className="field text-base text-slate-900" /></label>
       </div>
@@ -141,10 +142,10 @@ export default function AuditLogPage() {
     <section className="mt-5 grid gap-3">
       {loading ? <p className="flex items-center justify-center gap-2 rounded-2xl bg-white p-10"><RefreshCw className="h-5 w-5 animate-spin" />جارٍ تحميل السجل...</p> : logs.length ? logs.map((log) => <article key={log.id} className={`rounded-2xl border p-5 ${categoryStyles[log.category].card}`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><h2 className="font-black">{labels[log.action] || log.action}</h2><p className="mt-1 text-sm text-slate-600">{log.entityLabel || log.entityId || log.entityType} · بواسطة {log.actor?.name || log.actor?.email || "النظام"}</p></div>
+          <div><h2 className="font-black">{labels[log.action] || dashboardLabel(log.action, "عملية إدارية")}</h2><p className="mt-1 text-sm text-slate-600">{log.entityLabel || log.entityId || dashboardLabel(log.entityType, "عنصر إداري")} · بواسطة {log.actor?.name || log.actor?.email || "النظام"}</p></div>
           <span className="text-sm font-bold"><DateText value={log.createdAt} withTime /></span>
         </div>
-        {(log.before || log.after) && <details className="mt-4 rounded-xl bg-white/70 p-3"><summary className="cursor-pointer font-bold">عرض القيم قبل وبعد</summary><div className="mt-3 grid gap-3 md:grid-cols-2"><pre className="overflow-auto whitespace-pre-wrap rounded-lg bg-white p-3 text-xs" dir="ltr">{JSON.stringify(formatDetailDates(log.before), null, 2) || "—"}</pre><pre className="overflow-auto whitespace-pre-wrap rounded-lg bg-white p-3 text-xs" dir="ltr">{JSON.stringify(formatDetailDates(log.after), null, 2) || "—"}</pre></div></details>}
+        {(log.before || log.after) && <details className="mt-4 rounded-xl bg-white/70 p-3"><summary className="cursor-pointer font-bold">عرض القيم قبل وبعد</summary><div className="mt-3 grid gap-3 md:grid-cols-2"><pre className="overflow-auto whitespace-pre-wrap rounded-lg bg-white p-3 text-xs" dir="rtl">{JSON.stringify(formatDetailDates(localizeDashboardDetails(log.before) as AuditValue), null, 2) || "—"}</pre><pre className="overflow-auto whitespace-pre-wrap rounded-lg bg-white p-3 text-xs" dir="rtl">{JSON.stringify(formatDetailDates(localizeDashboardDetails(log.after) as AuditValue), null, 2) || "—"}</pre></div></details>}
       </article>) : <p className="rounded-2xl bg-white p-10 text-center text-slate-500">لا توجد نشاطات مطابقة للفلاتر.</p>}
     </section>
   </AdminShell>;

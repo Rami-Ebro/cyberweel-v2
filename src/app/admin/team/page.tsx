@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { ChevronDown, Eye, EyeOff, PauseCircle, PlayCircle, ShieldCheck, UserPlus } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { DateText } from "@/components/ui/date-text";
+import { dashboardErrorMessage } from "@/lib/dashboard-labels";
 
 const labels: Record<string, string> = {
   overview: "عرض النظرة العامة",
@@ -49,7 +50,7 @@ export default function AdminTeamPage() {
     if (clearMessage) setMessage("");
     const response = await fetch("/api/admin/team", { cache: "no-store" });
     const data = await response.json();
-    if (!response.ok) setMessage(data.error || "تعذر تحميل الفريق");
+    if (!response.ok) setMessage(dashboardErrorMessage(data.error, "تعذر تحميل الفريق"));
     else {
       setMembers(data.members || []);
       setPermissions(data.permissions || []);
@@ -75,7 +76,7 @@ export default function AdminTeamPage() {
         body: JSON.stringify({ name: data.get("name"), identifier: data.get("identifier"), password: data.get("password"), permissions: selected }),
       });
       const result = await response.json().catch(() => null);
-      const resultMessage = response.ok ? "تم إنشاء حساب عضو الفريق بنجاح" : result?.error || "تعذر إنشاء الحساب";
+      const resultMessage = response.ok ? "تم إنشاء حساب عضو الفريق بنجاح" : dashboardErrorMessage(result?.error, "تعذر إنشاء الحساب");
       setMessage(resultMessage);
       setCreateMessage(resultMessage);
       if (response.ok) {
@@ -104,7 +105,7 @@ export default function AdminTeamPage() {
         body: JSON.stringify({ userId: member.id, profile: true, name: data.get("name"), email: data.get("email"), phone: data.get("phone"), isActive: member.adminProfile?.isActive ?? true, permissions: selected, password: data.get("password") }),
       });
       const result = await response.json();
-      setMessage(response.ok ? "تم حفظ بيانات عضو الإدارة وصلاحياته" : result.error || "تعذر حفظ التعديلات");
+      setMessage(response.ok ? "تم حفظ بيانات عضو الإدارة وصلاحياته" : dashboardErrorMessage(result.error, "تعذر حفظ التعديلات"));
       if (response.ok) {
         const passwordInput = form.elements.namedItem("password") as HTMLInputElement | null;
         if (passwordInput) passwordInput.value = "";
@@ -126,7 +127,7 @@ export default function AdminTeamPage() {
         body: JSON.stringify({ userId: member.id, isActive: nextActive }),
       });
       const result = await response.json();
-      setMessage(response.ok ? (nextActive ? "تم تفعيل الحساب" : "تم تعليق الحساب") : result.error || "تعذر تحديث الحساب");
+      setMessage(response.ok ? (nextActive ? "تم تفعيل الحساب" : "تم تعليق الحساب") : dashboardErrorMessage(result.error, "تعذر تحديث الحساب"));
       if (response.ok) await load(false);
     } finally {
       setUpdatingMemberId("");
@@ -250,5 +251,5 @@ export default function AdminTeamPage() {
 }
 
 function PermissionGrid({ permissions, selected, disabled = false }: { permissions: string[]; selected: string[]; disabled?: boolean }) {
-  return <div><p className="mb-3 font-black">الصلاحيات</p><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{permissions.map((permission) => <label key={permission} className={`flex items-center gap-3 rounded-xl border border-[#D8D2C4] bg-[#F7F3EB] p-3 font-bold ${disabled ? "cursor-not-allowed opacity-70" : ""}`}><input name={permission} type="checkbox" defaultChecked={selected.includes(permission)} disabled={disabled} />{labels[permission] || permission}</label>)}</div></div>;
+  return <div><p className="mb-3 font-black">الصلاحيات</p><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{permissions.map((permission) => <label key={permission} className={`flex items-center gap-3 rounded-xl border border-[#D8D2C4] bg-[#F7F3EB] p-3 font-bold ${disabled ? "cursor-not-allowed opacity-70" : ""}`}><input name={permission} type="checkbox" defaultChecked={selected.includes(permission)} disabled={disabled} />{labels[permission] || "صلاحية إدارية"}</label>)}</div></div>;
 }

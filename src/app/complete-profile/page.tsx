@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BriefcaseBusiness, Megaphone, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { dashboardErrorMessage } from "@/lib/dashboard-labels";
 
 type Role = "PARTNER" | "AMBASSADOR";
 type Profile = Record<string, string | number | null>;
@@ -51,7 +52,7 @@ export default function CompleteProfilePage() {
         body: JSON.stringify(body),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "تعذر حفظ الملف");
+      if (!response.ok) throw new Error(dashboardErrorMessage(payload.error, "تعذر حفظ الملف"));
       router.replace(payload.redirectTo);
       router.refresh();
     } catch {

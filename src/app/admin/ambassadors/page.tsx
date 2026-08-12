@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { ChevronDown, Eye, EyeOff, Pencil } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
 
 type Ambassador = {
   id: string;
@@ -45,7 +46,7 @@ export default function AmbassadorsAdmin() {
   async function load() {
     const response = await fetch("/api/admin/ambassadors", { cache: "no-store" });
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || "تعذر تحميل إدارة السفراء");
+    if (!response.ok) throw new Error(dashboardErrorMessage(payload.error, "تعذر تحميل إدارة السفراء"));
     setData(payload);
   }
 
@@ -64,7 +65,7 @@ export default function AmbassadorsAdmin() {
         body: JSON.stringify({ id, status }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "تعذر تحديث حالة السفير");
+      if (!response.ok) throw new Error(dashboardErrorMessage(payload.error, "تعذر تحديث حالة السفير"));
       setMessage(status === "ACTIVE" ? "تم تفعيل السفير." : "تم تعليق السفير.");
       await load();
     } catch (cause) {
@@ -87,7 +88,7 @@ export default function AmbassadorsAdmin() {
         body: JSON.stringify({ entity: "account", id, name: form.get("name"), email: form.get("email"), phone: form.get("phone"), age: form.get("age") }),
       });
       const payload = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(payload?.error || "تعذر تعديل بيانات السفير");
+      if (!response.ok) throw new Error(dashboardErrorMessage(payload?.error, "تعذر تعديل بيانات السفير"));
       setMessage("تم تعديل بيانات السفير بنجاح.");
       await load();
     } catch (cause) {
@@ -152,7 +153,7 @@ export default function AmbassadorsAdmin() {
                     </p>
                     <p className="mt-2 text-sm">
                       {ambassador.referrals.length} إحالة · عمولات مسجلة {total.toFixed(2)} · الملف{" "}
-                      {ambassador.profileCompletedAt ? "مكتمل" : "غير مكتمل"} · الحالة {ambassador.status}
+                      {ambassador.profileCompletedAt ? "مكتمل" : "غير مكتمل"} · الحالة {dashboardLabel(ambassador.status, "غير معروفة")}
                     </p>
                     <p className="mt-1 text-sm text-slate-500">العمر: {ambassador.age != null ? `${ambassador.age} سنة` : "غير محدد"}</p>
                   </div>
@@ -259,7 +260,7 @@ function ApplicationCard({
             {application.email} · {application.market || "—"} · العمر {application.age != null ? application.age : "غير محدد"}
           </p>
         </div>
-        <span className="rounded-full bg-[#F4F1EA] px-3 py-1 text-xs font-black">{application.status}</span>
+        <span className="rounded-full bg-[#F4F1EA] px-3 py-1 text-xs font-black">{dashboardLabel(application.status, "حالة غير معروفة")}</span>
       </div>
       {application.details && <p className="mt-3">{application.details}</p>}
       {application.status === "PENDING" ? (

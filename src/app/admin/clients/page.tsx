@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { ChevronDown, Eye, EyeOff, MailPlus, PauseCircle, PlayCircle, UserPlus, UsersRound } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { dashboardErrorMessage } from "@/lib/dashboard-labels";
 
 type Client = {
   id: string;
@@ -52,7 +53,7 @@ export default function AdminClientsPage() {
     if (clearMessage) setMessage("");
     const response = await fetch("/api/admin/clients", { cache: "no-store" });
     const data = await response.json().catch(() => null);
-    if (!response.ok) setMessage(data?.error || "تعذر تحميل العملاء");
+    if (!response.ok) setMessage(dashboardErrorMessage(data?.error, "تعذر تحميل العملاء"));
     else setClients(data.clients || []);
     setLoading(false);
   }
@@ -79,7 +80,7 @@ export default function AdminClientsPage() {
         ? result?.inviteRequested && !result?.inviteSent
           ? "تم حفظ العميل، لكن تعذر إرسال الدعوة. يمكنك إرسالها لاحقًا من بطاقة العميل."
           : "تم حفظ العميل بنجاح"
-        : result?.error || "تعذر حفظ العميل");
+        : dashboardErrorMessage(result?.error, "تعذر حفظ العميل"));
       if (response.ok) {
         form?.reset();
         setAccessMethod("INVITE");
@@ -122,7 +123,7 @@ export default function AdminClientsPage() {
       const result = await response.json().catch(() => null);
       setMessage(response.ok
         ? values.password ? "تم تغيير كلمة مرور العميل" : values.isActive ? "تم تفعيل حساب العميل" : "تم تعليق حساب العميل"
-        : result?.error || "تعذر تحديث حساب العميل");
+        : dashboardErrorMessage(result?.error, "تعذر تحديث حساب العميل"));
       if (response.ok) await load(false);
     } finally { setUpdatingId(""); }
   }
@@ -132,7 +133,7 @@ export default function AdminClientsPage() {
     try {
       const response = await fetch(`/api/admin/clients/${client.id}/invite`, { method: "POST" });
       const result = await response.json().catch(() => null);
-      setMessage(response.ok ? `تم إرسال دعوة الدخول إلى ${client.email}` : result?.error || "تعذر إرسال الدعوة");
+      setMessage(response.ok ? `تم إرسال دعوة الدخول إلى ${client.email}` : dashboardErrorMessage(result?.error, "تعذر إرسال الدعوة"));
     } finally { setUpdatingId(""); }
   }
 
@@ -165,7 +166,7 @@ export default function AdminClientsPage() {
         }
         return;
       }
-      setMessage(response.ok ? "تم حفظ بيانات العميل" : result?.message || result?.error || "تعذر حفظ بيانات العميل");
+      setMessage(response.ok ? "تم حفظ بيانات العميل" : dashboardErrorMessage(result?.message || result?.error, "تعذر حفظ بيانات العميل"));
       if (response.ok) {
         const passwordInput = form.elements.namedItem("password") as HTMLInputElement | null;
         if (passwordInput) passwordInput.value = "";

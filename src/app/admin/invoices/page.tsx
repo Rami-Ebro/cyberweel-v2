@@ -5,6 +5,7 @@ import { ChevronDown, ReceiptText, RefreshCw } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { DateText } from "@/components/ui/date-text";
 import { DateInput } from "@/components/ui/date-input";
+import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
 
 type Project = {
   id: string;
@@ -60,7 +61,7 @@ export default function AdminInvoicesPage() {
     try {
       const response = await fetch("/api/admin/invoices", { cache: "no-store" });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "تعذر تحميل الفواتير");
+      if (!response.ok) throw new Error(dashboardErrorMessage(payload.error, "تعذر تحميل الفواتير"));
       const nextClients = payload.clients || [];
       setClients(nextClients);
       setInvoices(payload.invoices || []);
@@ -122,7 +123,7 @@ export default function AdminInvoicesPage() {
         }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "تعذر إصدار الفاتورة");
+      if (!response.ok) throw new Error(dashboardErrorMessage(payload.error, "تعذر إصدار الفاتورة"));
       setMessage(`تم إصدار الفاتورة ${payload.invoice.number} وإشعار العميل.`);
       setFormOpen(false);
       await load();
@@ -144,7 +145,7 @@ export default function AdminInvoicesPage() {
         body: JSON.stringify({ action: "payment", invoiceId: invoice.id }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "تعذر تسجيل الدفع");
+      if (!response.ok) throw new Error(dashboardErrorMessage(payload.error, "تعذر تسجيل الدفع"));
       setMessage(`تم تسجيل الفاتورة ${invoice.number} كمدفوعة وإشعار العميل.`);
       await load();
     } catch (cause) {
@@ -183,7 +184,7 @@ export default function AdminInvoicesPage() {
               <label className="grid gap-2 font-bold">العميل<select value={clientId} onChange={(event) => { const nextClientId = event.target.value; const nextClient = clients.find((client) => client.id === nextClientId); setClientId(nextClientId); setProjectId(nextClient?.clientProjects[0]?.id || ""); }} required className="field font-normal"><option value="">اختر العميل</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name || client.email}</option>)}</select></label>
               {projects.length > 1 ? <label className="grid gap-2 font-bold">المشروع<select value={selectedProject?.id || ""} onChange={(event) => setProjectId(event.target.value)} required className="field font-normal">{projects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}</select></label> : <div className="rounded-xl border border-[#D8D2C4] p-4"><p className="text-xs font-bold text-slate-500">المشروع</p><p className="mt-1 font-black">{selectedProject?.title || "لا يوجد مشروع لهذا العميل"}</p></div>}
 
-              {selectedProject && <details open className="rounded-xl border border-[#D8D2C4] bg-[#F7F3EB] p-4 md:col-span-2"><summary className="cursor-pointer font-black">ملخص المشروع والاتفاق</summary><div className="mt-4 grid gap-3 sm:grid-cols-2"><ProjectFact label="المشروع" value={selectedProject.title} /><ProjectFact label="الحالة والتقدم" value={`${selectedProject.status} — ${selectedProject.progress}%`} /><ProjectFact label="الخطة المالية" value={selectedProject.financialPlan || "غير محددة"} /><ProjectFact label="مراحل المشروع" value={selectedProject.stages || "غير محددة"} /><ProjectFact label="تفاصيل الاتفاق" value={selectedProject.agreementDetails || "غير محددة"} /><ProjectFact label="موعد المشروع" value={<DateText value={selectedProject.dueAt} fallback="غير محدد" />} /></div></details>}
+              {selectedProject && <details open className="rounded-xl border border-[#D8D2C4] bg-[#F7F3EB] p-4 md:col-span-2"><summary className="cursor-pointer font-black">ملخص المشروع والاتفاق</summary><div className="mt-4 grid gap-3 sm:grid-cols-2"><ProjectFact label="المشروع" value={selectedProject.title} /><ProjectFact label="الحالة والتقدم" value={`${dashboardLabel(selectedProject.status, "حالة غير معروفة")} — ${selectedProject.progress}%`} /><ProjectFact label="الخطة المالية" value={selectedProject.financialPlan || "غير محددة"} /><ProjectFact label="مراحل المشروع" value={selectedProject.stages || "غير محددة"} /><ProjectFact label="تفاصيل الاتفاق" value={selectedProject.agreementDetails || "غير محددة"} /><ProjectFact label="موعد المشروع" value={<DateText value={selectedProject.dueAt} fallback="غير محدد" />} /></div></details>}
 
               <label className="grid gap-2 font-bold">نوع المستند<select name="type" defaultValue="STANDARD" className="field font-normal"><option value="STANDARD">فاتورة</option><option value="RETURN">مرتجع</option></select></label>
               <label className="grid gap-2 font-bold">الحالة<select name="status" defaultValue="DUE" className="field font-normal"><option value="DRAFT">مسودة</option><option value="DUE">مستحقة</option><option value="OVERDUE">متأخرة</option><option value="CANCELLED">ملغاة</option></select></label>
@@ -201,7 +202,7 @@ export default function AdminInvoicesPage() {
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="بحث برقم الفاتورة أو العميل أو المشروع" className="field" />
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="field"><option value="">كل الحالات</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
           </div>
-          <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[1000px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">الرقم</th><th className="p-4">النوع</th><th className="p-4">العميل</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th><th className="p-4">الإجراء</th></tr></thead><tbody>{filteredInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td dir="ltr" className="p-4 text-right font-black">{invoice.number}</td><td className="p-4">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</td><td className="p-4">{invoice.project.client.name || invoice.project.client.email}</td><td className="p-4">{invoice.project.title}</td><td className="p-4 font-black">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{statusLabels[invoice.status] || invoice.status}</td><td className="p-4"><DateText value={invoice.dueAt} /></td><td className="p-4">{invoice.status !== "PAID" && invoice.status !== "CANCELLED" ? <button onClick={() => void markPaid(invoice)} disabled={saving} className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 font-black text-emerald-800 disabled:opacity-40">تسجيل مدفوعة</button> : "—"}</td></tr>)}</tbody></table>{!loading && !filteredInvoices.length && <p className="p-8 text-center text-slate-500">لا توجد فواتير مطابقة.</p>}</div>
+          <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[1000px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">الرقم</th><th className="p-4">النوع</th><th className="p-4">العميل</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th><th className="p-4">الإجراء</th></tr></thead><tbody>{filteredInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td dir="ltr" className="p-4 text-right font-black">{invoice.number}</td><td className="p-4">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</td><td className="p-4">{invoice.project.client.name || invoice.project.client.email}</td><td className="p-4">{invoice.project.title}</td><td className="p-4 font-black">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{statusLabels[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</td><td className="p-4"><DateText value={invoice.dueAt} /></td><td className="p-4">{invoice.status !== "PAID" && invoice.status !== "CANCELLED" ? <button onClick={() => void markPaid(invoice)} disabled={saving} className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 font-black text-emerald-800 disabled:opacity-40">تسجيل مدفوعة</button> : "—"}</td></tr>)}</tbody></table>{!loading && !filteredInvoices.length && <p className="p-8 text-center text-slate-500">لا توجد فواتير مطابقة.</p>}</div>
         </section>
       <style jsx global>{`.field{width:100%;border-radius:.75rem;border:1px solid #d8d2c4;padding:.75rem 1rem;background:white}`}</style>
     </AdminShell>

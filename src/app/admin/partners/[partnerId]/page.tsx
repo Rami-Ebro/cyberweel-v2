@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { DateText } from "@/components/ui/date-text";
+import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
 
 type PartnerStatus = "PENDING" | "ACTIVE" | "SUSPENDED";
 type ProjectStatus = "PLANNING" | "IN_PROGRESS" | "REVIEW" | "COMPLETED" | "ON_HOLD" | "CANCELLED";
@@ -121,7 +122,7 @@ export default function AdminPartnerDetailsPage() {
       if (response.status === 401) return router.replace("/login");
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        setMessage(data?.error || "تعذر تحميل ملف الشريك");
+        setMessage(dashboardErrorMessage(data?.error, "تعذر تحميل ملف الشريك"));
         return;
       }
       setPartner(data.partner);
@@ -143,7 +144,7 @@ export default function AdminPartnerDetailsPage() {
     });
     const data = await response.json().catch(() => null);
     if (!response.ok) {
-      setMessage(data?.error || "تعذر حفظ التعديل");
+      setMessage(dashboardErrorMessage(data?.error, "تعذر حفظ التعديل"));
       return false;
     }
     setMessage(successMessage);
@@ -345,7 +346,7 @@ export default function AdminPartnerDetailsPage() {
           </section>
           <section className="rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm">
             <p className="text-sm font-bold text-[#9A7D43]">تاريخ حالة الشريك</p><h2 className="mt-1 text-2xl font-black">رحلة الحساب</h2>
-            <div className="mt-5 grid gap-3">{partner.statusHistory?.length ? partner.statusHistory.map((event) => <div key={event.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#F7F3EB] p-4"><span className="font-black">{({ PARTNER_APPLICATION_SUBMITTED: "تقديم الطلب", PARTNER_REVIEW_STARTED: "المراجعة", PARTNER_INFO_REQUESTED: "طلب معلومات إضافية", PARTNER_APPLICATION_ACCEPTED: "القبول", PARTNER_ACCOUNT_ACTIVATED: "التفعيل", PARTNER_ACCOUNT_SUSPENDED: "الإيقاف" } as Record<string, string>)[event.action] || event.action}</span><span className="text-sm text-slate-500"><DateText value={event.createdAt} withTime /> · {event.actor?.name || event.actor?.email || "النظام"}</span></div>) : <p className="rounded-xl bg-[#F7F3EB] p-5 text-slate-500">لا توجد أحداث مسجلة لهذا الحساب بعد.</p>}</div>
+            <div className="mt-5 grid gap-3">{partner.statusHistory?.length ? partner.statusHistory.map((event) => <div key={event.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#F7F3EB] p-4"><span className="font-black">{dashboardLabel(event.action, "نشاط إداري")}</span><span className="text-sm text-slate-500"><DateText value={event.createdAt} withTime /> · {event.actor?.name || event.actor?.email || "النظام"}</span></div>) : <p className="rounded-xl bg-[#F7F3EB] p-5 text-slate-500">لا توجد أحداث مسجلة لهذا الحساب بعد.</p>}</div>
           </section>
         </div>
       )}
@@ -369,6 +370,6 @@ function ProjectGroup({ title, projects, empty }: { title: string; projects: Ass
   return <div className="mt-6"><h3 className="text-lg font-black">{title} <span className="text-sm font-normal text-slate-500">({projects.length})</span></h3><div className="mt-3 grid gap-3">{projects.length ? projects.map((assignment) => {
     const project = assignment.clientProject;
     const status = project?.status || assignment.status;
-    return <article key={assignment.id} className="flex flex-col justify-between gap-4 rounded-xl border border-[#E6E0D4] bg-[#FCFAF6] p-4 sm:flex-row sm:items-center"><div><h4 className="font-black">{project?.title || assignment.title}</h4><p className="mt-1 text-sm text-slate-500">العميل: {project ? project.client.name || project.client.email : "مشروع قديم غير مربوط بعميل"}</p><p className="mt-2 text-sm">الحالة: {projectStatusLabel[status] || status} · التقدم {project?.progress ?? assignment.progress}%</p></div><div className="flex flex-wrap items-center gap-2">{project && <Link href={`/admin/clients/${project.client.id}?manage=projects`} className="rounded-lg border border-[#111827] px-3 py-2 text-sm font-black">فتح المشروع</Link>}<span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#8A6E38]"><DateText value={project?.dueAt || assignment.dueAt} fallback="دون موعد" /></span></div></article>;
+    return <article key={assignment.id} className="flex flex-col justify-between gap-4 rounded-xl border border-[#E6E0D4] bg-[#FCFAF6] p-4 sm:flex-row sm:items-center"><div><h4 className="font-black">{project?.title || assignment.title}</h4><p className="mt-1 text-sm text-slate-500">العميل: {project ? project.client.name || project.client.email : "مشروع قديم غير مربوط بعميل"}</p><p className="mt-2 text-sm">الحالة: {projectStatusLabel[status] || dashboardLabel(status, "حالة غير معروفة")} · التقدم {project?.progress ?? assignment.progress}%</p></div><div className="flex flex-wrap items-center gap-2">{project && <Link href={`/admin/clients/${project.client.id}?manage=projects`} className="rounded-lg border border-[#111827] px-3 py-2 text-sm font-black">فتح المشروع</Link>}<span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#8A6E38]"><DateText value={project?.dueAt || assignment.dueAt} fallback="دون موعد" /></span></div></article>;
   }) : <p className="rounded-xl bg-[#F7F3EB] p-5 text-slate-500">{empty}</p>}</div></div>;
 }

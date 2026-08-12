@@ -8,6 +8,7 @@ import { BarChart3, Bell, BriefcaseBusiness, ChevronDown, Eye, EyeOff, FileText,
 import { Logo } from "@/components/brand/logo";
 import { DateText } from "@/components/ui/date-text";
 import { DateInput } from "@/components/ui/date-input";
+import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
 
 type Section = "overview" | "projects" | "files" | "invoices" | "messages" | "account";
 type Project = {
@@ -62,9 +63,9 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
     const response = await fetch(`/api/admin/clients/${params.clientId}`, { cache: "no-store" });
     const data = await response.json().catch(() => null);
     if (response.status === 401 || response.status === 403) {
-      setNotice(data?.error || "لا تملك صلاحية إدارة العملاء");
+      setNotice(dashboardErrorMessage(data?.error, "لا تملك صلاحية إدارة العملاء"));
     } else if (!response.ok) {
-      setNotice(data?.error || "تعذر تحميل لوحة العميل");
+      setNotice(dashboardErrorMessage(data?.error, "تعذر تحميل لوحة العميل"));
     } else {
       setClient(data.client);
       setNextInvoiceNumber(data.nextInvoiceNumber || "");
@@ -92,7 +93,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
         body: JSON.stringify(values),
       });
       const data = await response.json().catch(() => null);
-      if (!response.ok) return setNotice(data?.error || "تعذر حفظ العملية");
+      if (!response.ok) return setNotice(dashboardErrorMessage(data?.error, "تعذر حفظ العملية"));
       if (method === "POST") formElement.reset();
       await load(false);
       if (values.action === "project") setProjectFormOpen(false);
@@ -128,7 +129,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
         body: JSON.stringify(values),
       });
       const data = await response.json().catch(() => null);
-      if (!response.ok) return setNotice(data?.error || "تعذر حفظ المشروع");
+      if (!response.ok) return setNotice(dashboardErrorMessage(data?.error, "تعذر حفظ المشروع"));
 
       const projectId = data?.project?.id;
       if (attachments.length && projectId) {
@@ -165,15 +166,13 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
             );
             if (!completeResponse.ok) {
               const completeResult = await completeResponse.json().catch(() => null);
-              throw new Error(completeResult?.error || `تعذر تسجيل الملف ${file.name}`);
+              throw new Error(dashboardErrorMessage(completeResult?.error, `تعذر تسجيل الملف ${file.name}`));
             }
           }
         } catch (error) {
           console.error("[project-attachments] Upload failed", error);
           await load(false);
-          return setNotice(error instanceof Error && error.message
-            ? `تم حفظ المشروع، لكن تعذر رفع المرفق: ${error.message}`
-            : "تم حفظ المشروع، لكن تعذر رفع بعض المرفقات. تحقق من ربط Vercel Blob ثم أعد رفعها.");
+          return setNotice(`تم حفظ المشروع، لكن ${dashboardErrorMessage(error instanceof Error ? error.message : null, "تعذر رفع بعض المرفقات. تحقق من إعداد خدمة رفع الملفات ثم أعد المحاولة.")}`);
         }
       }
 
@@ -246,7 +245,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
         );
         if (!completeResponse.ok) {
           const completeResult = await completeResponse.json().catch(() => null);
-          throw new Error(completeResult?.error || `تعذر تسجيل الملف ${file.name}`);
+          throw new Error(dashboardErrorMessage(completeResult?.error, `تعذر تسجيل الملف ${file.name}`));
         }
       }
 
@@ -257,7 +256,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
           body: JSON.stringify({ action: "file", projectId, name, url, kind }),
         });
         const data = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(data?.error || "تعذر إضافة رابط الملف");
+        if (!response.ok) throw new Error(dashboardErrorMessage(data?.error, "تعذر إضافة رابط الملف"));
       }
 
       formElement.reset();
@@ -271,7 +270,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
       onPreview(success);
     } catch (error) {
       console.error("[client-deliveries] Upload failed", error);
-      setNotice(error instanceof Error && error.message ? error.message : "تعذر إرسال الملفات إلى العميل");
+      setNotice(dashboardErrorMessage(error instanceof Error ? error.message : null, "تعذر إرسال الملفات إلى العميل"));
     } finally {
       setSaving(false);
     }
@@ -289,7 +288,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
         body: JSON.stringify({ action: "submission", submissionId: form.get("submissionId"), status: form.get("status") }),
       });
       const result = await response.json().catch(() => null);
-      if (!response.ok) return setNotice(result?.error || "تعذر تحديث حالة المواد");
+      if (!response.ok) return setNotice(dashboardErrorMessage(result?.error, "تعذر تحديث حالة المواد"));
       await load(false);
       setNotice("تم تحديث حالة المواد المرسلة");
     } finally {
@@ -321,7 +320,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
         if (window.confirm("رقم الهاتف مستخدم في حساب آخر. هل تريد حفظه رغم ذلك؟")) await submitClientAccount(form, true);
         return;
       }
-      if (!response.ok) return setNotice(result?.error || "تعذر حفظ بيانات العميل");
+      if (!response.ok) return setNotice(dashboardErrorMessage(result?.error, "تعذر حفظ بيانات العميل"));
       const passwordInput = form.elements.namedItem("password") as HTMLInputElement | null;
       if (passwordInput) passwordInput.value = "";
       setAccountFormOpen(false);
@@ -343,7 +342,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
         body: JSON.stringify({ userId: client.id, isActive: !client.isActive }),
       });
       const data = await response.json().catch(() => null);
-      if (!response.ok) return setNotice(data?.error || "تعذر تحديث حالة حساب العميل");
+      if (!response.ok) return setNotice(dashboardErrorMessage(data?.error, "تعذر تحديث حالة حساب العميل"));
       onPreview(client.isActive ? "تم تعليق حساب العميل" : "تم تفعيل حساب العميل");
     } finally {
       setSaving(false);
@@ -471,7 +470,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
 
           {!loading && client && section === "files" && <div className="mt-7 grid gap-7">
             <section><h2 className="text-xl font-black">تسليمات وملفات CyberWeel</h2><div className="mt-4"><ListEmpty empty={!files.length} text="لا توجد ملفات من الفريق بعد.">{files.map((file) => <a key={file.id} href={file.storageProvider === "VERCEL_BLOB" ? `/api/client/files/${file.id}` : file.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><strong>{file.name}</strong><p className="mt-1 text-sm text-slate-500">{file.projectTitle}</p></a>)}</ListEmpty></div></section>
-            <section><h2 className="text-xl font-black">مواد أرسلها العميل</h2><div className="mt-4 grid gap-4">{submissions.map((submission) => <article key={submission.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><strong>{submission.projectTitle}</strong><p className="mt-1 text-xs text-slate-500"><DateText value={submission.createdAt} withTime /></p></div><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-xs font-black text-[#9A7D43]">{submissionStatuses.find(([value]) => value === submission.status)?.[1] || submission.status}</span></div>{submission.note && <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">{submission.note}</p>}{!!submission.links.length && <div className="mt-4 grid gap-2">{submission.links.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer" dir="ltr" className="break-all text-left text-sm font-bold text-[#9A7D43] underline">{link}</a>)}</div>}{!!submission.files.length && <div className="mt-4 grid gap-2 sm:grid-cols-2">{submission.files.map((file) => <a key={file.id} href={`/api/client/files/${file.id}`} target="_blank" rel="noreferrer" className="rounded-lg bg-[#F7F3EB] px-3 py-3 text-sm font-bold">{file.name}</a>)}</div>}<form onSubmit={updateSubmission} className="mt-5 flex flex-wrap items-end gap-3"><input type="hidden" name="submissionId" value={submission.id} /><label className="grid min-w-56 gap-2 text-sm font-bold">حالة المراجعة<select name="status" defaultValue={submission.status} className="field font-normal">{submissionStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><SaveButton saving={saving} label="حفظ الحالة" /></form></article>)}{!submissions.length && <ListEmpty empty text="لم يرسل العميل مواد بعد.">{null}</ListEmpty>}</div></section>
+            <section><h2 className="text-xl font-black">مواد أرسلها العميل</h2><div className="mt-4 grid gap-4">{submissions.map((submission) => <article key={submission.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><strong>{submission.projectTitle}</strong><p className="mt-1 text-xs text-slate-500"><DateText value={submission.createdAt} withTime /></p></div><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-xs font-black text-[#9A7D43]">{submissionStatuses.find(([value]) => value === submission.status)?.[1] || dashboardLabel(submission.status, "حالة غير معروفة")}</span></div>{submission.note && <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">{submission.note}</p>}{!!submission.links.length && <div className="mt-4 grid gap-2">{submission.links.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer" dir="ltr" className="break-all text-left text-sm font-bold text-[#9A7D43] underline">{link}</a>)}</div>}{!!submission.files.length && <div className="mt-4 grid gap-2 sm:grid-cols-2">{submission.files.map((file) => <a key={file.id} href={`/api/client/files/${file.id}`} target="_blank" rel="noreferrer" className="rounded-lg bg-[#F7F3EB] px-3 py-3 text-sm font-bold">{file.name}</a>)}</div>}<form onSubmit={updateSubmission} className="mt-5 flex flex-wrap items-end gap-3"><input type="hidden" name="submissionId" value={submission.id} /><label className="grid min-w-56 gap-2 text-sm font-bold">حالة المراجعة<select name="status" defaultValue={submission.status} className="field font-normal">{submissionStatuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><SaveButton saving={saving} label="حفظ الحالة" /></form></article>)}{!submissions.length && <ListEmpty empty text="لم يرسل العميل مواد بعد.">{null}</ListEmpty>}</div></section>
             <CreationPanel title="إضافة ملف أو تسليم" description="الملفات الحالية في الأعلى، والإضافة عند الحاجة فقط." open={fileFormOpen} onToggle={() => setFileFormOpen((value) => !value)}>
               <form key={newFileFormVersion} onSubmit={(event) => void saveFile(event)} className="grid gap-3">
                 <ProjectSelect projects={projects} />
@@ -494,7 +493,7 @@ export function AdminClientEditor({ initialSection = "overview", onPreview }: { 
 
               {selectedProject && <details className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><summary className="cursor-pointer list-none p-6"><div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-black">ملخص اتفاق المشروع</h2><p className="mt-1 text-sm text-slate-500">{selectedProject.title} — للعرض فقط</p></div><ChevronDown className="h-5 w-5" /></div></summary><div className="grid gap-4 border-t border-[#D8D2C4] p-6 text-sm"><ReadOnly label="نطاق المشروع" value={selectedProject.agreementDetails || selectedProject.description} /><ReadOnly label={`الخطة المالية — ${selectedProject.currency}`} value={selectedProject.financialPlan} /><ReadOnly label="المراحل" value={selectedProject.stages} /><ReadOnly label="الملاحظات الداخلية" value={selectedProject.notes} />{!!selectedProject.links?.length && <div><p className="font-black">روابط المشروع</p><div className="mt-2 grid gap-1">{selectedProject.links.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer" className="text-[#9A7D43] underline">{link}</a>)}</div></div>}<p className="text-xs text-slate-500">لتعديل هذه البيانات انتقل إلى صفحة المشاريع.</p></div></details>}
 
-              <section><h2 className="text-xl font-black">سجل الفواتير</h2><div className="mt-4"><ListEmpty empty={!selectedInvoices.length} text="لا توجد فواتير لهذا المشروع.">{selectedInvoices.map((invoice) => <div key={invoice.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap justify-between gap-3"><div className="flex items-center gap-2"><strong>{invoice.number}</strong><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-xs font-bold text-[#9A7D43]">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</span></div><span>{invoice.amount.toLocaleString("ar")} {invoice.currency}</span></div><p className="mt-2 text-sm text-slate-500">{invoice.status} — <DateText value={invoice.dueAt} fallback="دون تاريخ استحقاق" /></p>{invoice.status !== "PAID" && <form onSubmit={(event) => void submit(event, "POST", "تم تسجيل الفاتورة كمدفوعة وإشعار العميل")} className="mt-3"><input type="hidden" name="action" value="payment" /><input type="hidden" name="invoiceId" value={invoice.id} /><button disabled={saving} className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800">تسجيلها كمدفوعة</button></form>}</div>)}</ListEmpty></div></section>
+              <section><h2 className="text-xl font-black">سجل الفواتير</h2><div className="mt-4"><ListEmpty empty={!selectedInvoices.length} text="لا توجد فواتير لهذا المشروع.">{selectedInvoices.map((invoice) => <div key={invoice.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap justify-between gap-3"><div className="flex items-center gap-2"><strong>{invoice.number}</strong><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-xs font-bold text-[#9A7D43]">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</span></div><span>{invoice.amount.toLocaleString("ar")} {invoice.currency}</span></div><p className="mt-2 text-sm text-slate-500">{dashboardLabel(invoice.status, "حالة غير معروفة")} — <DateText value={invoice.dueAt} fallback="دون تاريخ استحقاق" /></p>{invoice.status !== "PAID" && <form onSubmit={(event) => void submit(event, "POST", "تم تسجيل الفاتورة كمدفوعة وإشعار العميل")} className="mt-3"><input type="hidden" name="action" value="payment" /><input type="hidden" name="invoiceId" value={invoice.id} /><button disabled={saving} className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800">تسجيلها كمدفوعة</button></form>}</div>)}</ListEmpty></div></section>
 
               <section className="rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
                 <button onClick={() => setInvoiceFormOpen((value) => !value)} className="flex w-full items-center justify-between gap-3 p-6 text-right">

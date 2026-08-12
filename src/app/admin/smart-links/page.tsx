@@ -38,7 +38,7 @@ export default async function SmartLinksAdminPage() {
   const totalVisits = smartLinks.reduce((sum, link) => sum + link._count.scans, 0);
 
   return (
-    <AdminShell active="smart-links" eyebrow="SMART LINKS" title="إدارة الروابط الذكية" description="أنشئ الروابط المختصرة، غيّر وجهاتها، حمّل رمز QR، وتابع الزيارات من مكان واحد.">
+    <AdminShell active="smart-links" eyebrow="الروابط الذكية" title="إدارة الروابط الذكية" description="أنشئ الروابط المختصرة، غيّر وجهاتها، حمّل رمز QR، وتابع الزيارات من مكان واحد.">
 
         <section aria-label="ملخص الروابط" className="grid gap-4 sm:grid-cols-3">
           <SummaryCard icon={Link2} label="إجمالي الروابط" value={smartLinks.length} />
