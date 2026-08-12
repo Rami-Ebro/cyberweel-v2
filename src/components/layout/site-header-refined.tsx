@@ -22,6 +22,13 @@ type SignedInAccount = {
   settingsUrl: string;
 };
 
+const dashboardCapabilityEnglish: Record<string, string> = {
+  ADMIN: "Admin",
+  CLIENT: "Client",
+  PARTNER: "Execution Partner",
+  AMBASSADOR: "Ambassador",
+};
+
 function Wordmark({ compact = false, isArabic }: { compact?: boolean; isArabic: boolean }) {
   return (
     <span className="flex items-center gap-3">
@@ -81,7 +88,11 @@ export function SiteHeaderRefined() {
       {(account.dashboardLinks?.length ? account.dashboardLinks : [{ capability: account.role, label: "", url: account.dashboardUrl }]).map((dashboard) => (
         <a key={dashboard.capability} href={dashboard.url} onClick={() => { setAccountOpen(false); setMobileOpen(false); }} className={cn("focus-ring flex items-center gap-3 font-semibold text-ink transition hover:bg-muted", mobile ? "rounded-md px-4 py-3" : "rounded-lg px-3 py-2.5 text-sm")}>
           <LayoutDashboard className="h-4 w-4 text-accent" />
-          {dashboard.label ? (isArabic ? `لوحة ${dashboard.label}` : `${dashboard.label} dashboard`) : (isArabic ? "لوحة التحكم" : "Dashboard")}
+          {dashboard.label
+            ? (isArabic
+                ? `لوحة ${dashboard.label}`
+                : `${dashboardCapabilityEnglish[dashboard.capability] || dashboard.label} Dashboard`)
+            : (isArabic ? "لوحة التحكم" : "Dashboard")}
         </a>
       ))}
       <a href={account.settingsUrl} onClick={() => { setAccountOpen(false); setMobileOpen(false); }} className={cn("focus-ring flex items-center gap-3 font-semibold text-ink transition hover:bg-muted", mobile ? "rounded-md px-4 py-3" : "rounded-lg px-3 py-2.5 text-sm")}>

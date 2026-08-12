@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { AdminNotificationCenter } from "@/components/admin/admin-notification-center";
+import { DashboardLanguageButton } from "@/components/dashboard-i18n-provider";
 import { DateText } from "@/components/ui/date-text";
 import { DateInput } from "@/components/ui/date-input";
 import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
@@ -638,6 +639,7 @@ export default function AdminPartnersPage() {
             </div>
             <div className="flex items-center gap-2">
               <AdminNotificationCenter />
+              <DashboardLanguageButton />
               <button
                 onClick={load}
                 disabled={loading}

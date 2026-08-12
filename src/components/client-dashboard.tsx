@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BarChart3, Bell, BriefcaseBusiness, FileText, Home, LogOut, Mail, Pencil, ReceiptText, RefreshCw, Send, UserCog } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { DashboardLanguageButton } from "@/components/dashboard-i18n-provider";
 import { DateText } from "@/components/ui/date-text";
 import { ClientSubmissionPanel, type ClientSubmissionView } from "@/components/client-submission-panel";
 import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
@@ -229,6 +230,7 @@ export function ClientDashboard({
                 <Bell className="h-5 w-5" />الإشعارات
                 {!!stats?.unreadNotifications && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{stats.unreadNotifications}</span>}
               </button>
+              <DashboardLanguageButton />
               <button onClick={() => void load()} disabled={loading} className="flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث البيانات</button>
             </div>
             {notificationsOpen && (
