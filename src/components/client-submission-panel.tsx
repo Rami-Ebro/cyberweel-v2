@@ -5,6 +5,7 @@ import { FilePlus2, Link2, Send, Trash2 } from "lucide-react";
 import { type FormEvent, useRef, useState } from "react";
 import { DateText } from "@/components/ui/date-text";
 import { MAX_SUBMISSION_FILES, MAX_SUBMISSION_FILE_SIZE, SUBMISSION_ALLOWED_EXTENSIONS } from "@/lib/client-submissions";
+import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
 
 type ProjectOption = { id: string; title: string };
 type SubmissionFile = { id: string; name: string; url: string; size: number | null };
@@ -81,7 +82,7 @@ export function ClientSubmissionPanel({
         body: JSON.stringify({ projectId: data.get("projectId"), note, links }),
       });
       const created = await createResponse.json().catch(() => null);
-      if (!createResponse.ok) throw new Error(created?.error || "تعذر بدء الإرسال");
+      if (!createResponse.ok) throw new Error(dashboardErrorMessage(created?.error, "تعذر بدء الإرسال"));
 
       const submissionId = created.submission.id as string;
       const projectId = String(data.get("projectId"));
@@ -109,14 +110,14 @@ export function ClientSubmissionPanel({
         body: JSON.stringify({ files: uploadedFiles }),
       });
       const completed = await completeResponse.json().catch(() => null);
-      if (!completeResponse.ok) throw new Error(completed?.error || "تعذر إكمال الإرسال");
+      if (!completeResponse.ok) throw new Error(dashboardErrorMessage(completed?.error, "تعذر إكمال الإرسال"));
 
       form.reset();
       setSelectedFiles([]);
       setMessage("تم إرسال المواد وإشعار الإدارة بنجاح");
       await onSubmitted();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "تعذر إرسال المواد");
+      setMessage(dashboardErrorMessage(error instanceof Error ? error.message : null, "تعذر إرسال المواد أو رفع الملفات"));
     } finally {
       setSending(false);
     }
@@ -140,7 +141,7 @@ export function ClientSubmissionPanel({
         </form>
       )}
 
-      <section><h3 className="text-xl font-black">{canSubmit ? "المواد التي أرسلتها" : "المواد المرسلة من العميل"}</h3><div className="mt-4 grid gap-3">{submissions.map((submission) => <article key={submission.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><strong>{submission.projectTitle}</strong><p className="mt-1 text-xs text-slate-500"><DateText value={submission.createdAt} withTime /></p></div><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-xs font-black text-[#9A7D43]">{statusLabels[submission.status] || submission.status}</span></div>{submission.note && <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">{submission.note}</p>}{!!submission.links.length && <div className="mt-4 grid gap-2">{submission.links.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer" dir="ltr" className="flex items-center gap-2 break-all text-left text-sm font-bold text-[#9A7D43] underline"><Link2 className="h-4 w-4 shrink-0" />{link}</a>)}</div>}{!!submission.files.length && <div className="mt-4 grid gap-2 sm:grid-cols-2">{submission.files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="rounded-lg bg-[#F7F3EB] px-3 py-3 text-sm font-bold hover:ring-1 hover:ring-[#B89A5A]">{file.name}</a>)}</div>}</article>)}{!submissions.length && <p className="rounded-2xl border border-dashed border-[#D8D2C4] bg-white p-8 text-center text-slate-500">لم تُرسل مواد للمشروع بعد.</p>}</div></section>
+      <section><h3 className="text-xl font-black">{canSubmit ? "المواد التي أرسلتها" : "المواد المرسلة من العميل"}</h3><div className="mt-4 grid gap-3">{submissions.map((submission) => <article key={submission.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><strong>{submission.projectTitle}</strong><p className="mt-1 text-xs text-slate-500"><DateText value={submission.createdAt} withTime /></p></div><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-xs font-black text-[#9A7D43]">{statusLabels[submission.status] || dashboardLabel(submission.status, "حالة غير معروفة")}</span></div>{submission.note && <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">{submission.note}</p>}{!!submission.links.length && <div className="mt-4 grid gap-2">{submission.links.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer" dir="ltr" className="flex items-center gap-2 break-all text-left text-sm font-bold text-[#9A7D43] underline"><Link2 className="h-4 w-4 shrink-0" />{link}</a>)}</div>}{!!submission.files.length && <div className="mt-4 grid gap-2 sm:grid-cols-2">{submission.files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="rounded-lg bg-[#F7F3EB] px-3 py-3 text-sm font-bold hover:ring-1 hover:ring-[#B89A5A]">{file.name}</a>)}</div>}</article>)}{!submissions.length && <p className="rounded-2xl border border-dashed border-[#D8D2C4] bg-white p-8 text-center text-slate-500">لم تُرسل مواد للمشروع بعد.</p>}</div></section>
     </div>
   );
 }

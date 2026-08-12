@@ -5,6 +5,7 @@ import { ArrowLeft, Eye, EyeOff, LogIn } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
+import { dashboardErrorMessage } from "@/lib/dashboard-labels";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,7 +34,7 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setMessage(data.error || "تعذر تسجيل الدخول");
+        setMessage(dashboardErrorMessage(data.error, "تعذر تسجيل الدخول"));
         setLoading(false);
         return;
       }
@@ -68,7 +69,7 @@ export default function LoginPage() {
 
         <div className="grid flex-1 items-center gap-12 py-12 lg:grid-cols-[minmax(0,1fr)_460px] lg:py-16">
           <section className="hidden max-w-2xl lg:block">
-            <p className="text-sm font-black uppercase tracking-[0.22em] text-[#9A7D43]">CyberWeel Account</p>
+            <p className="text-sm font-black tracking-[0.12em] text-[#9A7D43]">حساب CyberWeel</p>
             <h1 className="mt-5 text-5xl font-black leading-[1.15] tracking-tight xl:text-6xl">
               دخول واحد
               <br />

@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { BadgeDollarSign, ChevronDown, RefreshCw, Search } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { DateText } from "@/components/ui/date-text";
+import { dashboardErrorMessage } from "@/lib/dashboard-labels";
 
 type RewardStatus = "EXPECTED" | "EARNED" | "PAID" | "CANCELLED";
 type Reward = {
@@ -42,7 +43,7 @@ export default function AdminRewardsPage() {
     const response = await fetch("/api/admin/rewards", { cache: "no-store" });
     const data = await response.json().catch(() => null);
     if (response.ok) { setRewards(data.rewards || []); setProjects(data.projects || []); setLevels(data.levels || []); }
-    else setMessage(data?.error || "تعذر تحميل المكافآت");
+    else setMessage(dashboardErrorMessage(data?.error, "تعذر تحميل المكافآت"));
     setLoading(false);
   }, []);
   useEffect(() => { void Promise.resolve().then(load); }, [load]);
@@ -52,7 +53,7 @@ export default function AdminRewardsPage() {
     setMessage("");
     const response = await fetch("/api/admin/rewards", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     const data = await response.json().catch(() => null);
-    setMessage(response.ok ? success : data?.error || "تعذر حفظ العملية");
+    setMessage(response.ok ? success : dashboardErrorMessage(data?.error, "تعذر حفظ العملية"));
     if (response.ok) await load();
     setBusy("");
     return response.ok;

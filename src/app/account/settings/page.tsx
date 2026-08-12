@@ -5,6 +5,7 @@ import { Eye, EyeOff, Home, KeyRound, Mail, Phone, Save, ShieldCheck, UserRound 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
+import { dashboardErrorMessage } from "@/lib/dashboard-labels";
 
 type Account = {
   id: string;
@@ -39,7 +40,7 @@ export default function AccountSettingsPage() {
           return null;
         }
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "تعذر تحميل إعدادات الحساب");
+        if (!response.ok) throw new Error(dashboardErrorMessage(data.error, "تعذر تحميل إعدادات الحساب"));
         return data.account as Account;
       })
       .then((value) => value && setAccount(value))
@@ -72,7 +73,7 @@ export default function AccountSettingsPage() {
     const data = await response.json();
     if (!response.ok) {
       setIsError(true);
-      setMessage(data.error || "تعذر حفظ الإعدادات");
+      setMessage(dashboardErrorMessage(data.error, "تعذر حفظ الإعدادات"));
       setSaving(false);
       return;
     }

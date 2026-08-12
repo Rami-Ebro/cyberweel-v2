@@ -26,6 +26,7 @@ import { Logo } from "@/components/brand/logo";
 import { AdminNotificationCenter } from "@/components/admin/admin-notification-center";
 import { DateText } from "@/components/ui/date-text";
 import { DateInput } from "@/components/ui/date-input";
+import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
 
 type PartnerStatus = "PENDING" | "ACTIVE" | "SUSPENDED";
 type ReferralStatus = "NEW" | "CONTACTED" | "INTERESTED" | "AWAITING_RESPONSE" | "NOT_INTERESTED" | "CONVERTED";
@@ -294,7 +295,7 @@ export default function AdminPartnersPage() {
           EMAIL_EXISTS: "يوجد حساب مسجل بهذا البريد الإلكتروني، لذلك لم يُنشأ حساب مكرر.",
           PHONE_EXISTS: "يوجد حساب مسجل برقم الهاتف، لذلك لم يُنشأ حساب مكرر.",
         };
-        const errorMessage = known[data.error] || data.error || "تعذر حفظ القرار. حاول مرة أخرى.";
+        const errorMessage = known[data.error] || dashboardErrorMessage(data.error, "تعذر حفظ القرار. حاول مرة أخرى.");
         setMessage(errorMessage);
         return { ok: false, message: errorMessage };
       }
@@ -328,7 +329,7 @@ export default function AdminPartnersPage() {
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        setMessage(data?.error || "تعذر تحديث حالة مراجعة الطلب");
+        setMessage(dashboardErrorMessage(data?.error, "تعذر تحديث حالة مراجعة الطلب"));
         return false;
       }
       setApplications((items) => items.map((item) => item.id === id ? { ...item, reviewState } : item));
@@ -383,7 +384,7 @@ export default function AdminPartnersPage() {
     });
     const data = await response.json();
     if (!response.ok) {
-      setMessage(data.error || "تعذر إنشاء المشروع وإسناده");
+      setMessage(dashboardErrorMessage(data.error, "تعذر إنشاء المشروع وإسناده"));
     } else {
       formElement.reset();
       setMessage(
@@ -426,7 +427,7 @@ export default function AdminPartnersPage() {
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        setMessage(data?.error || "تعذر تحديث المشروع");
+        setMessage(dashboardErrorMessage(data?.error, "تعذر تحديث المشروع"));
         return;
       }
       setMessage("تم تحديث المشروع وإشعار العميل بنجاح.");
@@ -456,7 +457,7 @@ export default function AdminPartnersPage() {
     });
     const data = await response.json();
     if (!response.ok) {
-      setMessage(data.error || "تعذر حفظ الحساب");
+      setMessage(dashboardErrorMessage(data.error, "تعذر حفظ الحساب"));
       return;
     }
     setAdmin(data.admin);
@@ -1075,7 +1076,7 @@ export default function AdminPartnersPage() {
                             </details>
                           </div>
                           <div className="grid min-w-64 grid-cols-2 gap-2 text-sm">
-                            <ProjectFact label="الحالة" value={project.status} />
+                            <ProjectFact label="الحالة" value={dashboardLabel(project.status, "حالة غير معروفة")} />
                             <ProjectFact label="التقدم" value={`${project.progress}%`} />
                             <ProjectFact
                               label="المستحق"

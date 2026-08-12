@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { DateText } from "@/components/ui/date-text";
+import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
 
 type SectionKey = "overview" | "projects" | "dues" | "profile";
 type DuesSummary = { currency: string; outstanding: string; paid: string };
@@ -158,7 +159,7 @@ export default function PartnerDashboardPage() {
           throw new Error("غير مصرح");
         }
         const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || "تعذر تحميل البيانات");
+        if (!response.ok) throw new Error(dashboardErrorMessage(payload.error, "تعذر تحميل البيانات"));
         setData(payload);
         setProgressDrafts(Object.fromEntries(payload.projects.map((project: PartnerProject) => [project.id, project.progress])));
       })
@@ -212,7 +213,7 @@ export default function PartnerDashboardPage() {
         body: JSON.stringify({ action: "progress", projectId: project.id, progress }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "تعذر حفظ نسبة التقدم");
+      if (!response.ok) throw new Error(dashboardErrorMessage(payload.error, "تعذر حفظ نسبة التقدم"));
       setData((current) => current ? {
         ...current,
         projects: current.projects.map((item) => item.id === project.id ? payload.project : item),
@@ -257,7 +258,7 @@ export default function PartnerDashboardPage() {
             <div>
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <span className={`rounded-full px-3 py-1 text-xs font-black ${projectStatusClass[project.status] || projectStatusClass.ASSIGNED}`}>
-                  {projectStatus[project.status] || project.status}
+                  {projectStatus[project.status] || dashboardLabel(project.status, "حالة غير معروفة")}
                 </span>
                 <span className={`rounded-full px-3 py-1 text-xs font-black ${paymentStatusClass[project.paymentStatus]}`}>
                   {paymentStatus[project.paymentStatus]}

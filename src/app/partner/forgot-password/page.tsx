@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { dashboardErrorMessage } from "@/lib/dashboard-labels";
 
 export default function ForgotPasswordPage() {
   const [message, setMessage] = useState("");
@@ -22,7 +23,9 @@ export default function ForgotPasswordPage() {
     });
     const data = await response.json();
     setLoading(false);
-    setMessage(response.ok ? data.message : data.error || "تعذر إرسال الطلب");
+    setMessage(response.ok
+      ? dashboardErrorMessage(data.message, "تم إرسال تعليمات استعادة كلمة المرور.")
+      : dashboardErrorMessage(data.error, "تعذر إرسال الطلب"));
     if (response.ok && data.resetUrl) setResetUrl(data.resetUrl);
   }
 

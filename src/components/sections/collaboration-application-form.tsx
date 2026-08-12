@@ -2,6 +2,7 @@
 
 import { FormEvent, useRef, useState } from "react";
 import { Check, Copy, Facebook, Instagram, Linkedin, MessageCircle, MoreHorizontal, Send } from "lucide-react";
+import { dashboardErrorMessage } from "@/lib/dashboard-labels";
 
 const workAreas = ["البرمجة والتطوير", "التصميم وتجربة المستخدم", "التسويق الرقمي", "تحليل الأعمال", "الذكاء الاصطناعي والأتمتة", "إدارة المشاريع", "صناعة المحتوى"];
 const services = ["مواقع ومتاجر إلكترونية", "تطبيقات", "أتمتة وذكاء اصطناعي", "تصميم وهوية", "تسويق ومحتوى", "دعم تقني", "تحليل واستشارات"];
@@ -62,7 +63,9 @@ function PartnerWizard({ arabic }: { arabic: boolean }) {
       setState("done");
       return;
     }
-    setErrorMessage(result?.message || (arabic ? "تعذر إرسال الطلب. حاول مرة أخرى." : "The application could not be submitted. Please try again."));
+    setErrorMessage(arabic
+      ? dashboardErrorMessage(result?.message, "تعذر إرسال الطلب. حاول مرة أخرى.")
+      : result?.message || "The application could not be submitted. Please try again.");
     setState("error");
   }
 

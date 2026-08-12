@@ -6,6 +6,7 @@ import { BarChart3, Bell, BriefcaseBusiness, FileText, Home, LogOut, Mail, Penci
 import { Logo } from "@/components/brand/logo";
 import { DateText } from "@/components/ui/date-text";
 import { ClientSubmissionPanel, type ClientSubmissionView } from "@/components/client-submission-panel";
+import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
 
 type Section = "overview" | "projects" | "files" | "invoices" | "messages" | "account";
 type Client = { id: string; name: string | null; email: string; createdAt: string };
@@ -73,7 +74,7 @@ export function ClientDashboard({
       return;
     }
     const data = await response.json();
-    if (!response.ok) setNotice(data.error || "تعذر تحميل لوحة العميل");
+    if (!response.ok) setNotice(dashboardErrorMessage(data.error, "تعذر تحميل لوحة العميل"));
     else if (isAdminMirror) {
       const adminClient = data.client;
       const adminProjects = adminClient?.clientProjects || [];
@@ -152,7 +153,7 @@ export function ClientDashboard({
         }),
       });
       const data = await response.json().catch(() => null);
-      if (!response.ok) return setNotice(data?.error || "تعذر إرسال الرسالة");
+      if (!response.ok) return setNotice(dashboardErrorMessage(data?.error, "تعذر إرسال الرسالة"));
       formElement.reset();
       await load(false);
       setNotice(isAdminMirror ? "تم إرسال الرسالة إلى العميل وحفظها في السجل" : "تم إرسال رسالتك وحفظها في سجل المشروع");
@@ -279,7 +280,7 @@ export function ClientDashboard({
                 </button>
               ))}
             </div>
-            <section className="mt-6 rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><h2 className="text-xl font-black">آخر تحديثات المشاريع</h2><div className="mt-5 grid gap-3">{projects.slice(0, 4).map((project) => <button key={project.id} onClick={() => setSection("projects")} className="rounded-xl bg-[#F7F3EB] p-4 text-right"><div className="flex items-center justify-between gap-3"><strong>{project.title}</strong><span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#9A7D43]">{projectLabel[project.status] || project.status}</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white"><div className="h-full bg-[#B89A5A]" style={{ width: `${Math.max(0, Math.min(100, project.progress))}%` }} /></div><p className="mt-2 text-xs text-slate-500">نسبة الإنجاز {project.progress}%</p></button>)}{!projects.length && <p className="text-slate-500">لا توجد مشاريع مرتبطة بالحساب بعد.</p>}</div></section>
+            <section className="mt-6 rounded-2xl border border-[#D8D2C4] bg-white p-6 shadow-sm"><h2 className="text-xl font-black">آخر تحديثات المشاريع</h2><div className="mt-5 grid gap-3">{projects.slice(0, 4).map((project) => <button key={project.id} onClick={() => setSection("projects")} className="rounded-xl bg-[#F7F3EB] p-4 text-right"><div className="flex items-center justify-between gap-3"><strong>{project.title}</strong><span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#9A7D43]">{projectLabel[project.status] || dashboardLabel(project.status, "حالة غير معروفة")}</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white"><div className="h-full bg-[#B89A5A]" style={{ width: `${Math.max(0, Math.min(100, project.progress))}%` }} /></div><p className="mt-2 text-xs text-slate-500">نسبة الإنجاز {project.progress}%</p></button>)}{!projects.length && <p className="text-slate-500">لا توجد مشاريع مرتبطة بالحساب بعد.</p>}</div></section>
           </>}
 
           {!loading && section === "projects" && <section className="mt-7 grid gap-4">
@@ -291,7 +292,7 @@ export function ClientDashboard({
                     <h3 className="text-xl font-black">{project.title}</h3>
                     <p className="mt-2 whitespace-pre-wrap leading-7 text-slate-500">{project.description || "لا يوجد وصف مضاف بعد."}</p>
                   </div>
-                  <span className="w-fit shrink-0 rounded-full bg-[#F7F3EB] px-4 py-2 text-sm font-black text-[#9A7D43]">{projectLabel[project.status] || project.status}</span>
+                  <span className="w-fit shrink-0 rounded-full bg-[#F7F3EB] px-4 py-2 text-sm font-black text-[#9A7D43]">{projectLabel[project.status] || dashboardLabel(project.status, "حالة غير معروفة")}</span>
                 </div>
 
                 <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A]" style={{ width: `${Math.max(0, Math.min(100, project.progress))}%` }} /></div>
@@ -328,7 +329,7 @@ export function ClientDashboard({
             {client && <ClientSubmissionPanel projects={projects.map(({ id, title }) => ({ id, title }))} submissions={submissions} clientId={client.id} canSubmit={!isAdminMirror} onSubmitted={() => load(false)} />}
           </section>}
 
-          {!loading && section === "invoices" && <section className="mt-7"><div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الفواتير</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("invoices")} />}</div><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[820px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">رقم الفاتورة</th><th className="p-4">النوع</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-4 font-bold">{invoice.number}</td><td className="p-4">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</td><td className="p-4">{invoice.projectTitle}</td><td className="p-4">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{invoiceLabel[invoice.status] || invoice.status}</td><td className="p-4"><DateText value={invoice.dueAt} /></td></tr>)}</tbody></table>{!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}</div></section>}
+          {!loading && section === "invoices" && <section className="mt-7"><div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الفواتير</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("invoices")} />}</div><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[820px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">رقم الفاتورة</th><th className="p-4">النوع</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-4 font-bold">{invoice.number}</td><td className="p-4">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</td><td className="p-4">{invoice.projectTitle}</td><td className="p-4">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{invoiceLabel[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</td><td className="p-4"><DateText value={invoice.dueAt} /></td></tr>)}</tbody></table>{!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}</div></section>}
 
           {!loading && section === "messages" && <section className="mt-7">
             <h2 className="text-2xl font-black">الرسائل والتحديثات</h2>
