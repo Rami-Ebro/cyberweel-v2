@@ -83,6 +83,10 @@ type GeminiResponse = {
 
 function configuration() {
   if (process.env.GEMINI_FREE_TIER_ONLY !== "true") {
+    console.error("Gemini configuration rejected", {
+      freeTierOnlyEnabled: false,
+      hasApiKey: Boolean(process.env.GEMINI_API_KEY?.trim()),
+    });
     throw new AiProviderError(
       "NOT_CONFIGURED",
       "GEMINI_FREE_TIER_ONLY must be explicitly enabled",
@@ -92,9 +96,18 @@ function configuration() {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   const model = process.env.GEMINI_MODEL?.trim() || DEFAULT_MODEL;
   if (!apiKey) {
+    console.error("Gemini configuration rejected", {
+      freeTierOnlyEnabled: true,
+      hasApiKey: false,
+    });
     throw new AiProviderError("NOT_CONFIGURED", "Gemini API key is not configured");
   }
   if (!FREE_TIER_MODEL_ALLOWLIST.has(model)) {
+    console.error("Gemini configuration rejected", {
+      freeTierOnlyEnabled: true,
+      hasApiKey: true,
+      model,
+    });
     throw new AiProviderError(
       "NOT_CONFIGURED",
       "Configured Gemini model is not approved for this free-tier-only build",
@@ -178,6 +191,14 @@ export class GeminiProvider implements AiProvider {
       if (error instanceof SyntaxError) {
         throw new AiProviderError("INVALID_RESPONSE", "Gemini returned invalid JSON");
       }
+      const cause = error instanceof Error && "cause" in error
+        ? error.cause as { code?: string } | undefined
+        : undefined;
+      console.error("Gemini request failed before receiving a response", {
+        name: error instanceof Error ? error.name : typeof error,
+        message: error instanceof Error ? error.message.slice(0, 400) : "Unknown error",
+        causeCode: cause?.code,
+      });
       throw new AiProviderError("UNAVAILABLE", "Gemini request failed", 503);
     } finally {
       clearTimeout(timeout);
