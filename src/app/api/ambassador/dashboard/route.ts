@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { canAdmin } from "@/lib/admin-permissions";
-import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
-import { formatPartnerReferralCode } from "@/lib/partner-referral";
+import { currentAmbassador } from "@/lib/ambassador-auth";
+import { formatAmbassadorReferralCode } from "@/lib/partner-referral";
 import { utcMonthRange } from "@/lib/ambassador-rewards";
 import {
   consumeRateLimit,
@@ -10,45 +10,6 @@ import {
   rateLimitResponse,
 } from "@/lib/request-security";
 import { NextRequest, NextResponse } from "next/server";
-
-async function currentAmbassador(request: NextRequest) {
-  const session = readPartnerSession(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
-  if (!session) return null;
-
-  const user = await db.user.findUnique({
-    where: { id: session.userId },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      isActive: true,
-      ambassador: {
-        select: {
-          id: true,
-          referralNumber: true,
-          status: true,
-          phone: true,
-          country: true,
-          contactMethod: true,
-          payoutMethod: true,
-          payoutDetails: true,
-          profileCompletedAt: true,
-          createdAt: true,
-        },
-      },
-    },
-  });
-
-  if (
-    !user?.isActive ||
-    !user.ambassador ||
-    user.ambassador.status !== "ACTIVE"
-  ) {
-    return null;
-  }
-  return user;
-}
 
 async function dashboardAmbassador(request: NextRequest) {
   const previewId = request.nextUrl.searchParams.get("adminPreview");
@@ -171,9 +132,10 @@ export async function GET(request: NextRequest) {
   const currentLevel = [...rewardLevels].reverse().find((level) => level.minSuccessfulReferrals <= Math.max(successfulThisMonth, 1)) || rewardLevels[0] || null;
   const nextLevel = rewardLevels.find((level) => level.minSuccessfulReferrals > successfulThisMonth) || null;
 
-  const code = formatPartnerReferralCode(user.ambassador!.referralNumber).replace("CW-", "CWA-");
+  const code = formatAmbassadorReferralCode(user.ambassador!.referralNumber);
   return NextResponse.json({
     ambassador: {
+      id: user.ambassador!.id,
       name: user.name || user.email,
       email: user.email,
       code,
@@ -188,6 +150,7 @@ export async function GET(request: NextRequest) {
     isAdminPreview: user.isAdminPreview,
     stats: {
       referrals: referrals.length,
+      followUp: referrals.filter((item) => ["NEW", "CONTACTED", "INTERESTED", "AWAITING_RESPONSE"].includes(item.status)).length,
       converted: referrals.filter((item) => item.status === "CONVERTED").length,
       qualified: referrals.filter((item) => item.status === "INTERESTED").length,
       commissionsByCurrency: Array.from(summaries.values()).map((item) => ({
@@ -240,21 +203,27 @@ export async function POST(request: NextRequest) {
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
   const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
   const contactMethod = typeof body?.contactMethod === "string" ? body.contactMethod.trim() : "";
-  const notes = typeof body?.notes === "string" ? body.notes.trim() : "";
+  const company = typeof body?.company === "string" ? body.company.trim() : "";
+  const needs = typeof body?.needs === "string" ? body.needs.trim() : "";
+  const extraNotes = typeof body?.notes === "string" ? body.notes.trim() : "";
 
   if (
     !name ||
     name.length > 120 ||
     email.length > 254 ||
     phone.length > 40 ||
-    contactMethod.length > 80 ||
-    !notes ||
-    notes.length > 2000 ||
-    (!email && !phone) ||
+    contactMethod.length > 160 ||
+    company.length > 160 ||
+    !needs ||
+    needs.length > 2000 ||
+    extraNotes.length > 2000 ||
+    (!email && !phone && !contactMethod) ||
     (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
   ) {
     return NextResponse.json({ error: "أدخل اسم العميل ووسيلة تواصل وتفاصيل الإحالة" }, { status: 400 });
   }
+
+  const notes = extraNotes ? `${needs}\n\nملاحظات السفير: ${extraNotes}` : needs;
 
   const referral = await db.partnerReferral.create({
     data: {
@@ -262,6 +231,7 @@ export async function POST(request: NextRequest) {
       name,
       email: email || null,
       phone: phone || null,
+      company: company || null,
       contactMethod: contactMethod || null,
       notes,
       source: "إضافة مباشرة من السفير",
