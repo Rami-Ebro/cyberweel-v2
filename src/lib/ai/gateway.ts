@@ -1,5 +1,6 @@
 import { buildSystemInstruction } from "@/lib/ai/system-instruction";
-import { redactPersonalData } from "@/lib/ai/privacy";
+import { detectLatestMessageLanguage, resolveDetectedLanguage } from "@/lib/ai/language";
+import { normalizeArabicSummary, redactPersonalData } from "@/lib/ai/privacy";
 import { GeminiProvider } from "@/lib/ai/providers/gemini";
 import type { AssistantTurn, ChatMessage } from "@/lib/ai/types";
 
@@ -34,8 +35,22 @@ function compactContext(messages: ChatMessage[]) {
 
 export async function generateAssistantTurn(messages: ChatMessage[]): Promise<AssistantTurn> {
   const provider = new GeminiProvider();
-  return provider.generateTurn({
-    messages: compactContext(messages),
-    systemInstruction: buildSystemInstruction(),
+  const context = compactContext(messages);
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === "user");
+  const latestLanguage = latestUserMessage
+    ? detectLatestMessageLanguage(latestUserMessage.content)
+    : null;
+  const runtimeLanguageInstruction = latestLanguage
+    ? `\n\nRUNTIME LANGUAGE OVERRIDE\nThe actual latest customer message was detected as ${latestLanguage.name} (${latestLanguage.code}). Reply in ${latestLanguage.name}, translate every handoffUi value into ${latestLanguage.name}, and return detectedLanguage as ${latestLanguage.name} (${latestLanguage.code}).`
+    : "";
+  const turn = await provider.generateTurn({
+    messages: context,
+    systemInstruction: `${buildSystemInstruction()}${runtimeLanguageInstruction}`,
   });
+
+  return {
+    ...turn,
+    detectedLanguage: resolveDetectedLanguage(messages, turn.detectedLanguage),
+    arabicSummary: normalizeArabicSummary(turn.arabicSummary),
+  };
 }

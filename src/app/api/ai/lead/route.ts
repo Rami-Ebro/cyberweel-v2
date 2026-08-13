@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { cleanPlainText, containsArabic } from "@/lib/ai/privacy";
+import { cleanPlainText, containsArabic, normalizeArabicSummary } from "@/lib/ai/privacy";
 import {
   consumeRateLimit,
   hasTrustedOrigin,
@@ -64,9 +64,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "INVALID_LEAD" }, { status: 400 });
   }
 
-  const arabicSummary = containsArabic(suppliedSummary)
+  const arabicSummary = normalizeArabicSummary(containsArabic(suppliedSummary)
     ? suppliedSummary
-    : `العميل مهتم بالتواصل مع فريق سايبرويل${service ? ` بخصوص ${service}` : " بخصوص خدمة رقمية"}. يحتاج الطلب إلى مراجعة بشرية لأن الملخص الآلي العربي لم يكن متاحًا.`;
+    : `العميل مهتم بالتواصل مع فريق سايبرويل${service ? ` بخصوص ${service}` : " بخصوص خدمة رقمية"}. يحتاج الطلب إلى مراجعة بشرية لأن الملخص الآلي العربي لم يكن متاحًا.`);
   const contactMethod = email && phone
     ? "البريد الإلكتروني والهاتف"
     : email

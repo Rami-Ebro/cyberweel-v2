@@ -27,3 +27,7 @@ export function cleanPlainText(value: unknown, max: number) {
 export function containsArabic(value: string) {
   return /[\u0600-\u06FF]/.test(value);
 }
+
+export function normalizeArabicSummary(value: string) {
+  return value.replace(/فريق(?:ه|ها|هم)(?=[\s،,.!?؛:]|$)/gu, "فريق سايبرويل");
+}

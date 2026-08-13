@@ -1,7 +1,59 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { redactPersonalData } from "../src/lib/ai/privacy.ts";
+import {
+  detectLatestMessageLanguage,
+  resolveDetectedLanguage,
+} from "../src/lib/ai/language.ts";
+import { normalizeArabicSummary, redactPersonalData } from "../src/lib/ai/privacy.ts";
 import { assistantTurnSchema } from "../src/lib/ai/types.ts";
+
+test("detects Arabic from the customer's actual latest message", () => {
+  assert.deepEqual(
+    detectLatestMessageLanguage("أريد إنشاء متجر إلكتروني لعلامتي التجارية."),
+    { name: "Arabic", code: "ar", primaryCode: "ar" },
+  );
+});
+
+test("detects English from the customer's actual latest message", () => {
+  assert.deepEqual(
+    detectLatestMessageLanguage("I am ready to hire CyberWeel to build my website."),
+    { name: "English", code: "en", primaryCode: "en" },
+  );
+});
+
+test("detects French from the customer's actual latest message", () => {
+  assert.deepEqual(
+    detectLatestMessageLanguage("Je souhaite créer un site web pour mon entreprise."),
+    { name: "French", code: "fr", primaryCode: "fr" },
+  );
+});
+
+test("overrides a stale model language with the latest customer language", () => {
+  const result = resolveDetectedLanguage([
+    { role: "user", content: "Je souhaite créer un site web pour mon entreprise." },
+    { role: "assistant", content: "Très bien, précisez votre besoin." },
+    { role: "user", content: "I am ready to hire CyberWeel to build my website." },
+  ], {
+    name: "French",
+    code: "fr-fr",
+    primaryCode: "fr",
+    multilingual: true,
+  });
+
+  assert.deepEqual(result, {
+    name: "English",
+    code: "en",
+    primaryCode: "en",
+    multilingual: true,
+  });
+});
+
+test("replaces an ambiguous team reference in the Arabic summary", () => {
+  assert.equal(
+    normalizeArabicSummary("العميل يريد أن يراجع فريقه الطلب."),
+    "العميل يريد أن يراجع فريق سايبرويل الطلب.",
+  );
+});
 
 test("redacts obvious contact data without hiding ordinary years", () => {
   const result = redactPersonalData(
