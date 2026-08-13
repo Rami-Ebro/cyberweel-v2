@@ -130,19 +130,23 @@ export class GeminiProvider implements AiProvider {
             generationConfig: {
               temperature: 0.25,
               maxOutputTokens: 900,
-              responseFormat: {
-                text: {
-                  mimeType: "application/json",
-                  schema: responseSchema,
-                },
-              },
+              responseMimeType: "application/json",
+              responseJsonSchema: responseSchema,
             },
-            store: false,
           }),
         },
       );
 
       if (!response.ok) {
+        const upstreamError = (await response.json().catch(() => null)) as {
+          error?: { status?: string; message?: string };
+        } | null;
+        console.error("Gemini request rejected", {
+          httpStatus: response.status,
+          upstreamStatus: upstreamError?.error?.status,
+          upstreamMessage: upstreamError?.error?.message?.slice(0, 400),
+        });
+
         if (response.status === 429) {
           throw new AiProviderError("QUOTA_EXHAUSTED", "Gemini free quota is exhausted", 429);
         }
