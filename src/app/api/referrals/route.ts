@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
-import { parsePartnerReferralCode } from "@/lib/partner-referral";
+import { parseAmbassadorReferralCode, parsePartnerReferralCode } from "@/lib/partner-referral";
+import { LEGACY_PARTNER_REFERRAL_COOKIE, REFERRAL_CODE_COOKIE } from "@/lib/referral-tracking";
 import {
   consumeRateLimit,
   hasTrustedOrigin,
@@ -7,8 +8,6 @@ import {
   rateLimitResponse,
 } from "@/lib/request-security";
 import { NextRequest, NextResponse } from "next/server";
-
-const REFERRAL_COOKIE = "cyberweel_partner_referral";
 
 export async function POST(request: NextRequest) {
   if (!hasTrustedOrigin(request)) return invalidOriginResponse();
@@ -26,10 +25,11 @@ export async function POST(request: NextRequest) {
   const company = typeof body?.company === "string" ? body.company.trim() : "";
   const notes = typeof body?.notes === "string" ? body.notes.trim() : "";
   const explicitCode = typeof body?.referralCode === "string" ? body.referralCode.trim() : "";
-  const ambassadorMatch = /^CWA-(\d{4,})$/i.exec(explicitCode);
-  const ambassadorReferralNumber = ambassadorMatch ? Number.parseInt(ambassadorMatch[1], 10) : null;
-  const explicitReferralNumber = explicitCode ? parsePartnerReferralCode(explicitCode) : null;
-  const partnerId = request.cookies.get(REFERRAL_COOKIE)?.value;
+  const storedCode = request.cookies.get(REFERRAL_CODE_COOKIE)?.value?.trim() || "";
+  const attributionCode = explicitCode || storedCode;
+  const ambassadorReferralNumber = parseAmbassadorReferralCode(attributionCode);
+  const partnerReferralNumber = ambassadorReferralNumber ? null : parsePartnerReferralCode(attributionCode);
+  const legacyPartnerId = request.cookies.get(LEGACY_PARTNER_REFERRAL_COOKIE)?.value;
 
   if (
     !name ||
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     phone.length > 40 ||
     company.length > 160 ||
     notes.length > 5000 ||
-    explicitCode.length > 80 ||
+    attributionCode.length > 80 ||
     (!email && !phone) ||
     !notes
   ) {
@@ -49,14 +49,14 @@ export async function POST(request: NextRequest) {
     const ambassador = ambassadorReferralNumber
       ? await db.ambassador.findFirst({ where: { referralNumber: ambassadorReferralNumber, status: "ACTIVE" }, select: { id: true } })
       : null;
-    const partner = ambassadorReferralNumber ? null : explicitReferralNumber
+    const partner = ambassadorReferralNumber ? null : partnerReferralNumber
       ? await db.partner.findFirst({
-          where: { referralNumber: explicitReferralNumber, status: "ACTIVE" },
+          where: { referralNumber: partnerReferralNumber, status: "ACTIVE" },
           select: { id: true },
         })
-      : partnerId
+      : legacyPartnerId
         ? await db.partner.findFirst({
-            where: { id: partnerId, status: "ACTIVE" },
+            where: { id: legacyPartnerId, status: "ACTIVE" },
             select: { id: true },
           })
         : null;
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("[referrals] Failed to create partner referral", {
       explicitCode: explicitCode || null,
-      hasCookie: Boolean(partnerId),
+      hasCookie: Boolean(storedCode || legacyPartnerId),
       error,
     });
 

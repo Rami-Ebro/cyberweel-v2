@@ -6,9 +6,12 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   BadgeDollarSign,
+  Bot,
+  BookOpenText,
   Check,
   CircleDollarSign,
   Copy,
+  Download,
   Filter,
   Home,
   Link2,
@@ -16,7 +19,11 @@ import {
   Menu,
   Moon,
   PlusCircle,
+  QrCode,
   Search,
+  Send,
+  Share2,
+  Sparkles,
   Sun,
   UserRound,
   UsersRound,
@@ -26,8 +33,9 @@ import {
 import { Logo } from "@/components/brand/logo";
 import { DateText } from "@/components/ui/date-text";
 import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
+import { useDashboardI18n } from "@/components/dashboard-i18n-provider";
 
-type SectionKey = "overview" | "referrals" | "rewards" | "profile";
+type SectionKey = "overview" | "tools" | "referrals" | "rewards" | "profile";
 type CommissionStatus = "VERIFYING" | "ON_HOLD" | "NOT_ELIGIBLE" | "DUE" | "PAID";
 type Referral = {
   id: string;
@@ -42,6 +50,7 @@ type Referral = {
   commissionCurrency: string;
   commissionStatus: CommissionStatus;
   createdAt: string;
+  updatedAt: string;
 };
 type CommissionSummary = {
   currency: string;
@@ -62,6 +71,7 @@ type Reward = {
 type DashboardData = {
   isAdminPreview: boolean;
   ambassador: {
+    id: string;
     name: string;
     email: string;
     code: string;
@@ -75,6 +85,7 @@ type DashboardData = {
   };
   stats: {
     referrals: number;
+    followUp: number;
     converted: number;
     qualified: number;
     commissionsByCurrency: CommissionSummary[];
@@ -87,6 +98,7 @@ type DashboardData = {
 
 const navigation: { key: SectionKey; label: string; icon: typeof Home }[] = [
   { key: "overview", label: "نظرة عامة", icon: Home },
+  { key: "tools", label: "أدوات السفير", icon: Sparkles },
   { key: "referrals", label: "إحالاتي", icon: UsersRound },
   { key: "rewards", label: "مكافآتي", icon: BadgeDollarSign },
   { key: "profile", label: "الملف وبيانات الاستلام", icon: UserRound },
@@ -100,6 +112,84 @@ const referralStatus: Record<string, string> = {
   NOT_INTERESTED: "غير مهتم",
   CONVERTED: "تحولت إلى عميل",
 };
+
+type AssistantMode = "START_CONVERSATION" | "WHATSAPP_MESSAGE" | "RECOMMEND_SERVICE" | "EXPLAIN_CYBERWEEL" | "HANDLE_PRICE_OBJECTION" | "DISCOVERY_QUESTIONS";
+
+const assistantModes: { value: AssistantMode; label: string }[] = [
+  { value: "START_CONVERSATION", label: "كيف أبدأ الحديث معه؟" },
+  { value: "WHATSAPP_MESSAGE", label: "اكتب لي رسالة واتساب" },
+  { value: "RECOMMEND_SERVICE", label: "ما الخدمة المناسبة له؟" },
+  { value: "EXPLAIN_CYBERWEEL", label: "كيف أشرح له CyberWeel؟" },
+  { value: "HANDLE_PRICE_OBJECTION", label: "كيف أرد على اعتراض السعر؟" },
+  { value: "DISCOVERY_QUESTIONS", label: "أسئلة لفهم احتياجه" },
+];
+
+const readyContent = [
+  {
+    id: "about",
+    title: { ar: "تعريف CyberWeel", en: "About CyberWeel" },
+    text: {
+      ar: "CyberWeel تساعد أصحاب الأعمال على فهم المشكلة الحقيقية أولًا، ثم اختيار وتنفيذ الحل الرقمي أو التشغيلي المناسب دون تعقيد أو وعود مبالغ فيها.",
+      en: "CyberWeel helps business owners clarify the real problem first, then choose and build the right digital or operational solution without unnecessary complexity or inflated promises.",
+    },
+  },
+  {
+    id: "whatsapp-first",
+    title: { ar: "رسالة واتساب أولى", en: "First WhatsApp Message" },
+    text: {
+      ar: "مرحبًا، تذكرت مشروعك لأن CyberWeel تبدأ بفهم التحدي قبل اقتراح أي خدمة. إذا أحببت، أخبرني باختصار ما الذي تريد تحسينه وسأوصلك بالفريق المناسب.",
+      en: "Hi, your business came to mind because CyberWeel starts by understanding the challenge before suggesting a service. If you like, tell me briefly what you want to improve and I can connect you with the right team.",
+    },
+  },
+  {
+    id: "follow-up",
+    title: { ar: "رسالة متابعة", en: "Follow-up Message" },
+    text: {
+      ar: "مرحبًا مجددًا، أردت فقط متابعة حديثنا. إن كان التحدي ما زال قائمًا، يمكن لفريق CyberWeel مراجعة وضعك واقتراح الخطوة العملية الأنسب دون التزام مسبق.",
+      en: "Hi again, I just wanted to follow up on our conversation. If the challenge is still relevant, CyberWeel can review your situation and suggest the most sensible next step with no prior commitment.",
+    },
+  },
+  {
+    id: "short-post",
+    title: { ar: "منشور قصير", en: "Short Post" },
+    text: {
+      ar: "ليست كل مشكلة تحتاج مشروعًا ضخمًا. أحيانًا تبدأ النقلة الصحيحة بسؤال واضح وقرار ذكي. شارك تحديك مع CyberWeel ودعنا نحدد الخطوة التالية.",
+      en: "Not every problem needs a huge project. Sometimes real progress starts with a clear question and a sound decision. Share your challenge with CyberWeel and define the next step.",
+    },
+  },
+  {
+    id: "story",
+    title: { ar: "Story", en: "Story" },
+    text: {
+      ar: "عندك مشكلة في مشروعك ولا تعرف هل تحتاج موقعًا، نظامًا، أتمتة أم شيئًا أبسط؟ ابدأ بالمشكلة، وCyberWeel تساعدك على تحديد القرار الصحيح.",
+      en: "Facing a business problem and unsure whether you need a website, system, automation, or something simpler? Start with the problem—CyberWeel helps you define the right decision.",
+    },
+  },
+  {
+    id: "services",
+    title: { ar: "ماذا تقدم CyberWeel؟", en: "What Does CyberWeel Offer?" },
+    text: {
+      ar: "تبدأ CyberWeel بتحليل احتياج العمل، ثم تساعد في الحلول الرقمية المناسبة مثل المواقع والمنصات والأنظمة والأتمتة والذكاء الاصطناعي والحماية الرقمية والتحليل ودعم القرار.",
+      en: "CyberWeel starts by clarifying the business need, then helps with suitable digital solutions such as websites, platforms, custom systems, automation, practical AI, cybersecurity, analysis, and decision support.",
+    },
+  },
+  {
+    id: "price",
+    title: { ar: "الرد على سؤال السعر", en: "Answering the Price Question" },
+    text: {
+      ar: "السعر يعتمد على المشكلة والنطاق الفعلي، لذلك لا نضع رقمًا قبل الفهم. أرسل احتياجك لفريق CyberWeel وسيحدد معك الحل المناسب ثم يقدم تقديرًا معتمدًا وواضحًا.",
+      en: "Pricing depends on the actual problem and scope, so we do not quote before understanding them. Share your need with CyberWeel and the team will define the right solution before providing an approved, clear estimate.",
+    },
+  },
+  {
+    id: "invite",
+    title: { ar: "دعوة العميل للتواصل", en: "Invite the Client to Talk" },
+    text: {
+      ar: "اكتب مشكلتك أو فكرتك كما هي، حتى لو لم تكن مرتبة. فريق CyberWeel سيقرأها ويساعدك على فهم الخطوة التالية بوضوح.",
+      en: "Describe your problem or idea as it is, even if it is not polished. CyberWeel will review it and help you clarify the next step.",
+    },
+  },
+];
 
 const referralStatusClass: Record<string, string> = {
   NEW: "bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200",
@@ -158,11 +248,13 @@ function DashboardWordmark() {
 
 export default function AmbassadorDashboardPage() {
   const router = useRouter();
+  const { lang } = useDashboardI18n();
   const [data, setData] = useState<DashboardData | null>(null);
   const [activeSection, setActiveSection] = useState<SectionKey>("overview");
   const [menuOpen, setMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedContent, setCopiedContent] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [addingReferral, setAddingReferral] = useState(false);
@@ -170,6 +262,10 @@ export default function AmbassadorDashboardPage() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [assistantMode, setAssistantMode] = useState<AssistantMode>("START_CONVERSATION");
+  const [assistantSituation, setAssistantSituation] = useState("");
+  const [assistantAnswer, setAssistantAnswer] = useState("");
+  const [askingAssistant, setAskingAssistant] = useState(false);
 
   async function loadDashboard() {
     const previewId = new URLSearchParams(window.location.search).get("adminPreview");
@@ -228,6 +324,63 @@ export default function AmbassadorDashboardPage() {
     window.setTimeout(() => setCopied(false), 1800);
   }
 
+  async function copyValue(value: string, key: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedContent(key);
+      window.setTimeout(() => setCopiedContent((current) => current === key ? null : current), 1800);
+    } catch {
+      setError("تعذر النسخ تلقائيًا. حدّد النص وانسخه يدويًا.");
+    }
+  }
+
+  async function shareValue(input: { title: string; text: string; url?: string; fallbackKey: string }) {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: input.title, text: input.text, url: input.url });
+        return;
+      }
+      await copyValue([input.text, input.url].filter(Boolean).join("\n"), input.fallbackKey);
+      setNotice("المشاركة غير متاحة في هذا المتصفح، لذلك تم نسخ المحتوى.");
+    } catch (cause) {
+      if (cause instanceof DOMException && cause.name === "AbortError") return;
+      setError("تعذرت المشاركة الآن.");
+    }
+  }
+
+  async function askAssistant(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (data?.isAdminPreview) {
+      setError("المعاينة الإدارية للقراءة فقط.");
+      return;
+    }
+    setAskingAssistant(true);
+    setAssistantAnswer("");
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch("/api/ambassador/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: assistantMode, situation: assistantSituation }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const messages: Record<string, string> = {
+          AI_NOT_CONFIGURED: "مساعد السفير غير مهيأ بعد. أضف مفتاح Gemini في إعدادات البيئة.",
+          AI_PROVIDER_ERROR: "تعذر الوصول إلى مساعد السفير الآن. حاول مجددًا لاحقًا.",
+          AI_GUARDRAIL_FAILED: "امتنع المساعد عن تقديم رد قد يتضمن سعرًا أو موعدًا غير معتمد. حوّل الحالة إلى الإدارة.",
+        };
+        throw new Error(messages[payload?.error] || dashboardErrorMessage(payload?.error, "تعذر إنشاء الرد"));
+      }
+      setAssistantAnswer(String(payload.answer || ""));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "تعذر إنشاء الرد");
+    } finally {
+      setAskingAssistant(false);
+    }
+  }
+
   async function addReferral(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (data?.isAdminPreview) {
@@ -250,7 +403,11 @@ export default function AmbassadorDashboardPage() {
       setData((current) => current ? {
         ...current,
         referrals: [payload.referral, ...current.referrals],
-        stats: { ...current.stats, referrals: current.stats.referrals + 1 },
+        stats: {
+          ...current.stats,
+          referrals: current.stats.referrals + 1,
+          followUp: current.stats.followUp + 1,
+        },
       } : current);
       formElement.reset();
       setNotice("تم تسجيل الإحالة وربطها بحسابك. الإدارة ستتابع حالتها من هنا.");
@@ -317,8 +474,8 @@ export default function AmbassadorDashboardPage() {
   }
   if (!data) return <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f5f1e8]"><div className="h-12 w-12 animate-spin rounded-full border-4 border-[#bd9850] border-t-transparent" /></main>;
 
-  const earnedLabel = data.stats.rewardsByCurrency.length ? data.stats.rewardsByCurrency.map((item) => money(item.earned, item.currency)).join(" · ") : "—";
-  const paidLabel = data.stats.rewardsByCurrency.length ? data.stats.rewardsByCurrency.map((item) => money(item.paid, item.currency)).join(" · ") : "—";
+  const earnedLabel = data.stats.commissionsByCurrency.length ? data.stats.commissionsByCurrency.map((item) => money(item.approved, item.currency)).join(" · ") : "0";
+  const paidLabel = data.stats.commissionsByCurrency.length ? data.stats.commissionsByCurrency.map((item) => money(item.paid, item.currency)).join(" · ") : "0";
 
   return (
     <div dir="rtl" className={darkMode ? "dark min-h-screen bg-slate-950 text-white" : "min-h-screen bg-[#f5f1e8] text-slate-950"}>
@@ -338,23 +495,40 @@ export default function AmbassadorDashboardPage() {
           {(error || notice) && <div className={`rounded-2xl border px-5 py-4 text-sm font-bold ${error ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200" : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"}`}>{error || notice}</div>}
 
           {activeSection === "overview" && <>
-            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[
+            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">{[
               { label: "إجمالي الإحالات", value: data.stats.referrals, icon: UsersRound },
-              { label: "تحولت إلى مشاريع", value: data.stats.converted, icon: Check },
-              { label: "مكافآت مستحقة", value: earnedLabel, icon: BadgeDollarSign },
-              { label: "مكافآت مدفوعة", value: paidLabel, icon: WalletCards },
+              { label: "قيد المتابعة", value: data.stats.followUp, icon: Search },
+              { label: "تحولت إلى عملاء", value: data.stats.converted, icon: Check },
+              { label: "العمولات المستحقة", value: earnedLabel, icon: BadgeDollarSign },
+              { label: "العمولات المدفوعة", value: paidLabel, icon: WalletCards },
             ].map((card) => { const Icon = card.icon; return <div key={card.label} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900"><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-bold text-slate-500 dark:text-slate-400">{card.label}</p><strong className="mt-3 block text-2xl font-black text-slate-950 dark:text-white">{card.value}</strong></div><span className="rounded-2xl bg-[#f3ead7] p-3 text-[#9f7d3d] dark:bg-[#bd9850]/15 dark:text-[#d5b873]"><Icon size={22} /></span></div></div>; })}</section>
 
-            <section className="rounded-3xl bg-[#101827] p-6 text-white shadow-xl sm:p-8"><div className="flex flex-col gap-6"><div><p className="text-sm font-black text-[#d5b873]">رابطك الموثق</p><h2 className="mt-2 text-2xl font-black sm:text-3xl">شارك الفرصة وتابع النتيجة بشفافية</h2><p className="mt-3 max-w-3xl leading-8 text-white/65">العمولة لا تُسجل على الوعد، بل على إحالة موثقة ونتيجة فعلية تعتمدها الإدارة.</p></div><div className="rounded-2xl border border-white/10 bg-white/5 p-4"><div className="mb-3 flex items-center justify-between gap-3"><span className="text-sm text-white/55">رمز الإحالة</span><strong className="text-[#d5b873]">{data.ambassador.code}</strong></div><div className="flex flex-col gap-3 sm:flex-row"><input readOnly dir="ltr" value={data.ambassador.referralUrl} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-left font-mono text-sm text-white outline-none" /><button type="button" onClick={copyReferralLink} className="flex items-center justify-center gap-2 rounded-xl bg-[#bd9850] px-5 py-3 font-black text-slate-950">{copied ? <Check size={18} /> : <Copy size={18} />}{copied ? "تم النسخ" : "نسخ الرابط"}</button></div></div></div></section>
+            <section className="rounded-3xl bg-[#101827] p-6 text-white shadow-xl sm:p-8"><div className="flex flex-col gap-6"><div><p className="text-sm font-black text-[#d5b873]">رابطك الموثق</p><h2 className="mt-2 text-2xl font-black sm:text-3xl">شارك الفرصة وتابع النتيجة بشفافية</h2><p className="mt-3 max-w-3xl leading-8 text-white/65">العمولة لا تُسجل على الوعد، بل على إحالة موثقة ونتيجة فعلية تعتمدها الإدارة.</p></div><div className="rounded-2xl border border-white/10 bg-white/5 p-4"><div className="mb-3 flex items-center justify-between gap-3"><span className="text-sm text-white/55">رمز الإحالة</span><strong className="text-[#d5b873]">{data.ambassador.code}</strong></div><div className="flex flex-col gap-3 sm:flex-row"><input readOnly dir="ltr" value={data.ambassador.referralUrl} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-left font-mono text-sm text-white outline-none" /><button type="button" onClick={copyReferralLink} className="flex items-center justify-center gap-2 rounded-xl bg-[#bd9850] px-5 py-3 font-black text-slate-950">{copied ? <Check size={18} /> : <Copy size={18} />}{copied ? "تم النسخ" : "نسخ الرابط"}</button><button type="button" onClick={() => shareValue({ title: "CyberWeel", text: "شارك تحديك مع CyberWeel", url: data.ambassador.referralUrl, fallbackKey: "referral-share" })} className="flex items-center justify-center gap-2 rounded-xl border border-white/15 px-5 py-3 font-black text-white"><Share2 size={18} />مشاركة</button></div></div><button type="button" onClick={() => navigate("tools")} className="w-fit font-black text-[#d5b873]">فتح كل أدوات السفير ←</button></div></section>
 
             <section><div className="mb-4 flex items-center justify-between"><div><p className="text-sm font-black text-[#9f7d3d]">آخر النشاط</p><h2 className="mt-1 text-2xl font-black">أحدث الإحالات</h2></div><button onClick={() => navigate("referrals")} className="font-black text-[#9f7d3d]">عرض الكل</button></div><div className="grid gap-3">{data.referrals.length ? data.referrals.slice(0, 5).map((referral) => <article key={referral.id} className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center dark:border-slate-700 dark:bg-slate-900"><div><h3 className="font-black">{referral.name || "إحالة دون اسم"}</h3><p className="mt-1 text-sm text-slate-500">{referral.email || referral.phone || "لا توجد وسيلة تواصل"} · <DateText value={referral.createdAt} /></p></div><span className={`w-fit rounded-full px-3 py-1 text-xs font-black ${referralStatusClass[referral.status] || referralStatusClass.NEW}`}>{referralStatus[referral.status] || dashboardLabel(referral.status, "حالة غير معروفة")}</span></article>) : <div className="rounded-3xl border border-dashed border-slate-300 p-10 text-center text-slate-500 dark:border-slate-700">لا توجد إحالات بعد. ابدأ بالرابط أو أضف إحالة مباشرة.</div>}</div></section>
           </>}
 
+          {activeSection === "tools" && <section className="space-y-7">
+            <div><p className="text-sm font-black text-[#9f7d3d]">عدة عمل عملية</p><h2 className="mt-1 text-3xl font-black">أدوات السفير</h2><p className="mt-2 max-w-3xl text-slate-600 dark:text-slate-300">شارك CyberWeel، سجّل الإحالات، واحصل على صياغة عملية للحديث مع العميل—من دون صلاحيات إدارية أو وعود غير معتمدة.</p></div>
+
+            <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+              <article className="rounded-3xl bg-[#101827] p-6 text-white shadow-xl sm:p-8"><div className="flex items-center gap-3"><span className="rounded-2xl bg-[#bd9850] p-3 text-slate-950"><Link2 size={23} /></span><div><p className="text-sm font-black text-[#d5b873]">رابط الإحالة الشخصي</p><h3 className="text-2xl font-black">{data.ambassador.code}</h3></div></div><p className="mt-5 text-sm leading-7 text-white/65">يبقى تعريفك محفوظًا لمدة 30 يومًا في Cookie آمنة عند فتح الرابط، ثم تُربط الإحالة بك تلقائيًا عند إرسال الطلب.</p><input readOnly dir="ltr" value={data.ambassador.referralUrl} className="mt-5 w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-left font-mono text-sm outline-none" /><div className="mt-3 grid gap-3 sm:grid-cols-2"><button type="button" onClick={copyReferralLink} className="flex items-center justify-center gap-2 rounded-xl bg-[#bd9850] px-5 py-3 font-black text-slate-950">{copied ? <Check size={18} /> : <Copy size={18} />}{copied ? "تم النسخ" : "نسخ الرابط"}</button><button type="button" onClick={() => shareValue({ title: "CyberWeel", text: "شارك تحديك مع CyberWeel", url: data.ambassador.referralUrl, fallbackKey: "tool-referral-share" })} className="flex items-center justify-center gap-2 rounded-xl border border-white/15 px-5 py-3 font-black"><Share2 size={18} />مشاركة</button></div></article>
+
+              <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"><div className="flex items-center gap-3"><span className="rounded-2xl bg-[#f3ead7] p-3 text-[#9f7d3d] dark:bg-[#bd9850]/15"><QrCode size={23} /></span><div><p className="text-sm font-black text-[#9f7d3d]">QR Code</p><h3 className="text-xl font-black">{data.ambassador.name}</h3></div></div><img src={`/api/ambassador/qr${data.isAdminPreview ? `?adminPreview=${encodeURIComponent(data.ambassador.id)}` : ""}`} alt={`QR Code للسفير ${data.ambassador.name}`} width={320} height={320} className="mx-auto mt-5 aspect-square w-full max-w-[280px] rounded-2xl border border-[#D8D2C4] bg-white object-contain p-2" /><p dir="ltr" className="mt-3 truncate text-center text-xs text-slate-500">{data.ambassador.referralUrl}</p><div className="mt-4 grid gap-3 sm:grid-cols-2"><a href={`/api/ambassador/qr?download=1${data.isAdminPreview ? `&adminPreview=${encodeURIComponent(data.ambassador.id)}` : ""}`} download className="flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 font-black text-white dark:bg-[#bd9850] dark:text-slate-950"><Download size={18} />تحميل QR</a><button type="button" onClick={() => shareValue({ title: "CyberWeel QR", text: `CyberWeel — ${data.ambassador.name}`, url: data.ambassador.referralUrl, fallbackKey: "qr-share" })} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 font-black dark:border-slate-700"><Share2 size={18} />مشاركة</button></div></article>
+            </div>
+
+            <form onSubmit={addReferral} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-700 dark:bg-slate-900"><div className="flex items-center gap-3"><span className="rounded-2xl bg-[#f3ead7] p-3 text-[#9f7d3d] dark:bg-[#bd9850]/15"><PlusCircle size={23} /></span><div><p className="text-sm font-black text-[#9f7d3d]">إحالة سريعة</p><h3 className="text-2xl font-black">إضافة إحالة</h3></div></div><div className="mt-6 grid gap-4 md:grid-cols-2"><label className="grid gap-2 text-sm font-bold">اسم العميل<input required name="name" maxLength={120} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid gap-2 text-sm font-bold">الهاتف أو وسيلة التواصل<input required name="contactMethod" maxLength={160} placeholder="رقم واتساب، حساب تواصل، اتصال..." className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid gap-2 text-sm font-bold">البريد الإلكتروني — اختياري<input name="email" type="email" maxLength={254} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid gap-2 text-sm font-bold">الشركة — اختياري<input name="company" maxLength={160} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid gap-2 text-sm font-bold md:col-span-2">ماذا يحتاج العميل؟<textarea required name="needs" maxLength={2000} rows={4} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid gap-2 text-sm font-bold md:col-span-2">ملاحظات — اختياري<textarea name="notes" maxLength={2000} rows={3} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label></div><button disabled={addingReferral} className="mt-5 rounded-xl bg-slate-950 px-6 py-3 font-black text-white disabled:opacity-60 dark:bg-[#bd9850] dark:text-slate-950">{addingReferral ? "جارٍ التسجيل..." : "تسجيل الإحالة"}</button></form>
+
+            <form onSubmit={askAssistant} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-700 dark:bg-slate-900"><div className="flex items-center gap-3"><span className="rounded-2xl bg-[#101827] p-3 text-[#d5b873]"><Bot size={23} /></span><div><p className="text-sm font-black text-[#9f7d3d]">ذكاء اصطناعي عملي</p><h3 className="text-2xl font-black">مساعد السفير</h3></div></div><p className="mt-4 max-w-3xl text-sm leading-7 text-slate-500">اكتب حالة العميل بلغته؛ سيجيبك المساعد باللغة نفسها. لا يعطي أسعارًا أو مواعيد أو وعودًا، ويحوّل التقدير إلى الإدارة.</p><div className="mt-6 grid gap-4 lg:grid-cols-[280px_1fr]"><label className="grid gap-2 text-sm font-bold">نوع المساعدة<select value={assistantMode} onChange={(event) => setAssistantMode(event.target.value as AssistantMode)} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700">{assistantModes.map((mode) => <option key={mode.value} value={mode.value}>{mode.label}</option>)}</select></label><label className="grid gap-2 text-sm font-bold">حالة العميل<textarea required minLength={10} maxLength={2500} rows={5} value={assistantSituation} onChange={(event) => setAssistantSituation(event.target.value)} placeholder="مثال: لدي متجر ملابس ويريد زيادة المبيعات لكنه لا يعرف ماذا يحتاج." className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label></div><button disabled={askingAssistant || !assistantSituation.trim()} className="mt-5 flex items-center gap-2 rounded-xl bg-[#B89A5A] px-6 py-3 font-black text-[#111827] disabled:opacity-60"><Send size={18} />{askingAssistant ? "جارٍ تجهيز الرد..." : "اطلب المساعدة"}</button>{assistantAnswer && <div className="mt-6 rounded-2xl border border-[#D8D2C4] bg-[#F7F3EB] p-5 text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"><p className="whitespace-pre-wrap leading-8">{assistantAnswer}</p><button type="button" onClick={() => copyValue(assistantAnswer, "assistant-answer")} className="mt-4 flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 font-black text-white dark:bg-[#bd9850] dark:text-slate-950">{copiedContent === "assistant-answer" ? <Check size={17} /> : <Copy size={17} />}{copiedContent === "assistant-answer" ? "تم النسخ" : "نسخ الرد"}</button></div>}</form>
+
+            <div><div className="mb-4 flex items-center gap-3"><span className="rounded-2xl bg-[#f3ead7] p-3 text-[#9f7d3d] dark:bg-[#bd9850]/15"><BookOpenText size={23} /></span><div><p className="text-sm font-black text-[#9f7d3d]">جاهز للاستخدام</p><h3 className="text-2xl font-black">محتوى جاهز للمشاركة</h3></div></div><div className="grid gap-4 lg:grid-cols-2">{readyContent.map((item) => { const itemText = item.text[lang]; const itemTitle = item.title[lang]; return <article key={item.id} className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"><h4 className="text-lg font-black">{itemTitle}</h4><p className="mt-3 flex-1 whitespace-pre-wrap text-sm leading-7 text-slate-600 dark:text-slate-300">{itemText}</p><div className="mt-5 flex gap-2"><button type="button" onClick={() => copyValue(itemText, item.id)} className="flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white dark:bg-[#bd9850] dark:text-slate-950">{copiedContent === item.id ? <Check size={17} /> : <Copy size={17} />}{copiedContent === item.id ? "تم النسخ" : "نسخ"}</button><button type="button" onClick={() => shareValue({ title: itemTitle, text: itemText, url: data.ambassador.referralUrl, fallbackKey: `share-${item.id}` })} className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-black dark:border-slate-700"><Share2 size={17} />مشاركة</button></div></article>; })}</div></div>
+          </section>}
+
           {activeSection === "referrals" && <section className="space-y-7"><div><p className="text-sm font-black text-[#9f7d3d]">مسارك الخاص</p><h2 className="mt-1 text-3xl font-black">إحالاتي</h2><p className="mt-2 text-slate-600 dark:text-slate-300">ترى إحالاتك فقط؛ قرارات الحالة والعمولة تبقى بيد الإدارة.</p></div>
-            <form onSubmit={addReferral} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-700 dark:bg-slate-900"><div className="flex items-center gap-3"><span className="rounded-2xl bg-[#f3ead7] p-3 text-[#9f7d3d] dark:bg-[#bd9850]/15"><PlusCircle size={23} /></span><div><h3 className="text-xl font-black">إضافة إحالة مباشرة</h3><p className="text-sm text-slate-500">استخدمها عندما يصل العميل إليك مباشرة بدل الرابط.</p></div></div><div className="mt-6 grid gap-4 md:grid-cols-2"><label className="grid gap-2 text-sm font-bold">اسم العميل<input required name="name" maxLength={120} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid gap-2 text-sm font-bold">طريقة التواصل المفضلة<input name="contactMethod" maxLength={80} placeholder="واتساب، اتصال، بريد..." className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid gap-2 text-sm font-bold">البريد الإلكتروني<input name="email" type="email" maxLength={254} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid gap-2 text-sm font-bold">رقم الهاتف<input name="phone" maxLength={40} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid gap-2 text-sm font-bold md:col-span-2">ما الذي يحتاجه العميل؟<textarea required name="notes" maxLength={2000} rows={4} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label></div><button disabled={addingReferral} className="mt-5 rounded-xl bg-slate-950 px-6 py-3 font-black text-white disabled:opacity-60 dark:bg-[#bd9850] dark:text-slate-950">{addingReferral ? "جارٍ التسجيل..." : "تسجيل الإحالة"}</button><p className="mt-3 text-xs text-slate-500">يجب إدخال البريد أو رقم الهاتف على الأقل.</p></form>
+            <form onSubmit={addReferral} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-700 dark:bg-slate-900"><div className="flex items-center gap-3"><span className="rounded-2xl bg-[#f3ead7] p-3 text-[#9f7d3d] dark:bg-[#bd9850]/15"><PlusCircle size={23} /></span><div><h3 className="text-xl font-black">إضافة إحالة</h3><p className="text-sm text-slate-500">سجّل العميل بسرعة وسيُربط بحسابك تلقائيًا.</p></div></div><div className="mt-6 grid gap-4 md:grid-cols-2"><label className="grid gap-2 text-sm font-bold">اسم العميل<input required name="name" maxLength={120} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid gap-2 text-sm font-bold">الهاتف أو وسيلة التواصل<input required name="contactMethod" maxLength={160} placeholder="رقم واتساب، حساب تواصل، اتصال..." className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid gap-2 text-sm font-bold">البريد الإلكتروني — اختياري<input name="email" type="email" maxLength={254} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid gap-2 text-sm font-bold">الشركة — اختياري<input name="company" maxLength={160} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid gap-2 text-sm font-bold">رقم الهاتف — اختياري<input name="phone" maxLength={40} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid gap-2 text-sm font-bold md:col-span-2">ماذا يحتاج العميل؟<textarea required name="needs" maxLength={2000} rows={4} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid gap-2 text-sm font-bold md:col-span-2">ملاحظات — اختياري<textarea name="notes" maxLength={2000} rows={3} className="rounded-xl border border-slate-200 bg-transparent px-4 py-3 outline-none focus:border-[#bd9850] dark:border-slate-700" /></label></div><button disabled={addingReferral} className="mt-5 rounded-xl bg-slate-950 px-6 py-3 font-black text-white disabled:opacity-60 dark:bg-[#bd9850] dark:text-slate-950">{addingReferral ? "جارٍ التسجيل..." : "تسجيل الإحالة"}</button></form>
 
             <div className="flex flex-col gap-3 sm:flex-row"><label className="flex flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"><Search size={18} className="text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="بحث بالاسم أو وسيلة التواصل" className="w-full bg-transparent outline-none" /></label><label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"><Filter size={18} className="text-slate-400" /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="bg-transparent font-bold outline-none"><option value="ALL">كل الحالات</option>{Object.entries(referralStatus).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
-            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-right"><thead className="bg-slate-50 text-sm text-slate-500 dark:bg-slate-800/70 dark:text-slate-300"><tr><th className="px-5 py-4">العميل</th><th className="px-5 py-4">التواصل</th><th className="px-5 py-4">الحالة</th><th className="px-5 py-4">العمولة</th><th className="px-5 py-4">التاريخ</th></tr></thead><tbody>{filteredReferrals.map((referral) => <tr key={referral.id} className="border-t border-slate-100 dark:border-slate-800"><td className="px-5 py-4 font-black">{referral.name || "دون اسم"}</td><td className="px-5 py-4 text-sm text-slate-500"><div>{referral.email || referral.phone || "—"}</div>{referral.contactMethod && <div className="mt-1 text-xs">{referral.contactMethod}</div>}</td><td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${referralStatusClass[referral.status] || referralStatusClass.NEW}`}>{referralStatus[referral.status] || dashboardLabel(referral.status, "حالة غير معروفة")}</span></td><td className="px-5 py-4 text-sm">{referral.commissionAmount ? money(referral.commissionAmount, referral.commissionCurrency) : "لم تُحدد"}</td><td className="px-5 py-4 text-sm text-slate-500"><DateText value={referral.createdAt} /></td></tr>)}</tbody></table>{!filteredReferrals.length && <div className="p-10 text-center text-slate-500">لا توجد نتائج مطابقة.</div>}</div></div>
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"><div className="overflow-x-auto"><table className="w-full min-w-[1080px] text-right"><thead className="bg-slate-50 text-sm text-slate-500 dark:bg-slate-800/70 dark:text-slate-300"><tr><th className="px-5 py-4">العميل</th><th className="px-5 py-4">التواصل</th><th className="px-5 py-4">حالة الإحالة</th><th className="px-5 py-4">حالة العمولة</th><th className="px-5 py-4">قيمة العمولة</th><th className="px-5 py-4">تاريخ الإحالة</th><th className="px-5 py-4">آخر تحديث</th></tr></thead><tbody>{filteredReferrals.map((referral) => <tr key={referral.id} className="border-t border-slate-100 dark:border-slate-800"><td className="px-5 py-4 font-black">{referral.name || "دون اسم"}</td><td className="px-5 py-4 text-sm text-slate-500"><div>{referral.email || referral.phone || "—"}</div>{referral.contactMethod && <div className="mt-1 text-xs">{referral.contactMethod}</div>}</td><td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${referralStatusClass[referral.status] || referralStatusClass.NEW}`}>{referralStatus[referral.status] || dashboardLabel(referral.status, "حالة غير معروفة")}</span></td><td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${commissionStatusClass[referral.commissionStatus]}`}>{commissionStatus[referral.commissionStatus]}</span></td><td className="px-5 py-4 text-sm">{referral.commissionAmount ? money(referral.commissionAmount, referral.commissionCurrency) : "لم تُحدد"}</td><td className="px-5 py-4 text-sm text-slate-500"><DateText value={referral.createdAt} /></td><td className="px-5 py-4 text-sm text-slate-500"><DateText value={referral.updatedAt} /></td></tr>)}</tbody></table>{!filteredReferrals.length && <div className="p-10 text-center text-slate-500">لا توجد نتائج مطابقة.</div>}</div></div>
           </section>}
 
           {activeSection === "rewards" && <section className="space-y-7"><div><p className="text-sm font-black text-[#9f7d3d]">وضوح من الإحالة حتى الدفع</p><h2 className="mt-1 text-3xl font-black">مكافآتي</h2><p className="mt-2 text-slate-600 dark:text-slate-300">ترى قيمة كل مرحلة ونسبتك وحالة المكافأة دون أي حسابات مخفية.</p></div>
