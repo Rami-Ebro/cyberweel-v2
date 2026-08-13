@@ -150,7 +150,10 @@ export async function GET(request: NextRequest) {
     isAdminPreview: user.isAdminPreview,
     stats: {
       referrals: referrals.length,
-      followUp: referrals.filter((item) => ["NEW", "CONTACTED", "INTERESTED", "AWAITING_RESPONSE"].includes(item.status)).length,
+      followUp: referrals.filter((item) =>
+        ["NEW", "CONTACTED", "INTERESTED", "AWAITING_RESPONSE"].includes(item.status) &&
+        !["REJECTED", "CANCELLED"].includes(item.adminDecision || ""),
+      ).length,
       converted: referrals.filter((item) => item.status === "CONVERTED").length,
       qualified: referrals.filter((item) => item.status === "INTERESTED").length,
       commissionsByCurrency: Array.from(summaries.values()).map((item) => ({

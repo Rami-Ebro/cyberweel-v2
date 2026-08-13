@@ -1,3 +1,5 @@
+import "server-only";
+
 type GeminiTextResponse = {
   candidates?: Array<{
     content?: { parts?: Array<{ text?: string }> };

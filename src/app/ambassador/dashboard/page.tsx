@@ -474,8 +474,8 @@ export default function AmbassadorDashboardPage() {
   }
   if (!data) return <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f5f1e8]"><div className="h-12 w-12 animate-spin rounded-full border-4 border-[#bd9850] border-t-transparent" /></main>;
 
-  const earnedLabel = data.stats.rewardsByCurrency.length ? data.stats.rewardsByCurrency.map((item) => money(item.earned, item.currency)).join(" · ") : "0";
-  const paidLabel = data.stats.rewardsByCurrency.length ? data.stats.rewardsByCurrency.map((item) => money(item.paid, item.currency)).join(" · ") : "0";
+  const earnedLabel = data.stats.commissionsByCurrency.length ? data.stats.commissionsByCurrency.map((item) => money(item.approved, item.currency)).join(" · ") : "0";
+  const paidLabel = data.stats.commissionsByCurrency.length ? data.stats.commissionsByCurrency.map((item) => money(item.paid, item.currency)).join(" · ") : "0";
 
   return (
     <div dir="rtl" className={darkMode ? "dark min-h-screen bg-slate-950 text-white" : "min-h-screen bg-[#f5f1e8] text-slate-950"}>
