@@ -24,6 +24,7 @@ type Referral = {
   source: string | null;
   sourcePath: string | null;
   contactMethod: string | null;
+  notes: string | null;
   adminDecision: ReferralDecision | null;
   adminNotes: string | null;
   commissionType: CommissionType | null;
@@ -67,6 +68,7 @@ const sourceLabels: Record<string, string> = {
   AMBASSADOR: "رابط السفير",
   PARTNER: "شريك تنفيذ",
   MANUAL: "إدخال يدوي من الإدارة",
+  AI_CHAT: "المساعد الذكي",
 };
 const statusColors: Record<ReferralStatus, string> = {
   NEW: "bg-sky-50 text-sky-800",
@@ -362,6 +364,13 @@ function ReferralEditor({
           )}
         </section>
       </div>
+
+      {referral.notes && (
+        <section className="mx-5 mb-5 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4">
+          <SectionTitle icon={MessageSquareText} title="تفاصيل الطلب" subtitle="المعلومات التي قدّمها العميل أو ولّدها مسار المصدر." />
+          <p className="mt-4 whitespace-pre-wrap break-words rounded-xl bg-white p-4 text-sm leading-7 text-slate-700">{referral.notes}</p>
+        </section>
+      )}
 
       <section className="mx-5 mb-5 rounded-2xl border border-[#D8D2C4] bg-[#FCFAF6] p-4">
         {referral.convertedClient ? (

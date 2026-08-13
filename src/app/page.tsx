@@ -46,6 +46,10 @@ const ContactView = dynamic(
   () => import("@/components/sections/contact-view").then((module) => module.ContactView),
   { loading: ViewLoading },
 );
+const CyberWeelAiAssistant = dynamic(
+  () => import("@/components/site/ai-assistant").then((module) => module.CyberWeelAiAssistant),
+  { ssr: false },
+);
 
 const VIEWS: Record<ViewId, React.ComponentType> = {
   home: FinalHomeView,
@@ -100,6 +104,7 @@ function HomeInner() {
         </main>
         <SiteFooter />
         <WhatsAppButton number={BRAND.whatsapp} />
+        <CyberWeelAiAssistant />
         <ShortcutsHelp open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
         <BreadcrumbLd />
       </div>
