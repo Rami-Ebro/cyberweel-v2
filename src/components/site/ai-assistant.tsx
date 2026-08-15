@@ -75,8 +75,8 @@ function welcomeMessage(arabic: boolean): UiMessage {
     languageCode: arabic ? "ar" : "en",
     welcome: true,
     content: arabic
-      ? "مرحبًا، أنا مساعد سايبرويل الذكي. أخبرني بلغتك: ما المشكلة أو الخطوة الرقمية التي تحاول حلّها؟"
-      : "Hello, I’m CyberWeel AI Assistant. Tell me in your own language: what digital challenge or next step are you trying to work through?",
+      ? "أنا هنا لأفهم احتياجك أولًا، ثم أساعدك في تحديد الخطوة الأنسب. أخبرني بلغتك: ما المشكلة أو المهمة الرقمية التي تحاول حلّها؟"
+      : "I’m here to understand what you need first, then help identify the most useful next step. Tell me in your language: what problem or digital task are you trying to solve?",
   };
 }
 
@@ -87,7 +87,15 @@ function initialState(arabic: boolean): ChatState {
       if (saved) {
         const parsed = JSON.parse(saved) as ChatState;
         if (Array.isArray(parsed.messages) && parsed.messages.length) {
-          return { ...parsed, privacyAccepted: parsed.privacyAccepted === true };
+          const hasUserMessage = parsed.messages.some((message) => message.role === "user");
+          const messages = parsed.messages.map((message) => {
+            if (!message.welcome) return message;
+            const welcomeIsArabic = hasUserMessage
+              ? primaryLanguage(message.languageCode) === "ar"
+              : arabic;
+            return welcomeMessage(welcomeIsArabic);
+          });
+          return { ...parsed, messages, privacyAccepted: parsed.privacyAccepted === true };
         }
       }
     } catch {
@@ -152,6 +160,10 @@ export function CyberWeelAiAssistant() {
     () => [...chat.messages].reverse().find((message) => message.role === "user")?.content || "",
     [chat.messages],
   );
+  const hasUserMessage = useMemo(
+    () => chat.messages.some((message) => message.role === "user"),
+    [chat.messages],
+  );
   const apiMessages = useMemo(
     () => chat.messages
       .filter((message) => !message.welcome)
@@ -167,6 +179,20 @@ export function CyberWeelAiAssistant() {
       // The conversation still works when browser storage is unavailable.
     }
   }, [chat]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("cyberweel:ai-assistant-state", {
+      detail: { open },
+    }));
+
+    return () => {
+      if (open) {
+        window.dispatchEvent(new CustomEvent("cyberweel:ai-assistant-state", {
+          detail: { open: false },
+        }));
+      }
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -221,7 +247,15 @@ export function CyberWeelAiAssistant() {
     if (!content || busy || !chat.privacyAccepted) return;
     const userMessage: UiMessage = { id: messageId(), role: "user", content };
     const next = [...apiMessages, { role: "user" as const, content }].slice(-12);
-    setChat((current) => ({ ...current, messages: [...current.messages, userMessage].slice(-24) }));
+    setChat((current) => ({
+      ...current,
+      messages: [
+        ...current.messages.map((message) => (
+          message.welcome ? welcomeMessage(arabicSite) : message
+        )),
+        userMessage,
+      ].slice(-24),
+    }));
     setInput("");
     await requestTurn(next);
   }
@@ -294,7 +328,7 @@ export function CyberWeelAiAssistant() {
         aria-label={arabicSite ? "فتح مساعد سايبرويل الذكي" : "Open CyberWeel AI Assistant"}
         aria-expanded={open}
         className={cn(
-          "fixed bottom-6 left-6 z-[70] grid h-14 w-14 place-items-center rounded-full border border-[#D7BD82] bg-[#111827] text-[#D7BD82] shadow-[0_18px_45px_rgba(17,24,39,0.28)] transition hover:-translate-y-0.5 hover:bg-[#1F2937]",
+          "fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-4 z-[70] grid h-14 w-14 place-items-center rounded-full border border-[#D7BD82] bg-[#111827] text-[#D7BD82] shadow-[0_18px_45px_rgba(17,24,39,0.28)] transition hover:-translate-y-0.5 hover:bg-[#1F2937] sm:right-6",
           open && "bg-[#B89A5A] text-[#111827]",
         )}
       >
@@ -306,7 +340,7 @@ export function CyberWeelAiAssistant() {
           role="dialog"
           aria-label="CyberWeel AI Assistant"
           dir={activeDirection}
-          className="fixed inset-x-3 bottom-24 z-[69] flex max-h-[76dvh] min-h-[32rem] flex-col overflow-hidden rounded-[1.6rem] border border-[#D8D2C4] bg-[#FCFAF6] shadow-[0_28px_80px_rgba(17,24,39,0.28)] sm:inset-x-auto sm:left-6 sm:w-[25rem]"
+          className="fixed inset-x-3 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-[69] flex h-[min(32rem,calc(100dvh_-_7.5rem_-_env(safe-area-inset-bottom)))] max-h-[76dvh] flex-col overflow-hidden rounded-[1.6rem] border border-[#D8D2C4] bg-[#FCFAF6] shadow-[0_28px_80px_rgba(17,24,39,0.28)] sm:inset-x-auto sm:right-6 sm:w-[25rem]"
         >
           <header className="flex items-center justify-between gap-3 border-b border-[#E7E0D4] bg-[#111827] px-4 py-3.5 text-white">
             <div className="flex min-w-0 items-center gap-3">
@@ -315,8 +349,9 @@ export function CyberWeelAiAssistant() {
               </span>
               <div className="min-w-0">
                 <h2 className="truncate text-sm font-black">CyberWeel AI Assistant</h2>
-                <p className="mt-0.5 truncate text-[11px] text-slate-300">
-                  {arabicSite ? "يفهم احتياجك قبل أن يقترح الخطوة" : "Clarify the need before choosing the next step"}
+                <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-slate-300" role="status">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" aria-hidden />
+                  {arabicSite ? "متصل الآن" : "Online"}
                 </p>
               </div>
             </div>
@@ -359,7 +394,9 @@ export function CyberWeelAiAssistant() {
                       ? "rounded-ee-md bg-[#111827] text-white"
                       : "rounded-es-md border border-[#E4DCCF] bg-white text-[#1F2937]",
                   )}>
-                    {message.content}
+                    {message.welcome && !hasUserMessage
+                      ? welcomeMessage(arabicSite).content
+                      : message.content}
                   </p>
                 </div>
               );

@@ -19,13 +19,24 @@ export function ScrollUtilities() {
     restDelta: 0.001,
   });
   const [showTop, setShowTop] = useState(false);
-  const { t, dir } = useI18n();
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     const onScroll = () => setShowTop(window.scrollY > 600);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const onAssistantState = (event: Event) => {
+      const detail = (event as CustomEvent<{ open?: boolean }>).detail;
+      setAssistantOpen(detail?.open === true);
+    };
+
+    window.addEventListener("cyberweel:ai-assistant-state", onAssistantState);
+    return () => window.removeEventListener("cyberweel:ai-assistant-state", onAssistantState);
   }, []);
 
   return (
@@ -39,7 +50,7 @@ export function ScrollUtilities() {
 
       {/* Back to top */}
       <AnimatePresence>
-        {showTop && (
+        {showTop && !assistantOpen && (
           <motion.button
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
@@ -49,7 +60,7 @@ export function ScrollUtilities() {
             transition={{ duration: 0.25 }}
             aria-label={t.scrollUtilities.backToTop}
             className={cn(
-              "focus-ring fixed bottom-6 left-6 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-camel/40 bg-ink text-camel shadow-lg transition-colors hover:bg-ink/90"
+              "focus-ring fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-4 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-camel/40 bg-ink text-camel shadow-lg transition-colors hover:bg-ink/90 sm:left-6"
             )}
           >
             <ArrowUp className="h-5 w-5" />
