@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
-const allowedPreviewBranch = "codex-9b7hcm";
+const allowedPreviewBranch = "agent/ambassador-account-delivery-fix";
 const productionBranch = "main";
 const productionDatabaseHostFragment = "ep-quiet-bird-asiuetz3";
 
