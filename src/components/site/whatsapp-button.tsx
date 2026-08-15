@@ -32,7 +32,7 @@ export function WhatsAppButton({
           exit={{ opacity: 0, scale: 0.85, y: 10 }}
           transition={{ duration: 0.25 }}
           className={cn(
-            "fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-camel/40 bg-ink text-camel shadow-lg transition-colors hover:bg-ink/90",
+            "fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-4 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-camel/40 bg-ink text-camel shadow-lg transition-colors hover:bg-ink/90 sm:left-6",
             className,
           )}
           aria-label="WhatsApp"
