@@ -7,6 +7,7 @@ import {
   rateLimitResponse,
 } from "@/lib/request-security";
 import { NextRequest, NextResponse } from "next/server";
+import { canUsePasswordAccess } from "@/lib/password-access";
 
 export async function POST(request: NextRequest) {
   if (!hasTrustedOrigin(request)) return invalidOriginResponse();
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     !resetToken ||
     resetToken.usedAt ||
     resetToken.expiresAt <= new Date() ||
-    !["PARTNER", "CLIENT"].includes(resetToken.user.role)
+    !canUsePasswordAccess(resetToken.user.role)
   ) {
     return NextResponse.json({ error: "الرابط منتهي أو تم استخدامه مسبقًا" }, { status: 400 });
   }

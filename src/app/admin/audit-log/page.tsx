@@ -36,6 +36,8 @@ const labels: Record<string, string> = {
   PARTNER_PROFILE_UPDATED: "تعديل بيانات الشريك",
   PARTNER_NOTE_ADDED: "إضافة ملاحظة إدارية للشريك",
   PARTNER_PROJECT_ASSIGNED: "إسناد مشروع إلى شريك",
+  AMBASSADOR_APPLICATION_ACCEPTED: "قبول طلب السفير",
+  AMBASSADOR_ACCOUNT_ACTIVATED: "تفعيل حساب السفير",
   PROJECT_CREATED: "إنشاء مشروع",
   PROJECT_UPDATED: "تحديث المشروع",
   PROJECT_CANCELLED: "إلغاء المشروع وإيقاف مراحله المستقبلية",

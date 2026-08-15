@@ -123,7 +123,13 @@ export default function AmbassadorsAdmin() {
         };
         throw new Error(labels[payload.error] || "تعذر حفظ القرار");
       }
-      setMessage(status === "ACCEPTED" ? "تم قبول الطلب وإنشاء حساب السفير." : "تم رفض الطلب.");
+      setMessage(
+        status === "ACCEPTED"
+          ? payload.invitationSent === false
+            ? "تم قبول الطلب وإنشاء حساب السفير، لكن تعذر إرسال بريد القبول. يمكن للسفير استخدام «نسيت كلمة المرور» لإنشاء رابط جديد."
+            : "تم قبول الطلب وإنشاء حساب السفير وإرسال رابط تعيين كلمة المرور."
+          : "تم رفض الطلب.",
+      );
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "تعذر حفظ القرار");
