@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { AdminClientEditor } from "@/components/admin-client-editor";
 import { ClientDashboard } from "@/components/client-dashboard";
+import { ProjectCreationExperience } from "@/components/project-creation-experience";
 
 type EditableSection = "projects" | "files" | "invoices" | "account";
 
@@ -26,13 +27,16 @@ export default function AdminClientWorkspacePage() {
 
   if (mode === "manage") {
     return (
-      <AdminClientEditor
-        initialSection={manageSection}
-        onPreview={(notice = "") => {
-          setPreviewNotice(notice);
-          setMode("preview");
-        }}
-      />
+      <>
+        <ProjectCreationExperience />
+        <AdminClientEditor
+          initialSection={manageSection}
+          onPreview={(notice = "") => {
+            setPreviewNotice(notice);
+            setMode("preview");
+          }}
+        />
+      </>
     );
   }
 
