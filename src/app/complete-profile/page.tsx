@@ -40,6 +40,14 @@ function parseSavedLocation(saved: unknown) {
   return { country: country.trim(), city: rest.join(" — ").trim() };
 }
 
+function parseSavedContactMethod(saved: unknown) {
+  const value = typeof saved === "string" ? saved.trim() : "";
+  if (!value) return { method: "", detail: "" };
+  const [method = "", ...rest] = value.split(" — ");
+  if (contactMethods.includes(method)) return { method, detail: rest.join(" — ").trim() };
+  return { method: "أخرى", detail: value };
+}
+
 function parseSavedPayoutDetails(saved: unknown) {
   const value = typeof saved === "string" ? saved.trim() : "";
   if (!value) return { details: "", walletUrl: "", qrUrl: "" };
@@ -55,10 +63,13 @@ export default function CompleteProfilePage() {
   const router = useRouter();
   const [role, setRole] = useState<Role | null>(null);
   const [profile, setProfile] = useState<Profile>({});
+  const [accountEmail, setAccountEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [educationLevel, setEducationLevel] = useState("");
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
   const [contactMethod, setContactMethod] = useState("");
+  const [contactDetail, setContactDetail] = useState("");
   const [payoutMethod, setPayoutMethod] = useState("");
   const [payoutDetails, setPayoutDetails] = useState("");
   const [walletUrl, setWalletUrl] = useState("");
@@ -80,16 +91,20 @@ export default function CompleteProfilePage() {
         const loadedProfile = payload.profile || {};
         setRole(payload.role);
         setProfile(loadedProfile);
+        setAccountEmail(String(payload.accountEmail || ""));
+        setPhone(String(loadedProfile.phone || ""));
         if (payload.role === "PARTNER" && loadedProfile.educationLevel) {
           const savedEducationLevel = String(loadedProfile.educationLevel);
           setEducationLevel(educationLevels.includes(savedEducationLevel) ? savedEducationLevel : "أخرى");
         }
         if (payload.role === "AMBASSADOR") {
           const savedLocation = parseSavedLocation(loadedProfile.country);
+          const savedContact = parseSavedContactMethod(loadedProfile.contactMethod);
           const savedPayout = parseSavedPayoutDetails(loadedProfile.payoutDetails);
           setCountry(Object.prototype.hasOwnProperty.call(ambassadorLocations, savedLocation.country) ? savedLocation.country : savedLocation.country ? "أخرى" : "");
           setCity(savedLocation.city || "");
-          setContactMethod(contactMethods.includes(String(loadedProfile.contactMethod || "")) ? String(loadedProfile.contactMethod) : loadedProfile.contactMethod ? "أخرى" : "");
+          setContactMethod(savedContact.method);
+          setContactDetail(savedContact.detail);
           setPayoutMethod(payoutMethods.includes(String(loadedProfile.payoutMethod || "")) ? String(loadedProfile.payoutMethod) : loadedProfile.payoutMethod ? "أخرى" : "");
           setPayoutDetails(savedPayout.details);
           setWalletUrl(savedPayout.walletUrl);
@@ -101,6 +116,23 @@ export default function CompleteProfilePage() {
 
   const cityOptions = useMemo(() => ambassadorLocations[country] || [], [country]);
   const locationValue = country && city ? `${country} — ${city}` : "";
+  const normalizedTelegram = contactDetail.trim() ? (contactDetail.trim().startsWith("@") ? contactDetail.trim() : `@${contactDetail.trim()}`) : "";
+  const contactValue = contactMethod === "تيليغرام"
+    ? (normalizedTelegram ? `تيليغرام — ${normalizedTelegram}` : "")
+    : contactMethod === "أخرى"
+      ? (contactDetail.trim() ? `أخرى — ${contactDetail.trim()}` : "")
+      : contactMethod;
+  const contactConfirmation = contactMethod === "واتساب" && phone.trim()
+    ? `سيتم التواصل معك عبر واتساب على الرقم: ${phone.trim()}`
+    : contactMethod === "اتصال هاتفي" && phone.trim()
+      ? `سيتم التواصل معك هاتفيًا على الرقم: ${phone.trim()}`
+      : contactMethod === "بريد إلكتروني" && accountEmail
+        ? `سيتم التواصل معك عبر البريد الإلكتروني: ${accountEmail}`
+        : contactMethod === "تيليغرام" && normalizedTelegram
+          ? `سيتم التواصل معك عبر تيليغرام على: ${normalizedTelegram}`
+          : contactMethod === "أخرى" && contactDetail.trim()
+            ? `سيتم التواصل معك بالطريقة التالية: ${contactDetail.trim()}`
+            : "";
   const supportsWalletLink = ["شام كاش", "محفظة إلكترونية", "أخرى"].includes(payoutMethod);
   const supportsQr = ["شام كاش", "محفظة إلكترونية", "أخرى"].includes(payoutMethod);
 
@@ -135,6 +167,9 @@ export default function CompleteProfilePage() {
     setSaving(true);
     setMessage("");
     try {
+      if (role === "AMBASSADOR" && !contactValue) {
+        throw new Error(contactMethod === "تيليغرام" ? "أدخل اسم المستخدم على تيليغرام." : "أدخل طريقة التواصل وبياناتها.");
+      }
       const formData = new FormData(event.currentTarget);
       let finalQrUrl = existingQrUrl;
 
@@ -152,6 +187,7 @@ export default function CompleteProfilePage() {
 
       const body: Record<string, unknown> = { ...Object.fromEntries(formData), capability: role };
       if (role === "AMBASSADOR") {
+        body.contactMethod = contactValue;
         const lines = [`البيانات: ${payoutDetails.trim()}`];
         if (supportsWalletLink && walletUrl.trim()) lines.push(`رابط المحفظة: ${walletUrl.trim()}`);
         if (supportsQr && finalQrUrl) lines.push(`رابط QR: ${finalQrUrl}`);
@@ -195,7 +231,7 @@ export default function CompleteProfilePage() {
         <div className="p-6 sm:p-9">
           <div className="mb-6 flex items-center gap-3 rounded-2xl bg-[#f5f1e8] p-4 text-sm leading-7 text-slate-600"><ShieldCheck size={22} className="shrink-0 text-[#9f7d3d]" /><p>تستخدم هذه المعلومات لإدارة العمل أو تسوية العمولات، ولا تُعرض للعامة.</p></div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="grid gap-2 text-sm font-black">رقم التواصل<input required name="phone" maxLength={40} defaultValue={profile.phone || ""} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
+            <label className="grid gap-2 text-sm font-black">رقم التواصل<input required name="phone" maxLength={40} value={phone} onChange={(event) => setPhone(event.target.value)} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
             <label className="grid gap-2 text-sm font-black">العمر<input required type="number" min="1" max="120" inputMode="numeric" name="age" defaultValue={profile.age || ""} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
             {isAmbassador ? <>
               <div className="grid gap-3 rounded-2xl border border-slate-200 bg-[#fcfbf8] p-4 sm:col-span-2">
@@ -206,8 +242,12 @@ export default function CompleteProfilePage() {
                 </div>
                 <input type="hidden" name="country" value={locationValue} />
               </div>
-              <label className="grid gap-2 text-sm font-black">طريقة التواصل المفضلة<select required name="contactMethod" value={contactMethod} onChange={(event) => setContactMethod(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10"><option value="" disabled>اختر طريقة التواصل</option>{contactMethods.map((method) => <option key={method} value={method}>{method}</option>)}</select></label>
+              <label className="grid gap-2 text-sm font-black">طريقة التواصل المفضلة<select required value={contactMethod} onChange={(event) => { setContactMethod(event.target.value); setContactDetail(""); }} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10"><option value="" disabled>اختر طريقة التواصل</option>{contactMethods.map((method) => <option key={method} value={method}>{method}</option>)}</select></label>
               <label className="grid gap-2 text-sm font-black">طريقة استلام العمولة<select required name="payoutMethod" value={payoutMethod} onChange={(event) => { setPayoutMethod(event.target.value); setQrFile(null); }} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10"><option value="" disabled>اختر طريقة الاستلام</option>{payoutMethods.map((method) => <option key={method} value={method}>{method}</option>)}</select></label>
+              {contactMethod === "تيليغرام" && <label className="grid gap-2 text-sm font-black sm:col-span-2">اسم المستخدم على تيليغرام<input required dir="ltr" maxLength={100} value={contactDetail} onChange={(event) => setContactDetail(event.target.value)} placeholder="@username" className="rounded-xl border border-slate-200 px-4 py-3 text-left outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>}
+              {contactMethod === "أخرى" && <label className="grid gap-2 text-sm font-black sm:col-span-2">طريقة التواصل وبياناتها<input required maxLength={200} value={contactDetail} onChange={(event) => setContactDetail(event.target.value)} placeholder="مثال: Signal — اسم المستخدم أو الرقم" className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>}
+              <input type="hidden" name="contactMethod" value={contactValue} />
+              {contactConfirmation && <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold leading-7 text-emerald-800 sm:col-span-2"><ShieldCheck size={20} className="mt-1 shrink-0" /><p>{contactConfirmation}</p></div>}
               <label className="grid gap-2 text-sm font-black sm:col-span-2">بيانات استلام العمولة<textarea required maxLength={1400} rows={4} value={payoutDetails} onChange={(event) => setPayoutDetails(event.target.value)} placeholder={payoutDetailsHint} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /><span className="text-xs font-medium leading-6 text-slate-500">{payoutDetailsHint}</span></label>
               {supportsWalletLink && <label className="grid gap-2 text-sm font-black sm:col-span-2">رابط المحفظة <span className="font-normal text-slate-400">اختياري</span><input type="url" dir="ltr" value={walletUrl} onChange={(event) => setWalletUrl(event.target.value)} maxLength={500} placeholder="https://..." className="rounded-xl border border-slate-200 px-4 py-3 text-left outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /><span className="text-xs font-medium leading-6 text-slate-500">أضف رابط المحفظة إن كانت الخدمة توفر رابط استقبال أو دفع مباشر.</span></label>}
               {supportsQr && <div className="sm:col-span-2 rounded-2xl border border-dashed border-[#bd9850] bg-[#f7f3eb] p-4">
