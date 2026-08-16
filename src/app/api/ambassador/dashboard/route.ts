@@ -54,10 +54,23 @@ async function dashboardAmbassador(request: NextRequest) {
   return user ? { ...user, isAdminPreview: false } : null;
 }
 
-function serializeReferral<T extends { commissionAmount: { toString(): string } | null }>(referral: T) {
+function serializeReferral<T extends {
+  commissionAmount: { toString(): string } | null;
+  clientProject?: {
+    title: string;
+    currency: string;
+    ambassadorRewardRate: { toString(): string } | null;
+  } | null;
+}>(referral: T) {
   return {
     ...referral,
     commissionAmount: referral.commissionAmount?.toString() ?? null,
+    clientProject: referral.clientProject
+      ? {
+          ...referral.clientProject,
+          ambassadorRewardRate: referral.clientProject.ambassadorRewardRate?.toString() ?? null,
+        }
+      : null,
   };
 }
 
@@ -73,6 +86,15 @@ export async function GET(request: NextRequest) {
     db.partnerReferral.findMany({
       where: { ambassadorId: user.ambassador!.id },
       orderBy: { createdAt: "desc" },
+      include: {
+        clientProject: {
+          select: {
+            title: true,
+            currency: true,
+            ambassadorRewardRate: true,
+          },
+        },
+      },
     }),
     db.ambassadorReward.findMany({
       where: { ambassadorId: user.ambassador!.id },
