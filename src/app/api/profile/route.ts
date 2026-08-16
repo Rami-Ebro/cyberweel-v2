@@ -136,6 +136,12 @@ export async function POST(request: NextRequest) {
     if (!Number.isInteger(age) || age < 1 || age > 120 || !phone || !country || !contactMethod || !payoutMethod || !payoutDetails) {
       return NextResponse.json({ error: "REQUIRED_FIELDS" }, { status: 400 });
     }
+    if (payoutMethod === "شام كاش") {
+      const shamCashAccount = payoutDetails.split(/\r?\n/).find((line) => line.startsWith("البيانات: "))?.slice("البيانات: ".length).trim() || "";
+      if (!/^\d{16}$/.test(shamCashAccount)) {
+        return NextResponse.json({ error: "INVALID_SHAM_CASH_ACCOUNT" }, { status: 400 });
+      }
+    }
     await db.ambassador.update({
       where: { id: user.ambassador.id },
       data: {
