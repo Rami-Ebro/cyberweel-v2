@@ -5,7 +5,7 @@ type RewardClient = Pick<
   "ambassadorRewardLevel" | "clientProject" | "projectStage" | "ambassadorReward"
 >;
 
-const DEFAULT_AMBASSADOR_REWARD_LEVELS = [
+export const DEFAULT_AMBASSADOR_REWARD_LEVELS = [
   {
     id: "default-ambassador-level-1",
     name: "منطلق",
