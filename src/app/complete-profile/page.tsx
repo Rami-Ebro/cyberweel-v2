@@ -105,7 +105,7 @@ export default function CompleteProfilePage() {
   const supportsQr = ["شام كاش", "محفظة إلكترونية", "أخرى"].includes(payoutMethod);
 
   const payoutDetailsHint = payoutMethod === "شام كاش"
-    ? "اكتب رقم الهاتف أو المعرّف المرتبط بحساب شام كاش."
+    ? "أدخل رقم حسابك في شام كاش."
     : payoutMethod === "محفظة إلكترونية"
       ? "اكتب اسم المحفظة ورقم الحساب أو المعرّف المرتبط بها."
       : payoutMethod === "حوالة بنكية"
