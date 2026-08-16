@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { canAdmin } from "@/lib/admin-permissions";
 import { currentAmbassador } from "@/lib/ambassador-auth";
 import { formatAmbassadorReferralCode } from "@/lib/partner-referral";
-import { utcMonthRange } from "@/lib/ambassador-rewards";
+import { DEFAULT_AMBASSADOR_REWARD_LEVELS, utcMonthRange } from "@/lib/ambassador-rewards";
 import {
   consumeRateLimit,
   hasTrustedOrigin,
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
   }
 
   const month = utcMonthRange();
-  const [rawReferrals, rawRewards, rewardLevels, successfulThisMonth] = await Promise.all([
+  const [rawReferrals, rawRewards, configuredRewardLevels, successfulThisMonth] = await Promise.all([
     db.partnerReferral.findMany({
       where: { ambassadorId: user.ambassador!.id },
       orderBy: { createdAt: "desc" },
@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
       },
     }),
   ]);
+  const rewardLevels = configuredRewardLevels.length ? configuredRewardLevels : DEFAULT_AMBASSADOR_REWARD_LEVELS;
   const referrals = rawReferrals.map(serializeReferral);
   const summaries = new Map<string, {
     currency: string;
