@@ -72,6 +72,7 @@ export default function CompleteProfilePage() {
   const [contactDetail, setContactDetail] = useState("");
   const [payoutMethod, setPayoutMethod] = useState("");
   const [payoutDetails, setPayoutDetails] = useState("");
+  const [shamCashConfirm, setShamCashConfirm] = useState("");
   const [walletUrl, setWalletUrl] = useState("");
   const [qrFile, setQrFile] = useState<File | null>(null);
   const [existingQrUrl, setExistingQrUrl] = useState("");
@@ -107,6 +108,7 @@ export default function CompleteProfilePage() {
           setContactDetail(savedContact.detail);
           setPayoutMethod(payoutMethods.includes(String(loadedProfile.payoutMethod || "")) ? String(loadedProfile.payoutMethod) : loadedProfile.payoutMethod ? "أخرى" : "");
           setPayoutDetails(savedPayout.details);
+          if (loadedProfile.payoutMethod === "شام كاش" && /^\d{16}$/.test(savedPayout.details)) setShamCashConfirm(savedPayout.details);
           setWalletUrl(savedPayout.walletUrl);
           setExistingQrUrl(savedPayout.qrUrl);
         }
@@ -135,9 +137,11 @@ export default function CompleteProfilePage() {
             : "";
   const supportsWalletLink = ["شام كاش", "محفظة إلكترونية", "أخرى"].includes(payoutMethod);
   const supportsQr = ["شام كاش", "محفظة إلكترونية", "أخرى"].includes(payoutMethod);
+  const shamCashNumberValid = /^\d{16}$/.test(payoutDetails);
+  const shamCashConfirmed = shamCashNumberValid && payoutDetails === shamCashConfirm;
 
   const payoutDetailsHint = payoutMethod === "شام كاش"
-    ? "أدخل رقم حسابك في شام كاش."
+    ? "أدخل رقم حسابك في شام كاش المكوّن من 16 رقمًا."
     : payoutMethod === "محفظة إلكترونية"
       ? "اكتب اسم المحفظة ورقم الحساب أو المعرّف المرتبط بها."
       : payoutMethod === "حوالة بنكية"
@@ -169,6 +173,12 @@ export default function CompleteProfilePage() {
     try {
       if (role === "AMBASSADOR" && !contactValue) {
         throw new Error(contactMethod === "تيليغرام" ? "أدخل اسم المستخدم على تيليغرام." : "أدخل طريقة التواصل وبياناتها.");
+      }
+      if (role === "AMBASSADOR" && payoutMethod === "شام كاش" && !shamCashNumberValid) {
+        throw new Error("رقم حساب شام كاش يجب أن يتكوّن من 16 رقمًا فقط.");
+      }
+      if (role === "AMBASSADOR" && payoutMethod === "شام كاش" && !shamCashConfirmed) {
+        throw new Error("رقما حساب شام كاش غير متطابقين. راجع الرقم وأعد التأكيد.");
       }
       const formData = new FormData(event.currentTarget);
       let finalQrUrl = existingQrUrl;
@@ -243,12 +253,20 @@ export default function CompleteProfilePage() {
                 <input type="hidden" name="country" value={locationValue} />
               </div>
               <label className="grid gap-2 text-sm font-black">طريقة التواصل المفضلة<select required value={contactMethod} onChange={(event) => { setContactMethod(event.target.value); setContactDetail(""); }} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10"><option value="" disabled>اختر طريقة التواصل</option>{contactMethods.map((method) => <option key={method} value={method}>{method}</option>)}</select></label>
-              <label className="grid gap-2 text-sm font-black">طريقة استلام العمولة<select required name="payoutMethod" value={payoutMethod} onChange={(event) => { setPayoutMethod(event.target.value); setQrFile(null); }} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10"><option value="" disabled>اختر طريقة الاستلام</option>{payoutMethods.map((method) => <option key={method} value={method}>{method}</option>)}</select></label>
+              <label className="grid gap-2 text-sm font-black">طريقة استلام العمولة<select required name="payoutMethod" value={payoutMethod} onChange={(event) => { setPayoutMethod(event.target.value); setQrFile(null); setShamCashConfirm(""); }} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10"><option value="" disabled>اختر طريقة الاستلام</option>{payoutMethods.map((method) => <option key={method} value={method}>{method}</option>)}</select></label>
               {contactMethod === "تيليغرام" && <label className="grid gap-2 text-sm font-black sm:col-span-2">اسم المستخدم على تيليغرام<input required dir="ltr" maxLength={100} value={contactDetail} onChange={(event) => setContactDetail(event.target.value)} placeholder="@username" className="rounded-xl border border-slate-200 px-4 py-3 text-left outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>}
               {contactMethod === "أخرى" && <label className="grid gap-2 text-sm font-black sm:col-span-2">طريقة التواصل وبياناتها<input required maxLength={200} value={contactDetail} onChange={(event) => setContactDetail(event.target.value)} placeholder="مثال: Signal — اسم المستخدم أو الرقم" className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>}
               <input type="hidden" name="contactMethod" value={contactValue} />
               {contactConfirmation && <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold leading-7 text-emerald-800 sm:col-span-2"><ShieldCheck size={20} className="mt-1 shrink-0" /><p>{contactConfirmation}</p></div>}
-              <label className="grid gap-2 text-sm font-black sm:col-span-2">بيانات استلام العمولة<textarea required maxLength={1400} rows={4} value={payoutDetails} onChange={(event) => setPayoutDetails(event.target.value)} placeholder={payoutDetailsHint} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /><span className="text-xs font-medium leading-6 text-slate-500">{payoutDetailsHint}</span></label>
+              {payoutMethod === "شام كاش" ? <div className="grid gap-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 sm:col-span-2">
+                <div><p className="text-sm font-black">رقم حساب شام كاش</p><p className="mt-1 text-xs font-medium leading-6 text-slate-600">أدخل رقم الحساب المكوّن من 16 رقمًا كما يظهر داخل تطبيق شام كاش.</p></div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-black">رقم الحساب<input required inputMode="numeric" autoComplete="off" dir="ltr" maxLength={16} pattern="[0-9]{16}" value={payoutDetails} onChange={(event) => setPayoutDetails(event.target.value.replace(/\D/g, "").slice(0, 16))} placeholder="16 رقمًا" className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left tracking-wider outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
+                  <label className="grid gap-2 text-sm font-black">أعد إدخال رقم الحساب<input required inputMode="numeric" autoComplete="off" dir="ltr" maxLength={16} pattern="[0-9]{16}" value={shamCashConfirm} onChange={(event) => setShamCashConfirm(event.target.value.replace(/\D/g, "").slice(0, 16))} placeholder="أعد إدخال 16 رقمًا" className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left tracking-wider outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
+                </div>
+                {shamCashConfirm && <p className={`rounded-xl p-3 text-sm font-bold ${shamCashConfirmed ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-700"}`}>{shamCashConfirmed ? "✓ رقم الحساب مطابق وجاهز للحفظ." : "رقما الحساب غير متطابقين أو لم يكتمل إدخال 16 رقمًا."}</p>}
+                <div className="rounded-xl border border-amber-200 bg-white p-3 text-xs font-bold leading-6 text-amber-900">راجع رقم الحساب من داخل تطبيق شام كاش قبل الحفظ. لن يطلب منك CyberWeel كلمة المرور أو PIN أو رمز التحقق أو رمز الأمان.</div>
+              </div> : <label className="grid gap-2 text-sm font-black sm:col-span-2">بيانات استلام العمولة<textarea required maxLength={1400} rows={4} value={payoutDetails} onChange={(event) => setPayoutDetails(event.target.value)} placeholder={payoutDetailsHint} className="rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /><span className="text-xs font-medium leading-6 text-slate-500">{payoutDetailsHint}</span></label>}
               {supportsWalletLink && <label className="grid gap-2 text-sm font-black sm:col-span-2">{payoutMethod === "شام كاش" ? "شاركنا حسابك" : "رابط المحفظة"} <span className="font-normal text-slate-400">اختياري</span><input type="url" dir="ltr" value={walletUrl} onChange={(event) => setWalletUrl(event.target.value)} maxLength={500} placeholder="https://..." className="rounded-xl border border-slate-200 px-4 py-3 text-left outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /><span className="text-xs font-medium leading-6 text-slate-500">أضف رابط المحفظة إن كانت الخدمة توفر رابط استقبال أو دفع مباشر.</span></label>}
               {supportsQr && <div className="sm:col-span-2 rounded-2xl border border-dashed border-[#bd9850] bg-[#f7f3eb] p-4">
                 <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black">QR للاستلام <span className="font-normal text-slate-400">اختياري</span></p><p className="mt-1 text-xs font-medium leading-6 text-slate-500">ارفع صورة QR الخاصة بشام كاش أو المحفظة. PNG/JPG/WebP حتى 2 ميغابايت.</p></div><FileImage className="h-6 w-6 text-[#9f7d3d]" /></div>
