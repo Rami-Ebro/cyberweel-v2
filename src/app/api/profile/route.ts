@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
       },
       ambassador: {
         select: {
+          id: true,
           status: true,
           age: true,
           phone: true,
