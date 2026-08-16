@@ -31,7 +31,7 @@ function enhanceForm(form: HTMLFormElement) {
   const referralSelect = form.querySelector<HTMLSelectElement>('select[name="referralId"]');
   if (!referralSelect) return;
 
-  const referralOptions = Array.from(referralSelect.options).filter((option) => option.value);
+  const referralOptions = Array.from(referralSelect.options).filter((option) => option.value && option.value !== "__NONE__");
   const label = referralSelect.closest("label");
   if (!(label instanceof HTMLLabelElement)) return;
 
@@ -61,6 +61,21 @@ function enhanceForm(form: HTMLFormElement) {
   }
 }
 
+function syncReferralIntoFormData(form: HTMLFormElement, formData: FormData) {
+  const referralSelect = form.querySelector<HTMLSelectElement>('select[name="referralId"]');
+  if (!referralSelect) return;
+
+  const realReferrals = Array.from(referralSelect.options).filter((option) => option.value && option.value !== "__NONE__");
+  if (realReferrals.length === 1) {
+    const referralId = realReferrals[0].value;
+    referralSelect.value = referralId;
+    formData.set("referralId", referralId);
+    return;
+  }
+
+  if (referralSelect.value === "__NONE__") formData.set("referralId", "");
+}
+
 export function ProjectCreationExperience() {
   useEffect(() => {
     const apply = () => projectCreationForms().forEach(enhanceForm);
@@ -69,20 +84,17 @@ export function ProjectCreationExperience() {
     const observer = new MutationObserver(apply);
     observer.observe(document.body, { childList: true, subtree: true });
 
-    const captureSubmit = (event: Event) => {
+    const captureFormData = (event: Event) => {
+      if (!(event instanceof FormDataEvent)) return;
       const form = event.target;
       if (!(form instanceof HTMLFormElement) || !projectCreationForms().includes(form)) return;
-      const referralSelect = form.querySelector<HTMLSelectElement>('select[name="referralId"]');
-      if (!referralSelect) return;
-      const realReferrals = Array.from(referralSelect.options).filter((option) => option.value && option.value !== "__NONE__");
-      if (realReferrals.length === 1) referralSelect.value = realReferrals[0].value;
-      if (referralSelect.value === "__NONE__") referralSelect.value = "";
+      syncReferralIntoFormData(form, event.formData);
     };
 
-    document.addEventListener("submit", captureSubmit, true);
+    document.addEventListener("formdata", captureFormData, true);
     return () => {
       observer.disconnect();
-      document.removeEventListener("submit", captureSubmit, true);
+      document.removeEventListener("formdata", captureFormData, true);
     };
   }, []);
 
