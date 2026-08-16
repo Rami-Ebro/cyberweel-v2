@@ -33,6 +33,10 @@ const payoutMethods = ["شام كاش", "محفظة إلكترونية", "حوا
 const MAX_QR_SIZE = 2 * 1024 * 1024;
 const QR_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp"]);
 
+function formatShamCashNumber(value: string) {
+  return value.replace(/\D/g, "").slice(0, 16).replace(/(\d{4})(?=\d)/g, "$1 ");
+}
+
 function parseSavedLocation(saved: unknown) {
   const value = typeof saved === "string" ? saved.trim() : "";
   if (!value) return { country: "", city: "" };
@@ -259,10 +263,10 @@ export default function CompleteProfilePage() {
               <input type="hidden" name="contactMethod" value={contactValue} />
               {contactConfirmation && <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold leading-7 text-emerald-800 sm:col-span-2"><ShieldCheck size={20} className="mt-1 shrink-0" /><p>{contactConfirmation}</p></div>}
               {payoutMethod === "شام كاش" ? <div className="grid gap-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 sm:col-span-2">
-                <div><p className="text-sm font-black">رقم حساب شام كاش</p><p className="mt-1 text-xs font-medium leading-6 text-slate-600">أدخل رقم الحساب المكوّن من 16 رقمًا كما يظهر داخل تطبيق شام كاش.</p></div>
+                <div><p className="text-sm font-black">رقم حساب شام كاش</p><p className="mt-1 text-xs font-medium leading-6 text-slate-600">أدخل رقم الحساب المكوّن من 16 رقمًا كما يظهر داخل تطبيق شام كاش. سيظهر كل 4 أرقام كمجموعة لتسهيل المراجعة.</p></div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="grid gap-2 text-sm font-black">رقم الحساب<input required inputMode="numeric" autoComplete="off" dir="ltr" maxLength={16} pattern="[0-9]{16}" value={payoutDetails} onChange={(event) => setPayoutDetails(event.target.value.replace(/\D/g, "").slice(0, 16))} placeholder="16 رقمًا" className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left tracking-wider outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
-                  <label className="grid gap-2 text-sm font-black">أعد إدخال رقم الحساب<input required inputMode="numeric" autoComplete="off" dir="ltr" maxLength={16} pattern="[0-9]{16}" value={shamCashConfirm} onChange={(event) => setShamCashConfirm(event.target.value.replace(/\D/g, "").slice(0, 16))} placeholder="أعد إدخال 16 رقمًا" className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left tracking-wider outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
+                  <label className="grid gap-2 text-sm font-black">رقم الحساب<input required inputMode="numeric" autoComplete="off" dir="ltr" maxLength={19} pattern="[0-9]{4} [0-9]{4} [0-9]{4} [0-9]{4}" value={formatShamCashNumber(payoutDetails)} onChange={(event) => setPayoutDetails(event.target.value.replace(/\D/g, "").slice(0, 16))} placeholder="1234 5678 9012 3456" className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left font-mono tracking-wider outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
+                  <label className="grid gap-2 text-sm font-black">أعد إدخال رقم الحساب<input required inputMode="numeric" autoComplete="off" dir="ltr" maxLength={19} pattern="[0-9]{4} [0-9]{4} [0-9]{4} [0-9]{4}" value={formatShamCashNumber(shamCashConfirm)} onChange={(event) => setShamCashConfirm(event.target.value.replace(/\D/g, "").slice(0, 16))} placeholder="1234 5678 9012 3456" className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left font-mono tracking-wider outline-none transition focus:border-[#bd9850] focus:ring-4 focus:ring-[#bd9850]/10" /></label>
                 </div>
                 {shamCashConfirm && <p className={`rounded-xl p-3 text-sm font-bold ${shamCashConfirmed ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-700"}`}>{shamCashConfirmed ? "✓ رقم الحساب مطابق وجاهز للحفظ." : "رقما الحساب غير متطابقين أو لم يكتمل إدخال 16 رقمًا."}</p>}
                 <div className="rounded-xl border border-amber-200 bg-white p-3 text-xs font-bold leading-6 text-amber-900">راجع رقم الحساب من داخل تطبيق شام كاش قبل الحفظ. لن يطلب منك CyberWeel كلمة المرور أو PIN أو رمز التحقق أو رمز الأمان.</div>
