@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
   const user = await db.user.findUnique({
     where: { id: session.userId },
     select: {
+      email: true,
       role: true,
       partner: {
         select: {
@@ -66,6 +67,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     role,
+    accountEmail: user.email,
     profile: role === "AMBASSADOR" ? user.ambassador : user.partner,
   });
 }
