@@ -147,7 +147,7 @@ export function ProjectCreationExperience() {
       }
       if (payload.entity !== "project") return originalFetch(input, init);
 
-      const normalizedPayload = { ...payload, description: "", projectStatus: "PLANNING", progress: 0 };
+      const normalizedPayload: Record<string, unknown> = { ...payload, description: "", projectStatus: "PLANNING", progress: 0 };
       const response = await originalFetch(input, { ...init, body: JSON.stringify(normalizedPayload) });
       if (!response.ok) return response;
 
