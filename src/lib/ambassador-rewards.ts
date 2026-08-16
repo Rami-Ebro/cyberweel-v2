@@ -5,6 +5,27 @@ type RewardClient = Pick<
   "ambassadorRewardLevel" | "clientProject" | "projectStage" | "ambassadorReward"
 >;
 
+const DEFAULT_AMBASSADOR_REWARD_LEVELS = [
+  {
+    id: "default-ambassador-level-1",
+    name: "منطلق",
+    minSuccessfulReferrals: 1,
+    rate: new Prisma.Decimal(10),
+  },
+  {
+    id: "default-ambassador-level-2",
+    name: "نشط",
+    minSuccessfulReferrals: 2,
+    rate: new Prisma.Decimal(15),
+  },
+  {
+    id: "default-ambassador-level-3",
+    name: "نخبة",
+    minSuccessfulReferrals: 5,
+    rate: new Prisma.Decimal(20),
+  },
+] as const;
+
 export function utcMonthRange(at = new Date()) {
   return {
     start: new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), 1)),
@@ -18,7 +39,7 @@ export async function rewardRateForNewProject(
   qualifiedAt = new Date(),
 ) {
   const { start, end } = utcMonthRange(qualifiedAt);
-  const [successfulBefore, levels] = await Promise.all([
+  const [successfulBefore, configuredLevels] = await Promise.all([
     tx.clientProject.count({
       where: {
         referral: { ambassadorId },
@@ -31,7 +52,7 @@ export async function rewardRateForNewProject(
     }),
   ]);
 
-  if (!levels.length) throw new Error("AMBASSADOR_REWARD_LEVELS_MISSING");
+  const levels = configuredLevels.length ? configuredLevels : DEFAULT_AMBASSADOR_REWARD_LEVELS;
   const referralPosition = successfulBefore + 1;
   const level = [...levels]
     .reverse()
