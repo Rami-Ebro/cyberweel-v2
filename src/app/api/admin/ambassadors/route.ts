@@ -1,28 +1,73 @@
 import { db } from "@/lib/db";
 import { canAdmin, currentAdminAccess } from "@/lib/admin-permissions";
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import {
   AcceptApplicationError,
   acceptErrorMessage,
   decideCollaborationApplication,
 } from "@/lib/accept-collaboration";
 import { AdminUserProfileError, validatedAdminUserProfile } from "@/lib/admin-user-profile";
+import { utcMonthRange } from "@/lib/ambassador-rewards";
 import { sendAmbassadorInvitation } from "@/lib/client-invitation";
 import { shouldSendAcceptanceInvitation } from "@/lib/account-invitation-policy";
 
+function rewardTotalsByCurrency(
+  rewards: Array<{ amount: Prisma.Decimal; currency: string; status: string }>,
+) {
+  const totals = new Map<string, { due: Prisma.Decimal; paid: Prisma.Decimal }>();
+
+  for (const reward of rewards) {
+    const row = totals.get(reward.currency) || {
+      due: new Prisma.Decimal(0),
+      paid: new Prisma.Decimal(0),
+    };
+    if (reward.status === "EARNED") row.due = row.due.add(reward.amount);
+    if (reward.status === "PAID") row.paid = row.paid.add(reward.amount);
+    totals.set(reward.currency, row);
+  }
+
+  return [...totals.entries()]
+    .sort(([currencyA], [currencyB]) => currencyA.localeCompare(currencyB))
+    .map(([currency, values]) => ({
+      currency,
+      due: values.due.toFixed(2),
+      paid: values.paid.toFixed(2),
+    }));
+}
+
 export async function GET(request: NextRequest) {
   if (!(await canAdmin(request, "ambassadors"))) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-  const [ambassadors, applications] = await Promise.all([
+  const { start: monthStart, end: monthEnd } = utcMonthRange();
+  const [ambassadors, applications, rewardLevels] = await Promise.all([
     db.ambassador.findMany({
       orderBy: { createdAt: "desc" },
-      include: {
-        user: { select: { name: true, email: true, phone: true, isActive: true } },
+      select: {
+        id: true,
+        referralNumber: true,
+        status: true,
+        age: true,
+        profileCompletedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        user: { select: { name: true, email: true, phone: true, isActive: true, updatedAt: true } },
         referrals: {
           select: {
+            updatedAt: true,
+            clientProject: {
+              select: {
+                ambassadorQualifiedAt: true,
+                updatedAt: true,
+              },
+            },
+          },
+        },
+        rewards: {
+          select: {
+            amount: true,
+            currency: true,
             status: true,
-            commissionAmount: true,
-            commissionCurrency: true,
-            commissionStatus: true,
+            updatedAt: true,
           },
         },
       },
@@ -32,8 +77,68 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
       include: { decidedBy: { select: { name: true, email: true } } },
     }),
+    db.ambassadorRewardLevel.findMany({
+      where: { isActive: true },
+      orderBy: { minSuccessfulReferrals: "asc" },
+      select: { id: true, name: true, minSuccessfulReferrals: true, rate: true },
+    }),
   ]);
-  return NextResponse.json({ ambassadors, applications });
+
+  const ambassadorRows = ambassadors.map((ambassador) => {
+    const qualifiedProjects = ambassador.referrals
+      .map((referral) => referral.clientProject)
+      .filter((project): project is NonNullable<typeof project> => Boolean(project?.ambassadorQualifiedAt));
+    const monthlySuccessfulReferrals = qualifiedProjects.filter((project) => {
+      const qualifiedAt = project.ambassadorQualifiedAt!;
+      return qualifiedAt >= monthStart && qualifiedAt < monthEnd;
+    }).length;
+    const currentLevel = [...rewardLevels]
+      .reverse()
+      .find((level) => level.minSuccessfulReferrals <= monthlySuccessfulReferrals);
+    const activityTimes = [
+      ambassador.createdAt,
+      ambassador.updatedAt,
+      ambassador.user.updatedAt,
+      ...ambassador.referrals.flatMap((referral) => [
+        referral.updatedAt,
+        referral.clientProject?.updatedAt,
+      ]),
+      ...ambassador.rewards.map((reward) => reward.updatedAt),
+    ].filter((value): value is Date => value instanceof Date);
+    const lastActivityAt = new Date(Math.max(...activityTimes.map((value) => value.getTime())));
+
+    return {
+      id: ambassador.id,
+      referralNumber: ambassador.referralNumber,
+      status: ambassador.status,
+      age: ambassador.age,
+      profileCompletedAt: ambassador.profileCompletedAt,
+      createdAt: ambassador.createdAt,
+      lastActivityAt,
+      user: {
+        name: ambassador.user.name,
+        email: ambassador.user.email,
+        phone: ambassador.user.phone,
+        isActive: ambassador.user.isActive,
+      },
+      referralStats: {
+        total: ambassador.referrals.length,
+        successful: qualifiedProjects.length,
+        successfulThisMonth: monthlySuccessfulReferrals,
+      },
+      currentLevel: currentLevel
+        ? {
+            id: currentLevel.id,
+            name: currentLevel.name,
+            minSuccessfulReferrals: currentLevel.minSuccessfulReferrals,
+            rate: currentLevel.rate.toString(),
+          }
+        : null,
+      rewardTotals: rewardTotalsByCurrency(ambassador.rewards),
+    };
+  });
+
+  return NextResponse.json({ ambassadors: ambassadorRows, applications });
 }
 
 export async function PATCH(request: NextRequest) {
