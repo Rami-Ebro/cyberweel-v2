@@ -8,6 +8,7 @@ import {
 } from "@/lib/request-security";
 import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { canUsePasswordAccess } from "@/lib/password-access";
 
 const GENERIC_MESSAGE = "إذا كان البريد مسجلًا، فستصلك رسالة إعادة تعيين كلمة المرور";
 
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
   if (!emailLimit.allowed) return rateLimitResponse(emailLimit);
 
   const user = await db.user.findUnique({ where: { email }, select: { id: true, role: true, preferredLanguage: true } });
-  if (!user || !["PARTNER", "CLIENT"].includes(user.role)) {
+  if (!user || !canUsePasswordAccess(user.role)) {
     return NextResponse.json({ ok: true, message: GENERIC_MESSAGE });
   }
 
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
           subject: "إعادة تعيين كلمة مرور CyberWeel",
           html: `<div dir="rtl" style="font-family:Arial,sans-serif"><h2>إعادة تعيين كلمة المرور</h2><p>اضغط على الرابط التالي لإنشاء كلمة مرور جديدة. الرابط صالح لمدة 30 دقيقة ويُستخدم مرة واحدة فقط.</p><p><a href="${resetUrl}">إعادة تعيين كلمة المرور</a></p><p>إذا لم تطلب ذلك، تجاهل الرسالة.</p></div>`,
         };
-    await fetch("https://api.resend.com/emails", {
+    const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -77,6 +78,9 @@ export async function POST(request: NextRequest) {
         html: emailCopy.html,
       }),
     });
+    if (!response.ok) {
+      console.error("[password-reset] Resend failed", response.status, await response.text());
+    }
   }
 
   return NextResponse.json({

@@ -430,11 +430,13 @@ export async function decideCollaborationApplication(
     const user = await resolveOrCreateUser(tx, application, role, password);
 
     let partnerId: string | null = null;
+    let ambassadorId: string | null = null;
     if (input.type === "PARTNER") {
       const partner = await ensurePartnerForUser(tx, user.id, application, notes);
       partnerId = partner.id;
     } else {
-      await ensureAmbassadorForUser(tx, user.id, application, notes);
+      const ambassador = await ensureAmbassadorForUser(tx, user.id, application, notes);
+      ambassadorId = ambassador.id;
     }
 
     await markApplication(tx, application.id, "ACCEPTED", notes, input.decidedById);
@@ -450,6 +452,9 @@ export async function decideCollaborationApplication(
     if (input.type === "PARTNER") {
       await writeAdminAudit(tx, { actorId: input.decidedById, action: "PARTNER_APPLICATION_ACCEPTED", category: "POSITIVE", entityType: "PARTNER_APPLICATION", entityId: application.id, entityLabel: application.name, before: { status: application.status, reviewState: application.reviewState }, after: { status: "ACCEPTED", reviewState: "ACCEPTED" } });
       await writeAdminAudit(tx, { actorId: input.decidedById, action: "PARTNER_ACCOUNT_ACTIVATED", category: "POSITIVE", entityType: "PARTNER", entityId: partnerId, entityLabel: application.name, before: { active: false }, after: { active: true, status: "ACTIVE" } });
+    } else {
+      await writeAdminAudit(tx, { actorId: input.decidedById, action: "AMBASSADOR_APPLICATION_ACCEPTED", category: "POSITIVE", entityType: "AMBASSADOR_APPLICATION", entityId: application.id, entityLabel: application.name, before: { status: application.status, reviewState: application.reviewState }, after: { status: "ACCEPTED", reviewState: "ACCEPTED" } });
+      await writeAdminAudit(tx, { actorId: input.decidedById, action: "AMBASSADOR_ACCOUNT_ACTIVATED", category: "POSITIVE", entityType: "AMBASSADOR", entityId: ambassadorId, entityLabel: application.name, before: { active: false }, after: { active: true, status: "ACTIVE", userId: user.id } });
     }
 
     return {

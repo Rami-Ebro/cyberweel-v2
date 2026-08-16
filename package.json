@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test:ai": "node --experimental-strip-types --test tests/ai-assistant.test.mjs",
+    "test:ambassador-delivery": "node --experimental-strip-types --test tests/ambassador-account-delivery.test.mjs",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:generate:sqlite": "prisma generate --schema prisma/schema.sqlite.prisma",

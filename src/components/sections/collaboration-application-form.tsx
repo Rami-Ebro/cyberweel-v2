@@ -73,7 +73,6 @@ function PartnerWizard({ arabic }: { arabic: boolean }) {
     const url = `${window.location.origin}/#/partner`;
     const title = arabic ? "كن شريكًا مع CyberWeel" : "Partner with CyberWeel";
     const text = arabic ? "شاركها مع من تجد فيه الكفاءة ليكون شريكًا في شبكة CyberWeel." : "Share this with someone whose skills would make them a strong CyberWeel partner.";
-
     return { url, title, text };
   }
 
@@ -114,7 +113,6 @@ function PartnerWizard({ arabic }: { arabic: boolean }) {
 
   async function sharePartnerPage() {
     const { url, title, text } = partnerShareContent();
-
     if (navigator.share) {
       try {
         await navigator.share({ title, text, url });
@@ -123,12 +121,7 @@ function PartnerWizard({ arabic }: { arabic: boolean }) {
       }
       return;
     }
-
-    try {
-      await copyPartnerLink();
-    } catch {
-      // copyPartnerLink already handles clipboard errors.
-    }
+    await copyPartnerLink();
   }
 
   if (state === "done") return <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-emerald-950"><h3 className="text-xl font-black">{arabic ? "تم إرسال طلب الشراكة بنجاح." : "Partnership application submitted successfully."}</h3><p className="mt-3 leading-7">{arabic ? "سيتم مراجعة البيانات وتفعيل الحساب بعد الموافقة من الإدارة." : "Your information will be reviewed and the account activated after administrative approval."}</p><p className="mt-4 inline-flex rounded-full bg-emerald-100 px-4 py-2 text-sm font-black">{arabic ? "حالة الطلب: قيد المراجعة" : "Application status: Under review"}</p><div className="mt-6 border-t border-emerald-200 pt-5"><p className="font-bold">{arabic ? "شارك صفحة «كن شريكًا» مع من تجد فيه الكفاءة؛ فقد تكون أنت بداية شراكة ناجحة." : "Share the partner page with someone whose skills stand out—you might spark a successful partnership."}</p><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3"><button type="button" onClick={() => shareTo("whatsapp")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400"><MessageCircle className="h-5 w-5" />WhatsApp</button><button type="button" onClick={() => shareTo("telegram")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400"><Send className="h-5 w-5" />Telegram</button><button type="button" onClick={() => shareTo("facebook")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400"><Facebook className="h-5 w-5" />Facebook</button><button type="button" onClick={() => shareTo("linkedin")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400"><Linkedin className="h-5 w-5" />LinkedIn</button><button type="button" onClick={() => void shareToInstagram()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400"><Instagram className="h-5 w-5" />Instagram</button><button type="button" onClick={() => void copyPartnerLink()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400">{shareCopied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}{shareCopied ? (arabic ? "تم النسخ" : "Copied") : (arabic ? "نسخ الرابط" : "Copy link")}</button></div><button type="button" onClick={() => void sharePartnerPage()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 font-black text-white transition hover:opacity-90"><MoreHorizontal className="h-5 w-5" />{arabic ? "المزيد من خيارات المشاركة" : "More sharing options"}</button></div></div>;
@@ -156,9 +149,78 @@ function PartnerWizard({ arabic }: { arabic: boolean }) {
 
 function AmbassadorForm({ arabic }: { arabic: boolean }) {
   const [state, setState] = useState<"idle" | "sending" | "done" | "error">("idle");
-  async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setState("sending"); const form = new FormData(event.currentTarget); const response = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "AMBASSADOR", name: form.get("name"), email: form.get("email"), phone: form.get("phone"), age: form.get("age"), market: form.get("market"), details: form.get("details") }) }); setState(response.ok ? "done" : "error"); }
-  if (state === "done") return <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 font-bold text-emerald-950">{arabic ? "تم استلام طلبك بنجاح وسيقوم فريقنا بمراجعته." : "Application received. Our team will review it."}</div>;
-  return <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2"><input required name="name" placeholder={arabic ? "الاسم الكامل" : "Full name"} className="rounded-lg border p-3" /><input required type="email" name="email" placeholder={arabic ? "البريد الإلكتروني" : "Email"} className="rounded-lg border p-3" /><input name="phone" placeholder={arabic ? "رقم التواصل" : "Contact number"} className="rounded-lg border p-3" /><input required type="number" min="1" max="120" name="age" inputMode="numeric" placeholder={arabic ? "العمر" : "Age"} className="rounded-lg border p-3" /><input required name="market" placeholder={arabic ? "البلد أو السوق" : "Country or market"} className="rounded-lg border p-3 sm:col-span-2" /><textarea name="details" rows={5} placeholder={arabic ? "معلومات إضافية (اختياري)" : "Additional information (optional)"} className="rounded-lg border p-3 sm:col-span-2" />{state === "error" && <p className="text-red-700 sm:col-span-2">تعذر إرسال الطلب.</p>}<button disabled={state === "sending"} className="rounded-lg bg-ink px-5 py-3 font-semibold text-white sm:col-span-2">{arabic ? "إرسال الطلب للمراجعة" : "Submit for review"}</button></form>;
+  const [shareCopied, setShareCopied] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setState("sending");
+    const form = new FormData(event.currentTarget);
+    const response = await fetch("/api/applications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "AMBASSADOR", name: form.get("name"), email: form.get("email"), phone: form.get("phone"), age: form.get("age"), market: form.get("market"), details: form.get("details") }),
+    });
+    setState(response.ok ? "done" : "error");
+  }
+
+  function ambassadorShareContent() {
+    const url = `${window.location.origin}/#/ambassador`;
+    const title = arabic ? "كن سفيرًا مع CyberWeel" : "Become a CyberWeel Ambassador";
+    const text = arabic ? "شارك صفحة سفير CyberWeel مع شخص ترى أنه يستطيع بناء شبكة علاقات وفرص حقيقية." : "Share the CyberWeel Ambassador page with someone who can build meaningful connections and opportunities.";
+    return { url, title, text };
+  }
+
+  function openShareUrl(url: string) {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function copyAmbassadorLink() {
+    const { url } = ambassadorShareContent();
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 2000);
+      return true;
+    } catch {
+      setShareCopied(false);
+      return false;
+    }
+  }
+
+  function shareTo(platform: "whatsapp" | "telegram" | "facebook" | "linkedin") {
+    const { url, text } = ambassadorShareContent();
+    const encodedUrl = encodeURIComponent(url);
+    const encodedText = encodeURIComponent(text);
+    const targets = {
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`,
+      telegram: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+    };
+    openShareUrl(targets[platform]);
+  }
+
+  async function shareToInstagram() {
+    openShareUrl("https://www.instagram.com/");
+    await copyAmbassadorLink();
+  }
+
+  async function shareAmbassadorPage() {
+    const { url, title, text } = ambassadorShareContent();
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text, url });
+      } catch {
+        // Closing the native share sheet is not an application error.
+      }
+      return;
+    }
+    await copyAmbassadorLink();
+  }
+
+  if (state === "done") return <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-emerald-950"><h3 className="text-xl font-black">{arabic ? "تم إرسال طلب السفير بنجاح." : "Ambassador application submitted successfully."}</h3><p className="mt-3 leading-7">{arabic ? "سيتم مراجعة البيانات وتفعيل الحساب بعد الموافقة من الإدارة." : "Your information will be reviewed and the account activated after administrative approval."}</p><p className="mt-4 inline-flex rounded-full bg-emerald-100 px-4 py-2 text-sm font-black">{arabic ? "حالة الطلب: قيد المراجعة" : "Application status: Under review"}</p><div className="mt-6 border-t border-emerald-200 pt-5"><p className="font-bold">{arabic ? "شارك صفحة «كن سفيرًا» مع شخص ترى فيه القدرة على بناء العلاقات والفرص؛ فقد تكون أنت بداية فرصة جديدة له." : "Share the ambassador page with someone who can build relationships and opportunities—you might open a new door for them."}</p><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3"><button type="button" onClick={() => shareTo("whatsapp")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400"><MessageCircle className="h-5 w-5" />WhatsApp</button><button type="button" onClick={() => shareTo("telegram")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400"><Send className="h-5 w-5" />Telegram</button><button type="button" onClick={() => shareTo("facebook")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400"><Facebook className="h-5 w-5" />Facebook</button><button type="button" onClick={() => shareTo("linkedin")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400"><Linkedin className="h-5 w-5" />LinkedIn</button><button type="button" onClick={() => void shareToInstagram()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400"><Instagram className="h-5 w-5" />Instagram</button><button type="button" onClick={() => void copyAmbassadorLink()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm font-black transition hover:border-emerald-400">{shareCopied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}{shareCopied ? (arabic ? "تم النسخ" : "Copied") : (arabic ? "نسخ الرابط" : "Copy link")}</button></div><button type="button" onClick={() => void shareAmbassadorPage()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 font-black text-white transition hover:opacity-90"><MoreHorizontal className="h-5 w-5" />{arabic ? "المزيد من خيارات المشاركة" : "More sharing options"}</button></div></div>;
+
+  return <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2"><input required name="name" placeholder={arabic ? "الاسم الكامل" : "Full name"} className="rounded-lg border p-3" /><input required type="email" name="email" placeholder={arabic ? "البريد الإلكتروني" : "Email"} className="rounded-lg border p-3" /><input name="phone" placeholder={arabic ? "رقم التواصل" : "Contact number"} className="rounded-lg border p-3" /><input required type="number" min="1" max="120" name="age" inputMode="numeric" placeholder={arabic ? "العمر" : "Age"} className="rounded-lg border p-3" /><input required name="market" placeholder={arabic ? "البلد أو السوق" : "Country or market"} className="rounded-lg border p-3 sm:col-span-2" /><textarea name="details" rows={5} placeholder={arabic ? "معلومات إضافية (اختياري)" : "Additional information (optional)"} className="rounded-lg border p-3 sm:col-span-2" />{state === "error" && <p className="text-red-700 sm:col-span-2">تعذر إرسال الطلب.</p>}<button disabled={state === "sending"} className="rounded-lg bg-ink px-5 py-3 font-semibold text-white sm:col-span-2">{state === "sending" ? (arabic ? "جارٍ الإرسال..." : "Submitting...") : (arabic ? "إرسال الطلب للمراجعة" : "Submit for review")}</button></form>;
 }
 
 export function CollaborationApplicationForm({ type, arabic }: { type: "PARTNER" | "AMBASSADOR"; arabic: boolean }) {

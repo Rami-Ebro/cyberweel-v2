@@ -9,6 +9,8 @@ import {
 } from "@/lib/accept-collaboration";
 import { AdminUserProfileError, validatedAdminUserProfile } from "@/lib/admin-user-profile";
 import { utcMonthRange } from "@/lib/ambassador-rewards";
+import { sendAmbassadorInvitation } from "@/lib/client-invitation";
+import { shouldSendAcceptanceInvitation } from "@/lib/account-invitation-policy";
 
 function rewardTotalsByCurrency(
   rewards: Array<{ amount: Prisma.Decimal; currency: string; status: string }>,
@@ -185,6 +187,25 @@ export async function PATCH(request: NextRequest) {
         password: typeof body.password === "string" ? body.password : "",
         decidedById: access?.userId || null,
       });
+
+      if (body.status === "ACCEPTED" && shouldSendAcceptanceInvitation(result)) {
+        const invitation = await sendAmbassadorInvitation(
+          result.userId,
+          result.email,
+          request.nextUrl.origin,
+        ).catch((error) => {
+          console.error("[ambassador-acceptance] Invitation failed after account creation", error);
+          return { sent: false, error: "EMAIL_SEND_FAILED", invitationUrl: undefined };
+        });
+        return NextResponse.json({
+          ok: true,
+          idempotent: false,
+          invitationSent: invitation.sent,
+          inviteError: invitation.error,
+          invitationUrl: invitation.invitationUrl,
+        });
+      }
+
       return NextResponse.json({ ok: true, idempotent: Boolean(result.idempotent) });
     } catch (error) {
       if (error instanceof AcceptApplicationError) {

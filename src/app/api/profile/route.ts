@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
   const user = await db.user.findUnique({
     where: { id: session.userId },
     select: {
+      email: true,
       role: true,
       partner: {
         select: {
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
       },
       ambassador: {
         select: {
+          id: true,
           status: true,
           age: true,
           phone: true,
@@ -65,6 +67,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     role,
+    accountEmail: user.email,
     profile: role === "AMBASSADOR" ? user.ambassador : user.partner,
   });
 }
@@ -132,6 +135,12 @@ export async function POST(request: NextRequest) {
     const payoutDetails = value(body?.payoutDetails, 2000);
     if (!Number.isInteger(age) || age < 1 || age > 120 || !phone || !country || !contactMethod || !payoutMethod || !payoutDetails) {
       return NextResponse.json({ error: "REQUIRED_FIELDS" }, { status: 400 });
+    }
+    if (payoutMethod === "شام كاش") {
+      const shamCashAccount = payoutDetails.split(/\r?\n/).find((line) => line.startsWith("البيانات: "))?.slice("البيانات: ".length).trim() || "";
+      if (!/^\d{16}$/.test(shamCashAccount)) {
+        return NextResponse.json({ error: "INVALID_SHAM_CASH_ACCOUNT" }, { status: 400 });
+      }
     }
     await db.ambassador.update({
       where: { id: user.ambassador.id },
