@@ -210,7 +210,7 @@ function ReferralEditor({
   const [conversionBusy, setConversionBusy] = useState(false);
   const [conversionSucceeded, setConversionSucceeded] = useState(false);
   const [conversionMessage, setConversionMessage] = useState("");
-  const [draft, setDraft] = useState<ReferralDraft>({
+  const initialDraft = useMemo<ReferralDraft>(() => ({
     status: referral.status,
     adminDecision: referral.adminDecision || "PENDING_REVIEW",
     adminNotes: referral.adminNotes || "",
@@ -219,7 +219,12 @@ function ReferralEditor({
     commissionRate: referral.commissionRate,
     commissionCurrency: referral.commissionCurrency || referral.clientProject?.currency || "USD",
     commissionStatus: referral.commissionStatus,
-  });
+  }), [referral]);
+  const [draft, setDraft] = useState<ReferralDraft>(initialDraft);
+  const hasUnsavedChanges = useMemo(
+    () => JSON.stringify(draft) !== JSON.stringify(initialDraft),
+    [draft, initialDraft],
+  );
   const owner = referral.ambassador?.user || referral.partner?.user;
   const commissionAllowed = ["ACCEPTED", "CONVERTED_TO_CLIENT"].includes(draft.adminDecision) || draft.status === "CONVERTED";
   const estimatedAmount = useMemo(() => {
@@ -413,7 +418,7 @@ function ReferralEditor({
 
       <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-[#EEE7DA] px-5 py-4">
         <div className="flex items-center gap-2 text-xs text-slate-500"><Clock3 className="h-4 w-4" />{referral.updatedBy ? <span>آخر تعديل: {referral.updatedBy.name || referral.updatedBy.email} · <DateText value={referral.updatedAt} withTime /></span> : <span>لم يُسجّل تعديل إداري بعد</span>}</div>
-        {!showConversion && !conversionSucceeded && <button disabled={busy} onClick={() => void onSave(referral, draft)} className="rounded-xl bg-[#111827] px-6 py-3 font-black text-white transition hover:bg-[#1F2937] disabled:cursor-wait disabled:opacity-50">{busy ? "جارٍ الحفظ..." : "حفظ التغييرات"}</button>}
+        {!showConversion && !conversionSucceeded && (!referral.convertedClient || hasUnsavedChanges) && <button disabled={busy} onClick={() => void onSave(referral, draft)} className="rounded-xl bg-[#111827] px-6 py-3 font-black text-white transition hover:bg-[#1F2937] disabled:cursor-wait disabled:opacity-50">{busy ? "جارٍ الحفظ..." : referral.convertedClient ? "حفظ التعديلات الإدارية" : "حفظ التغييرات"}</button>}
       </footer>
     </article>
   );
