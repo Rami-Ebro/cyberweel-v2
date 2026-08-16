@@ -208,6 +208,7 @@ function ReferralEditor({
 }) {
   const [showConversion, setShowConversion] = useState(false);
   const [conversionBusy, setConversionBusy] = useState(false);
+  const [conversionSucceeded, setConversionSucceeded] = useState(false);
   const [conversionMessage, setConversionMessage] = useState("");
   const [draft, setDraft] = useState<ReferralDraft>({
     status: referral.status,
@@ -239,10 +240,21 @@ function ReferralEditor({
   async function convertToClient(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setConversionBusy(true);
+    setConversionSucceeded(false);
     setConversionMessage("");
     const form = new FormData(event.currentTarget);
     const payload = Object.fromEntries(form.entries());
     try {
+      const saveResponse = await fetch("/api/admin/referrals", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: referral.id, ...draft }),
+      });
+      const saveData = await saveResponse.json();
+      if (!saveResponse.ok) {
+        throw new Error(errorLabels[saveData.error] || dashboardErrorMessage(saveData.error, "تعذر حفظ بيانات الإحالة قبل التحويل"));
+      }
+
       let response = await fetch("/api/admin/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, referralId: referral.id, sendInvite: form.get("sendInvite") === "on" }) });
       let data = await response.json();
       if (data.error === "PHONE_MATCH_REQUIRES_CONFIRMATION" && window.confirm("رقم الهاتف مستخدم في حساب آخر. هل تريد المتابعة وربط التحويل بالبريد؟")) {
@@ -250,8 +262,14 @@ function ReferralEditor({
         data = await response.json();
       }
       if (!response.ok) throw new Error(dashboardErrorMessage(data.error, "تعذر تحويل الإحالة"));
-      setConversionMessage(data.reusedExistingClient ? "رُبطت الإحالة بالعميل الموجود بهذا البريد." : "تم إنشاء العميل وربط الإحالة بنجاح.");
-      window.setTimeout(() => window.location.reload(), 700);
+
+      setConversionSucceeded(true);
+      setConversionMessage(
+        data.reusedExistingClient
+          ? "تم حفظ التغييرات وربط الإحالة بالعميل الموجود بنجاح."
+          : "تم حفظ البيانات وتحويل الإحالة إلى عميل بنجاح.",
+      );
+      window.setTimeout(() => window.location.reload(), 1800);
     } catch (cause) {
       setConversionMessage(cause instanceof Error ? cause.message : "تعذر تحويل الإحالة");
     } finally {
@@ -374,10 +392,10 @@ function ReferralEditor({
 
       <section className="mx-5 mb-5 rounded-2xl border border-[#D8D2C4] bg-[#FCFAF6] p-4">
         {referral.convertedClient ? (
-          <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-black">تم التحويل</h3><p className="mt-1 text-sm text-slate-600">مرتبط بالعميل {referral.convertedClient.name || referral.convertedClient.email}</p></div><button disabled className="rounded-xl bg-slate-200 px-5 py-3 font-bold text-slate-500">تم التحويل</button></div>
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-black">تم التحويل</h3><p className="mt-1 text-sm text-slate-600">مرتبط بالعميل {referral.convertedClient.name || referral.convertedClient.email}</p></div><button disabled className="rounded-xl bg-slate-200 px-5 py-3 font-bold text-slate-500">تم التحويل ✓</button></div>
         ) : (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-black">تحويل الإحالة إلى عميل</h3><p className="mt-1 text-sm text-slate-600">يتطلب حالة «مهتم» وقرار «مقبولة». ينشئ ملف العميل فقط؛ المشروع يبقى خطوة مستقلة.</p></div><button type="button" disabled={draft.status !== "INTERESTED" || draft.adminDecision !== "ACCEPTED" || !referral.email} onClick={() => setShowConversion((value) => !value)} className="rounded-xl bg-[#B89A5A] px-5 py-3 font-bold text-[#111827] disabled:cursor-not-allowed disabled:opacity-50">{showConversion ? "إغلاق النموذج" : "تحويل إلى عميل"}</button></div>
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-black">تحويل الإحالة إلى عميل</h3><p className="mt-1 text-sm text-slate-600">اختر حالة «مهتم» وقرار «مقبولة»، ثم نفّذ التحويل. سيحفظ النظام هذه التغييرات تلقائيًا قبل إنشاء العميل.</p></div><button type="button" disabled={draft.status !== "INTERESTED" || draft.adminDecision !== "ACCEPTED" || !referral.email || conversionBusy || conversionSucceeded} onClick={() => setShowConversion((value) => !value)} className="rounded-xl bg-[#B89A5A] px-5 py-3 font-bold text-[#111827] disabled:cursor-not-allowed disabled:opacity-50">{conversionSucceeded ? "تم التحويل ✓" : showConversion ? "إلغاء التحويل" : "تحويل إلى عميل"}</button></div>
             {showConversion && <form onSubmit={convertToClient} className="mt-4 grid gap-3 md:grid-cols-2">
               <label className="grid gap-1 text-sm font-bold">الاسم<input name="name" required defaultValue={referral.name || ""} className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal" /></label>
               <label className="grid gap-1 text-sm font-bold">البريد<input name="email" type="email" required defaultValue={referral.email || ""} className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal" /></label>
@@ -385,9 +403,9 @@ function ReferralEditor({
               <label className="grid gap-1 text-sm font-bold">الشركة<input name="company" defaultValue={referral.company || ""} className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal" /></label>
               <label className="grid gap-1 text-sm font-bold">اللغة<select name="preferredLanguage" defaultValue="ar" className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal"><option value="ar">العربية</option><option value="en">English</option></select></label>
               <label className="grid gap-1 text-sm font-bold">ملاحظات داخلية<textarea name="internalNotes" className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal" /></label>
-              <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" name="sendInvite" /> إرسال دعوة الدخول بعد الحفظ</label>
-              <button disabled={conversionBusy} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50">{conversionBusy ? "جارٍ التحويل..." : "حفظ العميل والتحويل"}</button>
-              {conversionMessage && <p className="md:col-span-2 text-sm font-bold text-slate-700">{conversionMessage}</p>}
+              <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" name="sendInvite" /> إرسال دعوة الدخول بعد التحويل</label>
+              <button disabled={conversionBusy || conversionSucceeded} className="rounded-xl bg-[#B89A5A] px-5 py-3 font-black text-[#111827] transition hover:bg-[#C6AA69] disabled:cursor-wait disabled:opacity-50">{conversionBusy ? "جارٍ الحفظ والتحويل..." : conversionSucceeded ? "تم التحويل ✓" : "حفظ وتحويل إلى عميل"}</button>
+              {conversionMessage && <p role={conversionSucceeded ? "status" : "alert"} className={`md:col-span-2 rounded-xl border p-3 text-sm font-bold ${conversionSucceeded ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}>{conversionMessage}</p>}
             </form>}
           </>
         )}
@@ -395,7 +413,7 @@ function ReferralEditor({
 
       <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-[#EEE7DA] px-5 py-4">
         <div className="flex items-center gap-2 text-xs text-slate-500"><Clock3 className="h-4 w-4" />{referral.updatedBy ? <span>آخر تعديل: {referral.updatedBy.name || referral.updatedBy.email} · <DateText value={referral.updatedAt} withTime /></span> : <span>لم يُسجّل تعديل إداري بعد</span>}</div>
-        <button disabled={busy} onClick={() => void onSave(referral, draft)} className="rounded-xl bg-[#111827] px-6 py-3 font-black text-white transition hover:bg-[#1F2937] disabled:cursor-wait disabled:opacity-50">{busy ? "جارٍ الحفظ..." : "حفظ التغييرات"}</button>
+        {!showConversion && !conversionSucceeded && <button disabled={busy} onClick={() => void onSave(referral, draft)} className="rounded-xl bg-[#111827] px-6 py-3 font-black text-white transition hover:bg-[#1F2937] disabled:cursor-wait disabled:opacity-50">{busy ? "جارٍ الحفظ..." : "حفظ التغييرات"}</button>}
       </footer>
     </article>
   );
