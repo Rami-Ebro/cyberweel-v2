@@ -39,12 +39,15 @@ export async function rewardRateForNewProject(
   qualifiedAt = new Date(),
 ) {
   const { start, end } = utcMonthRange(qualifiedAt);
-  const [successfulBefore, configuredLevels] = await Promise.all([
-    tx.clientProject.count({
+  const [successfulProjects, configuredLevels] = await Promise.all([
+    tx.ambassadorReward.findMany({
       where: {
-        referral: { ambassadorId },
-        ambassadorQualifiedAt: { gte: start, lt: end },
+        ambassadorId,
+        status: { in: ["EARNED", "PAID"] },
+        earnedAt: { gte: start, lt: end },
       },
+      select: { projectId: true },
+      distinct: ["projectId"],
     }),
     tx.ambassadorRewardLevel.findMany({
       where: { isActive: true },
@@ -53,7 +56,7 @@ export async function rewardRateForNewProject(
   ]);
 
   const levels = configuredLevels.length ? configuredLevels : DEFAULT_AMBASSADOR_REWARD_LEVELS;
-  const referralPosition = successfulBefore + 1;
+  const referralPosition = successfulProjects.length + 1;
   const level = [...levels]
     .reverse()
     .find((item) => item.minSuccessfulReferrals <= referralPosition) || levels[0];
