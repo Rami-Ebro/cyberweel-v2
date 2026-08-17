@@ -193,6 +193,12 @@ export async function GET(request: NextRequest) {
         earned: item.earned.toFixed(2),
         paid: item.paid.toFixed(2),
       })),
+      rewardLevels: rewardLevels.map((level) => ({
+        id: level.id,
+        name: level.name,
+        minSuccessfulReferrals: level.minSuccessfulReferrals,
+        rate: level.rate.toString(),
+      })),
       monthlyLevel: {
         successfulReferrals: successfulThisMonth,
         name: currentLevel?.name || "البداية",
