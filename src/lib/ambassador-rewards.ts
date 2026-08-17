@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 
 type RewardClient = Pick<
   Prisma.TransactionClient,
-  "ambassadorRewardLevel" | "clientProject" | "projectStage" | "ambassadorReward"
+  "clientProject" | "projectStage" | "ambassadorReward"
 >;
 
 export const DEFAULT_AMBASSADOR_REWARD_LEVELS = [
@@ -39,23 +39,17 @@ export async function rewardRateForNewProject(
   qualifiedAt = new Date(),
 ) {
   const { start, end } = utcMonthRange(qualifiedAt);
-  const [successfulProjects, configuredLevels] = await Promise.all([
-    tx.ambassadorReward.findMany({
-      where: {
-        ambassadorId,
-        status: { in: ["EARNED", "PAID"] },
-        earnedAt: { gte: start, lt: end },
-      },
-      select: { projectId: true },
-      distinct: ["projectId"],
-    }),
-    tx.ambassadorRewardLevel.findMany({
-      where: { isActive: true },
-      orderBy: { minSuccessfulReferrals: "asc" },
-    }),
-  ]);
+  const successfulProjects = await tx.ambassadorReward.findMany({
+    where: {
+      ambassadorId,
+      status: { in: ["EARNED", "PAID"] },
+      earnedAt: { gte: start, lt: end },
+    },
+    select: { projectId: true },
+    distinct: ["projectId"],
+  });
 
-  const levels = configuredLevels.length ? configuredLevels : DEFAULT_AMBASSADOR_REWARD_LEVELS;
+  const levels = DEFAULT_AMBASSADOR_REWARD_LEVELS;
   const referralPosition = successfulProjects.length + 1;
   const level = [...levels]
     .reverse()
