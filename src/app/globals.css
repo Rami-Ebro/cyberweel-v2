@@ -67,24 +67,24 @@
   --bone: #D8D2C4;
 
   /* Semantic mapping */
-  --background: #F7F3EB;            /* Floral White — page bg */
-  --foreground: #111827;            /* Ink Black */
-  --card: #FFFFFF;                  /* clean card surface */
+  --background: #F7F3EB;
+  --foreground: #111827;
+  --card: #FFFFFF;
   --card-foreground: #111827;
   --popover: #FFFFFF;
   --popover-foreground: #111827;
-  --primary: #111827;               /* Ink Black */
-  --primary-foreground: #F7F3EB;    /* Floral White */
-  --secondary: #D8D2C4;             /* Bone */
+  --primary: #111827;
+  --primary-foreground: #F7F3EB;
+  --secondary: #D8D2C4;
   --secondary-foreground: #111827;
-  --muted: #ECE7DA;                 /* warm muted surface between floral & bone */
-  --muted-foreground: #5B5F6A;      /* calm neutral ink for body text */
-  --accent: #B89A5A;                /* Camel */
+  --muted: #ECE7DA;
+  --muted-foreground: #5B5F6A;
+  --accent: #B89A5A;
   --accent-foreground: #111827;
-  --destructive: #9B3A3A;           /* quiet, non-techy red */
-  --border: #D8D2C4;                /* Bone */
+  --destructive: #9B3A3A;
+  --border: #D8D2C4;
   --input: #D8D2C4;
-  --ring: #B89A5A;                  /* Camel focus ring */
+  --ring: #B89A5A;
   --chart-1: #111827;
   --chart-2: #B89A5A;
   --chart-3: #D8D2C4;
@@ -114,9 +114,6 @@
     -webkit-font-smoothing: antialiased;
     font-weight: 400;
   }
-  /* Supporting text — visibly heavier for confidence and readability.
-     Targets paragraphs carrying muted-foreground (captions, descriptions,
-     methodology, FAQ, footer) without touching display headings. */
   p.text-muted-foreground,
   li.text-muted-foreground,
   span.text-muted-foreground {
@@ -127,9 +124,6 @@
   [dir="rtl"] span.text-muted-foreground {
     font-weight: 700;
   }
-  /* Arabic typography: switch to Arabic fonts when RTL.
-     Override the underlying font CSS variables on body so every utility
-     that references them (font-sans, font-display, body) picks up Arabic. */
   [dir="rtl"] body {
     --font-inter: var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
     --font-display: var(--font-display-arabic), Georgia, serif;
@@ -142,7 +136,6 @@
     background: var(--camel);
     color: var(--ink);
   }
-  /* Refined scrollbar */
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
@@ -161,39 +154,32 @@
 }
 
 @layer utilities {
-  /* Display serif for premium headings */
   .font-display {
     font-family: var(--font-display), Georgia, "Times New Roman", serif;
   }
-  /* Quiet uppercase eyebrow label */
   .eyebrow {
     @apply text-sm font-medium uppercase tracking-[0.22em] text-muted-foreground;
   }
   .eyebrow-camel {
     @apply text-sm font-medium uppercase tracking-[0.22em] text-accent;
   }
-  /* Subtle hairline divider */
   .hairline {
     @apply h-px w-full bg-border;
   }
-  /* Calm focus visible for keyboard users */
   .focus-ring:focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
-  /* Container rhythm */
   .cw-container {
     @apply mx-auto w-full max-w-6xl px-6 sm:px-8 lg:px-10;
   }
   .cw-container-narrow {
     @apply mx-auto w-full max-w-3xl px-6 sm:px-8;
   }
-  /* Quiet paper texture for muted sections — adds depth without noise */
   .section-texture {
     background-image:
       radial-gradient(circle at 1px 1px, rgba(17, 24, 39, 0.025) 1px, transparent 0);
     background-size: 22px 22px;
   }
-  /* Quiet texture for dark/ink sections */
   .section-texture-dark {
     background-image:
       radial-gradient(circle at 1px 1px, rgba(247, 243, 235, 0.03) 1px, transparent 0);
@@ -207,8 +193,14 @@
   }
 }
 
-/* Time controls remain isolated from surrounding Arabic text. Date controls
-   use the shared DateInput component for a stable YYYY/MM/DD view. */
+/* Keep status pills compact inside expandable admin client cards. */
+.group > summary span.bg-emerald-100.text-emerald-800,
+.group > summary span.bg-red-100.text-red-800 {
+  align-self: flex-start;
+  height: fit-content;
+  white-space: nowrap;
+}
+
 input[type="datetime-local"],
 input[type="time"] {
   direction: ltr;
@@ -224,9 +216,6 @@ input[type="time"]::-webkit-datetime-edit-fields-wrapper {
   text-align: left;
 }
 
-/* ─────────────────────────────────────────────────────────────
-   Print styles — calm, readable hard copy for the consultancy
-   ───────────────────────────────────────────────────────────── */
 @media print {
   header,
   footer,
@@ -276,9 +265,6 @@ input[type="time"]::-webkit-datetime-edit-fields-wrapper {
   }
 }
 
-/* ─────────────────────────────────────────────────────────────
-   Reduced motion — respect user preference, keep transitions calm
-   ───────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
