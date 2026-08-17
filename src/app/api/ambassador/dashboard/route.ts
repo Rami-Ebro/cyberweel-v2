@@ -268,17 +268,58 @@ export async function POST(request: NextRequest) {
   if (
     !name ||
     name.length > 120 ||
+    !email ||
     email.length > 254 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
     phone.length > 40 ||
+    !contactMethod ||
     contactMethod.length > 160 ||
     company.length > 160 ||
     !needs ||
     needs.length > 2000 ||
-    extraNotes.length > 2000 ||
-    (!email && !phone && !contactMethod) ||
-    (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    extraNotes.length > 2000
   ) {
-    return NextResponse.json({ error: "أدخل اسم العميل ووسيلة تواصل وتفاصيل الإحالة" }, { status: 400 });
+    return NextResponse.json(
+      { error: "INVALID_REFERRAL", message: "أدخل اسم العميل والبريد الإلكتروني ووسيلة تواصل إضافية واحتياجه بشكل صحيح." },
+      { status: 400 },
+    );
+  }
+
+  if (email === user.email.trim().toLowerCase()) {
+    return NextResponse.json(
+      { error: "SELF_REFERRAL", message: "لا يمكنك تسجيل بريد حسابك كإحالة عميل." },
+      { status: 409 },
+    );
+  }
+
+  const [existingReferral, existingUser] = await Promise.all([
+    db.partnerReferral.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      select: { id: true, status: true, ambassadorId: true, convertedClientId: true },
+    }),
+    db.user.findUnique({
+      where: { email },
+      select: { id: true, role: true },
+    }),
+  ]);
+
+  if (existingReferral) {
+    return NextResponse.json(
+      {
+        error: "DUPLICATE_REFERRAL_EMAIL",
+        message: existingReferral.ambassadorId === user.ambassador!.id
+          ? "هذا البريد مسجل بالفعل ضمن إحالاتك. تابع الإحالة الحالية بدل إنشاء نسخة جديدة."
+          : "هذا البريد مسجل بالفعل كإحالة في CyberWeel ولا يمكن إنشاء إحالة مكررة.",
+      },
+      { status: 409 },
+    );
+  }
+
+  if (existingUser) {
+    return NextResponse.json(
+      { error: "EXISTING_ACCOUNT_EMAIL", message: "هذا البريد مرتبط بحساب موجود في CyberWeel ولا يمكن تسجيله كإحالة جديدة." },
+      { status: 409 },
+    );
   }
 
   const notes = extraNotes ? `${needs}\n\nملاحظات السفير: ${extraNotes}` : needs;
@@ -287,10 +328,10 @@ export async function POST(request: NextRequest) {
     data: {
       ambassadorId: user.ambassador!.id,
       name,
-      email: email || null,
+      email,
       phone: phone || null,
       company: company || null,
-      contactMethod: contactMethod || null,
+      contactMethod,
       notes,
       source: "إضافة مباشرة من السفير",
       sourcePath: "/ambassador/dashboard",
