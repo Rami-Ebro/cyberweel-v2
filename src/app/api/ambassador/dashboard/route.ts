@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
   }
 
   const month = utcMonthRange();
-  const [rawReferrals, rawRewards, configuredRewardLevels, successfulThisMonth] = await Promise.all([
+  const [rawReferrals, rawRewards, configuredRewardLevels, successfulProjectsThisMonth] = await Promise.all([
     db.partnerReferral.findMany({
       where: { ambassadorId: user.ambassador!.id },
       orderBy: { createdAt: "desc" },
@@ -106,15 +106,39 @@ export async function GET(request: NextRequest) {
       },
     }),
     db.ambassadorRewardLevel.findMany({ where: { isActive: true }, orderBy: { minSuccessfulReferrals: "asc" } }),
-    db.clientProject.count({
+    db.ambassadorReward.findMany({
       where: {
-        referral: { ambassadorId: user.ambassador!.id },
-        ambassadorQualifiedAt: { gte: month.start, lt: month.end },
+        ambassadorId: user.ambassador!.id,
+        status: { in: ["EARNED", "PAID"] },
+        earnedAt: { gte: month.start, lt: month.end },
       },
+      select: { projectId: true },
+      distinct: ["projectId"],
     }),
   ]);
+  const successfulThisMonth = successfulProjectsThisMonth.length;
+  const successfulReferralIds = new Set(
+    rawRewards
+      .filter((reward) =>
+        ["EARNED", "PAID"].includes(reward.status) &&
+        reward.earnedAt &&
+        reward.earnedAt >= month.start &&
+        reward.earnedAt < month.end,
+      )
+      .map((reward) => reward.referralId),
+  );
   const rewardLevels = configuredRewardLevels.length ? configuredRewardLevels : DEFAULT_AMBASSADOR_REWARD_LEVELS;
-  const referrals = rawReferrals.map(serializeReferral);
+  const referrals = rawReferrals.map((rawReferral) => {
+    const referral = serializeReferral(rawReferral);
+    const displayStatus = successfulReferralIds.has(rawReferral.id)
+      ? "إحالة ناجحة"
+      : referral.clientProject?.ambassadorRewardRate
+        ? "تم الاتفاق — بانتظار أول دفعة"
+        : rawReferral.status === "INTERESTED"
+          ? "قيد التفاوض"
+          : rawReferral.status;
+    return { ...referral, status: displayStatus };
+  });
   const summaries = new Map<string, {
     currency: string;
     pending: number;
@@ -152,7 +176,9 @@ export async function GET(request: NextRequest) {
       amount: reward.amount.toString(),
     };
   });
-  const currentLevel = [...rewardLevels].reverse().find((level) => level.minSuccessfulReferrals <= Math.max(successfulThisMonth, 1)) || rewardLevels[0] || null;
+  const currentLevel = successfulThisMonth
+    ? [...rewardLevels].reverse().find((level) => level.minSuccessfulReferrals <= successfulThisMonth) || null
+    : null;
   const nextLevel = rewardLevels.find((level) => level.minSuccessfulReferrals > successfulThisMonth) || null;
 
   const code = formatAmbassadorReferralCode(user.ambassador!.referralNumber);
@@ -173,12 +199,12 @@ export async function GET(request: NextRequest) {
     isAdminPreview: user.isAdminPreview,
     stats: {
       referrals: referrals.length,
-      followUp: referrals.filter((item) =>
+      followUp: rawReferrals.filter((item) =>
         ["NEW", "CONTACTED", "INTERESTED", "AWAITING_RESPONSE"].includes(item.status) &&
         !["REJECTED", "CANCELLED"].includes(item.adminDecision || ""),
       ).length,
-      converted: referrals.filter((item) => item.status === "CONVERTED").length,
-      qualified: referrals.filter((item) => item.status === "INTERESTED").length,
+      converted: rawReferrals.filter((item) => item.status === "CONVERTED").length,
+      qualified: rawReferrals.filter((item) => item.status === "INTERESTED").length,
       commissionsByCurrency: Array.from(summaries.values()).map((item) => ({
         currency: item.currency,
         pending: item.pending.toFixed(2),
