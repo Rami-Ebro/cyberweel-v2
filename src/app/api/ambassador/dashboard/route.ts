@@ -323,19 +323,34 @@ export async function POST(request: NextRequest) {
   }
 
   const notes = extraNotes ? `${needs}\n\nملاحظات السفير: ${extraNotes}` : needs;
+  const ambassadorCode = formatAmbassadorReferralCode(user.ambassador!.referralNumber);
+  const ambassadorName = user.name || user.email;
 
-  const referral = await db.partnerReferral.create({
-    data: {
-      ambassadorId: user.ambassador!.id,
-      name,
-      email,
-      phone: phone || null,
-      company: company || null,
-      contactMethod,
-      notes,
-      source: "إضافة مباشرة من السفير",
-      sourcePath: "/ambassador/dashboard",
-    },
+  const referral = await db.$transaction(async (tx) => {
+    const createdReferral = await tx.partnerReferral.create({
+      data: {
+        ambassadorId: user.ambassador!.id,
+        name,
+        email,
+        phone: phone || null,
+        company: company || null,
+        contactMethod,
+        notes,
+        source: "إضافة مباشرة من السفير",
+        sourcePath: "/ambassador/dashboard",
+      },
+    });
+
+    await tx.adminNotification.create({
+      data: {
+        title: "إحالة مباشرة جديدة من سفير",
+        body: `${ambassadorName} (${ambassadorCode}) أرسل إحالة جديدة للعميل ${name}.`,
+        href: "/admin/referrals",
+        kind: "AMBASSADOR_DIRECT_REFERRAL",
+      },
+    });
+
+    return createdReferral;
   });
 
   return NextResponse.json({ referral: serializeReferral(referral) }, { status: 201 });
