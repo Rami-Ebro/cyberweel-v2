@@ -219,6 +219,37 @@ export async function POST(request: NextRequest) {
             approvedById: approved ? access.userId : null,
           },
         });
+
+        const firstStage = await tx.projectStage.findFirst({
+          where: { projectId: existing.projectId },
+          orderBy: { createdAt: "asc" },
+          select: { id: true },
+        });
+        let syncedInvoiceId: string | null = null;
+        if (firstStage?.id === stage.id) {
+          const linkedInvoice = await tx.clientInvoice.findFirst({
+            where: {
+              projectId: existing.projectId,
+              type: "STANDARD",
+              amount: existing.amount,
+              currency: existing.currency,
+              createdAt: {
+                gte: existing.createdAt,
+                lte: new Date(existing.createdAt.getTime() + 15_000),
+              },
+            },
+            orderBy: { createdAt: "asc" },
+            select: { id: true },
+          });
+          if (linkedInvoice) {
+            await tx.clientInvoice.update({
+              where: { id: linkedInvoice.id },
+              data: { amount, dueAt },
+            });
+            syncedInvoiceId = linkedInvoice.id;
+          }
+        }
+
         const reward = await syncStageReward(tx, stage.id);
         await writeAdminAudit(tx, {
           actorId: access.userId,
@@ -227,8 +258,8 @@ export async function POST(request: NextRequest) {
           entityType: "PROJECT_STAGE",
           entityId: stage.id,
           entityLabel: `${existing.project.title} — ${stage.name}`,
-          before: { status: existing.status, paymentStatus: existing.paymentStatus, amount: existing.amount.toString() },
-          after: { status, paymentStatus, amount: String(amount), approved, rewardStatus: reward?.status || null },
+          before: { status: existing.status, paymentStatus: existing.paymentStatus, amount: existing.amount.toString(), dueAt: existing.startsAt?.toISOString() || null },
+          after: { status, paymentStatus, amount: String(amount), dueAt: dueAt?.toISOString() || null, approved, rewardStatus: reward?.status || null, syncedInvoiceId },
         });
         return stage;
       });
