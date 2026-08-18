@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ChevronDown, ClipboardList } from "lucide-react";
 import { DateText } from "@/components/ui/date-text";
 
@@ -70,6 +71,6 @@ export function ClientExecutionPlan({ stages }: { stages: ClientProjectStage[] }
   );
 }
 
-function PlanFact({ label, value }: { label: string; value: React.ReactNode }) {
+function PlanFact({ label, value }: { label: string; value: ReactNode }) {
   return <div className="rounded-xl bg-white p-3"><p className="text-xs font-bold text-slate-500">{label}</p><div className="mt-1 font-black">{value}</div></div>;
 }
