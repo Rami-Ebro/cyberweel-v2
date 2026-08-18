@@ -2,6 +2,26 @@ import { db } from "@/lib/db";
 import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
 import { NextRequest, NextResponse } from "next/server";
 
+function normalizeDigits(value: string) {
+  const arabic = "٠١٢٣٤٥٦٧٨٩";
+  const eastern = "۰۱۲۳۴۵۶۷۸۹";
+  return value
+    .replace(/[٠-٩]/g, (digit) => String(arabic.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String(eastern.indexOf(digit)));
+}
+
+function plannedTotal(financialPlan: string | null) {
+  return (financialPlan || "")
+    .split(/\r?\n/)
+    .map((line) => normalizeDigits(line))
+    .map((line) => {
+      const match = line.match(/(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة))/i);
+      return Number((match?.[1] || match?.[2] || "0").replace(/,/g, ""));
+    })
+    .filter((amount) => Number.isFinite(amount) && amount > 0)
+    .reduce((sum, amount) => sum + amount, 0);
+}
+
 export async function GET(request: NextRequest) {
   const session = readPartnerSession(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
   if (!session) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
@@ -96,6 +116,9 @@ export async function GET(request: NextRequest) {
         dueAt: stage.startsAt,
         completedAt: stage.completedAt,
         paidAt: stage.paidAt,
+        projectProgress: project.progress,
+        projectStatus: project.status,
+        plannedTotal: plannedTotal(project.financialPlan),
       })),
       files: project.files.map((file) => ({
         ...file,
