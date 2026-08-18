@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronDown, ClipboardList, Plus } from "lucide-react";
+import { CalendarDays, ChevronDown, ClipboardList, Plus, ReceiptText } from "lucide-react";
 import { DateInput } from "@/components/ui/date-input";
 import { DateText } from "@/components/ui/date-text";
 import { dashboardLabel } from "@/lib/dashboard-labels";
@@ -29,10 +29,12 @@ type Project = {
   title: string;
   currency: string;
   status: string;
+  financialPlan: string | null;
   client: { id: string; name: string | null; email: string };
   referral: { ambassadorId: string | null } | null;
   ambassadorRewardRate: string | null;
   projectStages: Stage[];
+  firstStageSuggestion: { name: string; amount: number } | null;
 };
 
 const stageStatusLabel: Record<StageStatus, string> = {
@@ -64,7 +66,7 @@ export default function ExecutionPlanPage() {
         setMessage(data.error || "تعذر تحميل خطة التنفيذ");
         return;
       }
-      const nextProjects = data.projects || [];
+      const nextProjects = (data.projects || []) as Project[];
       setProjects(nextProjects);
       setSelectedProjectId((current) => current || nextProjects[0]?.id || "");
     } catch {
@@ -88,6 +90,7 @@ export default function ExecutionPlanPage() {
     if (!selectedProject) return;
     const form = event.currentTarget;
     const data = new FormData(form);
+    const isFirstStage = selectedProject.projectStages.length === 0;
     setBusy("create");
     setMessage("");
     try {
@@ -100,6 +103,7 @@ export default function ExecutionPlanPage() {
           name: data.get("name"),
           amount: Number(data.get("amount")),
           dueAt: data.get("dueAt"),
+          sendPaymentRequest: isFirstStage,
         }),
       });
       const payload = await response.json().catch(() => ({}));
@@ -107,8 +111,11 @@ export default function ExecutionPlanPage() {
         setMessage(payload.error || "تعذر إضافة المرحلة");
         return;
       }
-      form.reset();
-      setMessage("تمت إضافة المرحلة إلى خطة التنفيذ.");
+      setMessage(
+        isFirstStage
+          ? `تم إنشاء المرحلة الأولى وإرسال مطالبة الدفع للعميل${payload.invoiceNumber ? ` — ${payload.invoiceNumber}` : ""}.`
+          : "تمت إضافة المرحلة إلى خطة التنفيذ.",
+      );
       await load();
     } catch {
       setMessage("تعذر الاتصال بالخادم. لم تُحفظ المرحلة.");
@@ -151,6 +158,9 @@ export default function ExecutionPlanPage() {
     }
   }
 
+  const firstStage = Boolean(selectedProject && selectedProject.projectStages.length === 0);
+  const suggestion = firstStage ? selectedProject?.firstStageSuggestion : null;
+
   return (
     <main dir="rtl" className="min-h-screen bg-[#F7F3EB] px-4 py-8 text-[#111827] sm:px-8">
       <div className="mx-auto max-w-6xl">
@@ -159,7 +169,7 @@ export default function ExecutionPlanPage() {
             <p className="text-sm font-black text-[#9A7D43]">إدارة المشاريع</p>
             <h1 className="mt-1 text-3xl font-black">خطة التنفيذ</h1>
             <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
-              مساحة تشغيلية مستقلة لمتابعة مراحل التنفيذ. الاتفاق الأساسي ونطاق المشروع والخطة المالية الأصلية تبقى دون تغيير.
+              خطة تشغيلية مستقلة عن الاتفاق الأساسي. تُستخدم لتنفيذ المراحل ومتابعة الدفع دون تعديل المرجع التعاقدي للمشروع.
             </p>
           </div>
           <Link href="/admin/partners?section=projects" className="rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 text-sm font-black shadow-sm">
@@ -174,9 +184,7 @@ export default function ExecutionPlanPage() {
             المشروع
             <select value={selectedProjectId} onChange={(event) => setSelectedProjectId(event.target.value)} className="field max-w-xl">
               {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.title} — {project.client.name || project.client.email}
-                </option>
+                <option key={project.id} value={project.id}>{project.title} — {project.client.name || project.client.email}</option>
               ))}
             </select>
           </label>
@@ -194,9 +202,7 @@ export default function ExecutionPlanPage() {
                     العميل: {selectedProject.client.name || selectedProject.client.email} · الحالة: {dashboardLabel(selectedProject.status, selectedProject.status)}
                   </p>
                 </div>
-                <span className="rounded-xl bg-[#F7F3EB] px-4 py-2 text-sm font-black text-[#9A7D43]">
-                  {selectedProject.projectStages.length} مرحلة
-                </span>
+                <span className="rounded-xl bg-[#F7F3EB] px-4 py-2 text-sm font-black text-[#9A7D43]">{selectedProject.projectStages.length} مرحلة</span>
               </div>
 
               <div className="mt-6 grid gap-4">
@@ -212,73 +218,58 @@ export default function ExecutionPlanPage() {
                         <span className="rounded-full bg-white px-3 py-1.5">{paymentStatusLabel[stage.paymentStatus]}</span>
                       </div>
                     </div>
-
                     <div className="mt-4 grid gap-3 sm:grid-cols-3">
                       <Fact label="المبلغ" value={`${stage.amount} ${stage.currency}`} />
                       <Fact label="حالة الدفع" value={paymentStatusLabel[stage.paymentStatus]} />
                       <Fact label="تاريخ الاستحقاق" value={<DateText value={stage.startsAt} fallback="غير محدد" />} />
                     </div>
-
                     <details className="group mt-4 rounded-xl border border-[#D8D2C4] bg-white">
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 font-black">
-                        تحديث المرحلة
-                        <ChevronDown className="h-5 w-5 transition group-open:rotate-180" />
+                        تحديث المرحلة <ChevronDown className="h-5 w-5 transition group-open:rotate-180" />
                       </summary>
                       <form onSubmit={(event) => updateStage(event, stage)} className="grid gap-4 border-t border-[#E6E0D4] p-4 md:grid-cols-2">
                         <Field label="اسم المرحلة"><input name="name" defaultValue={stage.name} required className="field" /></Field>
                         <Field label="المبلغ"><input name="amount" type="number" min="0.01" step="0.01" defaultValue={stage.amount} required className="field" /></Field>
-                        <Field label="الحالة">
-                          <select name="status" defaultValue={stage.status} className="field">
-                            {Object.entries(stageStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="حالة الدفع">
-                          <select name="paymentStatus" defaultValue={stage.paymentStatus} className="field">
-                            {Object.entries(paymentStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                          </select>
-                        </Field>
+                        <Field label="الحالة"><select name="status" defaultValue={stage.status} className="field">{Object.entries(stageStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
+                        <Field label="حالة الدفع"><select name="paymentStatus" defaultValue={stage.paymentStatus} className="field">{Object.entries(paymentStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
                         <Field label="تاريخ الاستحقاق"><DateInput name="dueAt" defaultValue={stage.startsAt?.slice(0, 10) || ""} className="field" /></Field>
-                        <label className="flex items-center gap-3 rounded-xl bg-[#F7F3EB] p-4 font-bold">
-                          <input name="approved" type="checkbox" defaultChecked={Boolean(stage.approvedAt)} />
-                          اعتماد المرحلة بعد اكتمالها
-                        </label>
-                        <button disabled={busy === stage.id} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50 md:col-span-2">
-                          {busy === stage.id ? "جارٍ الحفظ..." : "حفظ تحديث المرحلة"}
-                        </button>
+                        <label className="flex items-center gap-3 rounded-xl bg-[#F7F3EB] p-4 font-bold"><input name="approved" type="checkbox" defaultChecked={Boolean(stage.approvedAt)} /> اعتماد المرحلة بعد اكتمالها</label>
+                        <button disabled={busy === stage.id} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50 md:col-span-2">{busy === stage.id ? "جارٍ الحفظ..." : "حفظ تحديث المرحلة"}</button>
                       </form>
                     </details>
                   </article>
                 )) : (
                   <div className="rounded-2xl border border-dashed border-[#D8D2C4] bg-[#F7F3EB] p-8 text-center">
                     <ClipboardList className="mx-auto h-8 w-8 text-[#9A7D43]" />
-                    <p className="mt-3 font-black">لم تُضف مراحل تنفيذ بعد.</p>
-                    <p className="mt-1 text-sm text-slate-500">ابدأ بإضافة أول مرحلة من الزر أدناه.</p>
+                    <p className="mt-3 font-black">جاهز لإنشاء المرحلة الأولى.</p>
+                    <p className="mt-1 text-sm text-slate-500">سيستخدم النظام الخطة المالية الأصلية لملء بيانات المرحلة تلقائيًا متى أمكن.</p>
                   </div>
                 )}
               </div>
             </section>
 
-            <details className="group mt-6 rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
+            <details open={firstStage} className="group mt-6 rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-6">
                 <div className="flex items-center gap-3">
-                  <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#111827] text-white"><Plus className="h-5 w-5" /></span>
+                  <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#111827] text-white">{firstStage ? <ReceiptText className="h-5 w-5" /> : <Plus className="h-5 w-5" />}</span>
                   <div>
-                    <h2 className="text-xl font-black">+ إضافة مرحلة</h2>
-                    <p className="mt-1 text-sm text-slate-500">أضف مرحلة تشغيلية جديدة دون تعديل الاتفاق الأساسي.</p>
+                    <h2 className="text-xl font-black">{firstStage ? "المرحلة الأولى" : "+ إضافة مرحلة"}</h2>
+                    <p className="mt-1 text-sm text-slate-500">{firstStage ? "معبأة تلقائيًا من الخطة المالية الأصلية. راجعها ثم أرسل مطالبة الدفع." : "أضف مرحلة تشغيلية جديدة دون تعديل الاتفاق الأساسي."}</p>
                   </div>
                 </div>
                 <ChevronDown className="h-5 w-5 transition group-open:rotate-180" />
               </summary>
-              <form onSubmit={createStage} className="grid gap-4 border-t border-[#E6E0D4] p-6 md:grid-cols-2">
-                <Field label="اسم المرحلة"><input name="name" required placeholder="مثال: التحليل والتصميم" className="field" /></Field>
-                <Field label="المبلغ"><input name="amount" type="number" min="0.01" step="0.01" required placeholder="0.00" className="field" /></Field>
+              <form key={`${selectedProject.id}-${selectedProject.projectStages.length}`} onSubmit={createStage} className="grid gap-4 border-t border-[#E6E0D4] p-6 md:grid-cols-2">
+                <Field label="اسم المرحلة"><input name="name" required defaultValue={suggestion?.name || ""} placeholder="مثال: التحليل والتصميم" className="field" /></Field>
+                <Field label="المبلغ"><input name="amount" type="number" min="0.01" step="0.01" required defaultValue={suggestion?.amount || ""} placeholder="0.00" className="field" /></Field>
                 <Field label="تاريخ الاستحقاق"><DateInput name="dueAt" className="field" /></Field>
                 <div className="rounded-xl bg-[#F7F3EB] p-4 text-sm text-slate-600">
                   <div className="flex items-center gap-2 font-black text-[#111827]"><CalendarDays className="h-4 w-4" /> الحالة الأولية</div>
-                  <p className="mt-2">لم تبدأ · بانتظار الدفع. ويمكن تحديثها لاحقًا من بطاقة المرحلة.</p>
+                  <p className="mt-2">لم تبدأ · بانتظار الدفع.</p>
+                  {firstStage && <p className="mt-2 font-bold text-[#8A6E38]">عند الحفظ سيُنشئ النظام فاتورة مستحقة وإشعارًا داخل حساب العميل تلقائيًا.</p>}
                 </div>
                 <button disabled={busy === "create"} className="rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white disabled:opacity-50 md:col-span-2">
-                  {busy === "create" ? "جارٍ الإضافة..." : "+ إضافة المرحلة"}
+                  {busy === "create" ? "جارٍ الحفظ..." : firstStage ? "إنشاء المرحلة وإرسال مطالبة الدفع" : "+ إضافة المرحلة"}
                 </button>
               </form>
             </details>
@@ -287,16 +278,7 @@ export default function ExecutionPlanPage() {
           <div className="mt-6 rounded-2xl bg-white p-10 text-center shadow-sm">لا توجد مشاريع متاحة.</div>
         )}
       </div>
-
-      <style jsx global>{`
-        .field {
-          width: 100%;
-          border-radius: 0.75rem;
-          border: 1px solid #d8d2c4;
-          padding: 0.75rem 1rem;
-          background: white;
-        }
-      `}</style>
+      <style jsx global>{`.field{width:100%;border-radius:.75rem;border:1px solid #d8d2c4;padding:.75rem 1rem;background:white}`}</style>
     </main>
   );
 }
