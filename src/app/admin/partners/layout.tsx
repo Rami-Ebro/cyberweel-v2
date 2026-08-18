@@ -52,7 +52,17 @@ export default function AdminPartnersLayout({ children }: { children: ReactNode 
       const signature = projectCards
         .map((card) => `${card.querySelector("h3")?.textContent || ""}|${card.textContent?.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/)?.[0] || ""}`)
         .join("||");
-      if (signature === lastSignature && projectCards.every((card) => card.querySelector("[data-execution-plan-host]"))) return;
+
+      const accordionReady = projectCards.every((card) => {
+        const editDetails = Array.from(card.querySelectorAll<HTMLDetailsElement>("details")).find((details) =>
+          details.querySelector("summary")?.textContent?.includes("تعديل المشروع هنا"),
+        );
+        const host = card.querySelector<HTMLElement>("[data-execution-plan-host]");
+        const executionDetails = host?.querySelector<HTMLDetailsElement>("details");
+        return Boolean(editDetails?.getAttribute("name") && executionDetails?.getAttribute("name"));
+      });
+
+      if (signature === lastSignature && accordionReady) return;
       lastSignature = signature;
 
       try {
@@ -80,6 +90,12 @@ export default function AdminPartnersLayout({ children }: { children: ReactNode 
             host.dataset.executionPlanHost = project.id;
             editDetails.insertAdjacentElement("afterend", host);
           }
+
+          const accordionName = `project-actions-${project.id}`;
+          editDetails.setAttribute("name", accordionName);
+          const executionDetails = host.querySelector<HTMLDetailsElement>("details");
+          if (executionDetails) executionDetails.setAttribute("name", accordionName);
+
           nextTargets.push({ project, host });
         }
 
