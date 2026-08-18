@@ -2,13 +2,21 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { ClipboardList } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 
 export default function AdminPartnersLayout({ children }: { children: ReactNode }) {
-  const searchParams = useSearchParams();
-  const section = searchParams.get("section");
-  const showExecutionPlan = section === "projects";
+  const [showExecutionPlan, setShowExecutionPlan] = useState(false);
+
+  useEffect(() => {
+    const sync = () => {
+      const section = new URLSearchParams(window.location.search).get("section");
+      setShowExecutionPlan(section === "projects");
+    };
+    sync();
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
 
   return (
     <>
