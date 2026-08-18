@@ -4,7 +4,6 @@ import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ClipboardList, Plus } from "lucide-react";
 import { DateInput } from "@/components/ui/date-input";
 import { DateText } from "@/components/ui/date-text";
-import { dashboardLabel } from "@/lib/dashboard-labels";
 
 type StageStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 type StagePaymentStatus = "PENDING" | "PAID" | "CANCELLED";
@@ -207,23 +206,7 @@ export function ProjectExecutionPlan(props: Props) {
         <ChevronDown className="h-5 w-5 transition group-open:rotate-180" />
       </summary>
 
-      <div className="grid gap-5 border-t border-[#E6E0D4] p-4">
-        <section className="grid gap-4 rounded-2xl bg-[#F7F3EB] p-4 md:grid-cols-2">
-          <ReadField label="العميل" value={`${props.clientName} — ${props.clientEmail}`} />
-          <ReadField label="شركاء التنفيذ" value={props.partners.join("، ") || "غير مسند"} />
-          <ReadField label="اسم المشروع" value={props.title} />
-          <ReadField label="الحالة" value={dashboardLabel(props.status, props.status)} />
-          <ReadField label="نسبة التقدم" value={`${props.progress}%`} />
-          <ReadField label="موعد التسليم" value={props.dueAt ? new Date(props.dueAt).toLocaleDateString("ar") : "غير محدد"} />
-          <ReadField label="العملة" value={props.currency} />
-          <ReadArea label="الوصف" value={props.description || ""} />
-          <ReadArea label="تفاصيل الاتفاق ونطاق العمل" value={props.agreementDetails || ""} wide />
-          <ReadArea label="الخطة المالية" value={props.financialPlan || ""} wide />
-          <ReadArea label="مراحل المشروع المتفق عليها" value={props.legacyStages || ""} wide />
-          <ReadArea label="روابط المشروع" value={props.links.join("\n")} wide dir="ltr" />
-          <ReadArea label="ملاحظات داخلية" value={props.notes || ""} wide />
-        </section>
-
+      <div className="grid gap-4 border-t border-[#E6E0D4] p-4">
         {message && <p className="rounded-xl border border-[#D8D2C4] bg-white p-3 text-sm font-bold">{message}</p>}
 
         <section className="grid gap-3">
@@ -242,8 +225,8 @@ export function ProjectExecutionPlan(props: Props) {
               </div>
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 <Fact label="المبلغ" value={`${stage.amount} ${stage.currency}`} />
-                <Fact label="الدفع" value={paymentStatusLabel[stage.paymentStatus]} />
-                <Fact label="الاستحقاق" value={<DateText value={stage.startsAt} fallback="غير محدد" />} />
+                <Fact label="حالة الدفع" value={paymentStatusLabel[stage.paymentStatus]} />
+                <Fact label="تاريخ الاستحقاق" value={<DateText value={stage.startsAt} fallback="غير محدد" />} />
               </div>
               <details className="group mt-3 rounded-xl border border-[#D8D2C4] bg-white">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-black">
@@ -266,7 +249,7 @@ export function ProjectExecutionPlan(props: Props) {
 
         {!loading && loaded && (
           <form key={`${props.projectId}-${nextStageNumber}`} onSubmit={createStage} className="grid gap-3 rounded-2xl border border-[#D8D2C4] bg-white p-4 md:grid-cols-2">
-            <div className="md:col-span-2 flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3 md:col-span-2">
               <div>
                 <p className="text-xs font-black text-[#9A7D43]">المرحلة {nextStageNumber}</p>
                 <h4 className="text-lg font-black">{stages.length ? "إنشاء المرحلة التالية" : "إنشاء المرحلة الأولى"}</h4>
@@ -288,14 +271,6 @@ export function ProjectExecutionPlan(props: Props) {
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className="grid gap-2 text-sm font-black">{label}{children}</label>;
-}
-
-function ReadField({ label, value }: { label: string; value: string }) {
-  return <label className="grid gap-2 text-sm font-black">{label}<input readOnly value={value} className="field bg-white" /></label>;
-}
-
-function ReadArea({ label, value, wide = false, dir }: { label: string; value: string; wide?: boolean; dir?: "ltr" | "rtl" }) {
-  return <label className={`grid gap-2 text-sm font-black ${wide ? "md:col-span-2" : ""}`}>{label}<textarea readOnly value={value} rows={value ? 3 : 2} dir={dir} className={`field bg-white ${dir === "ltr" ? "text-left" : ""}`} /></label>;
 }
 
 function Fact({ label, value }: { label: string; value: ReactNode }) {
