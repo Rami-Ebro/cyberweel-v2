@@ -21,6 +21,29 @@ function dateValue(value: unknown) {
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
 
+function normalizeDigits(value: string) {
+  const arabic = "٠١٢٣٤٥٦٧٨٩";
+  const eastern = "۰۱۲۳۴۵۶۷۸۹";
+  return value
+    .replace(/[٠-٩]/g, (digit) => String(arabic.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String(eastern.indexOf(digit)));
+}
+
+function firstStageSuggestion(financialPlan: string | null) {
+  const line = financialPlan?.split(/\r?\n/).map((item) => item.trim()).find(Boolean) || "";
+  if (!line) return null;
+  const normalized = normalizeDigits(line);
+  const amountMatch = normalized.match(/(?:\$\s*([\d.,]+)|([\d.,]+)\s*(?:USD|\$|دولار))/i);
+  const amount = Number((amountMatch?.[1] || amountMatch?.[2] || "").replace(/,/g, ""));
+  const name = normalized
+    .replace(/^المرحلة\s+(?:الأولى|الاولى|الأول|الاول|1)\s*[:：\-–—]?\s*/i, "")
+    .replace(/(?:\$\s*[\d.,]+|[\d.,]+\s*(?:USD|\$|دولار)).*$/i, "")
+    .replace(/[.،,:：\-–—\s]+$/g, "")
+    .trim();
+  if (!name || !Number.isFinite(amount) || amount <= 0) return null;
+  return { name, amount };
+}
+
 function stagePayload(stage: {
   id: string;
   projectId: string;
@@ -51,6 +74,7 @@ export async function GET(request: NextRequest) {
       title: true,
       currency: true,
       status: true,
+      financialPlan: true,
       client: { select: { id: true, name: true, email: true } },
       referral: { select: { ambassadorId: true } },
       ambassadorRewardRate: true,
@@ -63,6 +87,7 @@ export async function GET(request: NextRequest) {
       ...project,
       ambassadorRewardRate: project.ambassadorRewardRate?.toString() || null,
       projectStages: project.projectStages.map(stagePayload),
+      firstStageSuggestion: project.projectStages.length ? null : firstStageSuggestion(project.financialPlan),
     })),
   });
 }
@@ -81,15 +106,19 @@ export async function POST(request: NextRequest) {
       const name = typeof body?.name === "string" ? body.name.trim().slice(0, 160) : "";
       const amount = Number(body?.amount);
       const dueAt = dateValue(body?.dueAt);
+      const sendPaymentRequest = body?.sendPaymentRequest === true;
       if (!projectId || !name || !Number.isFinite(amount) || amount <= 0 || amount > 9_999_999_999.99 || dueAt === undefined) {
         return NextResponse.json({ error: "اسم المرحلة والمبلغ الصحيح مطلوبان" }, { status: 400 });
       }
 
       const project = await db.clientProject.findUnique({
         where: { id: projectId },
-        select: { id: true, title: true, currency: true },
+        select: { id: true, title: true, currency: true, clientId: true, projectStages: { select: { id: true }, take: 1 } },
       });
       if (!project) return NextResponse.json({ error: "المشروع غير موجود" }, { status: 404 });
+      if (sendPaymentRequest && project.projectStages.length) {
+        return NextResponse.json({ error: "مطالبة المرحلة الأولى أُنشئت مسبقًا" }, { status: 409 });
+      }
 
       const created = await db.$transaction(async (tx) => {
         const stage = await tx.projectStage.create({
@@ -102,19 +131,56 @@ export async function POST(request: NextRequest) {
           },
         });
         const reward = await syncStageReward(tx, stage.id);
+        let invoiceNumber: string | null = null;
+
+        if (sendPaymentRequest) {
+          const year = new Date().getUTCFullYear();
+          const sequence = await tx.invoiceSequence.upsert({
+            where: { year },
+            create: { year, lastNumber: 1 },
+            update: { lastNumber: { increment: 1 } },
+          });
+          invoiceNumber = `CW-${year}-${String(sequence.lastNumber).padStart(4, "0")}`;
+          await tx.clientInvoice.create({
+            data: {
+              projectId: project.id,
+              number: invoiceNumber,
+              type: "STANDARD",
+              amount,
+              currency: project.currency,
+              status: "DUE",
+              dueAt,
+            },
+          });
+          await tx.clientNotification.create({
+            data: {
+              clientId: project.clientId,
+              title: "مطالبة دفع للمرحلة الأولى",
+              body: `${project.title} — ${name} — ${amount} ${project.currency}${invoiceNumber ? ` — ${invoiceNumber}` : ""}`,
+              section: "invoices",
+            },
+          });
+        }
+
         await writeAdminAudit(tx, {
           actorId: access.userId,
-          action: "PROJECT_EXECUTION_STAGE_CREATED",
+          action: sendPaymentRequest ? "PROJECT_FIRST_STAGE_PAYMENT_REQUESTED" : "PROJECT_EXECUTION_STAGE_CREATED",
           category: "NORMAL",
           entityType: "PROJECT_STAGE",
           entityId: stage.id,
           entityLabel: `${project.title} — ${name}`,
-          after: { amount: String(amount), currency: project.currency, dueAt: dueAt?.toISOString() || null, rewardId: reward?.id || null },
+          after: {
+            amount: String(amount),
+            currency: project.currency,
+            dueAt: dueAt?.toISOString() || null,
+            rewardId: reward?.id || null,
+            invoiceNumber,
+          },
         });
-        return stage;
+        return { stage, invoiceNumber };
       });
 
-      return NextResponse.json({ stage: stagePayload(created) }, { status: 201 });
+      return NextResponse.json({ stage: stagePayload(created.stage), invoiceNumber: created.invoiceNumber }, { status: 201 });
     }
 
     if (action === "update") {
