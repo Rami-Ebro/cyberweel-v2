@@ -7,6 +7,7 @@ import { Logo } from "@/components/brand/logo";
 import { DashboardLanguageButton } from "@/components/dashboard-i18n-provider";
 import { DateText } from "@/components/ui/date-text";
 import { ClientSubmissionPanel, type ClientSubmissionView } from "@/components/client-submission-panel";
+import { ClientExecutionPlan, type ClientProjectStage } from "@/components/client-execution-plan";
 import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
 
 type Section = "overview" | "projects" | "files" | "invoices" | "messages" | "account";
@@ -25,6 +26,7 @@ type Project = {
   startsAt: string | null;
   dueAt: string | null;
   updatedAt: string;
+  projectStages?: ClientProjectStage[];
 };
 type FileItem = { id: string; name: string; url: string; kind: string | null; size: number | null; source?: string; storageProvider?: string | null; createdAt: string; projectTitle: string };
 type Invoice = { id: string; number: string; type: "STANDARD" | "RETURN"; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; projectTitle: string };
@@ -334,6 +336,8 @@ export function ClientDashboard({
                   <ProjectDetail title="مراحل المشروع" value={project.stages} />
                   <ProjectDetail title="موعد التسليم" value={<DateText value={project.dueAt} fallback="لم تُضف معلومات بعد." />} />
                 </div>
+
+                <ClientExecutionPlan stages={project.projectStages || []} />
 
                 {!!project.links?.length && (
                   <div className="mt-3 rounded-xl bg-[#F7F3EB] p-4">
