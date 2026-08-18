@@ -40,6 +40,12 @@ type Props = {
   notes: string | null;
 };
 
+type StageSuggestion = {
+  name: string;
+  amount: number | null;
+  valid: boolean;
+};
+
 const stageStatusLabel: Record<StageStatus, string> = {
   NOT_STARTED: "لم تبدأ",
   IN_PROGRESS: "قيد التنفيذ",
@@ -58,30 +64,48 @@ function normalizeDigits(value: string) {
   const eastern = "۰۱۲۳۴۵۶۷۸۹";
   return value
     .replace(/[٠-٩]/g, (digit) => String(arabic.indexOf(digit)))
-    .replace(/[۰-۹]/g, (digit) => String(eastern.indexOf(digit)));
+    .replace(/[۰-۹]/g, (digit) => String(eastern.indexOf(digit)))
+    .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "")
+    .trim();
 }
 
-function stageSuggestion(financialPlan: string | null, index: number) {
+function stageSuggestion(financialPlan: string | null, index: number): StageSuggestion {
   const lines = (financialPlan || "")
     .split(/\r?\n/)
-    .map((item) => item.trim())
+    .map(normalizeDigits)
     .filter(Boolean);
-  const line = lines[index] || "";
-  if (!line) return { name: "", amount: "" };
 
-  const normalized = normalizeDigits(line);
-  const amountMatch = normalized.match(/(?:\$\s*([\d.,]+)|([\d.,]+)\s*(?:USD|EUR|SYP|TRY|\$|دولار))/i);
-  const rawAmount = (amountMatch?.[1] || amountMatch?.[2] || "").replace(/,/g, "");
+  const source = lines[index] || "";
+  if (!source) return { name: "", amount: null, valid: false };
+
+  const withoutStageLabel = source.replace(
+    /^\s*المرحلة\s+(?:الأولى|الاولى|الثانية|الثالثة|الرابعة|الخامسة|السادسة|السابعة|الثامنة|التاسعة|العاشرة|\d+)\s*[:：.]?\s*/i,
+    "",
+  );
+
+  const amountMatch = withoutStageLabel.match(
+    /(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة))/i,
+  );
+
+  if (!amountMatch || amountMatch.index === undefined) {
+    return {
+      name: withoutStageLabel.replace(/[\s،,:：.\-–—]+$/g, "").trim(),
+      amount: null,
+      valid: false,
+    };
+  }
+
+  const rawAmount = (amountMatch[1] || amountMatch[2] || "").replace(/,/g, "");
   const amount = Number(rawAmount);
-  const name = normalized
-    .replace(/^المرحلة\s+(?:الأولى|الاولى|الثانية|الثالثة|الرابعة|الخامسة|السادسة|السابعة|الثامنة|التاسعة|العاشرة|\d+)\s*[:：\-–—]?\s*/i, "")
-    .replace(/(?:\$\s*[\d.,]+|[\d.,]+\s*(?:USD|EUR|SYP|TRY|\$|دولار)).*$/i, "")
-    .replace(/[.،,:：\-–—\s]+$/g, "")
+  const name = withoutStageLabel
+    .slice(0, amountMatch.index)
+    .replace(/[\s،,:：.\-–—]+$/g, "")
     .trim();
 
   return {
     name,
-    amount: Number.isFinite(amount) && amount > 0 ? String(amount) : "",
+    amount: Number.isFinite(amount) && amount > 0 ? amount : null,
+    valid: Boolean(name) && Number.isFinite(amount) && amount > 0,
   };
 }
 
@@ -122,10 +146,12 @@ export function ProjectExecutionPlan(props: Props) {
     [props.financialPlan, stages.length],
   );
 
-  async function createStage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const data = new FormData(form);
+  async function createNextStage() {
+    if (!suggestion.valid || suggestion.amount === null) {
+      setMessage("تعذر قراءة اسم المرحلة التالية أو مبلغها من الخطة المالية الأصلية. عدّل الخطة المالية أولًا ثم أعد المحاولة.");
+      return;
+    }
+
     const firstStage = stages.length === 0;
     setBusy("create");
     setMessage("");
@@ -136,9 +162,9 @@ export function ProjectExecutionPlan(props: Props) {
         body: JSON.stringify({
           action: "create",
           projectId: props.projectId,
-          name: data.get("name"),
-          amount: Number(data.get("amount")),
-          dueAt: data.get("dueAt"),
+          name: suggestion.name,
+          amount: suggestion.amount,
+          dueAt: null,
           sendPaymentRequest: firstStage,
         }),
       });
@@ -150,9 +176,8 @@ export function ProjectExecutionPlan(props: Props) {
       setMessage(
         firstStage
           ? `تم إنشاء المرحلة الأولى وإرسال مطالبة الدفع${payload.invoiceNumber ? ` — ${payload.invoiceNumber}` : ""}.`
-          : `تم إنشاء المرحلة ${nextStageNumber}.`,
+          : `تم إنشاء المرحلة ${nextStageNumber} تلقائيًا.`,
       );
-      form.reset();
       await loadStages();
     } catch {
       setMessage("تعذر الاتصال بالخادم. لم تُحفظ المرحلة.");
@@ -247,22 +272,35 @@ export function ProjectExecutionPlan(props: Props) {
           ))}
         </section>
 
-        {!loading && loaded && (
-          <form key={`${props.projectId}-${nextStageNumber}`} onSubmit={createStage} className="grid gap-3 rounded-2xl border border-[#D8D2C4] bg-white p-4 md:grid-cols-2">
-            <div className="flex items-center justify-between gap-3 md:col-span-2">
+        {!loading && loaded && suggestion.valid && suggestion.amount !== null && (
+          <section className="rounded-2xl border border-[#D8D2C4] bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-black text-[#9A7D43]">المرحلة {nextStageNumber}</p>
-                <h4 className="text-lg font-black">{stages.length ? "إنشاء المرحلة التالية" : "إنشاء المرحلة الأولى"}</h4>
+                <h4 className="mt-1 text-lg font-black">{suggestion.name}</h4>
+                <p className="mt-1 text-sm font-bold text-slate-500">{suggestion.amount} {props.currency}</p>
               </div>
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#111827] text-white"><Plus className="h-5 w-5" /></span>
+              <button
+                type="button"
+                onClick={() => void createNextStage()}
+                disabled={busy === "create"}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white disabled:opacity-50"
+              >
+                <Plus className="h-5 w-5" />
+                {busy === "create"
+                  ? "جارٍ الإنشاء..."
+                  : stages.length
+                    ? "+ إنشاء المرحلة التالية"
+                    : "إنشاء المرحلة الأولى وإرسال مطالبة الدفع"}
+              </button>
             </div>
-            <Field label="اسم المرحلة"><input name="name" required defaultValue={suggestion.name} className="field" /></Field>
-            <Field label="المبلغ"><input name="amount" type="number" min="0.01" step="0.01" required defaultValue={suggestion.amount} className="field" /></Field>
-            <Field label="تاريخ الاستحقاق"><DateInput name="dueAt" className="field" /></Field>
-            <button disabled={busy === "create"} className="rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white disabled:opacity-50 md:col-span-2">
-              {busy === "create" ? "جارٍ الإنشاء..." : stages.length ? "+ إنشاء المرحلة التالية" : "إنشاء المرحلة الأولى وإرسال مطالبة الدفع"}
-            </button>
-          </form>
+          </section>
+        )}
+
+        {!loading && loaded && !suggestion.valid && (
+          <p className="rounded-xl bg-[#F7F3EB] p-4 text-sm font-bold text-slate-600">
+            لا توجد مرحلة تالية قابلة للإنشاء تلقائيًا من الخطة المالية.
+          </p>
         )}
       </div>
     </details>
