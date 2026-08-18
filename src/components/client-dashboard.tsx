@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BarChart3, Bell, BriefcaseBusiness, FileText, Home, LogOut, Mail, Pencil, ReceiptText, RefreshCw, Send, UserCog } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
@@ -56,6 +56,7 @@ export function ClientDashboard({
   const [messages, setMessages] = useState<Message[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(initialNotice);
@@ -130,6 +131,27 @@ export function ClientDashboard({
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [adminClientId]);
 
+  useEffect(() => {
+    if (!notificationsOpen) return;
+
+    function closeNotificationsOutside(event: PointerEvent) {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setNotificationsOpen(false);
+      }
+    }
+
+    function closeNotificationsWithEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setNotificationsOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeNotificationsOutside);
+    document.addEventListener("keydown", closeNotificationsWithEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeNotificationsOutside);
+      document.removeEventListener("keydown", closeNotificationsWithEscape);
+    };
+  }, [notificationsOpen]);
+
   async function logout() {
     await fetch("/api/partner/logout", { method: "POST" });
     router.replace("/login");
@@ -182,6 +204,7 @@ export function ClientDashboard({
         return setNotice("تعذر تحديث حالة الإشعار");
       }
     }
+    setNotificationsOpen(false);
     setSection(notification.section);
   }
 
@@ -226,35 +249,37 @@ export function ClientDashboard({
           <header className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div><p className="text-sm font-bold text-[#9A7D43]">مساحة العميل</p><h1 className="mt-1 text-3xl font-black">مرحبًا {client?.name || "بك"}</h1></div>
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => setNotificationsOpen((value) => !value)} className="relative flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
-                <Bell className="h-5 w-5" />الإشعارات
-                {!!stats?.unreadNotifications && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{stats.unreadNotifications}</span>}
-              </button>
+              <div ref={notificationsRef} className="relative">
+                <button onClick={() => setNotificationsOpen((value) => !value)} className="relative flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
+                  <Bell className="h-5 w-5" />الإشعارات
+                  {!!stats?.unreadNotifications && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{stats.unreadNotifications}</span>}
+                </button>
+                {notificationsOpen && (
+                  <div className="absolute left-0 top-full z-20 mt-3 w-[min(92vw,28rem)] rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl">
+                    <div className="flex items-center justify-between px-2 py-2"><strong>الإشعارات</strong><span className="text-xs text-slate-500">{stats?.unreadNotifications || 0} غير مقروء</span></div>
+                    <div className="max-h-96 space-y-2 overflow-y-auto">
+                      {notifications.map((notification) => (
+                        <button key={notification.id} type="button" onClick={() => void openNotification(notification)} disabled={isAdminMirror} className={`w-full rounded-xl p-3 text-right ${notification.readAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827]"} ${isAdminMirror ? "cursor-default" : ""}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="flex items-center gap-2">
+                              <strong className="text-sm">{notification.title}</strong>
+                              {!notification.readAt && <span className="h-2 w-2 shrink-0 rounded-full bg-red-600" />}
+                            </span>
+                            <time dateTime={notification.createdAt} dir="ltr" className="shrink-0 text-xs text-slate-500">
+                              <DateText value={notification.createdAt} />
+                            </time>
+                          </div>
+                          {notification.body && <p className="mt-1 text-xs leading-5 text-slate-500">{notification.body}</p>}
+                        </button>
+                      ))}
+                      {!notifications.length && <p className="p-6 text-center text-sm text-slate-500">لا توجد إشعارات جديدة.</p>}
+                    </div>
+                  </div>
+                )}
+              </div>
               <DashboardLanguageButton />
               <button onClick={() => void load()} disabled={loading} className="flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث البيانات</button>
             </div>
-            {notificationsOpen && (
-              <div className="absolute left-0 top-full z-20 mt-3 w-full max-w-md rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl">
-                <div className="flex items-center justify-between px-2 py-2"><strong>الإشعارات</strong><span className="text-xs text-slate-500">{stats?.unreadNotifications || 0} غير مقروء</span></div>
-                <div className="max-h-96 space-y-2 overflow-y-auto">
-                  {notifications.map((notification) => (
-                    <button key={notification.id} type="button" onClick={() => void openNotification(notification)} disabled={isAdminMirror} className={`w-full rounded-xl p-3 text-right ${notification.readAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827]"} ${isAdminMirror ? "cursor-default" : ""}`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="flex items-center gap-2">
-                          <strong className="text-sm">{notification.title}</strong>
-                          {!notification.readAt && <span className="h-2 w-2 shrink-0 rounded-full bg-red-600" />}
-                        </span>
-                        <time dateTime={notification.createdAt} dir="ltr" className="shrink-0 text-xs text-slate-500">
-                          <DateText value={notification.createdAt} />
-                        </time>
-                      </div>
-                      {notification.body && <p className="mt-1 text-xs leading-5 text-slate-500">{notification.body}</p>}
-                    </button>
-                  ))}
-                  {!notifications.length && <p className="p-6 text-center text-sm text-slate-500">لا توجد إشعارات جديدة.</p>}
-                </div>
-              </div>
-            )}
           </header>
 
           {notice && <p className="mt-5 rounded-xl border border-[#D8D2C4] bg-white p-4 font-bold shadow-sm">{notice}</p>}
