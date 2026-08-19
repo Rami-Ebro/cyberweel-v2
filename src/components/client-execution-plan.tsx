@@ -53,7 +53,9 @@ export function ClientExecutionPlan({ stages }: { stages: ClientProjectStage[] }
   const automaticProgress = plannedCount > 0 ? Math.min(100, Math.round((completedStages / plannedCount) * 100)) : 0;
   const progress = Math.max(automaticProgress, Math.max(0, Math.min(100, stages[0]?.projectProgress || 0)));
   const currentStage = currentIndex === -1 ? null : stages[currentIndex];
-  const currentStageLabel = currentStage?.name || (completedStages < plannedCount ? `بانتظار بدء المرحلة ${completedStages + 1}` : "اكتملت جميع المراحل");
+  const hasNextStage = !currentStage && completedStages < plannedCount;
+  const phaseLabel = currentStage ? "المرحلة الحالية" : hasNextStage ? "المرحلة التالية" : "حالة المراحل";
+  const phaseValue = currentStage?.name || (hasNextStage ? "لم تبدأ بعد" : "اكتملت جميع المراحل");
 
   return (
     <details className="group mt-4 rounded-2xl border border-[#D8D2C4] bg-white">
@@ -69,7 +71,7 @@ export function ClientExecutionPlan({ stages }: { stages: ClientProjectStage[] }
             <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A]" style={{ width: `${progress}%` }} /></div>
             <p className="mt-2 text-xs font-bold text-slate-500">يعكس ما تم إنجازه فعليًا من مراحل المشروع.</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              <PlanFact label="المرحلة الحالية" value={currentStageLabel} />
+              <PlanFact label={phaseLabel} value={phaseValue} />
               <PlanFact label="المكتمل" value={`${completedStages} من ${plannedCount}`} />
               <PlanFact label="حالة المشروع" value={projectStatusLabel[stages[0]?.projectStatus || ""] || stages[0]?.projectStatus || "—"} />
             </div>
