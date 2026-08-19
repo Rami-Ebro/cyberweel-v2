@@ -18,6 +18,7 @@ export type ClientProjectStage = {
   projectStatus?: string;
   plannedTotal?: number;
   plannedStageCount?: number;
+  nextPlannedStageName?: string | null;
 };
 
 const stageStatusLabel: Record<string, string> = {
@@ -55,7 +56,12 @@ export function ClientExecutionPlan({ stages }: { stages: ClientProjectStage[] }
   const currentStage = currentIndex === -1 ? null : stages[currentIndex];
   const hasNextStage = !currentStage && completedStages < plannedCount;
   const phaseLabel = currentStage ? "المرحلة الحالية" : hasNextStage ? "المرحلة التالية" : "حالة المراحل";
-  const phaseValue = currentStage?.name || (hasNextStage ? "لم تبدأ بعد" : "اكتملت جميع المراحل");
+  const phaseValue: ReactNode = currentStage?.name || (hasNextStage ? (
+    <span className="grid gap-1">
+      <span>{stages[0]?.nextPlannedStageName || `المرحلة ${completedStages + 1}`}</span>
+      <span className="text-xs font-bold text-slate-500">لم تبدأ بعد</span>
+    </span>
+  ) : "اكتملت جميع المراحل");
 
   return (
     <details className="group mt-4 rounded-2xl border border-[#D8D2C4] bg-white">
