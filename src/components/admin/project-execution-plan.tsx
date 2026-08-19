@@ -90,6 +90,11 @@ function plannedTotal(financialPlan: string | null) {
   return lines.map((_, index) => stageSuggestion(financialPlan, index)).filter((item) => item.valid && item.amount !== null).reduce((sum, item) => sum + (item.amount || 0), 0);
 }
 
+function plannedStageCount(financialPlan: string | null) {
+  const lines = (financialPlan || "").split(/\r?\n/).filter((line) => line.trim());
+  return lines.map((_, index) => stageSuggestion(financialPlan, index)).filter((item) => item.valid).length;
+}
+
 export function ProjectExecutionPlan(props: Props) {
   const [open, setOpen] = useState(false);
   const [stages, setStages] = useState<Stage[]>([]);
@@ -121,10 +126,14 @@ export function ProjectExecutionPlan(props: Props) {
   const nextStageNumber = stages.length + 1;
   const suggestion = useMemo(() => stageSuggestion(props.financialPlan, stages.length), [props.financialPlan, stages.length]);
   const totalPlanned = useMemo(() => plannedTotal(props.financialPlan), [props.financialPlan]);
+  const totalPlannedStages = useMemo(() => plannedStageCount(props.financialPlan), [props.financialPlan]);
   const paidAmount = useMemo(() => stages.filter((stage) => stage.paymentStatus === "PAID").reduce((sum, stage) => sum + Number(stage.amount || 0), 0), [stages]);
   const financialPercent = totalPlanned > 0 ? Math.min(100, Math.round((paidAmount / totalPlanned) * 100)) : 0;
   const completedStages = stages.filter((stage) => stage.status === "COMPLETED").length;
+  const automaticProgress = totalPlannedStages > 0 ? Math.min(100, Math.round((completedStages / totalPlannedStages) * 100)) : 0;
+  const displayProgress = Math.max(progress, automaticProgress);
   const currentStage = stages.find((stage) => !["COMPLETED", "CANCELLED"].includes(stage.status));
+  const currentStageLabel = currentStage?.name || (completedStages < totalPlannedStages ? `بانتظار إنشاء المرحلة ${completedStages + 1}` : "اكتملت جميع المراحل");
 
   async function saveProjectProgress() {
     setBusy("project-progress");
@@ -133,10 +142,11 @@ export function ProjectExecutionPlan(props: Props) {
       const response = await fetch("/api/admin/project-execution", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: props.projectId, status: projectStatus, progress }),
+        body: JSON.stringify({ projectId: props.projectId, status: projectStatus, progress: Math.max(progress, automaticProgress) }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) return setMessage(payload.error || "تعذر تحديث تقدم المشروع");
+      setProgress(Math.max(progress, automaticProgress));
       setMessage("تم تحديث حالة المشروع ونسبة التقدم.");
     } catch {
       setMessage("تعذر الاتصال بالخادم. لم يُحفظ تقدم المشروع.");
@@ -201,20 +211,14 @@ export function ProjectExecutionPlan(props: Props) {
 
         <section className="rounded-2xl border border-[#D8D2C4] bg-[#FCFAF6] p-4">
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-xl border border-[#E6E0D4] bg-white p-4">
-              <div>
-                <p className="text-xs font-black text-slate-500">تقدم التنفيذ الفعلي</p>
-                <p className="mt-1 text-3xl font-black text-[#9A7D43]">{progress}%</p>
-              </div>
-              <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A] transition-all" style={{ width: `${progress}%` }} /></div>
-              <p className="mt-2 text-xs font-bold text-slate-500">يعكس نسبة العمل المنجزة فعليًا، ولا يرتبط بقيمة الدفعات.</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3"><Fact label="المرحلة الحالية" value={currentStage?.name || (stages.length ? "لا توجد مرحلة جارية" : "لم تبدأ المراحل")} /><Fact label="مراحل مكتملة" value={`${completedStages} من ${stages.length}`} /><Fact label="حالة المشروع" value={projectStatusLabel[projectStatus]} /></div>
+            <div className="rounded-2xl border border-[#E6E0D4] bg-white p-4">
+              <div className="flex items-center justify-between gap-3"><strong>تقدم التنفيذ الفعلي</strong><span className="text-3xl font-black text-[#9A7D43]">{displayProgress}%</span></div>
+              <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A] transition-all" style={{ width: `${displayProgress}%` }} /></div>
+              <p className="mt-2 text-xs font-bold text-slate-500">يُرفع تلقائيًا عند اكتمال المراحل المخططة، ويمكن رفعه يدويًا أثناء التنفيذ.</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3"><Fact label="المرحلة الحالية" value={currentStageLabel} /><Fact label="مراحل مكتملة" value={`${completedStages} من ${totalPlannedStages || stages.length}`} /><Fact label="حالة المشروع" value={projectStatusLabel[projectStatus]} /></div>
             </div>
-            <div className="rounded-xl border border-[#E6E0D4] bg-white p-4">
-              <div>
-                <p className="text-xs font-black text-slate-500">التقدم المالي</p>
-                <p className="mt-1 text-3xl font-black text-[#9A7D43]">{financialPercent}%</p>
-              </div>
+            <div className="rounded-2xl border border-[#E6E0D4] bg-white p-4">
+              <div className="flex items-center justify-between gap-3"><strong>التقدم المالي</strong><span className="text-3xl font-black text-[#9A7D43]">{financialPercent}%</span></div>
               <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A] transition-all" style={{ width: `${financialPercent}%` }} /></div>
               <p className="mt-2 text-xs font-bold text-slate-500">يعكس نسبة المبالغ المدفوعة من إجمالي الخطة المالية.</p>
               <p className="mt-3 text-sm font-bold text-slate-600">المدفوع {paidAmount.toLocaleString("ar")} من {totalPlanned.toLocaleString("ar")} {props.currency}</p>
@@ -222,7 +226,7 @@ export function ProjectExecutionPlan(props: Props) {
           </div>
           <div className="mt-4 grid gap-3 border-t border-[#E6E0D4] pt-4 md:grid-cols-[1fr_1fr_auto]">
             <Field label="حالة المشروع"><select value={projectStatus} onChange={(event) => setProjectStatus(event.target.value as ProjectStatus)} className="field">{Object.entries(projectStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
-            <Field label="نسبة تقدم التنفيذ"><input type="number" min={0} max={100} value={progress} onChange={(event) => setProgress(Math.max(0, Math.min(100, Number(event.target.value) || 0)))} className="field" /></Field>
+            <Field label="نسبة تقدم التنفيذ"><input type="number" min={automaticProgress} max={100} value={Math.max(progress, automaticProgress)} onChange={(event) => setProgress(Math.max(automaticProgress, Math.min(100, Number(event.target.value) || 0)))} className="field" /></Field>
             <button type="button" disabled={busy === "project-progress"} onClick={() => void saveProjectProgress()} className="self-end rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50">{busy === "project-progress" ? "جارٍ الحفظ..." : "حفظ التقدم"}</button>
           </div>
         </section>
