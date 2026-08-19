@@ -29,6 +29,15 @@ function normalizeDigits(value: string) {
     .replace(/[۰-۹]/g, (digit) => String(eastern.indexOf(digit)));
 }
 
+function plannedStageCount(financialPlan: string | null) {
+  return (financialPlan || "")
+    .split(/\r?\n/)
+    .map((line) => normalizeDigits(line).trim())
+    .filter(Boolean)
+    .filter((line) => /(?:\$\s*[\d.,]+|[\d.,]+\s*(?:USD|EUR|SYP|TRY|\$|دولار|دولارات|يورو|ليرة))/i.test(line))
+    .length;
+}
+
 function firstStageSuggestion(financialPlan: string | null) {
   const line = financialPlan?.split(/\r?\n/).map((item) => item.trim()).find(Boolean) || "";
   if (!line) return null;
@@ -187,7 +196,7 @@ export async function POST(request: NextRequest) {
       const stageId = typeof body?.stageId === "string" ? body.stageId.trim() : "";
       const existing = await db.projectStage.findUnique({
         where: { id: stageId },
-        include: { project: { select: { title: true } } },
+        include: { project: { select: { title: true, financialPlan: true, progress: true } } },
       });
       if (!existing) return NextResponse.json({ error: "المرحلة غير موجودة" }, { status: 404 });
 
@@ -250,6 +259,21 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        const completedStages = await tx.projectStage.count({
+          where: { projectId: existing.projectId, status: "COMPLETED" },
+        });
+        const totalPlannedStages = plannedStageCount(existing.project.financialPlan);
+        const automaticProgress = totalPlannedStages > 0
+          ? Math.min(100, Math.round((completedStages / totalPlannedStages) * 100))
+          : existing.project.progress;
+        const projectProgress = Math.max(existing.project.progress, automaticProgress);
+        if (projectProgress !== existing.project.progress) {
+          await tx.clientProject.update({
+            where: { id: existing.projectId },
+            data: { progress: projectProgress },
+          });
+        }
+
         const reward = await syncStageReward(tx, stage.id);
         await writeAdminAudit(tx, {
           actorId: access.userId,
@@ -258,8 +282,8 @@ export async function POST(request: NextRequest) {
           entityType: "PROJECT_STAGE",
           entityId: stage.id,
           entityLabel: `${existing.project.title} — ${stage.name}`,
-          before: { status: existing.status, paymentStatus: existing.paymentStatus, amount: existing.amount.toString(), dueAt: existing.startsAt?.toISOString() || null },
-          after: { status, paymentStatus, amount: String(amount), dueAt: dueAt?.toISOString() || null, approved, rewardStatus: reward?.status || null, syncedInvoiceId },
+          before: { status: existing.status, paymentStatus: existing.paymentStatus, amount: existing.amount.toString(), dueAt: existing.startsAt?.toISOString() || null, projectProgress: existing.project.progress },
+          after: { status, paymentStatus, amount: String(amount), dueAt: dueAt?.toISOString() || null, approved, rewardStatus: reward?.status || null, syncedInvoiceId, projectProgress },
         });
         return stage;
       });
