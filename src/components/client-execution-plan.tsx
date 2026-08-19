@@ -17,6 +17,7 @@ export type ClientProjectStage = {
   projectProgress?: number;
   projectStatus?: string;
   plannedTotal?: number;
+  plannedStageCount?: number;
 };
 
 const stageStatusLabel: Record<string, string> = {
@@ -43,13 +44,16 @@ export function ClientExecutionPlan({ stages }: { stages: ClientProjectStage[] }
   if (!stages.length) return null;
 
   const currentIndex = stages.findIndex((stage) => !["COMPLETED", "CANCELLED"].includes(stage.status));
-  const highlightedIndex = currentIndex === -1 ? stages.length - 1 : currentIndex;
-  const progress = Math.max(0, Math.min(100, stages[0]?.projectProgress || 0));
+  const highlightedIndex = currentIndex === -1 ? -1 : currentIndex;
   const paidAmount = stages.filter((stage) => stage.paymentStatus === "PAID").reduce((sum, stage) => sum + stage.amount, 0);
   const plannedTotal = stages[0]?.plannedTotal || stages.reduce((sum, stage) => sum + stage.amount, 0);
   const financialProgress = plannedTotal > 0 ? Math.min(100, Math.round((paidAmount / plannedTotal) * 100)) : 0;
   const completedStages = stages.filter((stage) => stage.status === "COMPLETED").length;
-  const currentStage = stages[currentIndex === -1 ? stages.length - 1 : currentIndex];
+  const plannedCount = stages[0]?.plannedStageCount || stages.length;
+  const automaticProgress = plannedCount > 0 ? Math.min(100, Math.round((completedStages / plannedCount) * 100)) : 0;
+  const progress = Math.max(automaticProgress, Math.max(0, Math.min(100, stages[0]?.projectProgress || 0)));
+  const currentStage = currentIndex === -1 ? null : stages[currentIndex];
+  const currentStageLabel = currentStage?.name || (completedStages < plannedCount ? `بانتظار بدء المرحلة ${completedStages + 1}` : "اكتملت جميع المراحل");
 
   return (
     <details className="group mt-4 rounded-2xl border border-[#D8D2C4] bg-white">
@@ -60,18 +64,20 @@ export function ClientExecutionPlan({ stages }: { stages: ClientProjectStage[] }
 
       <div className="grid gap-4 border-t border-[#EEE7DA] p-4">
         <section className="grid gap-4 rounded-2xl border border-[#E6E0D4] bg-[#FCFAF6] p-4 lg:grid-cols-2">
-          <div>
-            <div className="flex items-center justify-between gap-3"><strong>تقدم التنفيذ</strong><span className="text-2xl font-black text-[#9A7D43]">{progress}%</span></div>
-            <div className="mt-3 h-3 overflow-hidden rounded-full bg-white"><div className="h-full bg-[#B89A5A]" style={{ width: `${progress}%` }} /></div>
+          <div className="rounded-2xl border border-[#E6E0D4] bg-white p-4">
+            <div className="flex items-center justify-between gap-3"><strong>تقدم التنفيذ الفعلي</strong><span className="text-3xl font-black text-[#9A7D43]">{progress}%</span></div>
+            <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A]" style={{ width: `${progress}%` }} /></div>
+            <p className="mt-2 text-xs font-bold text-slate-500">يعكس ما تم إنجازه فعليًا من مراحل المشروع.</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              <PlanFact label="المرحلة الحالية" value={currentStage?.name || "—"} />
-              <PlanFact label="المكتمل" value={`${completedStages} من ${stages.length}`} />
+              <PlanFact label="المرحلة الحالية" value={currentStageLabel} />
+              <PlanFact label="المكتمل" value={`${completedStages} من ${plannedCount}`} />
               <PlanFact label="حالة المشروع" value={projectStatusLabel[stages[0]?.projectStatus || ""] || stages[0]?.projectStatus || "—"} />
             </div>
           </div>
-          <div>
-            <div className="flex items-center justify-between gap-3"><strong>التقدم المالي</strong><span className="text-2xl font-black text-[#9A7D43]">{financialProgress}%</span></div>
-            <div className="mt-3 h-3 overflow-hidden rounded-full bg-white"><div className="h-full bg-[#B89A5A]" style={{ width: `${financialProgress}%` }} /></div>
+          <div className="rounded-2xl border border-[#E6E0D4] bg-white p-4">
+            <div className="flex items-center justify-between gap-3"><strong>التقدم المالي</strong><span className="text-3xl font-black text-[#9A7D43]">{financialProgress}%</span></div>
+            <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A]" style={{ width: `${financialProgress}%` }} /></div>
+            <p className="mt-2 text-xs font-bold text-slate-500">يعكس نسبة المبالغ المدفوعة من إجمالي الخطة المالية.</p>
             <p className="mt-3 text-sm font-bold text-slate-600">المدفوع {paidAmount.toLocaleString("ar")} من {plannedTotal.toLocaleString("ar")} {stages[0]?.currency}</p>
           </div>
         </section>
