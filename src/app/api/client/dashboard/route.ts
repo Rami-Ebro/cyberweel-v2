@@ -21,6 +21,21 @@ function plannedAmounts(financialPlan: string | null) {
     .filter((amount) => Number.isFinite(amount) && amount > 0);
 }
 
+function plannedStageNames(financialPlan: string | null) {
+  return (financialPlan || "")
+    .split(/\r?\n/)
+    .map((line) => normalizeDigits(line).trim())
+    .filter(Boolean)
+    .map((line) =>
+      line
+        .replace(/^\s*المرحلة\s+(?:الأولى|الاولى|الثانية|الثالثة|الرابعة|الخامسة|السادسة|السابعة|الثامنة|التاسعة|العاشرة|\d+)\s*[:：.\-–—]?\s*/i, "")
+        .replace(/(?:\$\s*[0-9][0-9.,]*|[0-9][0-9.,]*\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة)).*$/i, "")
+        .replace(/[\s،,:：.\-–—]+$/g, "")
+        .trim(),
+    )
+    .filter(Boolean);
+}
+
 function plannedTotal(financialPlan: string | null) {
   return plannedAmounts(financialPlan).reduce((sum, amount) => sum + amount, 0);
 }
@@ -98,49 +113,56 @@ export async function GET(request: NextRequest) {
       unreadMessages,
       unreadNotifications: notifications.filter((notification) => !notification.readAt).length,
     },
-    projects: client.clientProjects.map((project) => ({
-      id: project.id,
-      title: project.title,
-      description: project.description,
-      agreementDetails: project.agreementDetails,
-      financialPlan: project.financialPlan,
-      currency: project.currency,
-      stages: project.stages,
-      links: project.links,
-      status: project.status,
-      progress: project.progress,
-      startsAt: project.startsAt,
-      dueAt: project.dueAt,
-      createdAt: project.createdAt,
-      updatedAt: project.updatedAt,
-      projectStages: project.projectStages.map((stage) => ({
-        id: stage.id,
-        name: stage.name,
-        amount: Number(stage.amount),
-        currency: stage.currency,
-        status: stage.status,
-        paymentStatus: stage.paymentStatus,
-        dueAt: stage.startsAt,
-        completedAt: stage.completedAt,
-        paidAt: stage.paidAt,
-        projectProgress: project.progress,
-        projectStatus: project.status,
-        plannedTotal: plannedTotal(project.financialPlan),
-        plannedStageCount: plannedStageCount(project.financialPlan),
-      })),
-      files: project.files.map((file) => ({
-        ...file,
-        url: file.storageProvider === "VERCEL_BLOB" ? `/api/client/files/${file.id}` : file.url,
-      })),
-      submissions: project.submissions.map((submission) => ({
-        ...submission,
-        files: submission.files.map((file) => ({
+    projects: client.clientProjects.map((project) => {
+      const plannedNames = plannedStageNames(project.financialPlan);
+      const completedCount = project.projectStages.filter((stage) => stage.status === "COMPLETED").length;
+      const nextPlannedStageName = plannedNames[completedCount] || null;
+
+      return {
+        id: project.id,
+        title: project.title,
+        description: project.description,
+        agreementDetails: project.agreementDetails,
+        financialPlan: project.financialPlan,
+        currency: project.currency,
+        stages: project.stages,
+        links: project.links,
+        status: project.status,
+        progress: project.progress,
+        startsAt: project.startsAt,
+        dueAt: project.dueAt,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        projectStages: project.projectStages.map((stage) => ({
+          id: stage.id,
+          name: stage.name,
+          amount: Number(stage.amount),
+          currency: stage.currency,
+          status: stage.status,
+          paymentStatus: stage.paymentStatus,
+          dueAt: stage.startsAt,
+          completedAt: stage.completedAt,
+          paidAt: stage.paidAt,
+          projectProgress: project.progress,
+          projectStatus: project.status,
+          plannedTotal: plannedTotal(project.financialPlan),
+          plannedStageCount: plannedStageCount(project.financialPlan),
+          nextPlannedStageName,
+        })),
+        files: project.files.map((file) => ({
           ...file,
           url: file.storageProvider === "VERCEL_BLOB" ? `/api/client/files/${file.id}` : file.url,
         })),
-      })),
-      invoices: project.invoices.map((invoice) => ({ ...invoice, amount: Number(invoice.amount) })),
-    })),
+        submissions: project.submissions.map((submission) => ({
+          ...submission,
+          files: submission.files.map((file) => ({
+            ...file,
+            url: file.storageProvider === "VERCEL_BLOB" ? `/api/client/files/${file.id}` : file.url,
+          })),
+        })),
+        invoices: project.invoices.map((invoice) => ({ ...invoice, amount: Number(invoice.amount) })),
+      };
+    }),
     files,
     submissions,
     invoices,
