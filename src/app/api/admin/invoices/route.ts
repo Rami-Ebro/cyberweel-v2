@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
           clientId: invoice.project.clientId,
           title: "تم تسجيل دفعة",
           body: `${invoice.number} — ${Number(invoice.amount)} ${invoice.currency}`,
-          section: "payments",
+          section: "invoices",
         },
       });
 
