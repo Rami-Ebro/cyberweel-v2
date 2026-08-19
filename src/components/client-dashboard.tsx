@@ -29,7 +29,7 @@ type Project = {
   projectStages?: ClientProjectStage[];
 };
 type FileItem = { id: string; name: string; url: string; kind: string | null; size: number | null; source?: string; storageProvider?: string | null; createdAt: string; projectTitle: string };
-type Invoice = { id: string; number: string; type: "STANDARD" | "RETURN"; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; projectTitle: string };
+type Invoice = { id: string; number: string; type: "STANDARD" | "RETURN"; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; createdAt: string; projectTitle: string };
 type Message = { id: string; subject: string | null; body: string; fromAdmin: boolean; readAt: string | null; createdAt: string };
 type Notification = { id: string; title: string; body: string | null; section: Section; readAt: string | null; createdAt: string };
 type Stats = { projects: number; activeProjects: number; files: number; dueInvoices: number; unreadMessages: number; unreadNotifications: number };
@@ -360,7 +360,32 @@ export function ClientDashboard({
             {client && <ClientSubmissionPanel projects={projects.map(({ id, title }) => ({ id, title }))} submissions={submissions} clientId={client.id} canSubmit={!isAdminMirror} onSubmitted={() => load(false)} />}
           </section>}
 
-          {!loading && section === "invoices" && <section className="mt-7"><div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الفواتير</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("invoices")} />}</div><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[820px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">رقم الفاتورة</th><th className="p-4">النوع</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-4 font-bold">{invoice.number}</td><td className="p-4">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</td><td className="p-4">{invoice.projectTitle}</td><td className="p-4">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{invoiceLabel[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</td><td className="p-4"><DateText value={invoice.dueAt} /></td></tr>)}</tbody></table>{!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}</div></section>}
+          {!loading && section === "invoices" && <section className="mt-7">
+            <div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الفواتير</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("invoices")} />}</div>
+            <div className="mt-5 rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
+              <table className="w-full table-fixed text-right text-xs xl:text-sm">
+                <thead><tr className="border-b">
+                  <th className="w-[18%] p-3">رقم الفاتورة</th>
+                  <th className="w-[14%] p-3">تاريخ الإصدار</th>
+                  <th className="w-[16%] p-3">المشروع</th>
+                  <th className="w-[14%] p-3">المبلغ</th>
+                  <th className="w-[14%] p-3">الحالة</th>
+                  <th className="w-[12%] p-3">الاستحقاق</th>
+                  <th className="w-[12%] p-3">الدفع</th>
+                </tr></thead>
+                <tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100 align-middle">
+                  <td dir="ltr" className="p-3 text-right font-black"><span className="whitespace-nowrap">{invoice.number}</span>{invoice.type === "RETURN" && <span className="mr-2 inline-block rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700">مرتجع</span>}</td>
+                  <td className="p-3 whitespace-nowrap"><DateText value={invoice.createdAt} /></td>
+                  <td className="p-3 truncate" title={invoice.projectTitle}>{invoice.projectTitle}</td>
+                  <td className="p-3 whitespace-nowrap font-black">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td>
+                  <td className="p-3"><span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-black ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{invoiceLabel[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</span></td>
+                  <td className="p-3 whitespace-nowrap"><DateText value={invoice.dueAt} /></td>
+                  <td className="p-3 whitespace-nowrap"><DateText value={invoice.paidAt} /></td>
+                </tr>)}</tbody>
+              </table>
+              {!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}
+            </div>
+          </section>}
 
           {!loading && section === "messages" && <section className="mt-7">
             <h2 className="text-2xl font-black">الرسائل والتحديثات</h2>
