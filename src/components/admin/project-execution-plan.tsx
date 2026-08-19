@@ -133,7 +133,9 @@ export function ProjectExecutionPlan(props: Props) {
   const automaticProgress = totalPlannedStages > 0 ? Math.min(100, Math.round((completedStages / totalPlannedStages) * 100)) : 0;
   const displayProgress = Math.max(progress, automaticProgress);
   const currentStage = stages.find((stage) => !["COMPLETED", "CANCELLED"].includes(stage.status));
-  const currentStageLabel = currentStage?.name || (completedStages < totalPlannedStages ? `بانتظار إنشاء المرحلة ${completedStages + 1}` : "اكتملت جميع المراحل");
+  const hasNextStage = !currentStage && completedStages < totalPlannedStages;
+  const phaseLabel = currentStage ? "المرحلة الحالية" : hasNextStage ? "المرحلة التالية" : "حالة المراحل";
+  const phaseValue = currentStage?.name || (hasNextStage ? `${suggestion.name || `المرحلة ${completedStages + 1}`} — لم تبدأ بعد` : "اكتملت جميع المراحل");
 
   async function saveProjectProgress() {
     setBusy("project-progress");
@@ -215,7 +217,7 @@ export function ProjectExecutionPlan(props: Props) {
               <div className="flex items-center justify-between gap-3"><strong>تقدم التنفيذ الفعلي</strong><span className="text-3xl font-black text-[#9A7D43]">{displayProgress}%</span></div>
               <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A] transition-all" style={{ width: `${displayProgress}%` }} /></div>
               <p className="mt-2 text-xs font-bold text-slate-500">يُرفع تلقائيًا عند اكتمال المراحل المخططة، ويمكن رفعه يدويًا أثناء التنفيذ.</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3"><Fact label="المرحلة الحالية" value={currentStageLabel} /><Fact label="مراحل مكتملة" value={`${completedStages} من ${totalPlannedStages || stages.length}`} /><Fact label="حالة المشروع" value={projectStatusLabel[projectStatus]} /></div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3"><Fact label={phaseLabel} value={phaseValue} /><Fact label="مراحل مكتملة" value={`${completedStages} من ${totalPlannedStages || stages.length}`} /><Fact label="حالة المشروع" value={projectStatusLabel[projectStatus]} /></div>
             </div>
             <div className="rounded-2xl border border-[#E6E0D4] bg-white p-4">
               <div className="flex items-center justify-between gap-3"><strong>التقدم المالي</strong><span className="text-3xl font-black text-[#9A7D43]">{financialPercent}%</span></div>
