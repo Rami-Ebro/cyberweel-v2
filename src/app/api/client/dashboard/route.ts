@@ -10,7 +10,7 @@ function normalizeDigits(value: string) {
     .replace(/[۰-۹]/g, (digit) => String(eastern.indexOf(digit)));
 }
 
-function plannedTotal(financialPlan: string | null) {
+function plannedAmounts(financialPlan: string | null) {
   return (financialPlan || "")
     .split(/\r?\n/)
     .map((line) => normalizeDigits(line))
@@ -18,8 +18,15 @@ function plannedTotal(financialPlan: string | null) {
       const match = line.match(/(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة))/i);
       return Number((match?.[1] || match?.[2] || "0").replace(/,/g, ""));
     })
-    .filter((amount) => Number.isFinite(amount) && amount > 0)
-    .reduce((sum, amount) => sum + amount, 0);
+    .filter((amount) => Number.isFinite(amount) && amount > 0);
+}
+
+function plannedTotal(financialPlan: string | null) {
+  return plannedAmounts(financialPlan).reduce((sum, amount) => sum + amount, 0);
+}
+
+function plannedStageCount(financialPlan: string | null) {
+  return plannedAmounts(financialPlan).length;
 }
 
 export async function GET(request: NextRequest) {
@@ -119,6 +126,7 @@ export async function GET(request: NextRequest) {
         projectProgress: project.progress,
         projectStatus: project.status,
         plannedTotal: plannedTotal(project.financialPlan),
+        plannedStageCount: plannedStageCount(project.financialPlan),
       })),
       files: project.files.map((file) => ({
         ...file,
