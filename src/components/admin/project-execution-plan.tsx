@@ -201,14 +201,22 @@ export function ProjectExecutionPlan(props: Props) {
 
         <section className="rounded-2xl border border-[#D8D2C4] bg-[#FCFAF6] p-4">
           <div className="grid gap-4 lg:grid-cols-2">
-            <div>
-              <div className="flex items-center justify-between gap-3"><strong>تقدم التنفيذ</strong><span className="text-2xl font-black text-[#9A7D43]">{progress}%</span></div>
-              <div className="mt-3 h-3 overflow-hidden rounded-full bg-white"><div className="h-full bg-[#B89A5A] transition-all" style={{ width: `${progress}%` }} /></div>
+            <div className="rounded-xl border border-[#E6E0D4] bg-white p-4">
+              <div>
+                <p className="text-xs font-black text-slate-500">تقدم التنفيذ الفعلي</p>
+                <p className="mt-1 text-3xl font-black text-[#9A7D43]">{progress}%</p>
+              </div>
+              <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A] transition-all" style={{ width: `${progress}%` }} /></div>
+              <p className="mt-2 text-xs font-bold text-slate-500">يعكس نسبة العمل المنجزة فعليًا، ولا يرتبط بقيمة الدفعات.</p>
               <div className="mt-3 grid gap-2 sm:grid-cols-3"><Fact label="المرحلة الحالية" value={currentStage?.name || (stages.length ? "لا توجد مرحلة جارية" : "لم تبدأ المراحل")} /><Fact label="مراحل مكتملة" value={`${completedStages} من ${stages.length}`} /><Fact label="حالة المشروع" value={projectStatusLabel[projectStatus]} /></div>
             </div>
-            <div>
-              <div className="flex items-center justify-between gap-3"><strong>التقدم المالي</strong><span className="text-2xl font-black text-[#9A7D43]">{financialPercent}%</span></div>
-              <div className="mt-3 h-3 overflow-hidden rounded-full bg-white"><div className="h-full bg-[#B89A5A] transition-all" style={{ width: `${financialPercent}%` }} /></div>
+            <div className="rounded-xl border border-[#E6E0D4] bg-white p-4">
+              <div>
+                <p className="text-xs font-black text-slate-500">التقدم المالي</p>
+                <p className="mt-1 text-3xl font-black text-[#9A7D43]">{financialPercent}%</p>
+              </div>
+              <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A] transition-all" style={{ width: `${financialPercent}%` }} /></div>
+              <p className="mt-2 text-xs font-bold text-slate-500">يعكس نسبة المبالغ المدفوعة من إجمالي الخطة المالية.</p>
               <p className="mt-3 text-sm font-bold text-slate-600">المدفوع {paidAmount.toLocaleString("ar")} من {totalPlanned.toLocaleString("ar")} {props.currency}</p>
             </div>
           </div>
