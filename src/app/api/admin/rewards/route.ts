@@ -7,7 +7,7 @@ import type {
 } from "@prisma/client";
 import { currentAdminAccess } from "@/lib/admin-permissions";
 import { db } from "@/lib/db";
-import { rewardRateForNewProject, syncStageReward } from "@/lib/ambassador-rewards";
+import { DEFAULT_AMBASSADOR_REWARD_LEVELS, rewardRateForNewProject, syncStageReward } from "@/lib/ambassador-rewards";
 import { writeAdminAudit } from "@/lib/admin-audit";
 import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security";
 
@@ -51,7 +51,7 @@ function rewardPayload(reward: RewardResult) {
 export async function GET(request: NextRequest) {
   if (!(await requireRewardsAdmin(request))) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
-  const [rewards, levels, projects] = await Promise.all([
+  const [rewards, configuredLevels, projects] = await Promise.all([
     db.ambassadorReward.findMany({ orderBy: { createdAt: "desc" }, include: rewardInclude }),
     db.ambassadorRewardLevel.findMany({ orderBy: [{ minSuccessfulReferrals: "asc" }, { sortOrder: "asc" }] }),
     db.clientProject.findMany({
@@ -64,10 +64,16 @@ export async function GET(request: NextRequest) {
       },
     }),
   ]);
+  const levels = configuredLevels.length ? configuredLevels : DEFAULT_AMBASSADOR_REWARD_LEVELS;
 
   return NextResponse.json({
     rewards: rewards.map(rewardPayload),
-    levels: levels.map((level) => ({ ...level, rate: level.rate.toString() })),
+    levels: levels.map((level) => ({
+      ...level,
+      rate: level.rate.toString(),
+      isActive: "isActive" in level ? level.isActive : true,
+    })),
+    usingDefaultLevels: configuredLevels.length === 0,
     projects: projects.map((project) => ({
       ...project,
       ambassadorRewardRate: project.ambassadorRewardRate?.toString() || null,

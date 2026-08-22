@@ -223,17 +223,80 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     if (action === "payment") {
       const invoiceId = typeof body?.invoiceId === "string" ? body.invoiceId : "";
+      const paidAt = body?.paidAt ? new Date(body.paidAt) : new Date();
+      if (Number.isNaN(paidAt.getTime())) return NextResponse.json({ error: "تاريخ الدفع غير صالح" }, { status: 400 });
+
       const invoice = await db.clientInvoice.findFirst({
         where: { id: invoiceId, project: { clientId } },
-        select: { id: true, number: true, amount: true, currency: true },
+        select: { id: true, projectId: true, number: true, amount: true, currency: true, createdAt: true },
       });
       if (!invoice) return NextResponse.json({ error: "الفاتورة غير موجودة" }, { status: 400 });
-      const updated = await db.clientInvoice.update({
-        where: { id: invoice.id },
-        data: { status: "PAID", paidAt: body.paidAt ? new Date(body.paidAt) : new Date() },
+
+      const admin = await currentAdminAccess(request);
+      const result = await db.$transaction(async (tx) => {
+        const updatedInvoice = await tx.clientInvoice.update({
+          where: { id: invoice.id },
+          data: { status: "PAID", paidAt },
+        });
+
+        const linkedStage = await tx.projectStage.findFirst({
+          where: {
+            projectId: invoice.projectId,
+            amount: invoice.amount,
+            currency: invoice.currency,
+            createdAt: {
+              gte: new Date(invoice.createdAt.getTime() - 15_000),
+              lte: invoice.createdAt,
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, paymentStatus: true, paidAt: true },
+        });
+
+        let rewardStatus: string | null = null;
+        if (linkedStage) {
+          await tx.projectStage.update({
+            where: { id: linkedStage.id },
+            data: { paymentStatus: "PAID", paidAt: linkedStage.paidAt || paidAt },
+          });
+          const reward = await syncStageReward(tx, linkedStage.id);
+          rewardStatus = reward?.status || null;
+        }
+
+        await tx.clientNotification.create({
+          data: {
+            clientId,
+            title: "تم تسجيل دفعة",
+            body: `${invoice.number} — ${Number(invoice.amount)} ${invoice.currency}`,
+            section: "payments",
+          },
+        });
+
+        await writeAdminAudit(tx, {
+          actorId: admin?.userId,
+          action: "CLIENT_INVOICE_PAYMENT_RECORDED",
+          category: "POSITIVE",
+          entityType: "CLIENT_INVOICE",
+          entityId: invoice.id,
+          entityLabel: invoice.number,
+          after: {
+            amount: invoice.amount.toString(),
+            currency: invoice.currency,
+            paidAt: paidAt.toISOString(),
+            linkedStageId: linkedStage?.id || null,
+            linkedStagePaymentStatus: linkedStage ? "PAID" : null,
+            rewardStatus,
+          },
+        });
+
+        return { updatedInvoice, linkedStageId: linkedStage?.id || null, rewardStatus };
       });
-      await notify(clientId, "تم تسجيل دفعة", `${invoice.number} — ${Number(invoice.amount)} ${invoice.currency}`, "payments");
-      return NextResponse.json({ invoice: { ...updated, amount: Number(updated.amount) } });
+
+      return NextResponse.json({
+        invoice: { ...result.updatedInvoice, amount: Number(result.updatedInvoice.amount) },
+        linkedStageId: result.linkedStageId,
+        rewardStatus: result.rewardStatus,
+      });
     }
 
     if (action === "message") {
