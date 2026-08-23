@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
       const paymentStatus = paymentStatuses.has(body?.paymentStatus as ProjectStagePaymentStatus) ? body.paymentStatus as ProjectStagePaymentStatus : existing.paymentStatus;
       const amount = body?.amount === undefined ? Number(existing.amount) : Number(body.amount);
       const dueAt = body?.dueAt === undefined ? existing.startsAt : dateValue(body.dueAt);
-      const approved = body?.approved === true;
+      const approved = body?.approved === true && status === "COMPLETED";
 
       if (!Number.isFinite(amount) || amount <= 0 || amount > 9_999_999_999.99 || dueAt === undefined) {
         return NextResponse.json({ error: "بيانات المرحلة غير صالحة" }, { status: 400 });
