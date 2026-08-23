@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       `ambassador-rewards/${rewardId}/proof/${safeFileName(file.name)}`,
       file,
       {
-        access: "public",
+        access: "private",
         token: blobToken,
         addRandomSuffix: true,
         contentType: file.type,
