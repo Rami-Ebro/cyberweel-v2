@@ -1,5 +1,6 @@
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import { FormEvent, Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { BadgeDollarSign, ChevronDown, RefreshCw, Search } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -7,7 +8,15 @@ import { DateText } from "@/components/ui/date-text";
 import { dashboardErrorMessage } from "@/lib/dashboard-labels";
 
 type RewardStatus = "EXPECTED" | "EARNED" | "PAID" | "CANCELLED";
-type PaymentProof = { method: string; reference: string; paidAt: string; note: string | null };
+type PaymentProof = {
+  method: string;
+  reference: string;
+  paidAt: string;
+  note: string | null;
+  attachmentUrl: string | null;
+  attachmentName: string | null;
+  attachmentType: string | null;
+};
 type Reward = {
   id: string; rate: string; baseAmount: string; amount: string; currency: string; status: RewardStatus;
   earnedAt: string | null; paidAt: string | null; cancelReason: string | null; adminNotes: string | null;
@@ -26,6 +35,8 @@ const FIXED_REWARD_LEVELS = [
 ] as const;
 
 const PAYMENT_PROOF_PREFIX = "PAYMENT_PROOF:";
+const MAX_PAYMENT_PROOF_SIZE = 5 * 1024 * 1024;
+const ALLOWED_PAYMENT_PROOF_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "application/pdf"]);
 const statusLabels: Record<RewardStatus, string> = { EXPECTED: "متوقعة", EARNED: "مستحقة", PAID: "مدفوعة", CANCELLED: "ملغاة" };
 const statusStyles: Record<RewardStatus, string> = { EXPECTED: "bg-amber-100 text-amber-800", EARNED: "bg-emerald-100 text-emerald-800", PAID: "bg-sky-100 text-sky-800", CANCELLED: "bg-rose-100 text-rose-800" };
 const stageStatuses = [["NOT_STARTED", "لم تبدأ"], ["IN_PROGRESS", "قيد التنفيذ"], ["COMPLETED", "مكتملة"], ["CANCELLED", "ملغاة"]];
@@ -45,6 +56,9 @@ function paymentProof(value: string | null): PaymentProof | null {
       reference: String(parsed.reference),
       paidAt: String(parsed.paidAt),
       note: parsed.note ? String(parsed.note) : null,
+      attachmentUrl: parsed.attachmentUrl ? String(parsed.attachmentUrl) : null,
+      attachmentName: parsed.attachmentName ? String(parsed.attachmentName) : null,
+      attachmentType: parsed.attachmentType ? String(parsed.attachmentType) : null,
     };
   } catch {
     return null;
@@ -98,7 +112,44 @@ export default function AdminRewardsPage() {
   async function submitPayment(event: FormEvent<HTMLFormElement>, reward: Reward) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const proofExists = Boolean(paymentProof(reward.adminNotes));
+    const proof = paymentProof(reward.adminNotes);
+    const proofExists = Boolean(proof);
+    const attachment = data.get("paymentAttachment");
+    let attachmentUrl = proof?.attachmentUrl || null;
+    let attachmentName = proof?.attachmentName || null;
+    let attachmentType = proof?.attachmentType || null;
+
+    if (attachment instanceof File && attachment.size > 0) {
+      if (attachment.size > MAX_PAYMENT_PROOF_SIZE) {
+        setMessage("حجم مرفق إثبات الدفع يجب ألا يتجاوز 5 MB");
+        return;
+      }
+      if (!ALLOWED_PAYMENT_PROOF_TYPES.has(attachment.type)) {
+        setMessage("صيغة المرفق غير مدعومة. استخدم PNG أو JPG أو WebP أو PDF");
+        return;
+      }
+      setBusy(reward.id);
+      setMessage("جارٍ رفع مرفق إثبات الدفع...");
+      try {
+        const blob = await upload(
+          `ambassador-rewards/${reward.id}/proof/${attachment.name}`,
+          attachment,
+          {
+            access: "public",
+            handleUploadUrl: "/api/admin/rewards/payment-proof-upload",
+            clientPayload: JSON.stringify({ rewardId: reward.id, originalName: attachment.name, size: attachment.size }),
+          },
+        );
+        attachmentUrl = blob.url;
+        attachmentName = attachment.name;
+        attachmentType = attachment.type;
+      } catch (cause) {
+        setBusy("");
+        setMessage(cause instanceof Error ? cause.message : "تعذر رفع مرفق إثبات الدفع");
+        return;
+      }
+    }
+
     const saved = await mutate({
       action: "reward_status",
       rewardId: reward.id,
@@ -107,6 +158,9 @@ export default function AdminRewardsPage() {
       paymentReference: data.get("paymentReference"),
       paymentDate: data.get("paymentDate"),
       adminNotes: data.get("adminNotes"),
+      paymentAttachmentUrl: attachmentUrl,
+      paymentAttachmentName: attachmentName,
+      paymentAttachmentType: attachmentType,
     }, proofExists ? "تم تحديث إثبات الدفع" : reward.status === "PAID" ? "تم استكمال إثبات الدفع" : "تم تسجيل المكافأة كمدفوعة مع إثبات الدفع");
     if (saved) setPayingRewardId(null);
   }
@@ -162,10 +216,10 @@ export default function AdminRewardsPage() {
 
       <section className="mt-6 rounded-2xl border border-[#D8D2C4] bg-white p-5"><div className="flex flex-col gap-3 md:flex-row"><label className="flex flex-1 items-center gap-2 rounded-xl border border-slate-200 px-4"><Search className="h-4 w-4 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="بحث بالسفير أو العميل أو المشروع" className="w-full py-3 outline-none" /></label><select value={status} onChange={(event) => setStatus(event.target.value as typeof status)} className="field md:max-w-52"><option value="ALL">كل الحالات</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><div className="mt-5 overflow-x-auto"><table className="w-full min-w-[1150px] text-right text-sm"><thead className="bg-[#F7F3EB]"><tr><th className="p-3">السفير</th><th className="p-3">العميل</th><th className="p-3">المشروع / المرحلة</th><th className="p-3">قيمة المرحلة</th><th className="p-3">النسبة</th><th className="p-3">المكافأة</th><th className="p-3">الحالة</th><th className="p-3">إثبات الدفع</th><th className="p-3">الإجراء</th></tr></thead><tbody>{filtered.map((reward) => {
         const proof = paymentProof(reward.adminNotes);
-        const canAttachProof = reward.status === "PAID" && !proof;
+        const canEditProof = reward.status === "PAID";
         return <Fragment key={reward.id}>
-          <tr className="border-t border-slate-100"><td className="p-3 font-black">{reward.ambassador.user.name || reward.ambassador.user.email}</td><td className="p-3">{reward.project.client.name || reward.project.client.email}</td><td className="p-3"><strong>{reward.project.title}</strong><span className="block text-slate-500">{reward.projectStage.name}</span></td><td className="p-3">{amount(reward.baseAmount, reward.currency)}</td><td className="p-3">{reward.rate}%</td><td className="p-3 font-black">{amount(reward.amount, reward.currency)}</td><td className="p-3"><span className={`rounded-full px-3 py-1 text-xs font-black ${statusStyles[reward.status]}`}>{statusLabels[reward.status]}</span>{reward.earnedAt && <span className="mt-1 block text-xs text-slate-500"><DateText value={reward.earnedAt} /></span>}{reward.paidAt && <span className="block text-xs text-slate-500">دُفعت <DateText value={reward.paidAt} /></span>}</td><td className="p-3">{proof ? <div className="space-y-1 text-xs"><strong className="block text-slate-900">{proof.method}</strong><span dir="ltr" className="block text-right text-slate-600 [unicode-bidi:isolate]">{proof.reference}</span><span className="block text-slate-500"><DateText value={proof.paidAt} /></span>{proof.note && <span className="block text-slate-500">{proof.note}</span>}</div> : reward.status === "PAID" ? <span className="font-bold text-rose-700">لم يُسجل إثبات الدفع</span> : <span className="text-slate-500">{reward.ambassador.payoutMethod || "غير مسجلة"}</span>}</td><td className="p-3"><div className="flex flex-wrap gap-2">{reward.status === "EXPECTED" && <span className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">بانتظار اكتمال المرحلة والدفع والاعتماد</span>}{reward.status === "EARNED" && <button type="button" onClick={() => setPayingRewardId(reward.id)} className="rounded-lg bg-sky-100 px-3 py-2 font-bold text-sky-800">تسجيل الدفع</button>}{canAttachProof && <button type="button" onClick={() => setPayingRewardId(reward.id)} className="rounded-lg bg-amber-100 px-3 py-2 font-bold text-amber-900">إضافة إثبات الدفع</button>}{reward.status !== "PAID" && reward.status !== "CANCELLED" && <button type="button" onClick={() => void cancelReward(reward)} className="rounded-lg bg-rose-100 px-3 py-2 font-bold text-rose-800">إلغاء</button>}</div></td></tr>
-          {payingRewardId === reward.id && <tr className="border-t border-sky-100 bg-sky-50/50"><td colSpan={9} className="p-4"><form onSubmit={(event) => void submitPayment(event, reward)} className="grid gap-3 md:grid-cols-4"><label className="grid gap-2 font-bold">وسيلة الدفع<input name="paymentMethod" required maxLength={120} defaultValue={proof?.method || reward.ambassador.payoutMethod || ""} placeholder="مثال: شام كاش / تحويل بنكي" className="field bg-white font-normal" /></label><label className="grid gap-2 font-bold">مرجع العملية<input name="paymentReference" required maxLength={180} defaultValue={proof?.reference || ""} placeholder="رقم الحوالة أو مرجع التحويل" className="field bg-white font-normal" /></label><label className="grid gap-2 font-bold">تاريخ الدفع<input name="paymentDate" type="date" required defaultValue={(proof?.paidAt || reward.paidAt || new Date().toISOString()).slice(0, 10)} className="field bg-white font-normal" /></label><label className="grid gap-2 font-bold">ملاحظة — اختياري<input name="adminNotes" maxLength={2000} defaultValue={proof?.note || ""} className="field bg-white font-normal" /></label><div className="flex gap-2 md:col-span-4"><button disabled={busy === reward.id} className="rounded-xl bg-sky-700 px-5 py-2.5 font-black text-white disabled:opacity-50">تأكيد إثبات الدفع</button><button type="button" onClick={() => setPayingRewardId(null)} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 font-black">إلغاء</button></div></form></td></tr>}
+          <tr className="border-t border-slate-100"><td className="p-3 font-black">{reward.ambassador.user.name || reward.ambassador.user.email}</td><td className="p-3">{reward.project.client.name || reward.project.client.email}</td><td className="p-3"><strong>{reward.project.title}</strong><span className="block text-slate-500">{reward.projectStage.name}</span></td><td className="p-3">{amount(reward.baseAmount, reward.currency)}</td><td className="p-3">{reward.rate}%</td><td className="p-3 font-black">{amount(reward.amount, reward.currency)}</td><td className="p-3"><span className={`rounded-full px-3 py-1 text-xs font-black ${statusStyles[reward.status]}`}>{statusLabels[reward.status]}</span>{reward.earnedAt && <span className="mt-1 block text-xs text-slate-500"><DateText value={reward.earnedAt} /></span>}{reward.paidAt && <span className="block text-xs text-slate-500">دُفعت <DateText value={reward.paidAt} /></span>}</td><td className="p-3">{proof ? <div className="space-y-1 text-xs"><strong className="block text-slate-900">{proof.method}</strong><span dir="ltr" className="block text-right text-slate-600 [unicode-bidi:isolate]">{proof.reference}</span><span className="block text-slate-500"><DateText value={proof.paidAt} /></span>{proof.attachmentUrl && <a href={proof.attachmentUrl} target="_blank" rel="noreferrer" className="block font-black text-sky-700 underline">عرض المرفق{proof.attachmentName ? ` — ${proof.attachmentName}` : ""}</a>}{proof.note && <span className="block text-slate-500">{proof.note}</span>}</div> : reward.status === "PAID" ? <span className="font-bold text-rose-700">لم يُسجل إثبات الدفع</span> : <span className="text-slate-500">{reward.ambassador.payoutMethod || "غير مسجلة"}</span>}</td><td className="p-3"><div className="flex flex-wrap gap-2">{reward.status === "EXPECTED" && <span className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">بانتظار اكتمال المرحلة والدفع والاعتماد</span>}{reward.status === "EARNED" && <button type="button" onClick={() => setPayingRewardId(reward.id)} className="rounded-lg bg-sky-100 px-3 py-2 font-bold text-sky-800">تسجيل الدفع</button>}{canEditProof && <button type="button" onClick={() => setPayingRewardId(reward.id)} className="rounded-lg bg-amber-100 px-3 py-2 font-bold text-amber-900">{proof ? "تعديل الإثبات" : "إضافة إثبات الدفع"}</button>}{reward.status !== "PAID" && reward.status !== "CANCELLED" && <button type="button" onClick={() => void cancelReward(reward)} className="rounded-lg bg-rose-100 px-3 py-2 font-bold text-rose-800">إلغاء</button>}</div></td></tr>
+          {payingRewardId === reward.id && <tr className="border-t border-sky-100 bg-sky-50/50"><td colSpan={9} className="p-4"><form onSubmit={(event) => void submitPayment(event, reward)} className="grid gap-3 md:grid-cols-4"><label className="grid gap-2 font-bold">وسيلة الدفع<input name="paymentMethod" required maxLength={120} defaultValue={proof?.method || reward.ambassador.payoutMethod || ""} placeholder="مثال: شام كاش / تحويل بنكي" className="field bg-white font-normal" /></label><label className="grid gap-2 font-bold">مرجع العملية<input name="paymentReference" required maxLength={180} defaultValue={proof?.reference || ""} placeholder="رقم الحوالة أو مرجع التحويل" className="field bg-white font-normal" /></label><label className="grid gap-2 font-bold">تاريخ الدفع<input name="paymentDate" type="date" required defaultValue={(proof?.paidAt || reward.paidAt || new Date().toISOString()).slice(0, 10)} className="field bg-white font-normal" /></label><label className="grid gap-2 font-bold">ملاحظة — اختياري<input name="adminNotes" maxLength={2000} defaultValue={proof?.note || ""} className="field bg-white font-normal" /></label><label className="grid gap-2 font-bold md:col-span-4">مرفق إثبات الدفع — اختياري<input name="paymentAttachment" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" className="field bg-white font-normal" /><span className="text-xs font-normal text-slate-500">صورة إشعار أو إيصال بصيغة PNG/JPG/WebP أو PDF، بحد أقصى 5 MB.</span>{proof?.attachmentUrl && <a href={proof.attachmentUrl} target="_blank" rel="noreferrer" className="w-fit text-xs font-black text-sky-700 underline">المرفق الحالي: {proof.attachmentName || "عرض المرفق"}</a>}</label><div className="flex gap-2 md:col-span-4"><button disabled={busy === reward.id} className="rounded-xl bg-sky-700 px-5 py-2.5 font-black text-white disabled:opacity-50">{busy === reward.id ? "جارٍ الحفظ..." : "تأكيد إثبات الدفع"}</button><button type="button" disabled={busy === reward.id} onClick={() => setPayingRewardId(null)} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 font-black disabled:opacity-50">إلغاء</button></div></form></td></tr>}
         </Fragment>;
       })}</tbody></table>{!filtered.length && <p className="p-10 text-center text-slate-500">{qualifiedProjects.length ? "لا توجد مكافآت مالية بعد. المشاريع المؤهلة ونسبها المحفوظة ظاهرة أعلاه بانتظار المراحل المالية." : "لا توجد مكافآت مطابقة."}</p>}</div></section>
     </>}
