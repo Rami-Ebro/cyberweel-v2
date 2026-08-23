@@ -11,6 +11,9 @@ import {
 } from "@/lib/request-security";
 import { NextRequest, NextResponse } from "next/server";
 
+const PAYMENT_PROOF_PREFIX = "PAYMENT_PROOF:";
+type PaymentProof = { method: string; reference: string; paidAt: string; note: string | null };
+
 async function dashboardAmbassador(request: NextRequest) {
   const previewId = request.nextUrl.searchParams.get("adminPreview");
   if (previewId) {
@@ -52,6 +55,22 @@ async function dashboardAmbassador(request: NextRequest) {
 
   const user = await currentAmbassador(request);
   return user ? { ...user, isAdminPreview: false } : null;
+}
+
+function paymentProofFromNotes(value: string | null | undefined): PaymentProof | null {
+  if (!value?.startsWith(PAYMENT_PROOF_PREFIX)) return null;
+  try {
+    const parsed = JSON.parse(value.slice(PAYMENT_PROOF_PREFIX.length)) as Partial<PaymentProof>;
+    if (!parsed.method || !parsed.reference || !parsed.paidAt) return null;
+    return {
+      method: String(parsed.method),
+      reference: String(parsed.reference),
+      paidAt: String(parsed.paidAt),
+      note: parsed.note ? String(parsed.note) : null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function serializeReferral<T extends {
@@ -169,11 +188,13 @@ export async function GET(request: NextRequest) {
     if (reward.status === "EARNED") summary.earned += value;
     if (reward.status === "PAID") summary.paid += value;
     rewardSummaries.set(reward.currency, summary);
+    const { adminNotes, ...publicReward } = reward;
     return {
-      ...reward,
+      ...publicReward,
       rate: reward.rate.toString(),
       baseAmount: reward.baseAmount.toString(),
       amount: reward.amount.toString(),
+      paymentProof: paymentProofFromNotes(adminNotes),
     };
   });
   const currentLevel = successfulThisMonth
