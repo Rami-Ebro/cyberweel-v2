@@ -12,7 +12,15 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 const PAYMENT_PROOF_PREFIX = "PAYMENT_PROOF:";
-type PaymentProof = { method: string; reference: string; paidAt: string; note: string | null };
+type PaymentProof = {
+  method: string;
+  reference: string;
+  paidAt: string;
+  note: string | null;
+  attachmentUrl: string | null;
+  attachmentName: string | null;
+  attachmentType: string | null;
+};
 
 async function dashboardAmbassador(request: NextRequest) {
   const previewId = request.nextUrl.searchParams.get("adminPreview");
@@ -67,6 +75,9 @@ function paymentProofFromNotes(value: string | null | undefined): PaymentProof |
       reference: String(parsed.reference),
       paidAt: String(parsed.paidAt),
       note: parsed.note ? String(parsed.note) : null,
+      attachmentUrl: parsed.attachmentUrl ? String(parsed.attachmentUrl) : null,
+      attachmentName: parsed.attachmentName ? String(parsed.attachmentName) : null,
+      attachmentType: parsed.attachmentType ? String(parsed.attachmentType) : null,
     };
   } catch {
     return null;
