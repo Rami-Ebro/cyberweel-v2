@@ -1,33 +1,14 @@
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { currentAdminAccess } from "@/lib/admin-permissions";
 import { db } from "@/lib/db";
+import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security";
 
 export const runtime = "nodejs";
 
-const MAX_PAYMENT_PROOF_SIZE = 5 * 1024 * 1024;
-const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "application/pdf"];
+const MAX_PAYMENT_PROOF_SIZE = 4 * 1024 * 1024;
+const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "application/pdf"]);
 const ALLOWED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "pdf"]);
-
-type UploadPayload = {
-  rewardId: string;
-  originalName: string;
-  size: number;
-};
-
-function parsePayload(value: string | null): UploadPayload | null {
-  try {
-    const parsed = JSON.parse(value || "");
-    if (
-      typeof parsed?.rewardId !== "string" ||
-      typeof parsed?.originalName !== "string" ||
-      typeof parsed?.size !== "number"
-    ) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
 
 async function requireRewardsAdmin(request: NextRequest) {
   const access = await currentAdminAccess(request);
@@ -35,59 +16,61 @@ async function requireRewardsAdmin(request: NextRequest) {
   return access;
 }
 
+function safeFileName(value: string) {
+  return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 140) || "payment-proof";
+}
+
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null) as HandleUploadBody | null;
-  if (!body) return NextResponse.json({ error: "طلب رفع غير صالح" }, { status: 400 });
+  if (!hasTrustedOrigin(request)) return invalidOriginResponse();
+  if (!(await requireRewardsAdmin(request))) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
   const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-  if (!blobToken) {
-    return NextResponse.json({ error: "خدمة رفع الملفات غير مهيأة حاليًا" }, { status: 503 });
-  }
+  if (!blobToken) return NextResponse.json({ error: "خدمة رفع الملفات غير مهيأة حاليًا" }, { status: 503 });
 
   try {
-    const response = await handleUpload({
-      token: blobToken,
-      request,
-      body,
-      onBeforeGenerateToken: async (pathname, clientPayload) => {
-        if (!(await requireRewardsAdmin(request))) throw new Error("غير مصرح");
+    const form = await request.formData();
+    const rewardId = String(form.get("rewardId") || "").trim();
+    const file = form.get("file");
 
-        const payload = parsePayload(clientPayload);
-        const extension = payload?.originalName.split(".").pop()?.toLowerCase() || "";
-        if (
-          !payload ||
-          payload.size <= 0 ||
-          payload.size > MAX_PAYMENT_PROOF_SIZE ||
-          !ALLOWED_EXTENSIONS.has(extension) ||
-          !pathname.startsWith(`ambassador-rewards/${payload.rewardId}/proof/`)
-        ) {
-          throw new Error("ملف إثبات الدفع غير صالح");
-        }
+    if (!rewardId || !(file instanceof File) || file.size <= 0) {
+      return NextResponse.json({ error: "ملف إثبات الدفع مطلوب" }, { status: 400 });
+    }
+    if (file.size > MAX_PAYMENT_PROOF_SIZE) {
+      return NextResponse.json({ error: "حجم مرفق إثبات الدفع يجب ألا يتجاوز 4 MB" }, { status: 400 });
+    }
 
-        const reward = await db.ambassadorReward.findUnique({
-          where: { id: payload.rewardId },
-          select: { status: true },
-        });
-        if (!reward || !["EARNED", "PAID"].includes(reward.status)) {
-          throw new Error("المكافأة غير مؤهلة لإرفاق إثبات دفع");
-        }
+    const extension = file.name.split(".").pop()?.toLowerCase() || "";
+    if (!ALLOWED_TYPES.has(file.type) || !ALLOWED_EXTENSIONS.has(extension)) {
+      return NextResponse.json({ error: "صيغة المرفق غير مدعومة. استخدم PNG أو JPG أو WebP أو PDF" }, { status: 400 });
+    }
 
-        return {
-          allowedContentTypes: ALLOWED_TYPES,
-          maximumSizeInBytes: MAX_PAYMENT_PROOF_SIZE,
-          addRandomSuffix: true,
-          tokenPayload: JSON.stringify(payload),
-        };
-      },
-      onUploadCompleted: async () => {
-        // The Blob URL is attached to the reward payment-proof record
-        // when the admin confirms the payment form.
-      },
+    const reward = await db.ambassadorReward.findUnique({
+      where: { id: rewardId },
+      select: { status: true },
     });
+    if (!reward || !["EARNED", "PAID"].includes(reward.status)) {
+      return NextResponse.json({ error: "المكافأة غير مؤهلة لإرفاق إثبات دفع" }, { status: 409 });
+    }
 
-    return NextResponse.json(response);
+    const blob = await put(
+      `ambassador-rewards/${rewardId}/proof/${safeFileName(file.name)}`,
+      file,
+      {
+        access: "public",
+        token: blobToken,
+        addRandomSuffix: true,
+        contentType: file.type,
+      },
+    );
+
+    return NextResponse.json({
+      url: blob.url,
+      pathname: blob.pathname,
+      contentType: blob.contentType,
+      originalName: file.name,
+    });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "تعذر رفع إثبات الدفع";
-    return NextResponse.json({ error: message }, { status: message === "غير مصرح" ? 403 : 400 });
+    console.error("[reward-payment-proof-upload] failed", error);
+    return NextResponse.json({ error: "تعذر رفع مرفق إثبات الدفع" }, { status: 500 });
   }
 }
