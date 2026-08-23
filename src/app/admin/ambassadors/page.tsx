@@ -211,66 +211,86 @@ export default function AmbassadorsAdmin() {
             </div>
 
             {data.ambassadors.length ? (
-              <div className="mt-4 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
-                <table className="w-full min-w-[1540px] text-right text-sm">
+              <div className="mt-4 overflow-hidden rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
+                <table className="w-full table-fixed text-right text-xs xl:text-sm">
                   <thead className="bg-[#F3EEE5] text-[#6F5A32]">
                     <tr>
-                      <th className="p-4">الاسم</th>
-                      <th className="p-4">التواصل</th>
-                      <th className="p-4">كود السفير</th>
-                      <th className="p-4">الحالة والملف</th>
-                      <th className="p-4">المستوى الحالي</th>
-                      <th className="p-4">إجمالي الإحالات</th>
-                      <th className="p-4">الإحالات الناجحة</th>
-                      <th className="p-4">الإحالات الناجحة هذا الشهر</th>
-                      <th className="p-4">المكافآت المستحقة</th>
-                      <th className="p-4">المكافآت المدفوعة</th>
-                      <th className="p-4">آخر نشاط</th>
-                      <th className="p-4">الإجراء</th>
+                      <th className="w-[15%] px-3 py-3">السفير</th>
+                      <th className="w-[22%] px-3 py-3">التواصل</th>
+                      <th className="w-[15%] px-3 py-3">الحالة والمستوى</th>
+                      <th className="w-[14%] px-3 py-3">الإحالات</th>
+                      <th className="w-[16%] px-3 py-3">المكافآت</th>
+                      <th className="w-[9%] px-3 py-3">آخر نشاط</th>
+                      <th className="w-[9%] px-3 py-3">الإجراء</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.ambassadors.map((ambassador) => (
                       <Fragment key={ambassador.id}>
                         <tr className="border-t border-slate-100 align-top hover:bg-[#FCFAF6]">
-                          <td className="p-4 font-black">{ambassador.user.name || "غير محدد"}</td>
-                          <td className="p-4">
-                            <span dir="ltr" className="block text-right [unicode-bidi:isolate]">{ambassador.user.email}</span>
-                            <span dir="ltr" className="mt-1 block text-right text-slate-500 [unicode-bidi:isolate]">{ambassador.user.phone || "—"}</span>
+                          <td className="px-3 py-3">
+                            <strong className="block break-words">{ambassador.user.name || "غير محدد"}</strong>
+                            <span dir="ltr" className="mt-1 block text-right text-xs font-black text-[#9A7D43] [unicode-bidi:isolate]">
+                              CWA-{String(ambassador.referralNumber).padStart(4, "0")}
+                            </span>
                           </td>
-                          <td dir="ltr" className="p-4 text-right font-black [unicode-bidi:isolate]">CWA-{String(ambassador.referralNumber).padStart(4, "0")}</td>
-                          <td className="p-4">
+                          <td className="px-3 py-3">
+                            <span dir="ltr" className="block break-all text-right [unicode-bidi:isolate]">{ambassador.user.email}</span>
+                            <span dir="ltr" className="mt-1 block break-all text-right text-slate-500 [unicode-bidi:isolate]">{ambassador.user.phone || "—"}</span>
+                          </td>
+                          <td className="px-3 py-3">
                             <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${statusStyles[ambassador.status]}`}>
                               {dashboardLabel(ambassador.status, "حالة غير معروفة")}
                             </span>
-                            <span className="mt-2 block text-xs text-slate-500">{ambassador.profileCompletedAt ? "مكتمل" : "غير مكتمل"}</span>
-                          </td>
-                          <td className="p-4">
+                            <span className="mt-1 block text-xs text-slate-500">الملف: {ambassador.profileCompletedAt ? "مكتمل" : "غير مكتمل"}</span>
                             {ambassador.currentLevel ? (
-                              <>
-                                <strong className="block">{ambassador.currentLevel.name}</strong>
-                                <span dir="ltr" className="mt-1 block text-right text-xs text-slate-500 [unicode-bidi:isolate]">{ambassador.currentLevel.rate}%</span>
-                              </>
-                            ) : "غير محدد"}
+                              <span className="mt-1 block font-bold">
+                                {ambassador.currentLevel.name}
+                                <span dir="ltr" className="me-1 text-xs text-slate-500 [unicode-bidi:isolate]">({ambassador.currentLevel.rate}%)</span>
+                              </span>
+                            ) : <span className="mt-1 block text-slate-500">المستوى: غير محدد</span>}
                           </td>
-                          <td dir="ltr" className="p-4 text-right font-black tabular-nums [unicode-bidi:isolate]">{ambassador.referralStats.total}</td>
-                          <td dir="ltr" className="p-4 text-right font-black tabular-nums [unicode-bidi:isolate]">{ambassador.referralStats.successful}</td>
-                          <td dir="ltr" className="p-4 text-right font-black tabular-nums [unicode-bidi:isolate]">{ambassador.referralStats.successfulThisMonth}</td>
-                          <td className="p-4"><MoneyTotals totals={ambassador.rewardTotals} field="due" /></td>
-                          <td className="p-4"><MoneyTotals totals={ambassador.rewardTotals} field="paid" /></td>
-                          <td className="p-4"><DateText value={ambassador.lastActivityAt} withTime /></td>
-                          <td className="p-4">
-                            <div className="flex flex-wrap gap-2">
-                              <Link href={`/ambassador/dashboard?adminPreview=${ambassador.id}`} className="rounded-lg border border-[#D8D2C4] px-3 py-2 font-bold hover:border-[#B89A5A]">عرض</Link>
-                              <button type="button" onClick={() => setEditingId((current) => current === ambassador.id ? null : ambassador.id)} className="rounded-lg border border-[#D8D2C4] px-3 py-2 font-bold hover:border-[#B89A5A]">تعديل</button>
-                              {ambassador.status !== "ACTIVE" && <button type="button" disabled={busyId === ambassador.id} onClick={() => void updateStatus(ambassador.id, "ACTIVE")} className="rounded-lg bg-emerald-600 px-3 py-2 font-bold text-white disabled:opacity-40">تفعيل</button>}
-                              {ambassador.status !== "SUSPENDED" && <button type="button" disabled={busyId === ambassador.id} onClick={() => void updateStatus(ambassador.id, "SUSPENDED")} className="rounded-lg bg-rose-600 px-3 py-2 font-bold text-white disabled:opacity-40">تعليق</button>}
+                          <td className="px-2 py-3">
+                            <div className="grid grid-cols-3 gap-1 text-center">
+                              <span className="rounded-lg bg-slate-50 px-1 py-2">
+                                <small className="block text-[10px] leading-tight text-slate-500">الكل</small>
+                                <b dir="ltr" className="mt-1 block tabular-nums [unicode-bidi:isolate]">{ambassador.referralStats.total}</b>
+                              </span>
+                              <span className="rounded-lg bg-emerald-50 px-1 py-2">
+                                <small className="block text-[10px] leading-tight text-emerald-700">ناجحة</small>
+                                <b dir="ltr" className="mt-1 block tabular-nums text-emerald-800 [unicode-bidi:isolate]">{ambassador.referralStats.successful}</b>
+                              </span>
+                              <span className="rounded-lg bg-[#F3EEE5] px-1 py-2">
+                                <small className="block text-[10px] leading-tight text-[#7B5D26]">هذا الشهر</small>
+                                <b dir="ltr" className="mt-1 block tabular-nums text-[#7B5D26] [unicode-bidi:isolate]">{ambassador.referralStats.successfulThisMonth}</b>
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="grid gap-2">
+                              <div className="grid grid-cols-[auto_1fr] items-start gap-2">
+                                <span className="text-slate-500">مستحقة</span>
+                                <MoneyTotals totals={ambassador.rewardTotals} field="due" />
+                              </div>
+                              <div className="grid grid-cols-[auto_1fr] items-start gap-2">
+                                <span className="text-slate-500">مدفوعة</span>
+                                <MoneyTotals totals={ambassador.rewardTotals} field="paid" />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-2 py-3 text-xs"><DateText value={ambassador.lastActivityAt} withTime /></td>
+                          <td className="px-2 py-3">
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <Link href={`/ambassador/dashboard?adminPreview=${ambassador.id}`} className="inline-flex min-h-8 items-center justify-center rounded-md border border-[#D8D2C4] px-2 py-1.5 text-xs font-bold hover:border-[#B89A5A]">عرض</Link>
+                              <button type="button" onClick={() => setEditingId((current) => current === ambassador.id ? null : ambassador.id)} className="min-h-8 rounded-md border border-[#D8D2C4] px-2 py-1.5 text-xs font-bold hover:border-[#B89A5A]">تعديل</button>
+                              {ambassador.status !== "ACTIVE" && <button type="button" disabled={busyId === ambassador.id} onClick={() => void updateStatus(ambassador.id, "ACTIVE")} className="min-h-8 rounded-md bg-emerald-600 px-2 py-1.5 text-xs font-bold text-white disabled:opacity-40">تفعيل</button>}
+                              {ambassador.status !== "SUSPENDED" && <button type="button" disabled={busyId === ambassador.id} onClick={() => void updateStatus(ambassador.id, "SUSPENDED")} className="min-h-8 rounded-md bg-rose-600 px-2 py-1.5 text-xs font-bold text-white disabled:opacity-40">تعليق</button>}
                             </div>
                           </td>
                         </tr>
                         {editingId === ambassador.id && (
                           <tr className="border-t border-[#E6E0D4] bg-[#FCFAF6]">
-                            <td colSpan={12} className="p-4">
+                            <td colSpan={7} className="p-4">
                               <form onSubmit={(event) => void saveAmbassadorAccount(event, ambassador.id)} className="grid gap-3 md:grid-cols-4">
                                 <label className="grid gap-2 font-bold">الاسم<input name="name" required minLength={2} defaultValue={ambassador.user.name || ""} className="rounded-lg border bg-white p-3 font-normal" /></label>
                                 <label className="grid gap-2 font-bold">البريد الإلكتروني<input name="email" type="email" required defaultValue={ambassador.user.email} className="rounded-lg border bg-white p-3 font-normal" /></label>
