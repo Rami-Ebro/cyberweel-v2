@@ -68,7 +68,7 @@ function paymentProofNotes(proof: PaymentProof) {
 function validPaymentProofUrl(value: string) {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && url.hostname.endsWith(".public.blob.vercel-storage.com");
+    return url.protocol === "https:" && [".public.blob.vercel-storage.com", ".private.blob.vercel-storage.com"].some((suffix) => url.hostname.endsWith(suffix));
   } catch {
     return false;
   }
