@@ -50,24 +50,34 @@ export function ClientExecutionPlan({ stages }: { stages: ClientProjectStage[] }
   const plannedTotal = stages[0]?.plannedTotal || stages.reduce((sum, stage) => sum + stage.amount, 0);
   const financialProgress = plannedTotal > 0 ? Math.min(100, Math.round((paidAmount / plannedTotal) * 100)) : 0;
   const completedStages = stages.filter((stage) => stage.status === "COMPLETED").length;
-  const plannedCount = stages[0]?.plannedStageCount || stages.length;
+  const plannedCount = Math.max(stages[0]?.plannedStageCount || 0, stages.length, 1);
   const automaticProgress = plannedCount > 0 ? Math.min(100, Math.round((completedStages / plannedCount) * 100)) : 0;
   const progress = Math.max(automaticProgress, Math.max(0, Math.min(100, stages[0]?.projectProgress || 0)));
   const currentStage = currentIndex === -1 ? null : stages[currentIndex];
   const hasNextStage = !currentStage && completedStages < plannedCount;
   const phaseLabel = currentStage ? "المرحلة الحالية" : hasNextStage ? "المرحلة التالية" : "حالة المراحل";
+  const phaseName = currentStage?.name || (hasNextStage ? stages[0]?.nextPlannedStageName || `المرحلة ${completedStages + 1}` : "اكتملت جميع المراحل");
+  const phaseNumber = currentStage ? currentIndex + 1 : hasNextStage ? completedStages + 1 : plannedCount;
   const phaseValue: ReactNode = currentStage?.name || (hasNextStage ? (
     <span className="grid gap-1">
-      <span>{stages[0]?.nextPlannedStageName || `المرحلة ${completedStages + 1}`}</span>
+      <span>{phaseName}</span>
       <span className="text-xs font-bold text-slate-500">لم تبدأ بعد</span>
     </span>
   ) : "اكتملت جميع المراحل");
 
   return (
     <details className="group mt-4 rounded-2xl border border-[#D8D2C4] bg-white">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-black text-[#9A7D43]">
-        <span className="flex items-center gap-2"><ClipboardList className="h-4 w-4" />خطة التنفيذ</span>
-        <ChevronDown className="h-5 w-5 transition group-open:rotate-180" />
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-[#9A7D43]">
+        <span className="flex min-w-0 items-center gap-3">
+          <ClipboardList className="h-4 w-4 shrink-0" />
+          <span className="min-w-0">
+            <strong className="block font-black">خطة التنفيذ</strong>
+            <span className="mt-0.5 block truncate text-xs font-bold text-slate-600">
+              {phaseName} · المرحلة {phaseNumber} من {plannedCount}
+            </span>
+          </span>
+        </span>
+        <ChevronDown className="h-5 w-5 shrink-0 transition group-open:rotate-180" />
       </summary>
 
       <div className="grid gap-4 border-t border-[#EEE7DA] p-4">
@@ -78,6 +88,7 @@ export function ClientExecutionPlan({ stages }: { stages: ClientProjectStage[] }
             <p className="mt-2 text-xs font-bold text-slate-500">يعكس ما تم إنجازه فعليًا من مراحل المشروع.</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
               <PlanFact label={phaseLabel} value={phaseValue} />
+              <PlanFact label="ترتيب المرحلة" value={`${phaseNumber} من ${plannedCount}`} />
               <PlanFact label="المكتمل" value={`${completedStages} من ${plannedCount}`} />
               <PlanFact label="حالة المشروع" value={projectStatusLabel[stages[0]?.projectStatus || ""] || stages[0]?.projectStatus || "—"} />
             </div>
@@ -95,7 +106,7 @@ export function ClientExecutionPlan({ stages }: { stages: ClientProjectStage[] }
           return (
             <article key={stage.id} className={`rounded-2xl border p-4 ${highlighted ? "border-[#B89A5A] bg-[#FFF9EA] shadow-sm" : "border-[#E6E0D4] bg-[#FCFAF6]"}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div><p className="text-xs font-black text-[#9A7D43]">المرحلة {index + 1}</p><h4 className="mt-1 text-base font-black">{stage.name}</h4></div>
+                <div><p className="text-xs font-black text-[#9A7D43]">المرحلة {index + 1} من {plannedCount}</p><h4 className="mt-1 text-base font-black">{stage.name}</h4></div>
                 <div className="flex flex-wrap gap-2 text-xs font-black"><span className="rounded-full bg-white px-3 py-1.5">{stageStatusLabel[stage.status] || stage.status}</span><span className="rounded-full bg-white px-3 py-1.5">{paymentStatusLabel[stage.paymentStatus] || stage.paymentStatus}</span></div>
               </div>
               <div className="mt-4 grid gap-2 sm:grid-cols-3">
