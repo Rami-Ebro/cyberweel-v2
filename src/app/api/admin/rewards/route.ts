@@ -14,12 +14,16 @@ import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security"
 const stageStatuses = new Set<ProjectStageStatus>(["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"]);
 const paymentStatuses = new Set<ProjectStagePaymentStatus>(["PENDING", "PAID", "CANCELLED"]);
 const PAYMENT_PROOF_PREFIX = "PAYMENT_PROOF:";
+const ALLOWED_PAYMENT_PROOF_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "application/pdf"]);
 
 type PaymentProof = {
   method: string;
   reference: string;
   paidAt: string;
   note: string | null;
+  attachmentUrl: string | null;
+  attachmentName: string | null;
+  attachmentType: string | null;
 };
 
 async function requireRewardsAdmin(request: NextRequest) {
@@ -48,6 +52,9 @@ function paymentProofFromNotes(value: string | null | undefined): PaymentProof |
       reference: String(parsed.reference),
       paidAt: String(parsed.paidAt),
       note: parsed.note ? String(parsed.note) : null,
+      attachmentUrl: parsed.attachmentUrl ? String(parsed.attachmentUrl) : null,
+      attachmentName: parsed.attachmentName ? String(parsed.attachmentName) : null,
+      attachmentType: parsed.attachmentType ? String(parsed.attachmentType) : null,
     };
   } catch {
     return null;
@@ -56,6 +63,15 @@ function paymentProofFromNotes(value: string | null | undefined): PaymentProof |
 
 function paymentProofNotes(proof: PaymentProof) {
   return `${PAYMENT_PROOF_PREFIX}${JSON.stringify(proof)}`;
+}
+
+function validPaymentProofUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname.endsWith(".public.blob.vercel-storage.com");
+  } catch {
+    return false;
+  }
 }
 
 const rewardInclude = {
@@ -200,8 +216,8 @@ export async function POST(request: NextRequest) {
       if (!reward) return NextResponse.json({ error: "المكافأة غير موجودة" }, { status: 404 });
 
       const existingProof = paymentProofFromNotes(reward.adminNotes);
-      const completingLegacyProof = requested === "PAID" && reward.status === "PAID" && !existingProof;
-      if (reward.status === "PAID" && !completingLegacyProof) return NextResponse.json({ error: "المكافأة مدفوعة ومثبتة ولا يمكن تغييرها" }, { status: 409 });
+      const updatingPaidProof = requested === "PAID" && reward.status === "PAID";
+      if (reward.status === "PAID" && !updatingPaidProof) return NextResponse.json({ error: "المكافأة مدفوعة ولا يمكن تغيير حالتها" }, { status: 409 });
       if (requested === "PAID" && !["EARNED", "PAID"].includes(reward.status)) return NextResponse.json({ error: "لا يمكن الدفع قبل الاستحقاق" }, { status: 409 });
       if (requested === "EARNED" && !(reward.projectStage.status === "COMPLETED" && reward.projectStage.paymentStatus === "PAID" && reward.projectStage.approvedAt)) return NextResponse.json({ error: "المرحلة يجب أن تكون مدفوعة ومكتملة ومعتمدة" }, { status: 409 });
 
@@ -221,12 +237,23 @@ export async function POST(request: NextRequest) {
         if (paymentDate.getTime() > Date.now() + 5 * 60 * 1000) {
           return NextResponse.json({ error: "تاريخ الدفع لا يمكن أن يكون في المستقبل" }, { status: 400 });
         }
+
+        const attachmentUrl = typeof body?.paymentAttachmentUrl === "string" ? body.paymentAttachmentUrl.trim().slice(0, 2000) : "";
+        const attachmentName = typeof body?.paymentAttachmentName === "string" ? body.paymentAttachmentName.trim().slice(0, 255) : "";
+        const attachmentType = typeof body?.paymentAttachmentType === "string" ? body.paymentAttachmentType.trim().slice(0, 120) : "";
+        if (attachmentUrl && (!validPaymentProofUrl(attachmentUrl) || !attachmentName || !ALLOWED_PAYMENT_PROOF_TYPES.has(attachmentType))) {
+          return NextResponse.json({ error: "مرفق إثبات الدفع غير صالح" }, { status: 400 });
+        }
+
         const previousNote = existingProof?.note || (!reward.adminNotes?.startsWith(PAYMENT_PROOF_PREFIX) ? reward.adminNotes : null);
         paymentProof = {
           method: paymentMethod,
           reference: paymentReference,
           paidAt: paymentDate.toISOString(),
           note: notes || previousNote || null,
+          attachmentUrl: attachmentUrl || existingProof?.attachmentUrl || null,
+          attachmentName: attachmentUrl ? attachmentName : existingProof?.attachmentName || null,
+          attachmentType: attachmentUrl ? attachmentType : existingProof?.attachmentType || null,
         };
         paidAt = paymentDate;
       }
@@ -245,8 +272,10 @@ export async function POST(request: NextRequest) {
         });
         await writeAdminAudit(tx, {
           actorId: access.userId,
-          action: completingLegacyProof
-            ? "AMBASSADOR_REWARD_PAYMENT_PROOF_ADDED"
+          action: updatingPaidProof
+            ? existingProof
+              ? "AMBASSADOR_REWARD_PAYMENT_PROOF_UPDATED"
+              : "AMBASSADOR_REWARD_PAYMENT_PROOF_ADDED"
             : requested === "PAID"
               ? "AMBASSADOR_REWARD_PAID"
               : requested === "CANCELLED"
@@ -256,7 +285,7 @@ export async function POST(request: NextRequest) {
           entityType: "AMBASSADOR_REWARD",
           entityId: reward.id,
           entityLabel: `${reward.project.title} — ${reward.projectStage.name}`,
-          before: { status: reward.status, hasPaymentProof: Boolean(existingProof) },
+          before: { status: reward.status, hasPaymentProof: Boolean(existingProof), hasAttachment: Boolean(existingProof?.attachmentUrl) },
           after: {
             status: requested,
             amount: reward.amount.toString(),
@@ -265,6 +294,8 @@ export async function POST(request: NextRequest) {
             paymentMethod: paymentProof?.method || null,
             paymentReference: paymentProof?.reference || null,
             paymentDate: paymentProof?.paidAt || null,
+            paymentAttachmentName: paymentProof?.attachmentName || null,
+            hasPaymentAttachment: Boolean(paymentProof?.attachmentUrl),
           },
         });
         return saved;
