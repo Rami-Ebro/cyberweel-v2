@@ -33,6 +33,12 @@ type Project = {
   referral: { ambassador: { user: { name: string | null; email: string } } | null };
   projectStages: Array<{ id: string }>;
 };
+type AdminAmbassador = {
+  id: string;
+  user: { name: string | null; email: string };
+  referralStats: { successfulThisMonth: number };
+  currentLevel: { id: string; name: string; minSuccessfulReferrals: number; rate: string } | null;
+};
 
 const FIXED_REWARD_LEVELS = [
   { id: "fixed-1", name: "منطلق", minSuccessfulReferrals: 1, rate: "10" },
@@ -72,6 +78,8 @@ function paymentProof(value: string | null): PaymentProof | null {
 export default function AdminRewardsPage() {
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [adminAmbassadors, setAdminAmbassadors] = useState<AdminAmbassador[]>([]);
+  const [selectedAmbassadorId, setSelectedAmbassadorId] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
@@ -81,12 +89,24 @@ export default function AdminRewardsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const response = await fetch("/api/admin/rewards", { cache: "no-store" });
-    const data = await response.json().catch(() => null);
-    if (response.ok) {
+    const [rewardsResponse, ambassadorsResponse] = await Promise.all([
+      fetch("/api/admin/rewards", { cache: "no-store" }),
+      fetch("/api/admin/ambassadors", { cache: "no-store" }),
+    ]);
+    const data = await rewardsResponse.json().catch(() => null);
+    if (rewardsResponse.ok) {
       setRewards(data.rewards || []);
       setProjects(data.projects || []);
-    } else setMessage(dashboardErrorMessage(data?.error, "تعذر تحميل المكافآت"));
+    } else {
+      setMessage(dashboardErrorMessage(data?.error, "تعذر تحميل المكافآت"));
+    }
+
+    if (ambassadorsResponse.ok) {
+      const ambassadorData = await ambassadorsResponse.json().catch(() => null);
+      const rows = (ambassadorData?.ambassadors || []) as AdminAmbassador[];
+      setAdminAmbassadors(rows);
+      setSelectedAmbassadorId((current) => rows.some((item) => item.id === current) ? current : rows[0]?.id || "");
+    }
     setLoading(false);
   }, []);
   useEffect(() => { void Promise.resolve().then(load); }, [load]);
@@ -195,6 +215,10 @@ export default function AdminRewardsPage() {
   }), [rewards, search, status]);
 
   const qualifiedProjects = useMemo(() => projects.filter((project) => Boolean(project.ambassadorRewardRate)), [projects]);
+  const selectedAmbassador = useMemo(
+    () => adminAmbassadors.find((ambassador) => ambassador.id === selectedAmbassadorId) || null,
+    [adminAmbassadors, selectedAmbassadorId],
+  );
 
   const totals = useMemo(() => {
     const map = new Map<string, Record<RewardStatus, number>>();
@@ -206,11 +230,25 @@ export default function AdminRewardsPage() {
     {message && <p className="mt-6 rounded-xl border border-[#D8D2C4] bg-white p-4 font-bold">{message}</p>}
     {loading ? <p className="mt-7 flex items-center justify-center gap-2 rounded-2xl bg-white p-12"><RefreshCw className="animate-spin" /> جارٍ التحميل...</p> : <>
       <section className="mt-7 rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><p className="text-sm font-black text-[#9A7D43]">سياسة المكافآت المعتمدة</p><h2 className="mt-1 text-2xl font-black">سلم مستويات السفراء</h2><p className="mt-2 text-sm text-slate-500">سياسة ثابتة غير قابلة للتعديل. يُحسب المستوى من الإحالات التي بدأت استحقاقًا ماليًا فعليًا، وتُثبت النسبة لكل مشروع عند تأهله.</p></div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-[#F7F3EB] px-4 py-2 text-sm font-black text-[#7A6233]"><BadgeDollarSign className="h-4 w-4" />السياسة النظامية الثابتة</span>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div><p className="text-sm font-black text-[#9A7D43]">سياسة المكافآت المعتمدة</p><h2 className="mt-1 text-2xl font-black">سلم مستويات السفراء</h2><p className="mt-2 text-sm text-slate-500">اختر السفير لتظهر بطاقته الحالية تلقائيًا. المستوى يُحسب من الإحالات التي بدأت استحقاقًا ماليًا فعليًا خلال الشهر.</p></div>
+          <div className="grid gap-2 sm:min-w-72">
+            {adminAmbassadors.length ? <label className="grid gap-1 text-sm font-black text-[#6F5A32]">السفير
+              <select value={selectedAmbassadorId} onChange={(event) => setSelectedAmbassadorId(event.target.value)} className="field bg-white font-normal text-slate-900">
+                {adminAmbassadors.map((ambassador) => <option key={ambassador.id} value={ambassador.id}>{ambassador.user.name || ambassador.user.email}</option>)}
+              </select>
+            </label> : <span className="inline-flex items-center gap-2 rounded-full bg-[#F7F3EB] px-4 py-2 text-sm font-black text-[#7A6233]"><BadgeDollarSign className="h-4 w-4" />السياسة النظامية الثابتة</span>}
+            {selectedAmbassador && <p className="text-xs font-bold text-slate-500">الإحالات الناجحة ماليًا هذا الشهر: {selectedAmbassador.referralStats.successfulThisMonth}</p>}
+          </div>
         </div>
-        <div className="mt-5 grid gap-4 md:grid-cols-3">{FIXED_REWARD_LEVELS.map((level) => <article key={level.id} className="rounded-2xl border border-[#E6E0D4] bg-[#FCFAF6] p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-[#9A7D43]">من {level.minSuccessfulReferrals} إحالة ناجحة ماليًا</p><h3 className="mt-1 text-xl font-black">{level.name}</h3></div><strong className="text-3xl font-black text-[#9A7D43]">{level.rate}%</strong></div><p className="mt-3 text-sm text-slate-500">{level.minSuccessfulReferrals === 1 ? "يبدأ بعد أول إحالة ناجحة ماليًا في الشهر." : `يبدأ عند الوصول إلى ${level.minSuccessfulReferrals} إحالات ناجحة ماليًا خلال الشهر.`}</p></article>)}</div>
+        <div className="mt-5 grid gap-4 md:grid-cols-3">{FIXED_REWARD_LEVELS.map((level) => {
+          const current = Boolean(selectedAmbassador?.currentLevel && selectedAmbassador.currentLevel.name === level.name && selectedAmbassador.currentLevel.rate === level.rate);
+          return <article key={level.id} className={`relative rounded-2xl border p-5 transition ${current ? "border-2 border-[#B89A5A] bg-[#FFF7DF] shadow-lg ring-2 ring-[#B89A5A]/20" : "border-[#E6E0D4] bg-[#FCFAF6]"}`}>
+            {current && <span className="absolute -top-3 right-4 rounded-full bg-[#B89A5A] px-3 py-1 text-xs font-black text-[#111827] shadow">✓ المستوى الحالي</span>}
+            <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-[#9A7D43]">{current ? "مستوى السفير المحدد" : `من ${level.minSuccessfulReferrals} إحالة ناجحة ماليًا`}</p><h3 className="mt-1 text-xl font-black">{level.name}</h3></div><strong className="text-3xl font-black text-[#9A7D43]">{level.rate}%</strong></div><p className="mt-3 text-sm text-slate-500">{level.minSuccessfulReferrals === 1 ? "يبدأ بعد أول إحالة ناجحة ماليًا في الشهر." : `يبدأ عند الوصول إلى ${level.minSuccessfulReferrals} إحالات ناجحة ماليًا خلال الشهر.`}</p>
+          </article>;
+        })}</div>
+        {selectedAmbassador && !selectedAmbassador.currentLevel && <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm font-bold text-slate-600">هذا السفير لم يصل بعد إلى مستوى «منطلق»؛ يبدأ المستوى بعد أول إحالة ناجحة ماليًا.</p>}
       </section>
 
       <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">{(["EXPECTED", "EARNED", "PAID", "CANCELLED"] as RewardStatus[]).map((key) => <article key={key} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">{statusLabels[key]}</p><div className="mt-2 space-y-1">{totals.length ? totals.map(([currency, values]) => <strong key={currency} className="block text-xl">{amount(values[key], currency)}</strong>) : <strong className="text-xl">0.00</strong>}</div></article>)}</section>
