@@ -8,7 +8,7 @@ type ActionTarget = {
   at: number;
 };
 
-const ERROR_PATTERN = /(تعذر|فشل|خطأ|غير صالح|غير صحيحة|مطلوب|يجب|لا يمكن|غير موجود|سبق|مستخدم|أكبر من|انتهت مهلة|اختر|اكتب|أدخل|لم يُحفظ|لم يتم|غير مدعوم|مفقود|رُفض|رفض)/i;
+const ERROR_PATTERN = /(تعذر|فشل|خطأ|غير صالح|غير صحيحة|مطلوب|يجب|لا يمكن|غير موجود|يوجد|هناك|سبق|سابق|بالفعل|مستخدم|أكبر من|انتهت مهلة|اختر|اكتب|أدخل|لم يُحفظ|لم يتم|غير مدعوم|مفقود|رُفض|رفض)/i;
 
 const FIELD_HINTS: Array<{ pattern: RegExp; names: string[] }> = [
   { pattern: /(رابط|URL|وصلة)/i, names: ["links", "url", "portfolioUrl", "files"] },
@@ -94,6 +94,10 @@ function insertFeedback(target: ActionTarget, message: string, source?: HTMLElem
 
   const button = target.button;
   if (!button || (source && source.contains(button))) return;
+  if (source) {
+    const localContainer = button.closest("article, details, section");
+    if (localContainer && localContainer.contains(source)) return;
+  }
   const parent = button.parentElement || button;
   clearInlineFeedback(parent);
   const feedback = document.createElement("div");
