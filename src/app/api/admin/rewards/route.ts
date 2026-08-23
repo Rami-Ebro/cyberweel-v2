@@ -13,6 +13,14 @@ import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security"
 
 const stageStatuses = new Set<ProjectStageStatus>(["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"]);
 const paymentStatuses = new Set<ProjectStagePaymentStatus>(["PENDING", "PAID", "CANCELLED"]);
+const PAYMENT_PROOF_PREFIX = "PAYMENT_PROOF:";
+
+type PaymentProof = {
+  method: string;
+  reference: string;
+  paidAt: string;
+  note: string | null;
+};
 
 async function requireRewardsAdmin(request: NextRequest) {
   const access = await currentAdminAccess(request);
@@ -28,6 +36,26 @@ function dateInput(value: unknown) {
   if (!value) return null;
   const parsed = new Date(String(value));
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+function paymentProofFromNotes(value: string | null | undefined): PaymentProof | null {
+  if (!value?.startsWith(PAYMENT_PROOF_PREFIX)) return null;
+  try {
+    const parsed = JSON.parse(value.slice(PAYMENT_PROOF_PREFIX.length)) as Partial<PaymentProof>;
+    if (!parsed.method || !parsed.reference || !parsed.paidAt) return null;
+    return {
+      method: String(parsed.method),
+      reference: String(parsed.reference),
+      paidAt: String(parsed.paidAt),
+      note: parsed.note ? String(parsed.note) : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function paymentProofNotes(proof: PaymentProof) {
+  return `${PAYMENT_PROOF_PREFIX}${JSON.stringify(proof)}`;
 }
 
 const rewardInclude = {
@@ -170,15 +198,75 @@ export async function POST(request: NextRequest) {
       if (!["EARNED", "PAID", "CANCELLED"].includes(requested)) return NextResponse.json({ error: "حالة المكافأة غير صالحة" }, { status: 400 });
       const reward = await db.ambassadorReward.findUnique({ where: { id: rewardId }, include: { projectStage: true, project: { select: { title: true } } } });
       if (!reward) return NextResponse.json({ error: "المكافأة غير موجودة" }, { status: 404 });
-      if (reward.status === "PAID") return NextResponse.json({ error: "المكافأة مدفوعة ولا يمكن تغييرها" }, { status: 409 });
-      if (requested === "PAID" && reward.status !== "EARNED") return NextResponse.json({ error: "لا يمكن الدفع قبل الاستحقاق" }, { status: 409 });
+
+      const existingProof = paymentProofFromNotes(reward.adminNotes);
+      const completingLegacyProof = requested === "PAID" && reward.status === "PAID" && !existingProof;
+      if (reward.status === "PAID" && !completingLegacyProof) return NextResponse.json({ error: "المكافأة مدفوعة ومثبتة ولا يمكن تغييرها" }, { status: 409 });
+      if (requested === "PAID" && !["EARNED", "PAID"].includes(reward.status)) return NextResponse.json({ error: "لا يمكن الدفع قبل الاستحقاق" }, { status: 409 });
       if (requested === "EARNED" && !(reward.projectStage.status === "COMPLETED" && reward.projectStage.paymentStatus === "PAID" && reward.projectStage.approvedAt)) return NextResponse.json({ error: "المرحلة يجب أن تكون مدفوعة ومكتملة ومعتمدة" }, { status: 409 });
+
       const reason = typeof body?.cancelReason === "string" ? body.cancelReason.trim().slice(0, 1000) : "";
       if (requested === "CANCELLED" && !reason) return NextResponse.json({ error: "سبب الإلغاء مطلوب" }, { status: 400 });
-      const notes = typeof body?.adminNotes === "string" ? body.adminNotes.trim().slice(0, 3000) : "";
+      const notes = typeof body?.adminNotes === "string" ? body.adminNotes.trim().slice(0, 2000) : "";
+
+      let paymentProof: PaymentProof | null = null;
+      let paidAt: Date | null = null;
+      if (requested === "PAID") {
+        const paymentMethod = typeof body?.paymentMethod === "string" ? body.paymentMethod.trim().slice(0, 120) : "";
+        const paymentReference = typeof body?.paymentReference === "string" ? body.paymentReference.trim().slice(0, 180) : "";
+        const paymentDate = dateInput(body?.paymentDate);
+        if (!paymentMethod || !paymentReference || !paymentDate || paymentDate === undefined) {
+          return NextResponse.json({ error: "طريقة الدفع ومرجع العملية وتاريخ الدفع مطلوبة" }, { status: 400 });
+        }
+        if (paymentDate.getTime() > Date.now() + 5 * 60 * 1000) {
+          return NextResponse.json({ error: "تاريخ الدفع لا يمكن أن يكون في المستقبل" }, { status: 400 });
+        }
+        const previousNote = existingProof?.note || (!reward.adminNotes?.startsWith(PAYMENT_PROOF_PREFIX) ? reward.adminNotes : null);
+        paymentProof = {
+          method: paymentMethod,
+          reference: paymentReference,
+          paidAt: paymentDate.toISOString(),
+          note: notes || previousNote || null,
+        };
+        paidAt = paymentDate;
+      }
+
       const updated = await db.$transaction(async (tx) => {
-        const saved = await tx.ambassadorReward.update({ where: { id: reward.id }, data: { status: requested, earnedAt: requested === "EARNED" ? reward.earnedAt || new Date() : reward.earnedAt, paidAt: requested === "PAID" ? new Date() : null, cancelledAt: requested === "CANCELLED" ? new Date() : null, cancelReason: requested === "CANCELLED" ? reason : null, adminNotes: notes || reward.adminNotes } });
-        await writeAdminAudit(tx, { actorId: access.userId, action: requested === "PAID" ? "AMBASSADOR_REWARD_PAID" : requested === "CANCELLED" ? "AMBASSADOR_REWARD_CANCELLED" : "AMBASSADOR_REWARD_EARNED", category: requested === "CANCELLED" ? "SENSITIVE" : "POSITIVE", entityType: "AMBASSADOR_REWARD", entityId: reward.id, entityLabel: `${reward.project.title} — ${reward.projectStage.name}`, before: { status: reward.status }, after: { status: requested, amount: reward.amount.toString(), currency: reward.currency, reason: reason || null } });
+        const saved = await tx.ambassadorReward.update({
+          where: { id: reward.id },
+          data: {
+            status: requested,
+            earnedAt: requested === "EARNED" ? reward.earnedAt || new Date() : reward.earnedAt,
+            paidAt: requested === "PAID" ? paidAt : null,
+            cancelledAt: requested === "CANCELLED" ? new Date() : null,
+            cancelReason: requested === "CANCELLED" ? reason : null,
+            adminNotes: requested === "PAID" && paymentProof ? paymentProofNotes(paymentProof) : notes || reward.adminNotes,
+          },
+        });
+        await writeAdminAudit(tx, {
+          actorId: access.userId,
+          action: completingLegacyProof
+            ? "AMBASSADOR_REWARD_PAYMENT_PROOF_ADDED"
+            : requested === "PAID"
+              ? "AMBASSADOR_REWARD_PAID"
+              : requested === "CANCELLED"
+                ? "AMBASSADOR_REWARD_CANCELLED"
+                : "AMBASSADOR_REWARD_EARNED",
+          category: requested === "CANCELLED" ? "SENSITIVE" : "POSITIVE",
+          entityType: "AMBASSADOR_REWARD",
+          entityId: reward.id,
+          entityLabel: `${reward.project.title} — ${reward.projectStage.name}`,
+          before: { status: reward.status, hasPaymentProof: Boolean(existingProof) },
+          after: {
+            status: requested,
+            amount: reward.amount.toString(),
+            currency: reward.currency,
+            reason: reason || null,
+            paymentMethod: paymentProof?.method || null,
+            paymentReference: paymentProof?.reference || null,
+            paymentDate: paymentProof?.paidAt || null,
+          },
+        });
         return saved;
       });
       return NextResponse.json({ reward: { ...updated, rate: updated.rate.toString(), baseAmount: updated.baseAmount.toString(), amount: updated.amount.toString() } });
