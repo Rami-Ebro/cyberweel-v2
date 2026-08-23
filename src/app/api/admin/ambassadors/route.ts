@@ -8,7 +8,7 @@ import {
   decideCollaborationApplication,
 } from "@/lib/accept-collaboration";
 import { AdminUserProfileError, validatedAdminUserProfile } from "@/lib/admin-user-profile";
-import { utcMonthRange } from "@/lib/ambassador-rewards";
+import { DEFAULT_AMBASSADOR_REWARD_LEVELS, utcMonthRange } from "@/lib/ambassador-rewards";
 import { sendAmbassadorInvitation } from "@/lib/client-invitation";
 import { shouldSendAcceptanceInvitation } from "@/lib/account-invitation-policy";
 
@@ -39,7 +39,7 @@ function rewardTotalsByCurrency(
 export async function GET(request: NextRequest) {
   if (!(await canAdmin(request, "ambassadors"))) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   const { start: monthStart, end: monthEnd } = utcMonthRange();
-  const [ambassadors, applications, rewardLevels] = await Promise.all([
+  const [ambassadors, applications, configuredRewardLevels] = await Promise.all([
     db.ambassador.findMany({
       orderBy: { createdAt: "desc" },
       select: {
@@ -64,9 +64,11 @@ export async function GET(request: NextRequest) {
         },
         rewards: {
           select: {
+            projectId: true,
             amount: true,
             currency: true,
             status: true,
+            earnedAt: true,
             updatedAt: true,
           },
         },
@@ -83,18 +85,32 @@ export async function GET(request: NextRequest) {
       select: { id: true, name: true, minSuccessfulReferrals: true, rate: true },
     }),
   ]);
+  const rewardLevels = configuredRewardLevels.length
+    ? configuredRewardLevels
+    : DEFAULT_AMBASSADOR_REWARD_LEVELS;
 
   const ambassadorRows = ambassadors.map((ambassador) => {
-    const qualifiedProjects = ambassador.referrals
-      .map((referral) => referral.clientProject)
-      .filter((project): project is NonNullable<typeof project> => Boolean(project?.ambassadorQualifiedAt));
-    const monthlySuccessfulReferrals = qualifiedProjects.filter((project) => {
-      const qualifiedAt = project.ambassadorQualifiedAt!;
-      return qualifiedAt >= monthStart && qualifiedAt < monthEnd;
-    }).length;
-    const currentLevel = [...rewardLevels]
-      .reverse()
-      .find((level) => level.minSuccessfulReferrals <= monthlySuccessfulReferrals);
+    const successfulProjectIds = new Set(
+      ambassador.rewards
+        .filter((reward) => ["EARNED", "PAID"].includes(reward.status))
+        .map((reward) => reward.projectId),
+    );
+    const monthlySuccessfulProjectIds = new Set(
+      ambassador.rewards
+        .filter((reward) =>
+          ["EARNED", "PAID"].includes(reward.status) &&
+          reward.earnedAt &&
+          reward.earnedAt >= monthStart &&
+          reward.earnedAt < monthEnd,
+        )
+        .map((reward) => reward.projectId),
+    );
+    const monthlySuccessfulReferrals = monthlySuccessfulProjectIds.size;
+    const currentLevel = monthlySuccessfulReferrals
+      ? [...rewardLevels]
+          .reverse()
+          .find((level) => level.minSuccessfulReferrals <= monthlySuccessfulReferrals) || null
+      : null;
     const activityTimes = [
       ambassador.createdAt,
       ambassador.updatedAt,
@@ -123,7 +139,7 @@ export async function GET(request: NextRequest) {
       },
       referralStats: {
         total: ambassador.referrals.length,
-        successful: qualifiedProjects.length,
+        successful: successfulProjectIds.size,
         successfulThisMonth: monthlySuccessfulReferrals,
       },
       currentLevel: currentLevel
