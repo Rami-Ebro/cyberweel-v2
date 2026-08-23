@@ -202,7 +202,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           ambassadorQualifiedAt: rewardSnapshot?.qualifiedAt,
         } });
 
-        const createdStages = [];
+        const createdStages: string[] = [];
         for (const stageInput of parsedStages.stages) {
           const stage = await tx.projectStage.create({
             data: {
