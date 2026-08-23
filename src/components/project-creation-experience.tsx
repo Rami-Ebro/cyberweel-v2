@@ -4,6 +4,8 @@ import { useEffect } from "react";
 
 const AUTO_NOTE_CLASS = "cyberweel-auto-referral-note";
 const PARTNERS_NOTE_CLASS = "cyberweel-partners-referral-note";
+const SAVE_FEEDBACK_CLASS = "cyberweel-project-save-feedback";
+const INVALID_FIELD_CLASS = "cyberweel-invalid-project-field";
 
 function clientProjectCreationForms() {
   return Array.from(document.querySelectorAll<HTMLFormElement>("form")).filter((form) => {
@@ -26,6 +28,14 @@ function partnersProjectCreationForms() {
 
 function projectCreationForms() {
   return [...clientProjectCreationForms(), ...partnersProjectCreationForms()];
+}
+
+function projectUpdateForm(form: HTMLFormElement) {
+  const title = form.querySelector<HTMLInputElement>('input[name="title"]');
+  const currency = form.querySelector<HTMLSelectElement>('select[name="currency"]');
+  const links = form.querySelector<HTMLTextAreaElement>('textarea[name="links"]');
+  const client = form.querySelector<HTMLSelectElement>('select[name="clientId"]');
+  return Boolean(title && currency && links && !client);
 }
 
 function replaceLabelText(label: HTMLLabelElement, text: string) {
@@ -118,6 +128,73 @@ function syncReferralIntoFormData(form: HTMLFormElement, formData: FormData) {
   if (referralSelect.value === "__NONE__") formData.set("referralId", "");
 }
 
+function clearProjectSaveFeedback(form: HTMLFormElement) {
+  form.querySelector(`.${SAVE_FEEDBACK_CLASS}`)?.remove();
+  form.querySelectorAll<HTMLElement>(`.${INVALID_FIELD_CLASS}`).forEach((field) => {
+    field.classList.remove(INVALID_FIELD_CLASS, "border-rose-500", "ring-2", "ring-rose-200");
+    field.removeAttribute("aria-invalid");
+  });
+}
+
+function fieldForSaveError(form: HTMLFormElement, message: string) {
+  const rules: Array<[RegExp, string]> = [
+    [/رابط|URL/i, "links"],
+    [/اسم المشروع|العنوان/i, "title"],
+    [/نسبة التقدم|التقدم/i, "progress"],
+    [/العملة/i, "currency"],
+    [/موعد التسليم|التاريخ/i, "dueAt"],
+    [/حالة المشروع/i, "projectStatus"],
+  ];
+  const name = rules.find(([pattern]) => pattern.test(message))?.[1];
+  return name ? form.elements.namedItem(name) : null;
+}
+
+function showProjectSaveFeedback(form: HTMLFormElement, ok: boolean, message: string) {
+  clearProjectSaveFeedback(form);
+
+  const feedback = document.createElement("div");
+  feedback.className = `${SAVE_FEEDBACK_CLASS} rounded-xl border p-4 text-sm font-bold md:col-span-2 ${
+    ok
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : "border-rose-200 bg-rose-50 text-rose-800"
+  }`;
+  feedback.setAttribute("role", ok ? "status" : "alert");
+  feedback.setAttribute("aria-live", "assertive");
+  feedback.textContent = ok ? `✓ ${message}` : `⚠ ${message}`;
+
+  const submitButton = Array.from(form.querySelectorAll<HTMLButtonElement>('button[type="submit"], button:not([type])')).find((button) =>
+    button.textContent?.includes("حفظ تعديلات المشروع"),
+  );
+  if (submitButton) submitButton.insertAdjacentElement("beforebegin", feedback);
+  else form.prepend(feedback);
+
+  if (!ok) {
+    const field = fieldForSaveError(form, message);
+    if (field instanceof HTMLElement) {
+      field.classList.add(INVALID_FIELD_CLASS, "border-rose-500", "ring-2", "ring-rose-200");
+      field.setAttribute("aria-invalid", "true");
+      field.focus({ preventScroll: true });
+    }
+    feedback.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
+
+function invalidProjectLink(links: unknown) {
+  if (!Array.isArray(links)) return null;
+  for (const value of links) {
+    if (typeof value !== "string" || !value.trim()) continue;
+    const trimmed = value.trim();
+    const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed.replace(/^\/+/, "")}`;
+    try {
+      const url = new URL(candidate);
+      if (!["http:", "https:"].includes(url.protocol) || !url.hostname || !url.hostname.includes(".")) return trimmed;
+    } catch {
+      return trimmed;
+    }
+  }
+  return null;
+}
+
 export function ProjectCreationExperience() {
   useEffect(() => {
     const apply = () => projectCreationForms().forEach(enhanceForm);
@@ -126,11 +203,27 @@ export function ProjectCreationExperience() {
     const observer = new MutationObserver(apply);
     observer.observe(document.body, { childList: true, subtree: true });
 
+    let lastProjectUpdateForm: HTMLFormElement | null = null;
+
     const captureFormData = (event: Event) => {
       if (!(event instanceof FormDataEvent)) return;
       const form = event.target;
       if (!(form instanceof HTMLFormElement) || !clientProjectCreationForms().includes(form)) return;
       syncReferralIntoFormData(form, event.formData);
+    };
+
+    const captureSubmit = (event: Event) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement) || !projectUpdateForm(form)) return;
+      lastProjectUpdateForm = form;
+      clearProjectSaveFeedback(form);
+    };
+
+    const clearCorrectedField = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !target.classList.contains(INVALID_FIELD_CLASS)) return;
+      target.classList.remove(INVALID_FIELD_CLASS, "border-rose-500", "ring-2", "ring-rose-200");
+      target.removeAttribute("aria-invalid");
     };
 
     const originalFetch = window.fetch.bind(window);
@@ -145,6 +238,37 @@ export function ProjectCreationExperience() {
       } catch {
         return originalFetch(input, init);
       }
+
+      if (payload.entity === "project_update") {
+        const form = lastProjectUpdateForm && document.contains(lastProjectUpdateForm) ? lastProjectUpdateForm : null;
+        const badLink = invalidProjectLink(payload.links);
+        if (badLink) {
+          const error = `الرابط «${badLink}» غير صالح. أدخل رابطًا صحيحًا مثل https://example.com أو احذفه ثم أعد الحفظ.`;
+          if (form) showProjectSaveFeedback(form, false, error);
+          return new Response(JSON.stringify({ error }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        const response = await originalFetch(input, init);
+        if (form) {
+          if (response.ok) {
+            showProjectSaveFeedback(form, true, "تم حفظ تعديلات المشروع بنجاح.");
+          } else {
+            let errorMessage = "تعذر حفظ المشروع. راجع الحقول المحددة ثم أعد المحاولة.";
+            try {
+              const data = await response.clone().json() as { error?: unknown };
+              if (typeof data.error === "string" && data.error.trim()) errorMessage = data.error.trim();
+            } catch {
+              // Keep the safe fallback message.
+            }
+            showProjectSaveFeedback(form, false, errorMessage);
+          }
+        }
+        return response;
+      }
+
       if (payload.entity !== "project") return originalFetch(input, init);
 
       const normalizedPayload: Record<string, unknown> = { ...payload, description: "", projectStatus: "PLANNING", progress: 0 };
@@ -173,9 +297,15 @@ export function ProjectCreationExperience() {
     };
 
     document.addEventListener("formdata", captureFormData, true);
+    document.addEventListener("submit", captureSubmit, true);
+    document.addEventListener("input", clearCorrectedField, true);
+    document.addEventListener("change", clearCorrectedField, true);
     return () => {
       observer.disconnect();
       document.removeEventListener("formdata", captureFormData, true);
+      document.removeEventListener("submit", captureSubmit, true);
+      document.removeEventListener("input", clearCorrectedField, true);
+      document.removeEventListener("change", clearCorrectedField, true);
       window.fetch = originalFetch;
     };
   }, []);
