@@ -179,7 +179,7 @@ export function ProjectExecutionPlan(props: Props) {
     }
   }
 
-  async function updateStage(event: FormEvent<HTMLFormElement>, stage: Stage) {
+  async function updateStage(event: FormEvent<HTMLFormElement>, stage: Stage): Promise<boolean> {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     setBusy(stage.id);
@@ -191,11 +191,16 @@ export function ProjectExecutionPlan(props: Props) {
         body: JSON.stringify({ action: "update", stageId: stage.id, name: data.get("name"), amount: Number(data.get("amount")), status: data.get("status"), paymentStatus: data.get("paymentStatus"), dueAt: data.get("dueAt"), approved: data.get("approved") === "on" }),
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) return setMessage(payload.error || "تعذر تحديث المرحلة");
+      if (!response.ok) {
+        setMessage(payload.error || "تعذر تحديث المرحلة");
+        return false;
+      }
       setMessage("تم تحديث المرحلة.");
       await loadStages();
+      return true;
     } catch {
       setMessage("تعذر الاتصال بالخادم. لم تُحفظ التعديلات.");
+      return false;
     } finally {
       setBusy(null);
     }
@@ -241,24 +246,58 @@ export function ProjectExecutionPlan(props: Props) {
               <div className="mt-3 grid gap-2 sm:grid-cols-3"><Fact label="المبلغ" value={`${stage.amount} ${stage.currency}`} /><Fact label="حالة الدفع" value={paymentStatusLabel[stage.paymentStatus]} /><Fact label="تاريخ استحقاق الدفع" value={<DateText value={stage.startsAt} fallback="غير محدد" />} /></div>
               <details className="group mt-3 rounded-xl border border-[#D8D2C4] bg-white">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-black">تحديث المرحلة<ChevronDown className="h-4 w-4 transition group-open:rotate-180" /></summary>
-                <form onSubmit={(event) => updateStage(event, stage)} className="grid gap-3 border-t border-[#E6E0D4] p-3 md:grid-cols-2">
-                  <Field label="اسم المرحلة"><input name="name" defaultValue={stage.name} required className="field" /></Field>
-                  <Field label="المبلغ"><input name="amount" type="number" min="0.01" step="0.01" defaultValue={stage.amount} required className="field" /></Field>
-                  <Field label="الحالة"><select name="status" defaultValue={stage.status} className="field">{Object.entries(stageStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
-                  <Field label="حالة الدفع"><select name="paymentStatus" defaultValue={stage.paymentStatus} className="field">{Object.entries(paymentStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
-                  <Field label="تاريخ استحقاق الدفع"><DateInput name="dueAt" defaultValue={stage.startsAt?.slice(0, 10) || ""} className="field" /></Field>
-                  <label className="flex items-center gap-3 rounded-xl bg-[#F7F3EB] p-4 text-sm font-bold"><input name="approved" type="checkbox" defaultChecked={Boolean(stage.approvedAt)} />اعتماد المرحلة بعد اكتمالها</label>
-                  <button disabled={busy === stage.id} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50 md:col-span-2">{busy === stage.id ? "جارٍ الحفظ..." : "حفظ تحديث المرحلة"}</button>
-                </form>
+                <StageUpdateForm stage={stage} busy={busy === stage.id} onSubmit={(event) => updateStage(event, stage)} />
               </details>
             </article>
           ))}
         </section>
 
-        {!loading && loaded && suggestion.valid && suggestion.amount !== null && <section className="rounded-2xl border border-[#D8D2C4] bg-white p-4"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs font-black text-[#9A7D43]">المرحلة {nextStageNumber}</p><h4 className="mt-1 text-lg font-black">{suggestion.name}</h4><p className="mt-1 text-sm font-bold text-slate-500">{suggestion.amount} {props.currency}</p></div><button type="button" onClick={() => void createNextStage()} disabled={busy === "create"} className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white disabled:opacity-50"><Plus className="h-5 w-5" />{busy === "create" ? "جارٍ الإنشاء..." : stages.length ? "+ إنشاء المرحلة التالية" : "إنشاء المرحلة الأولى وإرسال مطالبة الدفع"}</button></div></section>}
+        {!loading && loaded && suggestion.valid && suggestion.amount !== null && <section className="rounded-xl border border-[#D8D2C4] bg-white p-4"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs font-black text-[#9A7D43]">المرحلة {nextStageNumber}</p><h4 className="mt-1 text-lg font-black">{suggestion.name}</h4><p className="mt-1 text-sm font-bold text-slate-500">{suggestion.amount} {props.currency}</p></div><button type="button" onClick={() => void createNextStage()} disabled={busy === "create"} className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white disabled:opacity-50"><Plus className="h-5 w-5" />{busy === "create" ? "جارٍ الإنشاء..." : stages.length ? "+ إنشاء المرحلة التالية" : "إنشاء المرحلة الأولى وإرسال مطالبة الدفع"}</button></div></section>}
         {!loading && loaded && !suggestion.valid && <p className="rounded-xl bg-[#F7F3EB] p-4 text-sm font-bold text-slate-600">لا توجد مرحلة تالية قابلة للإنشاء تلقائيًا من الخطة المالية.</p>}
       </div>
     </details>
+  );
+}
+
+function StageUpdateForm({
+  stage,
+  busy,
+  onSubmit,
+}: {
+  stage: Stage;
+  busy: boolean;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<boolean>;
+}) {
+  const [dirty, setDirty] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  function markDirty() {
+    setDirty(true);
+    setSaved(false);
+  }
+
+  async function submitStage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!dirty || busy) return;
+    const ok = await onSubmit(event);
+    if (ok) {
+      setDirty(false);
+      setSaved(true);
+    }
+  }
+
+  const buttonLabel = busy ? "جارٍ الحفظ..." : saved ? "✓ تم الحفظ" : dirty ? "حفظ التغييرات" : "لا توجد تغييرات";
+
+  return (
+    <form onSubmit={submitStage} onChange={markDirty} className="grid gap-3 border-t border-[#E6E0D4] p-3 md:grid-cols-2">
+      <Field label="اسم المرحلة"><input name="name" defaultValue={stage.name} required className="field" /></Field>
+      <Field label="المبلغ"><input name="amount" type="number" min="0.01" step="0.01" defaultValue={stage.amount} required className="field" /></Field>
+      <Field label="الحالة"><select name="status" defaultValue={stage.status} className="field">{Object.entries(stageStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
+      <Field label="حالة الدفع"><select name="paymentStatus" defaultValue={stage.paymentStatus} className="field">{Object.entries(paymentStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
+      <Field label="تاريخ استحقاق الدفع"><DateInput name="dueAt" defaultValue={stage.startsAt?.slice(0, 10) || ""} className="field" /></Field>
+      <label className="flex items-center gap-3 rounded-xl bg-[#F7F3EB] p-4 text-sm font-bold"><input name="approved" type="checkbox" defaultChecked={Boolean(stage.approvedAt)} />اعتماد المرحلة بعد اكتمالها</label>
+      <button disabled={busy || !dirty} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-50 md:col-span-2">{buttonLabel}</button>
+    </form>
   );
 }
 
