@@ -57,6 +57,48 @@ function parseProjectStatus(value: unknown): ClientProjectStatus {
     : "PLANNING";
 }
 
+function normalizeDigits(value: string) {
+  const arabic = "٠١٢٣٤٥٦٧٨٩";
+  const eastern = "۰۱۲۳۴۵۶۷۸۹";
+  return value
+    .replace(/[٠-٩]/g, (digit) => String(arabic.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String(eastern.indexOf(digit)));
+}
+
+function stageNames(value: unknown) {
+  return typeof value === "string"
+    ? value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 30)
+    : [];
+}
+
+function stageAmounts(value: unknown) {
+  if (typeof value !== "string") return [];
+  return value
+    .split(/\r?\n/)
+    .map((line) => normalizeDigits(line))
+    .map((line) => {
+      const match = line.match(/(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة))/i);
+      return Number((match?.[1] || match?.[2] || "0").replace(/,/g, ""));
+    })
+    .filter((amount) => Number.isFinite(amount) && amount > 0);
+}
+
+function projectStageDrafts(stagesValue: unknown, financialPlanValue: unknown, currency: string) {
+  const names = stageNames(stagesValue);
+  if (!names.length) return { stages: [] as Array<{ name: string; amount: number; currency: string }>, error: null as string | null };
+  const amounts = stageAmounts(financialPlanValue);
+  if (amounts.length !== names.length) {
+    return {
+      stages: [] as Array<{ name: string; amount: number; currency: string }>,
+      error: `عدد مبالغ الخطة المالية (${amounts.length}) يجب أن يساوي عدد مراحل المشروع (${names.length}). اكتب مبلغًا واحدًا لكل مرحلة في سطر مستقل.`,
+    };
+  }
+  return {
+    stages: names.map((name, index) => ({ name: name.slice(0, 160), amount: amounts[index], currency })),
+    error: null as string | null,
+  };
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   const { clientId } = await context.params;
   if (!(await allowedClient(request, clientId))) {
@@ -124,14 +166,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
       if (parsedLinks.invalid.length) {
         return NextResponse.json({ error: `الرابط غير صالح: ${parsedLinks.invalid[0]}. اكتب اسم النطاق مثل example.com أو رابطًا كاملًا.` }, { status: 400 });
       }
+      const currency = parseCurrency(body.currency);
+      const parsedStages = projectStageDrafts(body.stages, body.financialPlan, currency);
+      if (parsedStages.error) return NextResponse.json({ error: parsedStages.error }, { status: 400 });
+
       const referral = referralId
         ? await db.partnerReferral.findFirst({
           where: { id: referralId, convertedClientId: clientId, status: "CONVERTED", clientProject: null },
           select: { id: true, ambassadorId: true },
         })
         : null;
-      if (referralId) {
-        if (!referral) return NextResponse.json({ error: "الإحالة غير متاحة أو مرتبطة بمشروع مسبقًا" }, { status: 409 });
+      if (referralId && !referral) {
+        return NextResponse.json({ error: "الإحالة غير متاحة أو مرتبطة بمشروع مسبقًا" }, { status: 409 });
       }
       const admin = await currentAdminAccess(request);
       const project = await db.$transaction(async (tx) => {
@@ -145,7 +191,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           description: body.description?.trim() || null,
           agreementDetails: body.agreementDetails?.trim() || null,
           financialPlan: body.financialPlan?.trim() || null,
-          currency: parseCurrency(body.currency),
+          currency,
           stages: body.stages?.trim() || null,
           links: parsedLinks.links,
           notes: body.notes?.trim() || null,
@@ -155,6 +201,33 @@ export async function POST(request: NextRequest, context: RouteContext) {
           ambassadorRewardRate: rewardSnapshot?.rate,
           ambassadorQualifiedAt: rewardSnapshot?.qualifiedAt,
         } });
+
+        const createdStages = [];
+        for (const stageInput of parsedStages.stages) {
+          const stage = await tx.projectStage.create({
+            data: {
+              projectId: created.id,
+              name: stageInput.name,
+              amount: stageInput.amount,
+              currency: stageInput.currency,
+            },
+          });
+          createdStages.push(stage.id);
+          if (rewardSnapshot) await syncStageReward(tx, stage.id);
+        }
+
+        if (parsedStages.stages.length) {
+          await writeAdminAudit(tx, {
+            actorId: admin?.userId,
+            action: "PROJECT_STAGES_CREATED_FROM_PROJECT",
+            category: "POSITIVE",
+            entityType: "CLIENT_PROJECT",
+            entityId: created.id,
+            entityLabel: created.title,
+            after: { stageCount: parsedStages.stages.length, stageIds: createdStages },
+          });
+        }
+
         if (rewardSnapshot) {
           await writeAdminAudit(tx, {
             actorId: admin?.userId,
@@ -244,12 +317,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
             projectId: invoice.projectId,
             amount: invoice.amount,
             currency: invoice.currency,
-            createdAt: {
-              gte: new Date(invoice.createdAt.getTime() - 15_000),
-              lte: invoice.createdAt,
-            },
+            paymentStatus: "PENDING",
+            status: { not: "CANCELLED" },
           },
-          orderBy: { createdAt: "desc" },
+          orderBy: { createdAt: "asc" },
           select: { id: true, paymentStatus: true, paidAt: true },
         });
 
