@@ -22,6 +22,14 @@ type PaymentProof = {
   attachmentType: string | null;
 };
 
+type ReferralProjectSnapshot = {
+  title: string;
+  currency: string;
+  financialPlan: string | null;
+  ambassadorRewardRate: { toString(): string } | null;
+  projectStages: Array<{ amount: { toString(): string } }>;
+};
+
 async function dashboardAmbassador(request: NextRequest) {
   const previewId = request.nextUrl.searchParams.get("adminPreview");
   if (previewId) {
@@ -84,20 +92,46 @@ function paymentProofFromNotes(value: string | null | undefined): PaymentProof |
   }
 }
 
+function normalizeDigits(value: string) {
+  const arabic = "٠١٢٣٤٥٦٧٨٩";
+  const eastern = "۰۱۲۳۴۵۶۷۸۹";
+  return value
+    .replace(/[٠-٩]/g, (digit) => String(arabic.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String(eastern.indexOf(digit)));
+}
+
+function financialPlanAmounts(value: string | null) {
+  if (!value) return [];
+  return value
+    .split(/\r?\n/)
+    .map((line) => normalizeDigits(line))
+    .map((line) => {
+      const match = line.match(/(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة))/i);
+      return Number((match?.[1] || match?.[2] || "0").replace(/,/g, ""));
+    })
+    .filter((amount) => Number.isFinite(amount) && amount > 0);
+}
+
+function plannedProjectAmount(project: ReferralProjectSnapshot) {
+  const planned = financialPlanAmounts(project.financialPlan);
+  if (planned.length) return planned.reduce((sum, value) => sum + value, 0);
+  return project.projectStages.reduce((sum, stage) => {
+    const value = Number(stage.amount.toString());
+    return Number.isFinite(value) ? sum + value : sum;
+  }, 0);
+}
+
 function serializeReferral<T extends {
   commissionAmount: { toString(): string } | null;
-  clientProject?: {
-    title: string;
-    currency: string;
-    ambassadorRewardRate: { toString(): string } | null;
-  } | null;
+  clientProject?: ReferralProjectSnapshot | null;
 }>(referral: T) {
   return {
     ...referral,
     commissionAmount: referral.commissionAmount?.toString() ?? null,
     clientProject: referral.clientProject
       ? {
-          ...referral.clientProject,
+          title: referral.clientProject.title,
+          currency: referral.clientProject.currency,
           ambassadorRewardRate: referral.clientProject.ambassadorRewardRate?.toString() ?? null,
         }
       : null,
@@ -121,7 +155,9 @@ export async function GET(request: NextRequest) {
           select: {
             title: true,
             currency: true,
+            financialPlan: true,
             ambassadorRewardRate: true,
+            projectStages: { select: { amount: true } },
           },
         },
       },
@@ -191,14 +227,27 @@ export async function GET(request: NextRequest) {
   }
 
   const rewardSummaries = new Map<string, { currency: string; total: number; expected: number; earned: number; paid: number }>();
+
+  for (const referral of rawReferrals) {
+    const project = referral.clientProject;
+    const rate = Number(project?.ambassadorRewardRate?.toString() || 0);
+    if (!project || !Number.isFinite(rate) || rate <= 0) continue;
+    const projectAmount = plannedProjectAmount(project);
+    if (!Number.isFinite(projectAmount) || projectAmount <= 0) continue;
+    const currency = project.currency.toUpperCase();
+    const summary = rewardSummaries.get(currency) || { currency, total: 0, expected: 0, earned: 0, paid: 0 };
+    summary.total += projectAmount * rate / 100;
+    rewardSummaries.set(currency, summary);
+  }
+
   const rewards = rawRewards.map((reward) => {
     const value = Number(reward.amount);
-    const summary = rewardSummaries.get(reward.currency) || { currency: reward.currency, total: 0, expected: 0, earned: 0, paid: 0 };
-    if (reward.status !== "CANCELLED") summary.total += value;
-    if (reward.status === "EXPECTED") summary.expected += value;
+    const currency = reward.currency.toUpperCase();
+    const summary = rewardSummaries.get(currency) || { currency, total: 0, expected: 0, earned: 0, paid: 0 };
     if (reward.status === "EARNED") summary.earned += value;
     if (reward.status === "PAID") summary.paid += value;
-    rewardSummaries.set(reward.currency, summary);
+    if (!summary.total && reward.status !== "CANCELLED") summary.total += value;
+    rewardSummaries.set(currency, summary);
     const { adminNotes, ...publicReward } = reward;
     return {
       ...publicReward,
@@ -208,6 +257,12 @@ export async function GET(request: NextRequest) {
       paymentProof: paymentProofFromNotes(adminNotes),
     };
   });
+
+  for (const summary of rewardSummaries.values()) {
+    summary.total = Math.max(summary.total, summary.earned + summary.paid);
+    summary.expected = Math.max(0, summary.total - summary.earned - summary.paid);
+  }
+
   const currentLevel = successfulThisMonth
     ? [...rewardLevels].reverse().find((level) => level.minSuccessfulReferrals <= successfulThisMonth) || null
     : null;
