@@ -51,11 +51,15 @@ function safeFileName(value: string) {
 
 function linksFrom(value: FormDataEntryValue | null) {
   const raw = typeof value === "string" ? value : "";
-  const links = raw.split(/\r?\n/).map((item) => item.trim()).filter(Boolean).slice(0, 10);
-  for (const item of links) {
+  const candidates = raw.split(/\r?\n/).map((item) => item.trim()).filter(Boolean).slice(0, 10);
+  const links: string[] = [];
+
+  for (const item of candidates) {
+    const normalized = /^[a-z][a-z0-9+.-]*:\/\//i.test(item) ? item : `https://${item}`;
     try {
-      const url = new URL(item);
-      if (!['http:', 'https:'].includes(url.protocol)) return null;
+      const url = new URL(normalized);
+      if (!["http:", "https:"].includes(url.protocol) || !url.hostname) return null;
+      links.push(url.toString());
     } catch {
       return null;
     }
@@ -99,7 +103,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const form = await request.formData();
     const note = String(form.get("note") || "").trim().slice(0, 4000) || null;
     const links = linksFrom(form.get("links"));
-    if (links === null) return NextResponse.json({ error: "أحد روابط التسليم غير صالح. استخدم رابط http أو https في كل سطر" }, { status: 400 });
+    if (links === null) return NextResponse.json({ error: "أحد روابط التسليم غير صالح. استخدم رابطًا صالحًا في كل سطر" }, { status: 400 });
 
     const files = form.getAll("files").filter((item): item is File => item instanceof File && item.size > 0);
     if (!note && !links.length && !files.length) {
