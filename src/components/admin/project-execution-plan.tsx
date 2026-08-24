@@ -73,26 +73,61 @@ function normalizeDigits(value: string) {
     .trim();
 }
 
-function stageSuggestion(financialPlan: string | null, index: number): StageSuggestion {
-  const lines = (financialPlan || "").split(/\r?\n/).map(normalizeDigits).filter(Boolean);
-  const source = lines[index] || "";
-  if (!source) return { name: "", amount: null, valid: false };
+function stageNames(value: string | null) {
+  return (value || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function financialLines(value: string | null) {
+  return (value || "")
+    .split(/\r?\n/)
+    .map(normalizeDigits)
+    .filter(Boolean);
+}
+
+function amountFromLine(source: string) {
+  const match = source.match(/(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة))/i);
+  const amount = Number((match?.[1] || match?.[2] || "0").replace(/,/g, ""));
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
+function legacyNameFromFinancialLine(source: string) {
   const withoutStageLabel = source.replace(/^\s*المرحلة\s+(?:الأولى|الاولى|الثانية|الثالثة|الرابعة|الخامسة|السادسة|السابعة|الثامنة|التاسعة|العاشرة|\d+)\s*[:：.]?\s*/i, "");
   const amountMatch = withoutStageLabel.match(/(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة))/i);
-  if (!amountMatch || amountMatch.index === undefined) return { name: withoutStageLabel.replace(/[\s،,:：.\-–—]+$/g, "").trim(), amount: null, valid: false };
-  const amount = Number((amountMatch[1] || amountMatch[2] || "").replace(/,/g, ""));
-  const name = withoutStageLabel.slice(0, amountMatch.index).replace(/[\s،,:：.\-–—]+$/g, "").trim();
-  return { name, amount: Number.isFinite(amount) && amount > 0 ? amount : null, valid: Boolean(name) && Number.isFinite(amount) && amount > 0 };
+  if (!amountMatch || amountMatch.index === undefined) return withoutStageLabel.replace(/[\s،,:：.\-–—]+$/g, "").trim();
+  return withoutStageLabel.slice(0, amountMatch.index).replace(/[\s،,:：.\-–—]+$/g, "").trim();
+}
+
+function stageSuggestion(stagesValue: string | null, financialPlan: string | null, index: number): StageSuggestion {
+  const names = stageNames(stagesValue);
+  const lines = financialLines(financialPlan);
+  const source = lines[index] || "";
+  const name = names.length ? names[index] || "" : legacyNameFromFinancialLine(source);
+  const amount = amountFromLine(source);
+  return { name, amount, valid: Boolean(name) && amount !== null };
 }
 
 function plannedTotal(financialPlan: string | null) {
-  const lines = (financialPlan || "").split(/\r?\n/).filter((line) => line.trim());
-  return lines.map((_, index) => stageSuggestion(financialPlan, index)).filter((item) => item.valid && item.amount !== null).reduce((sum, item) => sum + (item.amount || 0), 0);
+  return financialLines(financialPlan).reduce((sum, line) => sum + (amountFromLine(line) || 0), 0);
 }
 
-function plannedStageCount(financialPlan: string | null) {
-  const lines = (financialPlan || "").split(/\r?\n/).filter((line) => line.trim());
-  return lines.map((_, index) => stageSuggestion(financialPlan, index)).filter((item) => item.valid).length;
+function plannedStageCount(stagesValue: string | null, financialPlan: string | null) {
+  const names = stageNames(stagesValue);
+  if (names.length) return names.length;
+  const lines = financialLines(financialPlan);
+  return lines.map((_, index) => stageSuggestion(null, financialPlan, index)).filter((item) => item.valid).length;
+}
+
+function planSyncError(stagesValue: string | null, financialPlan: string | null) {
+  const names = stageNames(stagesValue);
+  if (!names.length) return "أدخل مراحل المشروع أولًا، مرحلة واحدة في كل سطر.";
+  const amounts = financialLines(financialPlan).map(amountFromLine).filter((value): value is number => value !== null);
+  if (amounts.length !== names.length) {
+    return `عدد مبالغ الخطة المالية (${amounts.length}) يجب أن يساوي عدد مراحل المشروع (${names.length}). اكتب مبلغًا واحدًا لكل مرحلة في سطر مستقل.`;
+  }
+  return null;
 }
 
 export function ProjectExecutionPlan(props: Props) {
@@ -109,10 +144,37 @@ export function ProjectExecutionPlan(props: Props) {
     setLoading(true);
     setMessage("");
     try {
-      const response = await fetch(`/api/admin/project-stages?projectId=${encodeURIComponent(props.projectId)}`, { cache: "no-store" });
-      const data = await response.json().catch(() => ({}));
+      let response = await fetch(`/api/admin/project-stages?projectId=${encodeURIComponent(props.projectId)}`, { cache: "no-store" });
+      let data = await response.json().catch(() => ({}));
       if (!response.ok) return setMessage(data.error || "تعذر تحميل مراحل التنفيذ");
-      setStages(data.projects?.[0]?.projectStages || []);
+
+      let nextStages = (data.projects?.[0]?.projectStages || []) as Stage[];
+      if (!nextStages.length) {
+        const syncError = planSyncError(props.legacyStages, props.financialPlan);
+        if (!syncError) {
+          const syncResponse = await fetch("/api/admin/project-stages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "sync_from_project", projectId: props.projectId }),
+          });
+          const syncPayload = await syncResponse.json().catch(() => ({}));
+          if (!syncResponse.ok) {
+            setStages([]);
+            setLoaded(true);
+            return setMessage(syncPayload.error || "تعذر مزامنة مراحل المشروع مع خطة التنفيذ");
+          }
+
+          response = await fetch(`/api/admin/project-stages?projectId=${encodeURIComponent(props.projectId)}`, { cache: "no-store" });
+          data = await response.json().catch(() => ({}));
+          if (!response.ok) return setMessage(data.error || "تعذر إعادة تحميل مراحل التنفيذ بعد المزامنة");
+          nextStages = (data.projects?.[0]?.projectStages || []) as Stage[];
+          if (syncPayload.created > 0) setMessage(`تمت مزامنة ${syncPayload.created} مراحل تلقائيًا من بيانات المشروع.`);
+        } else {
+          setMessage(syncError);
+        }
+      }
+
+      setStages(nextStages);
       setLoaded(true);
     } catch {
       setMessage("تعذر الاتصال بخدمة مراحل التنفيذ");
@@ -124,9 +186,9 @@ export function ProjectExecutionPlan(props: Props) {
   useEffect(() => { if (open && !loaded) void loadStages(); }, [open, loaded]);
 
   const nextStageNumber = stages.length + 1;
-  const suggestion = useMemo(() => stageSuggestion(props.financialPlan, stages.length), [props.financialPlan, stages.length]);
+  const suggestion = useMemo(() => stageSuggestion(props.legacyStages, props.financialPlan, stages.length), [props.legacyStages, props.financialPlan, stages.length]);
   const totalPlanned = useMemo(() => plannedTotal(props.financialPlan), [props.financialPlan]);
-  const totalPlannedStages = useMemo(() => plannedStageCount(props.financialPlan), [props.financialPlan]);
+  const totalPlannedStages = useMemo(() => plannedStageCount(props.legacyStages, props.financialPlan), [props.legacyStages, props.financialPlan]);
   const paidAmount = useMemo(() => stages.filter((stage) => stage.paymentStatus === "PAID").reduce((sum, stage) => sum + Number(stage.amount || 0), 0), [stages]);
   const financialPercent = totalPlanned > 0 ? Math.min(100, Math.round((paidAmount / totalPlanned) * 100)) : 0;
   const completedStages = stages.filter((stage) => stage.status === "COMPLETED").length;
@@ -135,7 +197,9 @@ export function ProjectExecutionPlan(props: Props) {
   const currentStage = stages.find((stage) => !["COMPLETED", "CANCELLED"].includes(stage.status));
   const hasNextStage = !currentStage && completedStages < totalPlannedStages;
   const phaseLabel = currentStage ? "المرحلة الحالية" : hasNextStage ? "المرحلة التالية" : "حالة المراحل";
-  const phaseValue = currentStage?.name || (hasNextStage ? `${suggestion.name || `المرحلة ${completedStages + 1}`} — لم تبدأ بعد` : "اكتملت جميع المراحل");
+  const phaseValue = totalPlannedStages === 0
+    ? "لم تُحدد مراحل المشروع بعد"
+    : currentStage?.name || (hasNextStage ? `${suggestion.name || `المرحلة ${completedStages + 1}`} — لم تبدأ بعد` : "اكتملت جميع المراحل");
 
   async function saveProjectProgress() {
     setBusy("project-progress");
@@ -158,7 +222,7 @@ export function ProjectExecutionPlan(props: Props) {
   }
 
   async function createNextStage() {
-    if (!suggestion.valid || suggestion.amount === null) return setMessage("تعذر قراءة اسم المرحلة التالية أو مبلغها من الخطة المالية الأصلية.");
+    if (!suggestion.valid || suggestion.amount === null) return setMessage("تعذر قراءة اسم المرحلة التالية أو مبلغها من بيانات المشروع والخطة المالية.");
     const firstStage = stages.length === 0;
     setBusy("create");
     setMessage("");
@@ -222,7 +286,7 @@ export function ProjectExecutionPlan(props: Props) {
               <div className="flex items-center justify-between gap-3"><strong>تقدم التنفيذ الفعلي</strong><span className="text-3xl font-black text-[#9A7D43]">{displayProgress}%</span></div>
               <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A] transition-all" style={{ width: `${displayProgress}%` }} /></div>
               <p className="mt-2 text-xs font-bold text-slate-500">يُرفع تلقائيًا عند اكتمال المراحل المخططة، ويمكن رفعه يدويًا أثناء التنفيذ.</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3"><Fact label={phaseLabel} value={phaseValue} /><Fact label="مراحل مكتملة" value={`${completedStages} من ${totalPlannedStages || stages.length}`} /><Fact label="حالة المشروع" value={projectStatusLabel[projectStatus]} /></div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3"><Fact label={phaseLabel} value={phaseValue} /><Fact label="مراحل مكتملة" value={`${completedStages} من ${totalPlannedStages}`} /><Fact label="حالة المشروع" value={projectStatusLabel[projectStatus]} /></div>
             </div>
             <div className="rounded-2xl border border-[#E6E0D4] bg-white p-4">
               <div className="flex items-center justify-between gap-3"><strong>التقدم المالي</strong><span className="text-3xl font-black text-[#9A7D43]">{financialPercent}%</span></div>
@@ -252,8 +316,10 @@ export function ProjectExecutionPlan(props: Props) {
           ))}
         </section>
 
-        {!loading && loaded && suggestion.valid && suggestion.amount !== null && <section className="rounded-xl border border-[#D8D2C4] bg-white p-4"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs font-black text-[#9A7D43]">المرحلة {nextStageNumber}</p><h4 className="mt-1 text-lg font-black">{suggestion.name}</h4><p className="mt-1 text-sm font-bold text-slate-500">{suggestion.amount} {props.currency}</p></div><button type="button" onClick={() => void createNextStage()} disabled={busy === "create"} className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white disabled:opacity-50"><Plus className="h-5 w-5" />{busy === "create" ? "جارٍ الإنشاء..." : stages.length ? "+ إنشاء المرحلة التالية" : "إنشاء المرحلة الأولى وإرسال مطالبة الدفع"}</button></div></section>}
-        {!loading && loaded && !suggestion.valid && <p className="rounded-xl bg-[#F7F3EB] p-4 text-sm font-bold text-slate-600">لا توجد مرحلة تالية قابلة للإنشاء تلقائيًا من الخطة المالية.</p>}
+        {!loading && loaded && suggestion.valid && suggestion.amount !== null && stages.length < totalPlannedStages && <section className="rounded-xl border border-[#D8D2C4] bg-white p-4"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs font-black text-[#9A7D43]">المرحلة {nextStageNumber}</p><h4 className="mt-1 text-lg font-black">{suggestion.name}</h4><p className="mt-1 text-sm font-bold text-slate-500">{suggestion.amount} {props.currency}</p></div><button type="button" onClick={() => void createNextStage()} disabled={busy === "create"} className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white disabled:opacity-50"><Plus className="h-5 w-5" />{busy === "create" ? "جارٍ الإنشاء..." : stages.length ? "+ إنشاء المرحلة التالية" : "إنشاء المرحلة الأولى وإرسال مطالبة الدفع"}</button></div></section>}
+        {!loading && loaded && totalPlannedStages === 0 && <p className="rounded-xl bg-[#F7F3EB] p-4 text-sm font-bold text-slate-600">لم تُحدد مراحل المشروع بعد. أضف أسماء المراحل والخطة المالية من نموذج المشروع.</p>}
+        {!loading && loaded && totalPlannedStages > 0 && stages.length >= totalPlannedStages && <p className="rounded-xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">جميع مراحل المشروع موجودة ضمن خطة التنفيذ.</p>}
+        {!loading && loaded && totalPlannedStages > stages.length && !suggestion.valid && <p className="rounded-xl bg-rose-50 p-4 text-sm font-bold text-rose-800">بيانات المرحلة التالية غير مكتملة. تأكد أن لكل مرحلة اسمًا ومبلغًا مقابلًا لها في الخطة المالية.</p>}
       </div>
     </details>
   );
