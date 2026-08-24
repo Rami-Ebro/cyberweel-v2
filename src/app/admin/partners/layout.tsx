@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ProjectExecutionPlan } from "@/components/admin/project-execution-plan";
+import { ProjectWorkflowGuard } from "@/components/admin/project-workflow-guard";
+import { StagePartnerAssignmentManager } from "@/components/admin/stage-partner-assignment-manager";
 
 type Project = {
   id: string;
@@ -34,6 +36,16 @@ type ExecutionProject = {
   projectStages?: ExecutionStage[];
 };
 
+type AssignmentProject = {
+  projectStages?: Array<{
+    assignments?: Array<{
+      partnerId: string;
+      partnerName: string | null;
+      partnerEmail: string;
+    }>;
+  }>;
+};
+
 type Target = {
   project: Project;
   host: HTMLElement;
@@ -42,7 +54,7 @@ type Target = {
 const projectStatusLabel: Record<string, string> = {
   PLANNING: "التخطيط",
   IN_PROGRESS: "قيد التنفيذ",
-  REVIEW: "قيد المراجعة",
+  REVIEW: "المراجعة",
   COMPLETED: "مكتمل",
   ON_HOLD: "متوقف مؤقتًا",
   CANCELLED: "ملغى",
@@ -57,6 +69,14 @@ function updateProjectFact(card: HTMLElement, labels: string[], nextLabel: strin
   const valueNode = Array.from(labelNode.parentElement.querySelectorAll<HTMLParagraphElement>("p")).find((node) => node !== labelNode);
   labelNode.textContent = nextLabel;
   if (valueNode) valueNode.textContent = value;
+}
+
+function updatePartnerSummary(card: HTMLElement, names: string[]) {
+  const summary = Array.from(card.querySelectorAll<HTMLParagraphElement>("p")).find((node) =>
+    node.textContent?.trim().startsWith("الشركاء:"),
+  );
+  if (summary) summary.textContent = names.length ? `الشركاء: ${names.join("، ")}` : "الشركاء: غير مسند";
+  updateProjectFact(card, ["الشركاء"], "الشركاء", names.length ? `${names.length} شريك` : "غير مسند");
 }
 
 export default function AdminPartnersLayout({ children }: { children: ReactNode }) {
@@ -95,14 +115,26 @@ export default function AdminPartnersLayout({ children }: { children: ReactNode 
 
         const executionPairs = await Promise.all(projects.map(async (project) => {
           try {
-            const executionResponse = await fetch(`/api/admin/project-stages?projectId=${encodeURIComponent(project.id)}`, { cache: "no-store" });
-            const executionData = await executionResponse.json().catch(() => ({}));
-            return [project.id, executionResponse.ok ? executionData.projects?.[0] as ExecutionProject | undefined : undefined] as const;
+            const [executionResponse, assignmentResponse] = await Promise.all([
+              fetch(`/api/admin/project-stages?projectId=${encodeURIComponent(project.id)}`, { cache: "no-store" }),
+              fetch(`/api/admin/stage-partner-assignments?projectId=${encodeURIComponent(project.id)}`, { cache: "no-store" }),
+            ]);
+            const [executionData, assignmentData] = await Promise.all([
+              executionResponse.json().catch(() => ({})),
+              assignmentResponse.json().catch(() => ({})),
+            ]);
+            return [
+              project.id,
+              {
+                execution: executionResponse.ok ? executionData.projects?.[0] as ExecutionProject | undefined : undefined,
+                assignments: assignmentResponse.ok ? assignmentData.project as AssignmentProject | undefined : undefined,
+              },
+            ] as const;
           } catch {
-            return [project.id, undefined] as const;
+            return [project.id, { execution: undefined, assignments: undefined }] as const;
           }
         }));
-        const executionByProjectId = new Map(executionPairs);
+        const projectRuntimeById = new Map(executionPairs);
         const nextTargets: Target[] = [];
 
         for (const project of projects) {
@@ -112,7 +144,8 @@ export default function AdminPartnersLayout({ children }: { children: ReactNode 
           });
           if (!card) continue;
 
-          const execution = executionByProjectId.get(project.id);
+          const runtime = projectRuntimeById.get(project.id);
+          const execution = runtime?.execution;
           const executionStages = execution?.projectStages || [];
           const status = execution?.status || project.clientStatus;
           const progress = typeof execution?.progress === "number" ? execution.progress : project.progress;
@@ -131,10 +164,20 @@ export default function AdminPartnersLayout({ children }: { children: ReactNode 
             ? `${paidAmount.toLocaleString("ar")} من ${totalAmount.toLocaleString("ar")} ${project.projectCurrency}`
             : "لم تبدأ الفوترة";
 
+          const stagePartnerNames = [...new Set(
+            (runtime?.assignments?.projectStages || [])
+              .flatMap((stage) => stage.assignments || [])
+              .map((assignment) => assignment.partnerName || assignment.partnerEmail),
+          )];
+          const displayPartnerNames = stagePartnerNames.length
+            ? stagePartnerNames
+            : project.partners.map((partner) => partner.name);
+
           updateProjectFact(card, ["الحالة"], "الحالة", projectStatusLabel[status] || status);
           updateProjectFact(card, ["التقدم"], "التقدم", `${progress}%`);
           updateProjectFact(card, ["المستحق", "مالي المشروع"], "مالي المشروع", financialSummary);
           updateProjectFact(card, ["الدفع", "دفع العميل"], "دفع العميل", paymentState);
+          updatePartnerSummary(card, displayPartnerNames);
 
           const editDetails = Array.from(card.querySelectorAll<HTMLDetailsElement>("details")).find((details) =>
             details.querySelector("summary")?.textContent?.includes("تعديل المشروع هنا"),
@@ -149,7 +192,12 @@ export default function AdminPartnersLayout({ children }: { children: ReactNode 
           }
 
           nextTargets.push({
-            project: { ...project, clientStatus: status, progress },
+            project: {
+              ...project,
+              clientStatus: status,
+              progress,
+              partners: displayPartnerNames.map((name) => ({ name })),
+            },
             host,
           });
         }
@@ -184,27 +232,30 @@ export default function AdminPartnersLayout({ children }: { children: ReactNode 
 
   return (
     <>
+      <ProjectWorkflowGuard />
       {children}
       {targets.map(({ project, host }) =>
         createPortal(
-          <ProjectExecutionPlan
-            key={project.id}
-            projectId={project.id}
-            title={project.title}
-            clientName={project.clientName}
-            clientEmail={project.clientEmail}
-            partners={project.partners.map((partner) => partner.name)}
-            status={project.clientStatus}
-            progress={project.progress}
-            currency={project.projectCurrency}
-            dueAt={project.dueAt}
-            description={project.description}
-            agreementDetails={project.agreementDetails}
-            financialPlan={project.financialPlan}
-            legacyStages={project.stages}
-            links={project.links}
-            notes={project.notes}
-          />,
+          <div key={project.id}>
+            <ProjectExecutionPlan
+              projectId={project.id}
+              title={project.title}
+              clientName={project.clientName}
+              clientEmail={project.clientEmail}
+              partners={project.partners.map((partner) => partner.name)}
+              status={project.clientStatus}
+              progress={project.progress}
+              currency={project.projectCurrency}
+              dueAt={project.dueAt}
+              description={project.description}
+              agreementDetails={project.agreementDetails}
+              financialPlan={project.financialPlan}
+              legacyStages={project.stages}
+              links={project.links}
+              notes={project.notes}
+            />
+            <StagePartnerAssignmentManager projectId={project.id} />
+          </div>,
           host,
         ),
       )}
