@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
           },
           invoices: { orderBy: { createdAt: "desc" } },
           messages: { orderBy: { createdAt: "desc" }, take: 10 },
-          projectStages: { orderBy: { createdAt: "asc" } },
+          projectStages: { orderBy: [{ position: "asc" }, { createdAt: "asc" }, { id: "asc" }] },
         },
       },
       clientMessages: { orderBy: { createdAt: "desc" }, take: 30 },
@@ -124,13 +124,16 @@ export async function GET(request: NextRequest) {
       const structuredTotal = project.projectStages.reduce((sum, stage) => sum + Number(stage.amount), 0);
       const plannedTotal = structuredTotal > 0 ? structuredTotal : legacyPlannedTotal(project.financialPlan);
       const plannedStageCount = project.projectStages.length || legacyPlannedStageCount(project.financialPlan);
+      const financialSummary = plannedTotal > 0
+        ? `إجمالي قيمة المشروع: ${plannedTotal.toFixed(2)} ${project.currency}`
+        : project.financialPlan;
 
       return {
         id: project.id,
         title: project.title,
         description: project.description,
         agreementDetails: project.agreementDetails,
-        financialPlan: project.financialPlan,
+        financialPlan: financialSummary,
         currency: project.currency,
         stages: project.stages,
         links: project.links,
