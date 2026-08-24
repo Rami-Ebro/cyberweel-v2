@@ -88,16 +88,20 @@ function financialLines(value: string | null) {
 }
 
 function amountFromLine(source: string) {
-  const match = source.match(/(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة))/i);
-  const amount = Number((match?.[1] || match?.[2] || "0").replace(/,/g, ""));
+  const line = normalizeDigits(source);
+  const explicit = line.match(/(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة))/i);
+  const bareLeading = line.match(/^([0-9][0-9.,]*)(?:\s|$)/);
+  const raw = explicit?.[1] || explicit?.[2] || bareLeading?.[1] || "0";
+  const amount = Number(raw.replace(/,/g, ""));
   return Number.isFinite(amount) && amount > 0 ? amount : null;
 }
 
 function legacyNameFromFinancialLine(source: string) {
   const withoutStageLabel = source.replace(/^\s*المرحلة\s+(?:الأولى|الاولى|الثانية|الثالثة|الرابعة|الخامسة|السادسة|السابعة|الثامنة|التاسعة|العاشرة|\d+)\s*[:：.]?\s*/i, "");
-  const amountMatch = withoutStageLabel.match(/(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة))/i);
-  if (!amountMatch || amountMatch.index === undefined) return withoutStageLabel.replace(/[\s،,:：.\-–—]+$/g, "").trim();
-  return withoutStageLabel.slice(0, amountMatch.index).replace(/[\s،,:：.\-–—]+$/g, "").trim();
+  return withoutStageLabel
+    .replace(/^(?:\$\s*)?[0-9][0-9.,]*(?:\s*(?:USD|EUR|SYP|TRY|\$|دولار|دولارات|يورو|ليرة))?\s*/i, "")
+    .replace(/[\s،,:：.\-–—]+$/g, "")
+    .trim();
 }
 
 function stageSuggestion(stagesValue: string | null, financialPlan: string | null, index: number): StageSuggestion {
@@ -125,7 +129,7 @@ function planSyncError(stagesValue: string | null, financialPlan: string | null)
   if (!names.length) return "أدخل مراحل المشروع أولًا، مرحلة واحدة في كل سطر.";
   const amounts = financialLines(financialPlan).map(amountFromLine).filter((value): value is number => value !== null);
   if (amounts.length !== names.length) {
-    return `عدد مبالغ الخطة المالية (${amounts.length}) يجب أن يساوي عدد مراحل المشروع (${names.length}). اكتب مبلغًا واحدًا لكل مرحلة في سطر مستقل.`;
+    return `عدد مبالغ الخطة المالية (${amounts.length}) يجب أن يساوي عدد مراحل المشروع (${names.length}). اكتب مبلغًا واحدًا لكل مرحلة في سطر مستقل، مثل 500 أو 500 USD.`;
   }
   return null;
 }
