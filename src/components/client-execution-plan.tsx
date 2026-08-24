@@ -14,6 +14,7 @@ export type ClientProjectStage = {
   dueAt: string | null;
   completedAt: string | null;
   paidAt: string | null;
+  executionProgress?: number;
   projectProgress?: number;
   projectStatus?: string;
   plannedTotal?: number;
@@ -85,7 +86,7 @@ export function ClientExecutionPlan({ stages }: { stages: ClientProjectStage[] }
           <div className="rounded-2xl border border-[#E6E0D4] bg-white p-4">
             <div className="flex items-center justify-between gap-3"><strong>تقدم التنفيذ الفعلي</strong><span className="text-3xl font-black text-[#9A7D43]">{progress}%</span></div>
             <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A]" style={{ width: `${progress}%` }} /></div>
-            <p className="mt-2 text-xs font-bold text-slate-500">يعكس ما تم إنجازه فعليًا من مراحل المشروع.</p>
+            <p className="mt-2 text-xs font-bold text-slate-500">يعكس المراحل التي اعتمدتها الإدارة كمكتملة. تقدم العمل داخل المرحلة يظهر في بطاقة المرحلة نفسها.</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
               <PlanFact label={phaseLabel} value={phaseValue} />
               <PlanFact label="ترتيب المرحلة" value={`${phaseNumber} من ${plannedCount}`} />
@@ -103,13 +104,18 @@ export function ClientExecutionPlan({ stages }: { stages: ClientProjectStage[] }
 
         {stages.map((stage, index) => {
           const highlighted = index === highlightedIndex;
+          const executionProgress = stage.status === "COMPLETED" ? 100 : Math.max(0, Math.min(100, stage.executionProgress || 0));
           return (
             <article key={stage.id} className={`rounded-2xl border p-4 ${highlighted ? "border-[#B89A5A] bg-[#FFF9EA] shadow-sm" : "border-[#E6E0D4] bg-[#FCFAF6]"}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div><p className="text-xs font-black text-[#9A7D43]">المرحلة {index + 1} من {plannedCount}</p><h4 className="mt-1 text-base font-black">{stage.name}</h4></div>
                 <div className="flex flex-wrap gap-2 text-xs font-black"><span className="rounded-full bg-white px-3 py-1.5">{stageStatusLabel[stage.status] || stage.status}</span><span className="rounded-full bg-white px-3 py-1.5">{paymentStatusLabel[stage.paymentStatus] || stage.paymentStatus}</span></div>
               </div>
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <div className="mt-4 rounded-xl bg-white p-3">
+                <div className="flex items-center justify-between gap-3"><span className="text-xs font-black text-slate-500">تقدم تنفيذ المرحلة</span><strong className="text-[#9A7D43]">{executionProgress}%</strong></div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#F7F3EB]"><div className="h-full bg-[#B89A5A]" style={{ width: `${executionProgress}%` }} /></div>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 <PlanFact label="المبلغ" value={`${stage.amount.toLocaleString("ar")} ${stage.currency}`} />
                 <PlanFact label="حالة الدفع" value={paymentStatusLabel[stage.paymentStatus] || stage.paymentStatus} />
                 <PlanFact label="تاريخ استحقاق الدفع" value={<DateText value={stage.dueAt} fallback="غير محدد" />} />
