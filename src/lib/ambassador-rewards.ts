@@ -2,8 +2,29 @@ import { Prisma } from "@prisma/client";
 
 type RewardClient = Pick<
   Prisma.TransactionClient,
-  "ambassadorRewardLevel" | "clientProject" | "projectStage" | "ambassadorReward"
+  "clientProject" | "projectStage" | "ambassadorReward"
 >;
+
+export const DEFAULT_AMBASSADOR_REWARD_LEVELS = [
+  {
+    id: "default-ambassador-level-1",
+    name: "منطلق",
+    minSuccessfulReferrals: 1,
+    rate: new Prisma.Decimal(10),
+  },
+  {
+    id: "default-ambassador-level-2",
+    name: "نشط",
+    minSuccessfulReferrals: 2,
+    rate: new Prisma.Decimal(15),
+  },
+  {
+    id: "default-ambassador-level-3",
+    name: "نخبة",
+    minSuccessfulReferrals: 5,
+    rate: new Prisma.Decimal(20),
+  },
+] as const;
 
 export function utcMonthRange(at = new Date()) {
   return {
@@ -18,21 +39,18 @@ export async function rewardRateForNewProject(
   qualifiedAt = new Date(),
 ) {
   const { start, end } = utcMonthRange(qualifiedAt);
-  const [successfulBefore, levels] = await Promise.all([
-    tx.clientProject.count({
-      where: {
-        referral: { ambassadorId },
-        ambassadorQualifiedAt: { gte: start, lt: end },
-      },
-    }),
-    tx.ambassadorRewardLevel.findMany({
-      where: { isActive: true },
-      orderBy: { minSuccessfulReferrals: "asc" },
-    }),
-  ]);
+  const successfulProjects = await tx.ambassadorReward.findMany({
+    where: {
+      ambassadorId,
+      status: { in: ["EARNED", "PAID"] },
+      earnedAt: { gte: start, lt: end },
+    },
+    select: { projectId: true },
+    distinct: ["projectId"],
+  });
 
-  if (!levels.length) throw new Error("AMBASSADOR_REWARD_LEVELS_MISSING");
-  const referralPosition = successfulBefore + 1;
+  const levels = DEFAULT_AMBASSADOR_REWARD_LEVELS;
+  const referralPosition = successfulProjects.length + 1;
   const level = [...levels]
     .reverse()
     .find((item) => item.minSuccessfulReferrals <= referralPosition) || levels[0];

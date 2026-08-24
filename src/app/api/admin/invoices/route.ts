@@ -4,6 +4,7 @@ import { canAdmin } from "@/lib/admin-permissions";
 import { db } from "@/lib/db";
 import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security";
 import { clientAccessWhere } from "@/lib/user-identity";
+import { syncStageReward } from "@/lib/ambassador-rewards";
 
 const invoiceStatuses = new Set<ClientInvoiceStatus>([
   "DRAFT",
@@ -93,7 +94,13 @@ export async function POST(request: NextRequest) {
 
       const project = await db.clientProject.findUnique({
         where: { id: projectId },
-        select: { id: true, title: true, currency: true, clientId: true },
+        select: {
+          id: true,
+          title: true,
+          currency: true,
+          clientId: true,
+          projectStages: { select: { id: true }, take: 1 },
+        },
       });
       if (
         !project ||
@@ -103,6 +110,10 @@ export async function POST(request: NextRequest) {
         (dueAt && Number.isNaN(dueAt.getTime()))
       ) {
         return NextResponse.json({ error: "بيانات الفاتورة غير مكتملة" }, { status: 400 });
+      }
+
+      if (type === "STANDARD" && project.projectStages.length) {
+        return NextResponse.json({ error: "فاتورة المشروع المرحلية تُصدر من «خطة التنفيذ» عند بدء المرحلة، حتى تبقى الفاتورة مرتبطة بالمرحلة الصحيحة." }, { status: 409 });
       }
 
       const year = new Date().getUTCFullYear();
@@ -150,8 +161,10 @@ export async function POST(request: NextRequest) {
         select: {
           id: true,
           number: true,
+          type: true,
           amount: true,
           currency: true,
+          projectId: true,
           project: { select: { clientId: true } },
         },
       });
@@ -159,20 +172,55 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "الفاتورة غير موجودة" }, { status: 404 });
       }
 
-      const updated = await db.clientInvoice.update({
-        where: { id: invoice.id },
-        data: { status: "PAID", paidAt },
-      });
-      await db.clientNotification.create({
-        data: {
-          clientId: invoice.project.clientId,
-          title: "تم تسجيل دفعة",
-          body: `${invoice.number} — ${Number(invoice.amount)} ${invoice.currency}`,
-          section: "payments",
-        },
+      const result = await db.$transaction(async (tx) => {
+        const updated = await tx.clientInvoice.update({
+          where: { id: invoice.id },
+          data: { status: "PAID", paidAt },
+        });
+
+        let stageId: string | null = null;
+        if (invoice.type === "STANDARD") {
+          const [standardInvoices, projectStages] = await Promise.all([
+            tx.clientInvoice.findMany({
+              where: { projectId: invoice.projectId, type: "STANDARD" },
+              orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+              select: { id: true },
+            }),
+            tx.projectStage.findMany({
+              where: { projectId: invoice.projectId },
+              orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+              select: { id: true },
+            }),
+          ]);
+          const invoiceIndex = standardInvoices.findIndex((item) => item.id === invoice.id);
+          const stage = invoiceIndex >= 0 ? projectStages[invoiceIndex] : null;
+          if (stage) {
+            stageId = stage.id;
+            await tx.projectStage.update({
+              where: { id: stage.id },
+              data: { paymentStatus: "PAID", paidAt },
+            });
+            await syncStageReward(tx, stage.id);
+          }
+        }
+
+        await tx.clientNotification.create({
+          data: {
+            clientId: invoice.project.clientId,
+            title: "تم تسجيل دفعة",
+            body: `${invoice.number} — ${Number(invoice.amount)} ${invoice.currency}`,
+            section: "invoices",
+          },
+        });
+
+        return { updated, stageId };
       });
 
-      return NextResponse.json({ invoice: { ...updated, amount: Number(updated.amount) } });
+      return NextResponse.json({
+        invoice: { ...result.updated, amount: Number(result.updated.amount) },
+        stageSynced: Boolean(result.stageId),
+        stageId: result.stageId,
+      });
     }
 
     return NextResponse.json({ error: "الإجراء غير معروف" }, { status: 400 });

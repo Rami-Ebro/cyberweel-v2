@@ -1,0 +1,27 @@
+.scope :global(article.ring-2) {
+  position: relative;
+  border-width: 2px;
+  box-shadow: 0 14px 32px rgba(184, 154, 90, 0.22);
+  transform: translateY(-3px);
+}
+
+.scope :global(article.ring-2)::after {
+  content: "✓ مستواك الحالي";
+  position: absolute;
+  top: -0.8rem;
+  left: 1rem;
+  z-index: 2;
+  border-radius: 9999px;
+  background: #B89A5A;
+  color: #111827;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 900;
+  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.14);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .scope :global(article.ring-2) {
+    transition: transform 180ms ease, box-shadow 180ms ease;
+  }
+}

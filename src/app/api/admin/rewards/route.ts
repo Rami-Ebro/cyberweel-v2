@@ -7,12 +7,24 @@ import type {
 } from "@prisma/client";
 import { currentAdminAccess } from "@/lib/admin-permissions";
 import { db } from "@/lib/db";
-import { rewardRateForNewProject, syncStageReward } from "@/lib/ambassador-rewards";
+import { DEFAULT_AMBASSADOR_REWARD_LEVELS, rewardRateForNewProject, syncStageReward } from "@/lib/ambassador-rewards";
 import { writeAdminAudit } from "@/lib/admin-audit";
 import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security";
 
 const stageStatuses = new Set<ProjectStageStatus>(["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"]);
 const paymentStatuses = new Set<ProjectStagePaymentStatus>(["PENDING", "PAID", "CANCELLED"]);
+const PAYMENT_PROOF_PREFIX = "PAYMENT_PROOF:";
+const ALLOWED_PAYMENT_PROOF_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "application/pdf"]);
+
+type PaymentProof = {
+  method: string;
+  reference: string;
+  paidAt: string;
+  note: string | null;
+  attachmentUrl: string | null;
+  attachmentName: string | null;
+  attachmentType: string | null;
+};
 
 async function requireRewardsAdmin(request: NextRequest) {
   const access = await currentAdminAccess(request);
@@ -28,6 +40,38 @@ function dateInput(value: unknown) {
   if (!value) return null;
   const parsed = new Date(String(value));
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+function paymentProofFromNotes(value: string | null | undefined): PaymentProof | null {
+  if (!value?.startsWith(PAYMENT_PROOF_PREFIX)) return null;
+  try {
+    const parsed = JSON.parse(value.slice(PAYMENT_PROOF_PREFIX.length)) as Partial<PaymentProof>;
+    if (!parsed.method || !parsed.reference || !parsed.paidAt) return null;
+    return {
+      method: String(parsed.method),
+      reference: String(parsed.reference),
+      paidAt: String(parsed.paidAt),
+      note: parsed.note ? String(parsed.note) : null,
+      attachmentUrl: parsed.attachmentUrl ? String(parsed.attachmentUrl) : null,
+      attachmentName: parsed.attachmentName ? String(parsed.attachmentName) : null,
+      attachmentType: parsed.attachmentType ? String(parsed.attachmentType) : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function paymentProofNotes(proof: PaymentProof) {
+  return `${PAYMENT_PROOF_PREFIX}${JSON.stringify(proof)}`;
+}
+
+function validPaymentProofUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && [".public.blob.vercel-storage.com", ".private.blob.vercel-storage.com"].some((suffix) => url.hostname.endsWith(suffix));
+  } catch {
+    return false;
+  }
 }
 
 const rewardInclude = {
@@ -51,7 +95,7 @@ function rewardPayload(reward: RewardResult) {
 export async function GET(request: NextRequest) {
   if (!(await requireRewardsAdmin(request))) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
-  const [rewards, levels, projects] = await Promise.all([
+  const [rewards, configuredLevels, projects] = await Promise.all([
     db.ambassadorReward.findMany({ orderBy: { createdAt: "desc" }, include: rewardInclude }),
     db.ambassadorRewardLevel.findMany({ orderBy: [{ minSuccessfulReferrals: "asc" }, { sortOrder: "asc" }] }),
     db.clientProject.findMany({
@@ -64,10 +108,16 @@ export async function GET(request: NextRequest) {
       },
     }),
   ]);
+  const levels = configuredLevels.length ? configuredLevels : DEFAULT_AMBASSADOR_REWARD_LEVELS;
 
   return NextResponse.json({
     rewards: rewards.map(rewardPayload),
-    levels: levels.map((level) => ({ ...level, rate: level.rate.toString() })),
+    levels: levels.map((level) => ({
+      ...level,
+      rate: level.rate.toString(),
+      isActive: "isActive" in level ? level.isActive : true,
+    })),
+    usingDefaultLevels: configuredLevels.length === 0,
     projects: projects.map((project) => ({
       ...project,
       ambassadorRewardRate: project.ambassadorRewardRate?.toString() || null,
@@ -164,15 +214,90 @@ export async function POST(request: NextRequest) {
       if (!["EARNED", "PAID", "CANCELLED"].includes(requested)) return NextResponse.json({ error: "حالة المكافأة غير صالحة" }, { status: 400 });
       const reward = await db.ambassadorReward.findUnique({ where: { id: rewardId }, include: { projectStage: true, project: { select: { title: true } } } });
       if (!reward) return NextResponse.json({ error: "المكافأة غير موجودة" }, { status: 404 });
-      if (reward.status === "PAID") return NextResponse.json({ error: "المكافأة مدفوعة ولا يمكن تغييرها" }, { status: 409 });
-      if (requested === "PAID" && reward.status !== "EARNED") return NextResponse.json({ error: "لا يمكن الدفع قبل الاستحقاق" }, { status: 409 });
+
+      const existingProof = paymentProofFromNotes(reward.adminNotes);
+      const updatingPaidProof = requested === "PAID" && reward.status === "PAID";
+      if (reward.status === "PAID" && !updatingPaidProof) return NextResponse.json({ error: "المكافأة مدفوعة ولا يمكن تغيير حالتها" }, { status: 409 });
+      if (requested === "PAID" && !["EARNED", "PAID"].includes(reward.status)) return NextResponse.json({ error: "لا يمكن الدفع قبل الاستحقاق" }, { status: 409 });
       if (requested === "EARNED" && !(reward.projectStage.status === "COMPLETED" && reward.projectStage.paymentStatus === "PAID" && reward.projectStage.approvedAt)) return NextResponse.json({ error: "المرحلة يجب أن تكون مدفوعة ومكتملة ومعتمدة" }, { status: 409 });
+
       const reason = typeof body?.cancelReason === "string" ? body.cancelReason.trim().slice(0, 1000) : "";
       if (requested === "CANCELLED" && !reason) return NextResponse.json({ error: "سبب الإلغاء مطلوب" }, { status: 400 });
-      const notes = typeof body?.adminNotes === "string" ? body.adminNotes.trim().slice(0, 3000) : "";
+      const notes = typeof body?.adminNotes === "string" ? body.adminNotes.trim().slice(0, 2000) : "";
+
+      let paymentProof: PaymentProof | null = null;
+      let paidAt: Date | null = null;
+      if (requested === "PAID") {
+        const paymentMethod = typeof body?.paymentMethod === "string" ? body.paymentMethod.trim().slice(0, 120) : "";
+        const paymentReference = typeof body?.paymentReference === "string" ? body.paymentReference.trim().slice(0, 180) : "";
+        const paymentDate = dateInput(body?.paymentDate);
+        if (!paymentMethod || !paymentReference || !paymentDate || paymentDate === undefined) {
+          return NextResponse.json({ error: "طريقة الدفع ومرجع العملية وتاريخ الدفع مطلوبة" }, { status: 400 });
+        }
+        if (paymentDate.getTime() > Date.now() + 5 * 60 * 1000) {
+          return NextResponse.json({ error: "تاريخ الدفع لا يمكن أن يكون في المستقبل" }, { status: 400 });
+        }
+
+        const attachmentUrl = typeof body?.paymentAttachmentUrl === "string" ? body.paymentAttachmentUrl.trim().slice(0, 2000) : "";
+        const attachmentName = typeof body?.paymentAttachmentName === "string" ? body.paymentAttachmentName.trim().slice(0, 255) : "";
+        const attachmentType = typeof body?.paymentAttachmentType === "string" ? body.paymentAttachmentType.trim().slice(0, 120) : "";
+        if (attachmentUrl && (!validPaymentProofUrl(attachmentUrl) || !attachmentName || !ALLOWED_PAYMENT_PROOF_TYPES.has(attachmentType))) {
+          return NextResponse.json({ error: "مرفق إثبات الدفع غير صالح" }, { status: 400 });
+        }
+
+        const previousNote = existingProof?.note || (!reward.adminNotes?.startsWith(PAYMENT_PROOF_PREFIX) ? reward.adminNotes : null);
+        paymentProof = {
+          method: paymentMethod,
+          reference: paymentReference,
+          paidAt: paymentDate.toISOString(),
+          note: notes || previousNote || null,
+          attachmentUrl: attachmentUrl || existingProof?.attachmentUrl || null,
+          attachmentName: attachmentUrl ? attachmentName : existingProof?.attachmentName || null,
+          attachmentType: attachmentUrl ? attachmentType : existingProof?.attachmentType || null,
+        };
+        paidAt = paymentDate;
+      }
+
       const updated = await db.$transaction(async (tx) => {
-        const saved = await tx.ambassadorReward.update({ where: { id: reward.id }, data: { status: requested, earnedAt: requested === "EARNED" ? reward.earnedAt || new Date() : reward.earnedAt, paidAt: requested === "PAID" ? new Date() : null, cancelledAt: requested === "CANCELLED" ? new Date() : null, cancelReason: requested === "CANCELLED" ? reason : null, adminNotes: notes || reward.adminNotes } });
-        await writeAdminAudit(tx, { actorId: access.userId, action: requested === "PAID" ? "AMBASSADOR_REWARD_PAID" : requested === "CANCELLED" ? "AMBASSADOR_REWARD_CANCELLED" : "AMBASSADOR_REWARD_EARNED", category: requested === "CANCELLED" ? "SENSITIVE" : "POSITIVE", entityType: "AMBASSADOR_REWARD", entityId: reward.id, entityLabel: `${reward.project.title} — ${reward.projectStage.name}`, before: { status: reward.status }, after: { status: requested, amount: reward.amount.toString(), currency: reward.currency, reason: reason || null } });
+        const saved = await tx.ambassadorReward.update({
+          where: { id: reward.id },
+          data: {
+            status: requested,
+            earnedAt: requested === "EARNED" ? reward.earnedAt || new Date() : reward.earnedAt,
+            paidAt: requested === "PAID" ? paidAt : null,
+            cancelledAt: requested === "CANCELLED" ? new Date() : null,
+            cancelReason: requested === "CANCELLED" ? reason : null,
+            adminNotes: requested === "PAID" && paymentProof ? paymentProofNotes(paymentProof) : notes || reward.adminNotes,
+          },
+        });
+        await writeAdminAudit(tx, {
+          actorId: access.userId,
+          action: updatingPaidProof
+            ? existingProof
+              ? "AMBASSADOR_REWARD_PAYMENT_PROOF_UPDATED"
+              : "AMBASSADOR_REWARD_PAYMENT_PROOF_ADDED"
+            : requested === "PAID"
+              ? "AMBASSADOR_REWARD_PAID"
+              : requested === "CANCELLED"
+                ? "AMBASSADOR_REWARD_CANCELLED"
+                : "AMBASSADOR_REWARD_EARNED",
+          category: requested === "CANCELLED" ? "SENSITIVE" : "POSITIVE",
+          entityType: "AMBASSADOR_REWARD",
+          entityId: reward.id,
+          entityLabel: `${reward.project.title} — ${reward.projectStage.name}`,
+          before: { status: reward.status, hasPaymentProof: Boolean(existingProof), hasAttachment: Boolean(existingProof?.attachmentUrl) },
+          after: {
+            status: requested,
+            amount: reward.amount.toString(),
+            currency: reward.currency,
+            reason: reason || null,
+            paymentMethod: paymentProof?.method || null,
+            paymentReference: paymentProof?.reference || null,
+            paymentDate: paymentProof?.paidAt || null,
+            paymentAttachmentName: paymentProof?.attachmentName || null,
+            hasPaymentAttachment: Boolean(paymentProof?.attachmentUrl),
+          },
+        });
         return saved;
       });
       return NextResponse.json({ reward: { ...updated, rate: updated.rate.toString(), baseAmount: updated.baseAmount.toString(), amount: updated.amount.toString() } });

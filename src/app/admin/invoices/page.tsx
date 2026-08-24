@@ -198,11 +198,35 @@ export default function AdminInvoicesPage() {
         </section>
 
         <section className="mt-6 rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm">
-          <div className="grid gap-3 md:grid-cols-[1fr_240px]">
+          <div className="grid gap-3 md:grid-cols-[1fr_220px]">
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="بحث برقم الفاتورة أو العميل أو المشروع" className="field" />
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="field"><option value="">كل الحالات</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
           </div>
-          <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[1000px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">الرقم</th><th className="p-4">النوع</th><th className="p-4">العميل</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th><th className="p-4">الإجراء</th></tr></thead><tbody>{filteredInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td dir="ltr" className="p-4 text-right font-black">{invoice.number}</td><td className="p-4">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</td><td className="p-4">{invoice.project.client.name || invoice.project.client.email}</td><td className="p-4">{invoice.project.title}</td><td className="p-4 font-black">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{statusLabels[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</td><td className="p-4"><DateText value={invoice.dueAt} /></td><td className="p-4">{invoice.status !== "PAID" && invoice.status !== "CANCELLED" ? <button onClick={() => void markPaid(invoice)} disabled={saving} className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 font-black text-emerald-800 disabled:opacity-40">تسجيل مدفوعة</button> : "—"}</td></tr>)}</tbody></table>{!loading && !filteredInvoices.length && <p className="p-8 text-center text-slate-500">لا توجد فواتير مطابقة.</p>}</div>
+          <div className="mt-5">
+            <table className="w-full table-fixed text-right text-xs xl:text-sm">
+              <thead><tr className="border-b">
+                <th className="w-[16%] p-2.5">الرقم</th>
+                <th className="w-[12%] p-2.5">تاريخ الإصدار</th>
+                <th className="w-[14%] p-2.5">العميل</th>
+                <th className="w-[14%] p-2.5">المشروع</th>
+                <th className="w-[11%] p-2.5">المبلغ</th>
+                <th className="w-[13%] p-2.5">الحالة</th>
+                <th className="w-[10%] p-2.5">الاستحقاق</th>
+                <th className="w-[10%] p-2.5">الدفع</th>
+              </tr></thead>
+              <tbody>{filteredInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100 align-middle">
+                <td dir="ltr" className="p-2.5 text-right font-black"><span className="whitespace-nowrap">{invoice.number}</span>{invoice.type === "RETURN" && <span className="mr-2 inline-block rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700">مرتجع</span>}</td>
+                <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.createdAt} /></td>
+                <td className="p-2.5 truncate" title={invoice.project.client.name || invoice.project.client.email}>{invoice.project.client.name || invoice.project.client.email}</td>
+                <td className="p-2.5 truncate" title={invoice.project.title}>{invoice.project.title}</td>
+                <td className="p-2.5 whitespace-nowrap font-black">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td>
+                <td className="p-2.5"><div className="flex flex-wrap items-center gap-1.5"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 font-black ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{statusLabels[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</span>{invoice.status !== "PAID" && invoice.status !== "CANCELLED" && <button onClick={() => void markPaid(invoice)} disabled={saving} className="whitespace-nowrap rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-800 disabled:opacity-40">تسجيل مدفوعة</button>}</div></td>
+                <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.dueAt} /></td>
+                <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.paidAt} /></td>
+              </tr>)}</tbody>
+            </table>
+            {!loading && !filteredInvoices.length && <p className="p-8 text-center text-slate-500">لا توجد فواتير مطابقة.</p>}
+          </div>
         </section>
       <style jsx global>{`.field{width:100%;border-radius:.75rem;border:1px solid #d8d2c4;padding:.75rem 1rem;background:white}`}</style>
     </AdminShell>

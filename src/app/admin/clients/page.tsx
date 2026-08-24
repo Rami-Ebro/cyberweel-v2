@@ -19,6 +19,15 @@ type Client = {
   hasLogin: boolean;
   createdAt: string;
   clientProjects: Array<{ id: string; title: string; status: string; progress: number }>;
+  ambassadorAttribution: {
+    referralId: string;
+    convertedAt: string | null;
+    source: string | null;
+    ambassadorId: string;
+    ambassadorName: string;
+    ambassadorEmail: string;
+    ambassadorCode: string;
+  } | null;
 };
 
 type ClientPayload = {
@@ -191,6 +200,16 @@ export default function AdminClientsPage() {
                 <Link href={`/admin/clients/${client.id}`} className="text-xl font-black underline decoration-[#B89A5A] decoration-2 underline-offset-4 hover:text-[#9A7D43]">{client.name || "دون اسم"}</Link>
                 <p className="mt-1 text-sm text-slate-500">{client.email}{client.phone ? ` · ${client.phone}` : ""}</p>
                 {client.company && <p className="mt-1 text-sm text-slate-500">{client.company}</p>}
+                {client.ambassadorAttribution ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-black">
+                    <span className="rounded-full bg-[#F3EAD7] px-3 py-1.5 text-[#7B5D26]">عميل محال من سفير</span>
+                    <Link href="/admin/ambassadors" className="rounded-full border border-[#D8D2C4] px-3 py-1.5 text-[#9A7D43] hover:border-[#B89A5A]">
+                      {client.ambassadorAttribution.ambassadorName} · {client.ambassadorAttribution.ambassadorCode}
+                    </Link>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs font-bold text-slate-500">مصدر العميل: {client.clientSource === "DIRECT" || !client.clientSource ? "مباشر" : client.clientSource}</p>
+                )}
                 <p className="mt-1 text-xs font-bold text-[#9A7D43]">{client.hasLogin ? "بيانات الدخول مضبوطة" : "لم يضبط العميل كلمة المرور بعد"}</p>
               </div>
               <span className={`rounded-full px-3 py-1 text-xs font-black ${client.isActive ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>{client.isActive ? "الحساب فعال" : "الحساب معلّق"}</span>
@@ -204,7 +223,20 @@ export default function AdminClientsPage() {
               <label className="grid gap-2 font-bold">رقم الهاتف<input name="phone" defaultValue={client.phone || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3 font-normal" /></label>
               <label className="grid gap-2 font-bold">الشركة<input name="company" defaultValue={client.company || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3 font-normal" /></label>
               <label className="grid gap-2 font-bold">اللغة<select name="preferredLanguage" defaultValue={client.preferredLanguage || "ar"} className="rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-normal"><option value="ar">العربية</option><option value="en">English</option></select></label>
-              <label className="grid gap-2 font-bold">مصدر العميل<input name="clientSource" defaultValue={client.clientSource || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3 font-normal" /></label>
+              {client.ambassadorAttribution ? (
+                <div className="rounded-xl border border-[#D8D2C4] bg-[#F7F3EB] p-4">
+                  <input type="hidden" name="clientSource" value={client.clientSource || "REFERRAL"} />
+                  <p className="text-xs font-black text-[#9A7D43]">مصدر العميل</p>
+                  <p className="mt-1 font-black">إحالة سفير</p>
+                  <p className="mt-1 text-sm text-slate-600">{client.ambassadorAttribution.ambassadorName} · {client.ambassadorAttribution.ambassadorCode}</p>
+                  <div className="mt-3 flex flex-wrap gap-3 text-xs font-bold">
+                    <Link href="/admin/ambassadors" className="text-[#9A7D43] underline underline-offset-4">فتح السفراء</Link>
+                    <Link href="/admin/referrals" className="text-[#9A7D43] underline underline-offset-4">فتح الإحالات</Link>
+                  </div>
+                </div>
+              ) : (
+                <label className="grid gap-2 font-bold">مصدر العميل<input name="clientSource" defaultValue={client.clientSource || "DIRECT"} className="rounded-xl border border-[#D8D2C4] px-4 py-3 font-normal" /></label>
+              )}
               <label className="grid gap-2 font-bold md:col-span-2">ملاحظات داخلية<textarea name="internalNotes" rows={3} defaultValue={client.internalNotes || ""} className="rounded-xl border border-[#D8D2C4] px-4 py-3 font-normal" /></label>
             </div>
             <div className="mt-5 rounded-xl bg-[#F7F3EB] p-4"><p className="font-black">مشاريع العميل</p>

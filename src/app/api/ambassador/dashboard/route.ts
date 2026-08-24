@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { canAdmin } from "@/lib/admin-permissions";
 import { currentAmbassador } from "@/lib/ambassador-auth";
 import { formatAmbassadorReferralCode } from "@/lib/partner-referral";
-import { utcMonthRange } from "@/lib/ambassador-rewards";
+import { DEFAULT_AMBASSADOR_REWARD_LEVELS, utcMonthRange } from "@/lib/ambassador-rewards";
 import {
   consumeRateLimit,
   hasTrustedOrigin,
@@ -10,6 +10,25 @@ import {
   rateLimitResponse,
 } from "@/lib/request-security";
 import { NextRequest, NextResponse } from "next/server";
+
+const PAYMENT_PROOF_PREFIX = "PAYMENT_PROOF:";
+type PaymentProof = {
+  method: string;
+  reference: string;
+  paidAt: string;
+  note: string | null;
+  attachmentUrl: string | null;
+  attachmentName: string | null;
+  attachmentType: string | null;
+};
+
+type ReferralProjectSnapshot = {
+  title: string;
+  currency: string;
+  financialPlan: string | null;
+  ambassadorRewardRate: { toString(): string } | null;
+  projectStages: Array<{ amount: { toString(): string } }>;
+};
 
 async function dashboardAmbassador(request: NextRequest) {
   const previewId = request.nextUrl.searchParams.get("adminPreview");
@@ -54,10 +73,68 @@ async function dashboardAmbassador(request: NextRequest) {
   return user ? { ...user, isAdminPreview: false } : null;
 }
 
-function serializeReferral<T extends { commissionAmount: { toString(): string } | null }>(referral: T) {
+function paymentProofFromNotes(value: string | null | undefined): PaymentProof | null {
+  if (!value?.startsWith(PAYMENT_PROOF_PREFIX)) return null;
+  try {
+    const parsed = JSON.parse(value.slice(PAYMENT_PROOF_PREFIX.length)) as Partial<PaymentProof>;
+    if (!parsed.method || !parsed.reference || !parsed.paidAt) return null;
+    return {
+      method: String(parsed.method),
+      reference: String(parsed.reference),
+      paidAt: String(parsed.paidAt),
+      note: parsed.note ? String(parsed.note) : null,
+      attachmentUrl: parsed.attachmentUrl ? String(parsed.attachmentUrl) : null,
+      attachmentName: parsed.attachmentName ? String(parsed.attachmentName) : null,
+      attachmentType: parsed.attachmentType ? String(parsed.attachmentType) : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function normalizeDigits(value: string) {
+  const arabic = "٠١٢٣٤٥٦٧٨٩";
+  const eastern = "۰۱۲۳۴۵۶۷۸۹";
+  return value
+    .replace(/[٠-٩]/g, (digit) => String(arabic.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String(eastern.indexOf(digit)));
+}
+
+function financialPlanAmounts(value: string | null) {
+  if (!value) return [];
+  return value
+    .split(/\r?\n/)
+    .map((line) => normalizeDigits(line))
+    .map((line) => {
+      const match = line.match(/(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة))/i);
+      return Number((match?.[1] || match?.[2] || "0").replace(/,/g, ""));
+    })
+    .filter((amount) => Number.isFinite(amount) && amount > 0);
+}
+
+function plannedProjectAmount(project: ReferralProjectSnapshot) {
+  const planned = financialPlanAmounts(project.financialPlan);
+  if (planned.length) return planned.reduce((sum, value) => sum + value, 0);
+  return project.projectStages.reduce((sum, stage) => {
+    const value = Number(stage.amount.toString());
+    return Number.isFinite(value) ? sum + value : sum;
+  }, 0);
+}
+
+function serializeReferral<T extends {
+  commissionAmount: { toString(): string } | null;
+  clientProject?: ReferralProjectSnapshot | null;
+}>(referral: T) {
   return {
     ...referral,
     commissionAmount: referral.commissionAmount?.toString() ?? null,
+    clientProject: referral.clientProject
+      ? {
+          title: referral.clientProject.title,
+          currency: referral.clientProject.currency,
+          ambassadorRewardRate: referral.clientProject.ambassadorRewardRate?.toString() ?? null,
+        }
+      : null,
   };
 }
 
@@ -69,10 +146,21 @@ export async function GET(request: NextRequest) {
   }
 
   const month = utcMonthRange();
-  const [rawReferrals, rawRewards, rewardLevels, successfulThisMonth] = await Promise.all([
+  const [rawReferrals, rawRewards, configuredRewardLevels, successfulProjectsThisMonth] = await Promise.all([
     db.partnerReferral.findMany({
       where: { ambassadorId: user.ambassador!.id },
       orderBy: { createdAt: "desc" },
+      include: {
+        clientProject: {
+          select: {
+            title: true,
+            currency: true,
+            financialPlan: true,
+            ambassadorRewardRate: true,
+            projectStages: { select: { amount: true } },
+          },
+        },
+      },
     }),
     db.ambassadorReward.findMany({
       where: { ambassadorId: user.ambassador!.id },
@@ -84,14 +172,39 @@ export async function GET(request: NextRequest) {
       },
     }),
     db.ambassadorRewardLevel.findMany({ where: { isActive: true }, orderBy: { minSuccessfulReferrals: "asc" } }),
-    db.clientProject.count({
+    db.ambassadorReward.findMany({
       where: {
-        referral: { ambassadorId: user.ambassador!.id },
-        ambassadorQualifiedAt: { gte: month.start, lt: month.end },
+        ambassadorId: user.ambassador!.id,
+        status: { in: ["EARNED", "PAID"] },
+        earnedAt: { gte: month.start, lt: month.end },
       },
+      select: { projectId: true },
+      distinct: ["projectId"],
     }),
   ]);
-  const referrals = rawReferrals.map(serializeReferral);
+  const successfulThisMonth = successfulProjectsThisMonth.length;
+  const successfulReferralIds = new Set(
+    rawRewards
+      .filter((reward) =>
+        ["EARNED", "PAID"].includes(reward.status) &&
+        reward.earnedAt &&
+        reward.earnedAt >= month.start &&
+        reward.earnedAt < month.end,
+      )
+      .map((reward) => reward.referralId),
+  );
+  const rewardLevels = configuredRewardLevels.length ? configuredRewardLevels : DEFAULT_AMBASSADOR_REWARD_LEVELS;
+  const referrals = rawReferrals.map((rawReferral) => {
+    const referral = serializeReferral(rawReferral);
+    const displayStatus = successfulReferralIds.has(rawReferral.id)
+      ? "إحالة ناجحة"
+      : referral.clientProject?.ambassadorRewardRate
+        ? "تم الاتفاق — بانتظار أول دفعة"
+        : rawReferral.status === "INTERESTED"
+          ? "قيد التفاوض"
+          : rawReferral.status;
+    return { ...referral, status: displayStatus };
+  });
   const summaries = new Map<string, {
     currency: string;
     pending: number;
@@ -114,22 +227,45 @@ export async function GET(request: NextRequest) {
   }
 
   const rewardSummaries = new Map<string, { currency: string; total: number; expected: number; earned: number; paid: number }>();
+
+  for (const referral of rawReferrals) {
+    const project = referral.clientProject;
+    const rate = Number(project?.ambassadorRewardRate?.toString() || 0);
+    if (!project || !Number.isFinite(rate) || rate <= 0) continue;
+    const projectAmount = plannedProjectAmount(project);
+    if (!Number.isFinite(projectAmount) || projectAmount <= 0) continue;
+    const currency = project.currency.toUpperCase();
+    const summary = rewardSummaries.get(currency) || { currency, total: 0, expected: 0, earned: 0, paid: 0 };
+    summary.total += projectAmount * rate / 100;
+    rewardSummaries.set(currency, summary);
+  }
+
   const rewards = rawRewards.map((reward) => {
     const value = Number(reward.amount);
-    const summary = rewardSummaries.get(reward.currency) || { currency: reward.currency, total: 0, expected: 0, earned: 0, paid: 0 };
-    if (reward.status !== "CANCELLED") summary.total += value;
-    if (reward.status === "EXPECTED") summary.expected += value;
+    const currency = reward.currency.toUpperCase();
+    const summary = rewardSummaries.get(currency) || { currency, total: 0, expected: 0, earned: 0, paid: 0 };
     if (reward.status === "EARNED") summary.earned += value;
     if (reward.status === "PAID") summary.paid += value;
-    rewardSummaries.set(reward.currency, summary);
+    if (!summary.total && reward.status !== "CANCELLED") summary.total += value;
+    rewardSummaries.set(currency, summary);
+    const { adminNotes, ...publicReward } = reward;
     return {
-      ...reward,
+      ...publicReward,
       rate: reward.rate.toString(),
       baseAmount: reward.baseAmount.toString(),
       amount: reward.amount.toString(),
+      paymentProof: paymentProofFromNotes(adminNotes),
     };
   });
-  const currentLevel = [...rewardLevels].reverse().find((level) => level.minSuccessfulReferrals <= Math.max(successfulThisMonth, 1)) || rewardLevels[0] || null;
+
+  for (const summary of rewardSummaries.values()) {
+    summary.total = Math.max(summary.total, summary.earned + summary.paid);
+    summary.expected = Math.max(0, summary.total - summary.earned - summary.paid);
+  }
+
+  const currentLevel = successfulThisMonth
+    ? [...rewardLevels].reverse().find((level) => level.minSuccessfulReferrals <= successfulThisMonth) || null
+    : null;
   const nextLevel = rewardLevels.find((level) => level.minSuccessfulReferrals > successfulThisMonth) || null;
 
   const code = formatAmbassadorReferralCode(user.ambassador!.referralNumber);
@@ -150,12 +286,12 @@ export async function GET(request: NextRequest) {
     isAdminPreview: user.isAdminPreview,
     stats: {
       referrals: referrals.length,
-      followUp: referrals.filter((item) =>
+      followUp: rawReferrals.filter((item) =>
         ["NEW", "CONTACTED", "INTERESTED", "AWAITING_RESPONSE"].includes(item.status) &&
         !["REJECTED", "CANCELLED"].includes(item.adminDecision || ""),
       ).length,
-      converted: referrals.filter((item) => item.status === "CONVERTED").length,
-      qualified: referrals.filter((item) => item.status === "INTERESTED").length,
+      converted: rawReferrals.filter((item) => item.status === "CONVERTED").length,
+      qualified: rawReferrals.filter((item) => item.status === "INTERESTED").length,
       commissionsByCurrency: Array.from(summaries.values()).map((item) => ({
         currency: item.currency,
         pending: item.pending.toFixed(2),
@@ -169,6 +305,12 @@ export async function GET(request: NextRequest) {
         expected: item.expected.toFixed(2),
         earned: item.earned.toFixed(2),
         paid: item.paid.toFixed(2),
+      })),
+      rewardLevels: rewardLevels.map((level) => ({
+        id: level.id,
+        name: level.name,
+        minSuccessfulReferrals: level.minSuccessfulReferrals,
+        rate: level.rate.toString(),
       })),
       monthlyLevel: {
         successfulReferrals: successfulThisMonth,
@@ -213,33 +355,89 @@ export async function POST(request: NextRequest) {
   if (
     !name ||
     name.length > 120 ||
+    !email ||
     email.length > 254 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
     phone.length > 40 ||
+    !contactMethod ||
     contactMethod.length > 160 ||
     company.length > 160 ||
     !needs ||
     needs.length > 2000 ||
-    extraNotes.length > 2000 ||
-    (!email && !phone && !contactMethod) ||
-    (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    extraNotes.length > 2000
   ) {
-    return NextResponse.json({ error: "أدخل اسم العميل ووسيلة تواصل وتفاصيل الإحالة" }, { status: 400 });
+    return NextResponse.json(
+      { error: "INVALID_REFERRAL", message: "أدخل اسم العميل والبريد الإلكتروني ووسيلة تواصل إضافية واحتياجه بشكل صحيح." },
+      { status: 400 },
+    );
+  }
+
+  if (email === user.email.trim().toLowerCase()) {
+    return NextResponse.json(
+      { error: "SELF_REFERRAL", message: "لا يمكنك تسجيل بريد حسابك كإحالة عميل." },
+      { status: 409 },
+    );
+  }
+
+  const [existingReferral, existingUser] = await Promise.all([
+    db.partnerReferral.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      select: { id: true, status: true, ambassadorId: true, convertedClientId: true },
+    }),
+    db.user.findUnique({
+      where: { email },
+      select: { id: true, role: true },
+    }),
+  ]);
+
+  if (existingReferral) {
+    return NextResponse.json(
+      {
+        error: "DUPLICATE_REFERRAL_EMAIL",
+        message: existingReferral.ambassadorId === user.ambassador!.id
+          ? "هذا البريد مسجل بالفعل ضمن إحالاتك. تابع الإحالة الحالية بدل إنشاء نسخة جديدة."
+          : "هذا البريد مسجل بالفعل كإحالة في CyberWeel ولا يمكن إنشاء إحالة مكررة.",
+      },
+      { status: 409 },
+    );
+  }
+
+  if (existingUser) {
+    return NextResponse.json(
+      { error: "EXISTING_ACCOUNT_EMAIL", message: "هذا البريد مرتبط بحساب موجود في CyberWeel ولا يمكن تسجيله كإحالة جديدة." },
+      { status: 409 },
+    );
   }
 
   const notes = extraNotes ? `${needs}\n\nملاحظات السفير: ${extraNotes}` : needs;
+  const ambassadorCode = formatAmbassadorReferralCode(user.ambassador!.referralNumber);
+  const ambassadorName = user.name || user.email;
 
-  const referral = await db.partnerReferral.create({
-    data: {
-      ambassadorId: user.ambassador!.id,
-      name,
-      email: email || null,
-      phone: phone || null,
-      company: company || null,
-      contactMethod: contactMethod || null,
-      notes,
-      source: "إضافة مباشرة من السفير",
-      sourcePath: "/ambassador/dashboard",
-    },
+  const referral = await db.$transaction(async (tx) => {
+    const createdReferral = await tx.partnerReferral.create({
+      data: {
+        ambassadorId: user.ambassador!.id,
+        name,
+        email,
+        phone: phone || null,
+        company: company || null,
+        contactMethod,
+        notes,
+        source: "إضافة مباشرة من السفير",
+        sourcePath: "/ambassador/dashboard",
+      },
+    });
+
+    await tx.adminNotification.create({
+      data: {
+        title: "إحالة مباشرة جديدة من سفير",
+        body: `${ambassadorName} (${ambassadorCode}) أرسل إحالة جديدة للعميل ${name}.`,
+        href: "/admin/referrals",
+        kind: "AMBASSADOR_DIRECT_REFERRAL",
+      },
+    });
+
+    return createdReferral;
   });
 
   return NextResponse.json({ referral: serializeReferral(referral) }, { status: 201 });

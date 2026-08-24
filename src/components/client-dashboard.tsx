@@ -1,12 +1,13 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BarChart3, Bell, BriefcaseBusiness, FileText, Home, LogOut, Mail, Pencil, ReceiptText, RefreshCw, Send, UserCog } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { DashboardLanguageButton } from "@/components/dashboard-i18n-provider";
 import { DateText } from "@/components/ui/date-text";
 import { ClientSubmissionPanel, type ClientSubmissionView } from "@/components/client-submission-panel";
+import { ClientExecutionPlan, type ClientProjectStage } from "@/components/client-execution-plan";
 import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
 
 type Section = "overview" | "projects" | "files" | "invoices" | "messages" | "account";
@@ -25,9 +26,10 @@ type Project = {
   startsAt: string | null;
   dueAt: string | null;
   updatedAt: string;
+  projectStages?: ClientProjectStage[];
 };
 type FileItem = { id: string; name: string; url: string; kind: string | null; size: number | null; source?: string; storageProvider?: string | null; createdAt: string; projectTitle: string };
-type Invoice = { id: string; number: string; type: "STANDARD" | "RETURN"; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; projectTitle: string };
+type Invoice = { id: string; number: string; type: "STANDARD" | "RETURN"; amount: number; currency: string; status: string; dueAt: string | null; paidAt: string | null; createdAt: string; projectTitle: string };
 type Message = { id: string; subject: string | null; body: string; fromAdmin: boolean; readAt: string | null; createdAt: string };
 type Notification = { id: string; title: string; body: string | null; section: Section; readAt: string | null; createdAt: string };
 type Stats = { projects: number; activeProjects: number; files: number; dueInvoices: number; unreadMessages: number; unreadNotifications: number };
@@ -56,6 +58,7 @@ export function ClientDashboard({
   const [messages, setMessages] = useState<Message[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(initialNotice);
@@ -130,6 +133,27 @@ export function ClientDashboard({
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [adminClientId]);
 
+  useEffect(() => {
+    if (!notificationsOpen) return;
+
+    function closeNotificationsOutside(event: PointerEvent) {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setNotificationsOpen(false);
+      }
+    }
+
+    function closeNotificationsWithEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setNotificationsOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeNotificationsOutside);
+    document.addEventListener("keydown", closeNotificationsWithEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeNotificationsOutside);
+      document.removeEventListener("keydown", closeNotificationsWithEscape);
+    };
+  }, [notificationsOpen]);
+
   async function logout() {
     await fetch("/api/partner/logout", { method: "POST" });
     router.replace("/login");
@@ -182,6 +206,7 @@ export function ClientDashboard({
         return setNotice("تعذر تحديث حالة الإشعار");
       }
     }
+    setNotificationsOpen(false);
     setSection(notification.section);
   }
 
@@ -226,35 +251,37 @@ export function ClientDashboard({
           <header className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div><p className="text-sm font-bold text-[#9A7D43]">مساحة العميل</p><h1 className="mt-1 text-3xl font-black">مرحبًا {client?.name || "بك"}</h1></div>
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => setNotificationsOpen((value) => !value)} className="relative flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
-                <Bell className="h-5 w-5" />الإشعارات
-                {!!stats?.unreadNotifications && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{stats.unreadNotifications}</span>}
-              </button>
+              <div ref={notificationsRef} className="relative">
+                <button onClick={() => setNotificationsOpen((value) => !value)} className="relative flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
+                  <Bell className="h-5 w-5" />الإشعارات
+                  {!!stats?.unreadNotifications && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{stats.unreadNotifications}</span>}
+                </button>
+                {notificationsOpen && (
+                  <div className="absolute left-0 top-full z-20 mt-3 w-[min(92vw,28rem)] rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl">
+                    <div className="flex items-center justify-between px-2 py-2"><strong>الإشعارات</strong><span className="text-xs text-slate-500">{stats?.unreadNotifications || 0} غير مقروء</span></div>
+                    <div className="max-h-96 space-y-2 overflow-y-auto">
+                      {notifications.map((notification) => (
+                        <button key={notification.id} type="button" onClick={() => void openNotification(notification)} disabled={isAdminMirror} className={`w-full rounded-xl p-3 text-right ${notification.readAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827]"} ${isAdminMirror ? "cursor-default" : ""}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="flex items-center gap-2">
+                              <strong className="text-sm">{notification.title}</strong>
+                              {!notification.readAt && <span className="h-2 w-2 shrink-0 rounded-full bg-red-600" />}
+                            </span>
+                            <time dateTime={notification.createdAt} dir="ltr" className="shrink-0 text-xs text-slate-500">
+                              <DateText value={notification.createdAt} />
+                            </time>
+                          </div>
+                          {notification.body && <p className="mt-1 text-xs leading-5 text-slate-500">{notification.body}</p>}
+                        </button>
+                      ))}
+                      {!notifications.length && <p className="p-6 text-center text-sm text-slate-500">لا توجد إشعارات جديدة.</p>}
+                    </div>
+                  </div>
+                )}
+              </div>
               <DashboardLanguageButton />
               <button onClick={() => void load()} disabled={loading} className="flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث البيانات</button>
             </div>
-            {notificationsOpen && (
-              <div className="absolute left-0 top-full z-20 mt-3 w-full max-w-md rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl">
-                <div className="flex items-center justify-between px-2 py-2"><strong>الإشعارات</strong><span className="text-xs text-slate-500">{stats?.unreadNotifications || 0} غير مقروء</span></div>
-                <div className="max-h-96 space-y-2 overflow-y-auto">
-                  {notifications.map((notification) => (
-                    <button key={notification.id} type="button" onClick={() => void openNotification(notification)} disabled={isAdminMirror} className={`w-full rounded-xl p-3 text-right ${notification.readAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827]"} ${isAdminMirror ? "cursor-default" : ""}`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="flex items-center gap-2">
-                          <strong className="text-sm">{notification.title}</strong>
-                          {!notification.readAt && <span className="h-2 w-2 shrink-0 rounded-full bg-red-600" />}
-                        </span>
-                        <time dateTime={notification.createdAt} dir="ltr" className="shrink-0 text-xs text-slate-500">
-                          <DateText value={notification.createdAt} />
-                        </time>
-                      </div>
-                      {notification.body && <p className="mt-1 text-xs leading-5 text-slate-500">{notification.body}</p>}
-                    </button>
-                  ))}
-                  {!notifications.length && <p className="p-6 text-center text-sm text-slate-500">لا توجد إشعارات جديدة.</p>}
-                </div>
-              </div>
-            )}
           </header>
 
           {notice && <p className="mt-5 rounded-xl border border-[#D8D2C4] bg-white p-4 font-bold shadow-sm">{notice}</p>}
@@ -310,6 +337,8 @@ export function ClientDashboard({
                   <ProjectDetail title="موعد التسليم" value={<DateText value={project.dueAt} fallback="لم تُضف معلومات بعد." />} />
                 </div>
 
+                <ClientExecutionPlan stages={project.projectStages || []} />
+
                 {!!project.links?.length && (
                   <div className="mt-3 rounded-xl bg-[#F7F3EB] p-4">
                     <p className="text-xs font-black text-slate-500">روابط المشروع</p>
@@ -331,7 +360,32 @@ export function ClientDashboard({
             {client && <ClientSubmissionPanel projects={projects.map(({ id, title }) => ({ id, title }))} submissions={submissions} clientId={client.id} canSubmit={!isAdminMirror} onSubmitted={() => load(false)} />}
           </section>}
 
-          {!loading && section === "invoices" && <section className="mt-7"><div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الفواتير</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("invoices")} />}</div><div className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm"><table className="w-full min-w-[820px] text-right text-sm"><thead><tr className="border-b"><th className="p-4">رقم الفاتورة</th><th className="p-4">النوع</th><th className="p-4">المشروع</th><th className="p-4">المبلغ</th><th className="p-4">الحالة</th><th className="p-4">الاستحقاق</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-4 font-bold">{invoice.number}</td><td className="p-4">{invoice.type === "RETURN" ? "مرتجع" : "فاتورة"}</td><td className="p-4">{invoice.projectTitle}</td><td className="p-4">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td><td className="p-4">{invoiceLabel[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</td><td className="p-4"><DateText value={invoice.dueAt} /></td></tr>)}</tbody></table>{!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}</div></section>}
+          {!loading && section === "invoices" && <section className="mt-7">
+            <div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الفواتير</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("invoices")} />}</div>
+            <div className="mt-5 rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
+              <table className="w-full table-fixed text-right text-xs xl:text-sm">
+                <thead><tr className="border-b">
+                  <th className="w-[18%] p-3">رقم الفاتورة</th>
+                  <th className="w-[14%] p-3">تاريخ الإصدار</th>
+                  <th className="w-[16%] p-3">المشروع</th>
+                  <th className="w-[14%] p-3">المبلغ</th>
+                  <th className="w-[14%] p-3">الحالة</th>
+                  <th className="w-[12%] p-3">الاستحقاق</th>
+                  <th className="w-[12%] p-3">الدفع</th>
+                </tr></thead>
+                <tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100 align-middle">
+                  <td dir="ltr" className="p-3 text-right font-black"><span className="whitespace-nowrap">{invoice.number}</span>{invoice.type === "RETURN" && <span className="mr-2 inline-block rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700">مرتجع</span>}</td>
+                  <td className="p-3 whitespace-nowrap"><DateText value={invoice.createdAt} /></td>
+                  <td className="p-3 truncate" title={invoice.projectTitle}>{invoice.projectTitle}</td>
+                  <td className="p-3 whitespace-nowrap font-black">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td>
+                  <td className="p-3"><span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-black ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{invoiceLabel[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</span></td>
+                  <td className="p-3 whitespace-nowrap"><DateText value={invoice.dueAt} /></td>
+                  <td className="p-3 whitespace-nowrap"><DateText value={invoice.paidAt} /></td>
+                </tr>)}</tbody>
+              </table>
+              {!invoices.length && <div className="p-8 text-center text-slate-500">لا توجد فواتير بعد.</div>}
+            </div>
+          </section>}
 
           {!loading && section === "messages" && <section className="mt-7">
             <h2 className="text-2xl font-black">الرسائل والتحديثات</h2>

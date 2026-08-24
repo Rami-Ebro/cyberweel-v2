@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { DashboardI18nProvider } from "@/components/dashboard-i18n-provider";
+import { ProjectCreationExperience } from "@/components/project-creation-experience";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -208,6 +209,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLd) }}
         />
         <DashboardI18nProvider>{children}</DashboardI18nProvider>
+        <ProjectCreationExperience />
         <Toaster />
         <Sonner />
         <SpeedInsights />

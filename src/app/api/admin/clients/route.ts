@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { canAdmin } from "@/lib/admin-permissions";
 import { hashPassword, normalizeEmail, normalizePhone } from "@/lib/partner-auth";
 import { sendClientInvitation } from "@/lib/client-invitation";
+import { formatAmbassadorReferralCode } from "@/lib/partner-referral";
 import {
   findNameConflict,
   NAME_TAKEN_MESSAGE,
@@ -33,13 +34,45 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: "desc" },
         select: { id: true, title: true, status: true, progress: true },
       },
+      convertedReferrals: {
+        where: { ambassadorId: { not: null } },
+        orderBy: { convertedAt: "desc" },
+        take: 1,
+        select: {
+          id: true,
+          convertedAt: true,
+          source: true,
+          ambassador: {
+            select: {
+              id: true,
+              referralNumber: true,
+              user: { select: { name: true, email: true } },
+            },
+          },
+        },
+      },
     },
   });
   return NextResponse.json({
-    clients: clients.map(({ passwordHash, ...client }) => ({
-      ...client,
-      hasLogin: Boolean(passwordHash),
-    })),
+    clients: clients.map(({ passwordHash, convertedReferrals, ...client }) => {
+      const referral = convertedReferrals[0] || null;
+      const ambassador = referral?.ambassador || null;
+      return {
+        ...client,
+        hasLogin: Boolean(passwordHash),
+        ambassadorAttribution: ambassador
+          ? {
+              referralId: referral.id,
+              convertedAt: referral.convertedAt,
+              source: referral.source,
+              ambassadorId: ambassador.id,
+              ambassadorName: ambassador.user.name || ambassador.user.email,
+              ambassadorEmail: ambassador.user.email,
+              ambassadorCode: formatAmbassadorReferralCode(ambassador.referralNumber),
+            }
+          : null,
+      };
+    }),
   });
 }
 
@@ -321,7 +354,6 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "NAME_TAKEN", message: NAME_TAKEN_MESSAGE }, { status: 409 });
     }
 
-    // Email uniqueness is global for auth identity. Changing email is allowed only when free.
     if (emailOwner && emailOwner.id !== client.id) {
       return NextResponse.json(
         { error: "البريد مستخدم لحساب آخر. لا يمكن نقل بريد مكرر لنفس نوع الحساب." },
