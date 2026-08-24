@@ -188,7 +188,7 @@ export function PartnerDeliveryWorkspace() {
                 const latest = history[history.length - 1] || null;
                 const waiting = latest?.status === "SUBMITTED" || assignment.status === "REVIEW";
                 const approved = assignment.status === "COMPLETED" || ["APPROVED", "PAID"].includes(assignment.paymentStatus);
-                const canSubmit = !dashboard.isAdminPreview && !waiting && !approved && assignment.status !== "CANCELLED";
+                const canSubmit = !dashboard?.isAdminPreview && !waiting && !approved && assignment.status !== "CANCELLED";
                 return (
                   <article key={assignment.id} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm">
                     <div className="flex flex-wrap items-start justify-between gap-3">
