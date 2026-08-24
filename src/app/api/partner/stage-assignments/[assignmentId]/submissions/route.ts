@@ -1,4 +1,4 @@
-import { put } from "@vercel/blob";
+import { del, head } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { currentAdminAccess } from "@/lib/admin-permissions";
 import { db } from "@/lib/db";
@@ -15,6 +15,8 @@ import {
 export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ assignmentId: string }> };
+type UploadedFileInput = { url?: unknown; name?: unknown; type?: unknown };
+type SubmissionBody = { note?: unknown; links?: unknown; files?: unknown };
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -26,6 +28,7 @@ const ALLOWED_TYPES = new Set([
   "application/pdf",
   "application/zip",
   "application/x-zip-compressed",
+  "application/octet-stream",
   "text/plain",
   "text/csv",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -45,11 +48,7 @@ async function currentPartnerId(request: NextRequest) {
   return user.partner.id;
 }
 
-function safeFileName(value: string) {
-  return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 140) || "partner-delivery";
-}
-
-function linksFrom(value: FormDataEntryValue | null) {
+function linksFrom(value: unknown) {
   const raw = typeof value === "string" ? value : "";
   const candidates = raw.split(/\r?\n/).map((item) => item.trim()).filter(Boolean).slice(0, 10);
   const links: string[] = [];
@@ -65,6 +64,13 @@ function linksFrom(value: FormDataEntryValue | null) {
     }
   }
   return links;
+}
+
+function normalizedFileInput(value: UploadedFileInput) {
+  const url = typeof value.url === "string" ? value.url.trim() : "";
+  const name = typeof value.name === "string" ? value.name.trim().slice(0, 180) : "";
+  const type = typeof value.type === "string" ? value.type.trim().slice(0, 180) : "";
+  return { url, name, type };
 }
 
 export async function GET(request: NextRequest, context: RouteContext) {
@@ -98,47 +104,67 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "اعتمدت الإدارة هذا التسليم بالفعل، ولا يمكن إرسال نسخة جديدة" }, { status: 409 });
   }
 
-  const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  const cleanupUrls: string[] = [];
   try {
-    const form = await request.formData();
-    const note = String(form.get("note") || "").trim().slice(0, 4000) || null;
-    const links = linksFrom(form.get("links"));
+    const body = await request.json().catch(() => null) as SubmissionBody | null;
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "تعذر قراءة بيانات التسليم" }, { status: 400 });
+    }
+
+    const note = typeof body.note === "string" ? body.note.trim().slice(0, 4000) || null : null;
+    const links = linksFrom(body.links);
     if (links === null) return NextResponse.json({ error: "أحد روابط التسليم غير صالح. استخدم رابطًا صالحًا في كل سطر" }, { status: 400 });
 
-    const files = form.getAll("files").filter((item): item is File => item instanceof File && item.size > 0);
-    if (!note && !links.length && !files.length) {
+    const rawFiles = Array.isArray(body.files) ? body.files : [];
+    if (!note && !links.length && !rawFiles.length) {
       return NextResponse.json({ error: "أرسل ملاحظة تسليم أو رابطًا أو ملفًا واحدًا على الأقل" }, { status: 400 });
     }
-    if (files.length > MAX_FILES) return NextResponse.json({ error: "يمكن إرفاق 5 ملفات كحد أقصى في كل نسخة تسليم" }, { status: 400 });
-    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-    if (totalSize > MAX_TOTAL_SIZE) return NextResponse.json({ error: "إجمالي ملفات التسليم يجب ألا يتجاوز 30 MB" }, { status: 400 });
-
-    for (const file of files) {
-      if (file.size > MAX_FILE_SIZE) return NextResponse.json({ error: `الملف «${file.name}» يتجاوز الحد الأقصى 10 MB` }, { status: 400 });
-      const extension = file.name.split(".").pop()?.toLowerCase() || "";
-      if (!ALLOWED_EXTENSIONS.has(extension) || (file.type && !ALLOWED_TYPES.has(file.type))) {
-        return NextResponse.json({ error: `صيغة الملف «${file.name}» غير مدعومة` }, { status: 400 });
-      }
+    if (rawFiles.length > MAX_FILES) return NextResponse.json({ error: "يمكن إرفاق 5 ملفات كحد أقصى في كل نسخة تسليم" }, { status: 400 });
+    if (rawFiles.length && !process.env.BLOB_READ_WRITE_TOKEN?.trim()) {
+      return NextResponse.json({ error: "خدمة رفع ملفات التسليم غير مهيأة حاليًا" }, { status: 503 });
     }
-    if (files.length && !blobToken) return NextResponse.json({ error: "خدمة رفع ملفات التسليم غير مهيأة حاليًا" }, { status: 503 });
 
     const fileUrls: string[] = [];
     const fileNames: string[] = [];
     const fileTypes: string[] = [];
-    for (const file of files) {
-      const blob = await put(
-        `partner-stage-submissions/${assignmentId}/${safeFileName(file.name)}`,
-        file,
-        {
-          access: "private",
-          token: blobToken!,
-          addRandomSuffix: true,
-          contentType: file.type || "application/octet-stream",
-        },
-      );
+    let totalSize = 0;
+    const requiredPrefix = `partner-stage-submissions/${assignmentId}/`;
+
+    for (const rawFile of rawFiles) {
+      if (!rawFile || typeof rawFile !== "object") return NextResponse.json({ error: "بيانات أحد الملفات غير صالحة" }, { status: 400 });
+      const file = normalizedFileInput(rawFile as UploadedFileInput);
+      if (!file.url || !file.name) return NextResponse.json({ error: "بيانات أحد الملفات غير مكتملة" }, { status: 400 });
+
+      const extension = file.name.split(".").pop()?.toLowerCase() || "";
+      if (!ALLOWED_EXTENSIONS.has(extension) || (file.type && !ALLOWED_TYPES.has(file.type))) {
+        return NextResponse.json({ error: `صيغة الملف «${file.name}» غير مدعومة` }, { status: 400 });
+      }
+
+      let blob;
+      try {
+        blob = await head(file.url);
+      } catch {
+        return NextResponse.json({ error: `تعذر التحقق من الملف «${file.name}»` }, { status: 400 });
+      }
+      if (!blob.pathname.startsWith(requiredPrefix)) {
+        return NextResponse.json({ error: `الملف «${file.name}» لا ينتمي إلى هذا التسليم` }, { status: 400 });
+      }
+      if (blob.size > MAX_FILE_SIZE) {
+        return NextResponse.json({ error: `الملف «${file.name}» يتجاوز الحد الأقصى 10 MB` }, { status: 400 });
+      }
+      if (blob.contentType && !ALLOWED_TYPES.has(blob.contentType)) {
+        return NextResponse.json({ error: `صيغة الملف «${file.name}» غير مدعومة` }, { status: 400 });
+      }
+
+      totalSize += blob.size;
+      if (totalSize > MAX_TOTAL_SIZE) {
+        return NextResponse.json({ error: "إجمالي ملفات التسليم يجب ألا يتجاوز 30 MB" }, { status: 400 });
+      }
+
       fileUrls.push(blob.url);
-      fileNames.push(file.name.slice(0, 180));
-      fileTypes.push(file.type || "application/octet-stream");
+      fileNames.push(file.name);
+      fileTypes.push(blob.contentType || file.type || "application/octet-stream");
+      cleanupUrls.push(blob.url);
     }
 
     const submission = await createStagePartnerSubmission({
@@ -150,6 +176,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       fileTypes,
     });
 
+    cleanupUrls.length = 0;
     await db.adminNotification.create({
       data: {
         title: "تسليم شريك بانتظار المراجعة",
@@ -161,6 +188,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ submission: serializeStagePartnerSubmission(submission) }, { status: 201 });
   } catch (error) {
+    if (cleanupUrls.length) await del(cleanupUrls).catch(() => undefined);
     if (error instanceof StagePartnerSubmissionError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
