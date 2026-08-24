@@ -465,22 +465,27 @@ model ProjectStage {
 }
 
 model ProjectStagePartnerAssignment {
-  id             String               @id
-  projectStageId String
-  projectStage   ProjectStage         @relation(fields: [projectStageId], references: [id], onDelete: Cascade)
-  partnerId      String
-  partner        Partner              @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  tasks          String[]             @default([])
-  deliverables   String[]             @default([])
-  status         String               @default("ASSIGNED")
-  progress       Int                  @default(0)
-  feeAmount      Decimal?             @db.Decimal(12, 2)
-  feeCurrency    String               @default("USD")
-  paymentStatus  ProjectPaymentStatus @default(PENDING)
-  paidAt         DateTime?
-  dueAt          DateTime?
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @default(now())
+  id               String               @id
+  projectStageId   String
+  projectStage     ProjectStage         @relation(fields: [projectStageId], references: [id], onDelete: Cascade)
+  partnerId        String
+  partner          Partner              @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  tasks            String[]             @default([])
+  deliverables     String[]             @default([])
+  status           String               @default("ASSIGNED")
+  progress         Int                  @default(0)
+  feeAmount        Decimal?             @db.Decimal(12, 2)
+  feeCurrency      String               @default("USD")
+  paymentStatus    ProjectPaymentStatus @default(PENDING)
+  approvedAt       DateTime?
+  paidAt           DateTime?
+  paymentMethod    String?
+  paymentReference String?
+  paymentProofUrl  String?
+  paymentProofName String?
+  dueAt            DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @default(now())
 
   @@unique([partnerId, projectStageId])
   @@index([projectStageId])
