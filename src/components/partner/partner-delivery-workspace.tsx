@@ -1,5 +1,6 @@
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { CheckCircle2, ExternalLink, FileUp, History, Paperclip, Send, Trash2, X } from "lucide-react";
@@ -63,6 +64,7 @@ export function PartnerDeliveryWorkspace() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [busyText, setBusyText] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null);
@@ -162,26 +164,59 @@ export function PartnerDeliveryWorkspace() {
     const links = String(form.get("links") || "").trim();
     const files = selectedFiles[assignment.id] || [];
     if (!note && !links && !files.length) return setError("أرسل ملاحظة تسليم أو رابطًا أو ملفًا واحدًا على الأقل.");
-    files.forEach((file) => form.append("files", file, file.name));
 
     setBusy(assignment.id);
+    setBusyText((value) => ({ ...value, [assignment.id]: files.length ? `جارٍ رفع الملف 1 من ${files.length}...` : "جارٍ إرسال التسليم..." }));
     setError("");
     setNotice("");
     try {
+      const uploadedFiles: Array<{ url: string; name: string; type: string }> = [];
+      for (let index = 0; index < files.length; index += 1) {
+        const file = files[index];
+        setBusyText((value) => ({ ...value, [assignment.id]: `جارٍ رفع الملف ${index + 1} من ${files.length}...` }));
+        const blob = await upload(
+          `partner-stage-submissions/${assignment.id}/${file.name}`,
+          file,
+          {
+            access: "private",
+            handleUploadUrl: `/api/partner/stage-assignments/${encodeURIComponent(assignment.id)}/submissions/upload`,
+            clientPayload: JSON.stringify({ fileName: file.name }),
+            multipart: file.size > 4 * 1024 * 1024,
+            ...(file.type ? { contentType: file.type } : {}),
+          },
+        );
+        uploadedFiles.push({
+          url: blob.url,
+          name: file.name,
+          type: file.type || blob.contentType || "application/octet-stream",
+        });
+      }
+
+      setBusyText((value) => ({ ...value, [assignment.id]: "جارٍ تثبيت التسليم لدى الإدارة..." }));
       const response = await fetch(`/api/partner/stage-assignments/${encodeURIComponent(assignment.id)}/submissions`, {
         method: "POST",
-        body: form,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note, links, files: uploadedFiles }),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload?.error || "تعذر إرسال التسليم");
+
       setNotice(`✓ تم الإرسال بنجاح. النسخة ${payload.submission?.version || "الجديدة"} محفوظة لدى الإدارة وبانتظار المراجعة.`);
       setSelectedFiles((value) => ({ ...value, [assignment.id]: [] }));
       formElement.reset();
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "تعذر إرسال التسليم");
+      const message = cause instanceof Error ? cause.message : "تعذر إرسال التسليم";
+      setError(message.includes("413") || message.toLowerCase().includes("payload too large")
+        ? "تعذر رفع الملفات بالطريقة السابقة بسبب حجم الطلب. حدّث الصفحة وحاول مجددًا؛ تم تحويل الرفع إلى المسار المباشر."
+        : message);
     } finally {
       setBusy(null);
+      setBusyText((value) => {
+        const next = { ...value };
+        delete next[assignment.id];
+        return next;
+      });
     }
   }
 
@@ -238,10 +273,10 @@ export function PartnerDeliveryWorkspace() {
                           <div className="flex items-center justify-between gap-3"><span className="inline-flex items-center gap-2 text-sm font-black"><Paperclip className="h-4 w-4 text-[#9A7D43]" />ملفات التسليم</span><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-xs font-black">{files.length} / {MAX_FILES}</span></div>
                           <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-xl border border-[#D8D2C4] bg-[#F7F3EB] px-4 py-2.5 text-sm font-black text-[#755D32]"><FileUp className="h-4 w-4" />إضافة ملفات<input type="file" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.zip,.txt,.csv,.docx,.xlsx,.pptx" className="sr-only" onChange={(event) => { addFiles(assignment.id, event.currentTarget.files); event.currentTarget.value = ""; }} /></label>
                           {files.length ? <div className="grid gap-2">{files.map((file) => <div key={fileKey(file)} className="flex items-center gap-3 rounded-xl border border-[#E6E0D4] bg-[#FCFAF6] px-3 py-2"><Paperclip className="h-4 w-4 shrink-0 text-[#9A7D43]" /><div className="min-w-0 flex-1"><p dir="auto" className="truncate text-sm font-black">{file.name}</p><p className="text-xs text-slate-500">{fileSize(file.size)}</p></div><button type="button" onClick={() => removeFile(assignment.id, fileKey(file))} className="rounded-lg bg-rose-50 p-2 text-rose-700" aria-label={`حذف ${file.name}`}><Trash2 className="h-4 w-4" /></button></div>)}</div> : <p className="text-xs text-slate-500">يمكنك اختيار صورتين أو أكثر على دفعات، حتى 5 ملفات.</p>}
-                          <span className="text-xs text-slate-500">10 MB للملف الواحد، و30 MB كحد إجمالي.</span>
+                          <span className="text-xs text-slate-500">10 MB للملف الواحد، و30 MB كحد إجمالي. تُرفع الملفات مباشرة إلى التخزين الآمن ثم يُرسل سجل التسليم إلى الإدارة.</span>
                         </div>
 
-                        <button disabled={busy === assignment.id} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50"><Send className="h-4 w-4" />{busy === assignment.id ? "جارٍ الإرسال..." : "إرسال التسليم إلى الإدارة"}</button>
+                        <button type="submit" disabled={busy === assignment.id} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50"><Send className="h-4 w-4" />{busy === assignment.id ? (busyText[assignment.id] || "جارٍ الإرسال...") : "إرسال التسليم إلى الإدارة"}</button>
                       </form>
                     )}
 
