@@ -14,12 +14,16 @@ function projectForms() {
     const action = form.querySelector<HTMLInputElement>('input[name="action"][value="project"]');
     const clientId = form.querySelector<HTMLSelectElement>('select[name="clientId"]');
     const title = form.querySelector<HTMLInputElement>('input[name="title"]');
-    return Boolean(action || (clientId && title));
+    const partnerInput = form.querySelector<HTMLInputElement>('input[name="partnerIds"]');
+    return Boolean(action || (clientId && title) || (title && partnerInput));
   });
 }
 
 function isCreationForm(form: HTMLFormElement) {
-  return !form.querySelector<HTMLInputElement>('input[name="projectId"]');
+  const action = form.querySelector<HTMLInputElement>('input[name="action"][value="project"]');
+  const clientId = form.querySelector<HTMLSelectElement>('select[name="clientId"]');
+  const projectId = form.querySelector<HTMLInputElement>('input[name="projectId"]');
+  return Boolean(!projectId && (action || clientId));
 }
 
 function fieldContainer(element: Element | null) {
@@ -66,7 +70,9 @@ function hideProjectLevelPartnerFields(form: HTMLFormElement) {
     if (titleField) {
       const note = document.createElement("div");
       note.className = `${WORKFLOW_NOTE_CLASS} rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-900 md:col-span-2`;
-      note.textContent = "المشروع يُنشأ دون إسناد شريك. بعد الإنشاء افتح «خطة التنفيذ» ثم أسند كل مرحلة إلى شريك التنفيذ المناسب مع مهامه وتسليماته.";
+      note.textContent = isCreationForm(form)
+        ? "المشروع يُنشأ دون إسناد شريك. بعد الإنشاء افتح «خطة التنفيذ» ثم أسند كل مرحلة إلى شريك التنفيذ المناسب مع مهامه وتسليماته."
+        : "إسناد شركاء التنفيذ لا يُعدّل من إعدادات المشروع. افتح «إسناد التنفيذ للشركاء» أسفل خطة التنفيذ لإدارة كل مرحلة.";
       titleField.insertAdjacentElement("beforebegin", note);
     }
   }
