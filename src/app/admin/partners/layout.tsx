@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { CanonicalProjectCreationRouter } from "@/components/admin/canonical-project-creation-router";
 import { ProjectExecutionPlan } from "@/components/admin/project-execution-plan";
 import { ProjectWorkflowGuard } from "@/components/admin/project-workflow-guard";
 import { StagePartnerAssignmentManager } from "@/components/admin/stage-partner-assignment-manager";
@@ -233,6 +234,7 @@ export default function AdminPartnersLayout({ children }: { children: ReactNode 
   return (
     <>
       <ProjectWorkflowGuard />
+      <CanonicalProjectCreationRouter />
       {children}
       {targets.map(({ project, host }) =>
         createPortal(
