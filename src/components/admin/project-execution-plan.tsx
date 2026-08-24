@@ -215,8 +215,14 @@ export function ProjectExecutionPlan(props: Props) {
 
   const nextStageNumber = stages.length + 1;
   const suggestion = useMemo(() => stageSuggestion(props.legacyStages, props.financialPlan, stages.length), [props.legacyStages, props.financialPlan, stages.length]);
-  const totalPlanned = useMemo(() => plannedTotal(props.financialPlan), [props.financialPlan]);
-  const totalPlannedStages = useMemo(() => plannedStageCount(props.legacyStages, props.financialPlan), [props.legacyStages, props.financialPlan]);
+  const totalPlanned = useMemo(
+    () => stages.length ? stages.reduce((sum, stage) => sum + Number(stage.amount || 0), 0) : plannedTotal(props.financialPlan),
+    [stages, props.financialPlan],
+  );
+  const totalPlannedStages = useMemo(
+    () => stages.length ? stages.length : plannedStageCount(props.legacyStages, props.financialPlan),
+    [stages, props.legacyStages, props.financialPlan],
+  );
   const paidAmount = useMemo(() => stages.filter((stage) => stage.paymentStatus === "PAID").reduce((sum, stage) => sum + Number(stage.amount || 0), 0), [stages]);
   const financialPercent = totalPlanned > 0 ? Math.min(100, Math.round((paidAmount / totalPlanned) * 100)) : 0;
   const completedStages = stages.filter((stage) => stage.status === "COMPLETED").length;
