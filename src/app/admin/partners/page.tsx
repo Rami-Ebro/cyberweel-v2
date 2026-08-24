@@ -72,6 +72,7 @@ type ProjectListItem = Omit<PartnerProject, "files" | "updates"> & {
   clientId: string;
   clientName: string;
   clientEmail: string;
+  ambassador: { id: string; name: string; email: string } | null;
   partnerIds: string[];
   partners: ProjectPartner[];
 };
@@ -1014,6 +1015,9 @@ export default function AdminPartnersPage() {
                               العميل: {project.clientName} · {project.clientEmail}
                             </p>
                             <p className="mt-1 text-sm text-slate-500">
+                              السفير: {project.ambassador ? <>{project.ambassador.name} · {project.ambassador.email}</> : "غير مرتبط بسفير"}
+                            </p>
+                            <p className="mt-1 text-sm text-slate-500">
                               {project.partners.length
                                 ? <>الشركاء: {project.partners.map((partner) => partner.name).join("، ")}</>
                                 : "الشركاء: غير مسند"}
@@ -1094,6 +1098,10 @@ export default function AdminPartnersPage() {
                             <ProjectFact
                               label="التسليم"
                               value={<DateText value={project.dueAt} fallback="غير محدد" />}
+                            />
+                            <ProjectFact
+                              label="السفير"
+                              value={project.ambassador ? project.ambassador.name : "غير مرتبط"}
                             />
                             <ProjectFact
                               label="الشركاء"
