@@ -224,6 +224,16 @@ export async function GET(request: NextRequest) {
             dueAt: true,
             createdAt: true,
             client: { select: { id: true, name: true, email: true } },
+            referral: {
+              select: {
+                ambassador: {
+                  select: {
+                    id: true,
+                    user: { select: { name: true, email: true } },
+                  },
+                },
+              },
+            },
             partnerAssignments: {
               orderBy: { createdAt: "asc" },
               select: {
@@ -252,6 +262,7 @@ export async function GET(request: NextRequest) {
   const projects = clientProjects.map((project) => {
     const assignments = project.partnerAssignments;
     const assignment = assignments[0];
+    const ambassador = project.referral?.ambassador;
     return {
       id: project.id,
       title: project.title,
@@ -275,6 +286,11 @@ export async function GET(request: NextRequest) {
       clientId: project.client.id,
       clientName: project.client.name || project.client.email,
       clientEmail: project.client.email,
+      ambassador: ambassador ? {
+        id: ambassador.id,
+        name: ambassador.user.name || ambassador.user.email,
+        email: ambassador.user.email,
+      } : null,
       partnerIds: assignments.map((item) => item.partner.id),
       partners: assignments.map((item) => ({
         assignmentId: item.id,
