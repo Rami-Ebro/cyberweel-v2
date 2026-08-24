@@ -1,0 +1,67 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+const STORAGE_KEY = "cyberweel-partner-delivery-feedback";
+
+type Feedback = { kind: "success" | "error"; message: string };
+
+export function PartnerDeliveryFeedback() {
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const lastMessage = useRef("");
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      sessionStorage.removeItem(STORAGE_KEY);
+      setFeedback({ kind: "success", message: stored });
+      lastMessage.current = stored;
+    }
+
+    const scan = () => {
+      const heading = Array.from(document.querySelectorAll("h2")).find(
+        (node) => node.textContent?.trim() === "أرسل العمل الحقيقي للمراجعة",
+      );
+      const modal = heading?.closest("section");
+      if (!modal) return;
+
+      const errorNode = modal.querySelector<HTMLElement>('[class*="border-rose-200"][class*="bg-rose-50"]');
+      const noticeNode = modal.querySelector<HTMLElement>('[class*="border-emerald-200"][class*="bg-emerald-50"]');
+      const message = (errorNode?.textContent || noticeNode?.textContent || "").trim();
+      if (!message || message === lastMessage.current) return;
+
+      const kind: Feedback["kind"] = errorNode ? "error" : "success";
+      lastMessage.current = message;
+      setFeedback({ kind, message });
+      if (kind === "success") sessionStorage.setItem(STORAGE_KEY, message);
+    };
+
+    scan();
+    const observer = new MutationObserver(scan);
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = window.setTimeout(() => setFeedback(null), 6500);
+    return () => window.clearTimeout(timer);
+  }, [feedback]);
+
+  if (!feedback) return null;
+
+  return (
+    <div
+      dir="rtl"
+      role="status"
+      aria-live="polite"
+      className={`fixed left-1/2 top-5 z-[220] w-[min(92vw,42rem)] -translate-x-1/2 rounded-2xl border px-5 py-4 text-center text-sm font-black shadow-2xl ${
+        feedback.kind === "success"
+          ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+          : "border-rose-300 bg-rose-50 text-rose-900"
+      }`}
+    >
+      {feedback.message}
+    </div>
+  );
+}
