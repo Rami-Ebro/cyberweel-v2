@@ -64,7 +64,15 @@ async function dashboardPartner(request: NextRequest) {
 }
 
 function serializeLegacyProject<T extends { feeAmount: { toString(): string } | null }>(project: T) {
-  return { ...project, feeAmount: project.feeAmount?.toString() ?? null };
+  return {
+    ...project,
+    feeAmount: project.feeAmount?.toString() ?? null,
+    approvedAt: null,
+    paymentMethod: null,
+    paymentReference: null,
+    paymentProofAvailable: false,
+    paymentProofPath: null,
+  };
 }
 
 function stageCard(row: SerializedStagePartnerAssignment) {
@@ -88,7 +96,12 @@ function stageCard(row: SerializedStagePartnerAssignment) {
     feeAmount: row.feeAmount,
     feeCurrency: row.feeCurrency,
     paymentStatus: row.paymentStatus,
+    approvedAt: row.approvedAt,
     paidAt: row.paidAt,
+    paymentMethod: row.paymentMethod,
+    paymentReference: row.paymentReference,
+    paymentProofAvailable: Boolean(row.paymentProofUrl),
+    paymentProofPath: row.paymentProofUrl ? `/api/partner/stage-assignments/${row.id}/payment-proof` : null,
     dueAt: row.dueAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -115,16 +128,18 @@ export async function GET(request: NextRequest) {
     .map(serializeLegacyProject);
   const projects = [...stageProjects, ...legacyProjects];
   const activeProjects = projects.filter((project) => project.status !== "COMPLETED" && project.status !== "CANCELLED");
-  const dues = new Map<string, { currency: string; outstanding: number; paid: number }>();
+  const dues = new Map<string, { currency: string; total: number; expected: number; due: number; paid: number }>();
 
   for (const project of projects) {
-    if (!project.feeAmount) continue;
+    if (!project.feeAmount || project.paymentStatus === "CANCELLED") continue;
     const amount = Number(project.feeAmount);
     if (!Number.isFinite(amount)) continue;
     const currency = project.feeCurrency.toUpperCase();
-    const current = dues.get(currency) || { currency, outstanding: 0, paid: 0 };
+    const current = dues.get(currency) || { currency, total: 0, expected: 0, due: 0, paid: 0 };
+    current.total += amount;
     if (project.paymentStatus === "PAID") current.paid += amount;
-    else if (project.paymentStatus !== "CANCELLED") current.outstanding += amount;
+    else if (project.paymentStatus === "APPROVED") current.due += amount;
+    else current.expected += amount;
     dues.set(currency, current);
   }
 
@@ -155,9 +170,12 @@ export async function GET(request: NextRequest) {
       completedProjects: completedProjectCount,
       averageProgress,
       duesByCurrency: Array.from(dues.values()).map((item) => ({
-        ...item,
-        outstanding: item.outstanding.toFixed(2),
+        currency: item.currency,
+        total: item.total.toFixed(2),
+        expected: item.expected.toFixed(2),
+        due: item.due.toFixed(2),
         paid: item.paid.toFixed(2),
+        outstanding: (item.expected + item.due).toFixed(2),
       })),
     },
     projects,
@@ -190,8 +208,24 @@ export async function PATCH(request: NextRequest) {
     if (["COMPLETED", "CANCELLED"].includes(stageAssignment.stageStatus)) {
       return NextResponse.json({ error: "لا يمكن تعديل مرحلة مكتملة أو ملغاة" }, { status: 409 });
     }
+    if (stageAssignment.status === "COMPLETED" || ["APPROVED", "PAID"].includes(stageAssignment.paymentStatus)) {
+      return NextResponse.json({ error: "اعتمدت الإدارة هذا التسليم، لذلك لم يعد تقدم الإسناد قابلًا للتعديل" }, { status: 409 });
+    }
+
     const updated = await updateStagePartnerProgress({ assignmentId: projectId, partnerId: user.partner!.id, progress });
     if (!updated) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });
+
+    if (progress === 100 && stageAssignment.status !== "REVIEW") {
+      await db.adminNotification.create({
+        data: {
+          title: "تسليم شريك بانتظار المراجعة",
+          body: `${updated.partnerName || updated.partnerEmail} — ${updated.projectTitle} — ${updated.stageName}`,
+          href: "/admin/partners?section=projects",
+          kind: "PARTNER_STAGE_REVIEW",
+        },
+      }).catch(() => undefined);
+    }
+
     return NextResponse.json({ project: stageCard(serializeStagePartnerAssignment(updated)) });
   }
 
