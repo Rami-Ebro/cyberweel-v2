@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Clock3,
+  ExternalLink,
   FileText,
   Home,
   ListChecks,
@@ -26,7 +27,7 @@ import { DateText } from "@/components/ui/date-text";
 import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
 
 type SectionKey = "overview" | "projects" | "dues" | "profile";
-type DuesSummary = { currency: string; outstanding: string; paid: string };
+type DuesSummary = { currency: string; total: string; expected: string; due: string; paid: string; outstanding: string };
 type PartnerProject = {
   id: string;
   title: string;
@@ -40,7 +41,12 @@ type PartnerProject = {
   feeAmount: string | null;
   feeCurrency: string;
   paymentStatus: "PENDING" | "APPROVED" | "PAID" | "CANCELLED";
+  approvedAt: string | null;
   paidAt: string | null;
+  paymentMethod: string | null;
+  paymentReference: string | null;
+  paymentProofAvailable: boolean;
+  paymentProofPath: string | null;
   dueAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -67,9 +73,10 @@ const navigation: { key: SectionKey; label: string; icon: typeof Home }[] = [
 const projectStatus: Record<string, string> = {
   ASSIGNED: "تم الإسناد",
   IN_PROGRESS: "قيد التنفيذ",
-  REVIEW: "قيد المراجعة",
-  COMPLETED: "مكتمل",
+  REVIEW: "بانتظار مراجعة الإدارة",
+  COMPLETED: "اعتمد التسليم",
   ON_HOLD: "متوقف مؤقتًا",
+  CANCELLED: "ملغى",
 };
 
 const projectStatusClass: Record<string, string> = {
@@ -78,11 +85,12 @@ const projectStatusClass: Record<string, string> = {
   REVIEW: "bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200",
   COMPLETED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200",
   ON_HOLD: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
+  CANCELLED: "bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200",
 };
 
 const paymentStatus: Record<PartnerProject["paymentStatus"], string> = {
-  PENDING: "قيد الاعتماد",
-  APPROVED: "مستحق ومعتمد",
+  PENDING: "متوقع / غير مستحق",
+  APPROVED: "مستحق للدفع",
   PAID: "مدفوع",
   CANCELLED: "ملغى",
 };
@@ -227,7 +235,9 @@ export default function PartnerDashboardPage() {
           ),
         },
       } : current);
-      setNotice(`تم حفظ تقدم مشروع «${project.title}» عند ${progress}٪.`);
+      setNotice(progress === 100
+        ? `تم إرسال تسليم «${project.title}» إلى الإدارة للمراجعة.`
+        : `تم حفظ تقدم «${project.title}» عند ${progress}٪.`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "تعذر حفظ نسبة التقدم");
     } finally {
@@ -292,13 +302,13 @@ export default function PartnerDashboardPage() {
                     <span className="font-bold text-slate-500">٪</span>
                   </label>
                   <button type="button" onClick={() => saveProgress(project)} disabled={savingProjectId === project.id || draft === project.progress} className="rounded-xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-[#bd9850] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#bd9850] dark:text-slate-950">
-                    {savingProjectId === project.id ? "جارٍ الحفظ..." : "حفظ نسبة التقدم"}
+                    {savingProjectId === project.id ? "جارٍ الحفظ..." : draft === 100 ? "إرسال للمراجعة" : "حفظ نسبة التقدم"}
                   </button>
                 </div>
-                <p className="text-xs leading-6 text-slate-500 dark:text-slate-400">هذه هي المعلومة الوحيدة التي يمكنك تعديلها داخل المشروع.</p>
+                <p className="text-xs leading-6 text-slate-500 dark:text-slate-400">عند 100٪ ينتقل التسليم إلى مراجعة الإدارة، ولا يصبح المستحق قابلًا للدفع قبل اعتمادها.</p>
               </div>
             ) : (
-              <p className="text-sm text-slate-500 dark:text-slate-400">المشروع مكتمل ومحفوظ ضمن السجل.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">تم اعتماد هذا التسليم وحفظه ضمن السجل.</p>
             )}
           </section>
 
@@ -317,6 +327,18 @@ export default function PartnerDashboardPage() {
             {project.files.length ? <div className="space-y-2">{project.files.map((url, index) => <a key={`${url}-${index}`} href={url} target="_blank" rel="noreferrer noopener" className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:border-[#bd9850] hover:text-[#9f7d3d] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><span className="truncate">{fileLabel(url, index)}</span><ArrowLeft size={16} /></a>)}</div> : <p className="text-sm text-slate-500">لا توجد ملفات مرفقة بعد.</p>}
           </section>
 
+          {project.paymentStatus === "PAID" && (
+            <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 xl:col-span-2 dark:border-emerald-900 dark:bg-emerald-950/30">
+              <h4 className="font-black text-emerald-950 dark:text-emerald-100">تفاصيل دفع المستحق</h4>
+              <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm font-bold text-emerald-900 dark:text-emerald-200">
+                <span>الطريقة: {project.paymentMethod || "—"}</span>
+                <span>المرجع: {project.paymentReference || "—"}</span>
+                <span>التاريخ: <DateText value={project.paidAt} /></span>
+                {project.paymentProofAvailable && project.paymentProofPath && <a href={project.paymentProofPath} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 underline"><ExternalLink size={15} />عرض إثبات الدفع</a>}
+              </div>
+            </section>
+          )}
+
           <section className="rounded-2xl bg-slate-50 p-5 xl:col-span-2 dark:bg-slate-800/60">
             <h4 className="mb-4 flex items-center gap-2 font-black text-slate-950 dark:text-white"><Clock3 size={18} className="text-[#bd9850]" />تحديثات المشروع</h4>
             {project.updates.length ? <div className="grid gap-3 md:grid-cols-2">{project.updates.slice().reverse().map((value, index) => { const update = splitUpdate(value); return <div key={`${value}-${index}`} className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"><p className="text-sm leading-6 text-slate-700 dark:text-slate-200">{update.note}</p>{update.date && <DateText value={update.date} className="mt-2 block text-xs text-slate-400" />}</div>; })}</div> : <p className="text-sm text-slate-500">لا توجد تحديثات مسجلة.</p>}
@@ -334,8 +356,8 @@ export default function PartnerDashboardPage() {
     return <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f5f1e8]"><div className="h-12 w-12 animate-spin rounded-full border-4 border-[#bd9850] border-t-transparent" /></main>;
   }
 
-  const outstandingLabel = data.stats.duesByCurrency.length
-    ? data.stats.duesByCurrency.map((item) => money(item.outstanding, item.currency)).join(" · ")
+  const dueNowLabel = data.stats.duesByCurrency.length
+    ? data.stats.duesByCurrency.map((item) => money(item.due, item.currency)).join(" · ")
     : "—";
 
   return (
@@ -383,14 +405,14 @@ export default function PartnerDashboardPage() {
                 { label: "المشاريع النشطة", value: data.stats.activeProjects, icon: BriefcaseBusiness },
                 { label: "المشاريع المكتملة", value: data.stats.completedProjects, icon: CheckCircle2 },
                 { label: "متوسط التقدم", value: `${data.stats.averageProgress}٪`, icon: Percent },
-                { label: "المستحقات غير المدفوعة", value: outstandingLabel, icon: CircleDollarSign },
+                { label: "المستحق للدفع الآن", value: dueNowLabel, icon: CircleDollarSign },
               ].map((card) => { const Icon = card.icon; return <div key={card.label} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900"><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-bold text-slate-500 dark:text-slate-400">{card.label}</p><strong className="mt-3 block text-2xl font-black text-slate-950 dark:text-white">{card.value}</strong></div><span className="rounded-2xl bg-[#f3ead7] p-3 text-[#9f7d3d] dark:bg-[#bd9850]/15 dark:text-[#d5b873]"><Icon size={22} /></span></div></div>; })}
             </section>
 
             <section className="rounded-3xl bg-[#101827] p-6 text-white shadow-xl sm:p-8">
               <p className="text-sm font-black text-[#d5b873]">مساحة عملك المباشرة</p>
               <div className="mt-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-                <div><h2 className="text-2xl font-black sm:text-3xl">ابدأ من المشروع المحال لك</h2><p className="mt-3 max-w-3xl leading-8 text-white/65">ستجد المهام والتسليمات والملفات والتحديثات والموعد والمستحقات في مكان واحد. لا يمكنك تغيير تفاصيل المشروع؛ فقط حدّث نسبة تقدمه بدقة.</p></div>
+                <div><h2 className="text-2xl font-black sm:text-3xl">ابدأ من المشروع المحال لك</h2><p className="mt-3 max-w-3xl leading-8 text-white/65">ستجد المهام والتسليمات والموعد والمستحقات في مكان واحد. حدّث تقدمك فقط؛ الاعتماد والدفع تسجلهما الإدارة.</p></div>
                 <button type="button" onClick={() => navigate("projects")} className="shrink-0 rounded-2xl bg-[#bd9850] px-6 py-3 font-black text-slate-950">فتح المشاريع</button>
               </div>
             </section>
@@ -402,16 +424,16 @@ export default function PartnerDashboardPage() {
           </>}
 
           {activeSection === "projects" && <section className="space-y-8">
-            <div><p className="text-sm font-black text-[#9f7d3d]">نطاقك التنفيذي فقط</p><h2 className="mt-1 text-3xl font-black">المشاريع المحالة إليك</h2><p className="mt-2 text-slate-600 dark:text-slate-300">لا تظهر هنا إلا المشاريع المرتبطة بحسابك.</p></div>
+            <div><p className="text-sm font-black text-[#9f7d3d]">نطاقك التنفيذي فقط</p><h2 className="mt-1 text-3xl font-black">المشاريع المحالة إليك</h2><p className="mt-2 text-slate-600 dark:text-slate-300">لا تظهر هنا إلا المراحل المسندة مباشرة إلى حسابك.</p></div>
             <div className="space-y-5"><h3 className="text-xl font-black">المشاريع الحالية</h3>{currentProjects.length ? currentProjects.map((project) => <ProjectCard key={project.id} project={project} editable={!data.isAdminPreview} />) : <div className="rounded-3xl border border-dashed border-slate-300 p-10 text-center text-slate-500 dark:border-slate-700">لا توجد مشاريع حالية.</div>}</div>
-            <div className="space-y-5"><h3 className="text-xl font-black">سجل المشاريع المكتملة</h3>{historicalProjects.length ? historicalProjects.map((project) => <ProjectCard key={project.id} project={project} editable={false} />) : <div className="rounded-3xl border border-dashed border-slate-300 p-10 text-center text-slate-500 dark:border-slate-700">لا توجد مشاريع مكتملة بعد.</div>}</div>
+            <div className="space-y-5"><h3 className="text-xl font-black">سجل التسليمات المعتمدة</h3>{historicalProjects.length ? historicalProjects.map((project) => <ProjectCard key={project.id} project={project} editable={false} />) : <div className="rounded-3xl border border-dashed border-slate-300 p-10 text-center text-slate-500 dark:border-slate-700">لا توجد تسليمات معتمدة بعد.</div>}</div>
           </section>}
 
           {activeSection === "dues" && <section className="space-y-6">
-            <div><p className="text-sm font-black text-[#9f7d3d]">الحالي والسابق</p><h2 className="mt-1 text-3xl font-black">مستحقات المشاريع</h2><p className="mt-2 text-slate-600 dark:text-slate-300">كل مبلغ مرتبط بمشروع محدد وحالة دفع واضحة.</p></div>
-            <div className="grid gap-4 sm:grid-cols-2">{data.stats.duesByCurrency.map((item) => <div key={item.currency} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"><p className="font-bold text-slate-500">{item.currency}</p><div className="mt-4 grid grid-cols-2 gap-4"><div><span className="text-xs text-slate-500">غير مدفوع</span><strong className="mt-1 block text-xl">{money(item.outstanding, item.currency)}</strong></div><div><span className="text-xs text-slate-500">مدفوع سابقًا</span><strong className="mt-1 block text-xl">{money(item.paid, item.currency)}</strong></div></div></div>)}</div>
+            <div><p className="text-sm font-black text-[#9f7d3d]">متوقع · مستحق · مدفوع</p><h2 className="mt-1 text-3xl font-black">مستحقات المشاريع</h2><p className="mt-2 text-slate-600 dark:text-slate-300">المبلغ يبقى متوقعًا أثناء التنفيذ، ويصبح مستحقًا فقط بعد اعتماد الإدارة للتسليم.</p></div>
+            <div className="grid gap-4">{data.stats.duesByCurrency.map((item) => <div key={item.currency} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"><p className="font-bold text-slate-500">{item.currency}</p><div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4"><div><span className="text-xs text-slate-500">الإجمالي</span><strong className="mt-1 block text-xl">{money(item.total, item.currency)}</strong></div><div><span className="text-xs text-slate-500">متوقع</span><strong className="mt-1 block text-xl">{money(item.expected, item.currency)}</strong></div><div><span className="text-xs text-slate-500">مستحق للدفع</span><strong className="mt-1 block text-xl">{money(item.due, item.currency)}</strong></div><div><span className="text-xs text-slate-500">مدفوع</span><strong className="mt-1 block text-xl">{money(item.paid, item.currency)}</strong></div></div></div>)}</div>
             <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-              <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-right"><thead className="bg-slate-50 text-sm text-slate-500 dark:bg-slate-800/70 dark:text-slate-300"><tr><th className="px-5 py-4">المشروع</th><th className="px-5 py-4">الفترة</th><th className="px-5 py-4">المبلغ</th><th className="px-5 py-4">الحالة</th><th className="px-5 py-4">تاريخ الدفع</th></tr></thead><tbody>{data.projects.map((project) => <tr key={project.id} className="border-t border-slate-100 dark:border-slate-800"><td className="px-5 py-4 font-black">{project.title}</td><td className="px-5 py-4 text-sm text-slate-500">{project.status === "COMPLETED" ? "سابق" : "حالي"}</td><td className="px-5 py-4 font-bold">{project.feeAmount ? money(project.feeAmount, project.feeCurrency) : "غير محدد"}</td><td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${paymentStatusClass[project.paymentStatus]}`}>{paymentStatus[project.paymentStatus]}</span></td><td className="px-5 py-4 text-sm text-slate-500"><DateText value={project.paidAt} /></td></tr>)}</tbody></table></div>
+              <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-right"><thead className="bg-slate-50 text-sm text-slate-500 dark:bg-slate-800/70 dark:text-slate-300"><tr><th className="px-5 py-4">المشروع / المرحلة</th><th className="px-5 py-4">المبلغ</th><th className="px-5 py-4">الحالة</th><th className="px-5 py-4">تاريخ الدفع</th><th className="px-5 py-4">تفاصيل الدفع</th></tr></thead><tbody>{data.projects.map((project) => <tr key={project.id} className="border-t border-slate-100 dark:border-slate-800"><td className="px-5 py-4 font-black">{project.title}<p className="mt-1 text-xs font-normal text-slate-500">{project.description}</p></td><td className="px-5 py-4 font-bold">{project.feeAmount ? money(project.feeAmount, project.feeCurrency) : "غير محدد"}</td><td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${paymentStatusClass[project.paymentStatus]}`}>{paymentStatus[project.paymentStatus]}</span></td><td className="px-5 py-4 text-sm text-slate-500"><DateText value={project.paidAt} /></td><td className="px-5 py-4 text-sm"><div className="grid gap-1"><span>{project.paymentMethod || "—"}</span>{project.paymentReference && <span className="text-xs text-slate-500">مرجع: {project.paymentReference}</span>}{project.paymentProofAvailable && project.paymentProofPath && <a href={project.paymentProofPath} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 font-bold text-[#9f7d3d] underline"><ExternalLink size={14} />إثبات الدفع</a>}</div></td></tr>)}</tbody></table></div>
             </div>
           </section>}
 
