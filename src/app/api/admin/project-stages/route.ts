@@ -37,16 +37,22 @@ function stageNames(value: string | null) {
     .slice(0, 30);
 }
 
+function amountFromFinancialLine(value: string) {
+  const line = normalizeDigits(value).trim();
+  const explicit = line.match(/(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة))/i);
+  const bareLeading = line.match(/^([0-9][0-9.,]*)(?:\s|$)/);
+  const raw = explicit?.[1] || explicit?.[2] || bareLeading?.[1] || "0";
+  const amount = Number(raw.replace(/,/g, ""));
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
 function stageAmounts(value: string | null) {
   return (value || "")
     .split(/\r?\n/)
-    .map((line) => normalizeDigits(line).trim())
+    .map((line) => line.trim())
     .filter(Boolean)
-    .map((line) => {
-      const match = line.match(/(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة))/i);
-      return Number((match?.[1] || match?.[2] || "0").replace(/,/g, ""));
-    })
-    .filter((amount) => Number.isFinite(amount) && amount > 0);
+    .map(amountFromFinancialLine)
+    .filter((amount): amount is number => amount !== null);
 }
 
 function projectStageDrafts(stagesValue: string | null, financialPlanValue: string | null, currency: string) {
@@ -62,7 +68,7 @@ function projectStageDrafts(stagesValue: string | null, financialPlanValue: stri
   if (amounts.length !== names.length) {
     return {
       stages: [] as Array<{ name: string; amount: number; currency: string }>,
-      error: `عدد مبالغ الخطة المالية (${amounts.length}) يجب أن يساوي عدد مراحل المشروع (${names.length}). اكتب مبلغًا واحدًا لكل مرحلة في سطر مستقل.`,
+      error: `عدد مبالغ الخطة المالية (${amounts.length}) يجب أن يساوي عدد مراحل المشروع (${names.length}). اكتب مبلغًا واحدًا لكل مرحلة في سطر مستقل، مثل 500 أو 500 USD.`,
     };
   }
 
@@ -85,14 +91,13 @@ function firstStageSuggestion(financialPlan: string | null, stagesValue?: string
   const line = financialPlan?.split(/\r?\n/).map((item) => item.trim()).find(Boolean) || "";
   if (!line) return null;
   const normalized = normalizeDigits(line);
-  const amountMatch = normalized.match(/(?:\$\s*([\d.,]+)|([\d.,]+)\s*(?:USD|\$|دولار))/i);
-  const amount = Number((amountMatch?.[1] || amountMatch?.[2] || "").replace(/,/g, ""));
+  const amount = amountFromFinancialLine(normalized);
   const name = normalized
     .replace(/^المرحلة\s+(?:الأولى|الاولى|الأول|الاول|1)\s*[:：\-–—]?\s*/i, "")
-    .replace(/(?:\$\s*[\d.,]+|[\d.,]+\s*(?:USD|\$|دولار)).*$/i, "")
+    .replace(/^(?:\$\s*)?[\d.,]+(?:\s*(?:USD|\$|دولار))?\s*/i, "")
     .replace(/[.،,:：\-–—\s]+$/g, "")
     .trim();
-  if (!name || !Number.isFinite(amount) || amount <= 0) return null;
+  if (!name || amount === null) return null;
   return { name, amount };
 }
 
