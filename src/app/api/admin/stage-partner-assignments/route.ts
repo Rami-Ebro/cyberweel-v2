@@ -4,11 +4,13 @@ import { writeAdminAudit } from "@/lib/admin-audit";
 import { db } from "@/lib/db";
 import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security";
 import {
+  approveStagePartnerDelivery,
   deleteStagePartnerAssignment,
+  getStagePartnerAssignment,
   listStagePartnerAssignments,
+  recordStagePartnerPayment,
   serializeStagePartnerAssignment,
   upsertStagePartnerAssignment,
-  type StagePartnerPaymentStatus,
 } from "@/lib/stage-partner-assignments";
 
 async function requireAccess(request: NextRequest) {
@@ -37,6 +39,19 @@ function optionalDate(value: unknown) {
   if (value == null || value === "") return null;
   const date = new Date(String(value));
   return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function safeText(value: unknown, max = 160) {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function validProofUrl(value: string, assignmentId: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname.endsWith(".blob.vercel-storage.com") && url.pathname.includes(assignmentId);
+  } catch {
+    return false;
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -103,31 +118,124 @@ export async function POST(request: NextRequest) {
   const action = typeof body?.action === "string" ? body.action : "upsert";
 
   if (action === "delete") {
-    const assignmentId = typeof body?.assignmentId === "string" ? body.assignmentId.trim() : "";
+    const assignmentId = safeText(body?.assignmentId);
     if (!assignmentId) return NextResponse.json({ error: "الإسناد مطلوب" }, { status: 400 });
-    const existing = (await listStagePartnerAssignments()).find((assignment) => assignment.id === assignmentId);
+    const existing = await getStagePartnerAssignment(assignmentId);
     if (!existing) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });
     if (["COMPLETED", "CANCELLED"].includes(existing.stageStatus)) {
       return NextResponse.json({ error: "لا يمكن حذف إسناد من مرحلة مغلقة أو ملغاة" }, { status: 409 });
     }
-    if (existing.progress > 0 || existing.paymentStatus === "PAID") {
-      return NextResponse.json({ error: "لا يمكن حذف إسناد بدأ تنفيذه أو تم دفع مستحقه" }, { status: 409 });
+    if (existing.progress > 0 || existing.status !== "ASSIGNED" || existing.paymentStatus !== "PENDING") {
+      return NextResponse.json({ error: "لا يمكن حذف الإسناد بعد بدء التنفيذ أو اعتماد مستحق الشريك" }, { status: 409 });
     }
     await deleteStagePartnerAssignment(assignmentId);
     await writeAdminAudit(db, {
       actorId: access.userId,
       action: "STAGE_PARTNER_ASSIGNMENT_REMOVED",
       category: "SENSITIVE",
-      entityType: "PROJECT_STAGE",
-      entityId: existing.projectStageId,
+      entityType: "PROJECT_STAGE_PARTNER_ASSIGNMENT",
+      entityId: assignmentId,
       entityLabel: `${existing.projectTitle} — ${existing.stageName}`,
-      before: { assignmentId, partnerId: existing.partnerId, partnerEmail: existing.partnerEmail },
+      before: { projectStageId: existing.projectStageId, partnerId: existing.partnerId, partnerEmail: existing.partnerEmail },
     });
     return NextResponse.json({ ok: true });
   }
 
-  const projectStageId = typeof body?.projectStageId === "string" ? body.projectStageId.trim() : "";
-  const partnerId = typeof body?.partnerId === "string" ? body.partnerId.trim() : "";
+  if (action === "approve_delivery") {
+    const assignmentId = safeText(body?.assignmentId);
+    if (!assignmentId) return NextResponse.json({ error: "الإسناد مطلوب" }, { status: 400 });
+    const existing = await getStagePartnerAssignment(assignmentId);
+    if (!existing) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });
+    if (existing.progress !== 100 || existing.status !== "REVIEW") {
+      return NextResponse.json({ error: "لا يمكن اعتماد التسليم قبل أن يرفع الشريك التقدم إلى 100٪ ويرسله للمراجعة" }, { status: 409 });
+    }
+    if (existing.paymentStatus !== "PENDING") {
+      return NextResponse.json({ error: "مستحق هذا التسليم سبق اعتماده أو دفعه" }, { status: 409 });
+    }
+    if (existing.feeAmount == null || Number(existing.feeAmount) <= 0) {
+      return NextResponse.json({ error: "حدد مستحق الشريك لهذه المرحلة قبل اعتماد التسليم" }, { status: 409 });
+    }
+    if (["CANCELLED"].includes(existing.stageStatus) || existing.projectStatus === "CANCELLED") {
+      return NextResponse.json({ error: "لا يمكن اعتماد تسليم مرتبط بمرحلة أو مشروع ملغى" }, { status: 409 });
+    }
+
+    const approved = await approveStagePartnerDelivery(assignmentId);
+    if (!approved) return NextResponse.json({ error: "تعذر اعتماد التسليم. حدّث الصفحة وتحقق من حالة الإسناد" }, { status: 409 });
+
+    await writeAdminAudit(db, {
+      actorId: access.userId,
+      action: "STAGE_PARTNER_DELIVERY_APPROVED",
+      category: "POSITIVE",
+      entityType: "PROJECT_STAGE_PARTNER_ASSIGNMENT",
+      entityId: assignmentId,
+      entityLabel: `${existing.projectTitle} — ${existing.stageName} — ${existing.partnerName || existing.partnerEmail}`,
+      before: { status: existing.status, progress: existing.progress, paymentStatus: existing.paymentStatus },
+      after: { status: approved.status, progress: approved.progress, paymentStatus: approved.paymentStatus, approvedAt: approved.approvedAt?.toISOString() || null },
+    });
+
+    return NextResponse.json({ assignment: serializeStagePartnerAssignment(approved) });
+  }
+
+  if (action === "record_payment") {
+    const assignmentId = safeText(body?.assignmentId);
+    const paymentMethod = safeText(body?.paymentMethod, 80);
+    const paymentReference = safeText(body?.paymentReference, 160);
+    const paidAt = optionalDate(body?.paidAt);
+    const paymentProofUrl = safeText(body?.paymentProofUrl, 700) || null;
+    const paymentProofName = safeText(body?.paymentProofName, 180) || null;
+
+    if (!assignmentId) return NextResponse.json({ error: "الإسناد مطلوب" }, { status: 400 });
+    if (!paymentMethod) return NextResponse.json({ error: "طريقة الدفع مطلوبة" }, { status: 400 });
+    if (!paymentReference) return NextResponse.json({ error: "مرجع عملية الدفع مطلوب" }, { status: 400 });
+    if (!paidAt) return NextResponse.json({ error: "تاريخ الدفع مطلوب وصحيح" }, { status: 400 });
+    if (paidAt === undefined || paidAt.getTime() > Date.now() + 24 * 60 * 60 * 1000) {
+      return NextResponse.json({ error: "تاريخ الدفع غير صالح" }, { status: 400 });
+    }
+    if (paymentProofUrl && !validProofUrl(paymentProofUrl, assignmentId)) {
+      return NextResponse.json({ error: "مرفق إثبات الدفع غير صالح" }, { status: 400 });
+    }
+
+    const existing = await getStagePartnerAssignment(assignmentId);
+    if (!existing) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });
+    if (existing.status !== "COMPLETED" || existing.paymentStatus !== "APPROVED") {
+      return NextResponse.json({ error: "لا يمكن تسجيل الدفع قبل اعتماد تسليم الشريك واستحقاق المبلغ" }, { status: 409 });
+    }
+
+    const paid = await recordStagePartnerPayment({
+      assignmentId,
+      paidAt,
+      paymentMethod,
+      paymentReference,
+      paymentProofUrl,
+      paymentProofName,
+    });
+    if (!paid) return NextResponse.json({ error: "تعذر تسجيل الدفع. حدّث الصفحة وتحقق من حالة المستحق" }, { status: 409 });
+
+    await writeAdminAudit(db, {
+      actorId: access.userId,
+      action: "STAGE_PARTNER_PAYMENT_RECORDED",
+      category: "SENSITIVE",
+      entityType: "PROJECT_STAGE_PARTNER_ASSIGNMENT",
+      entityId: assignmentId,
+      entityLabel: `${existing.projectTitle} — ${existing.stageName} — ${existing.partnerName || existing.partnerEmail}`,
+      before: { paymentStatus: existing.paymentStatus, paidAt: existing.paidAt?.toISOString() || null },
+      after: {
+        paymentStatus: paid.paymentStatus,
+        feeAmount: paid.feeAmount == null ? null : String(paid.feeAmount),
+        feeCurrency: paid.feeCurrency,
+        paidAt: paid.paidAt?.toISOString() || null,
+        paymentMethod: paid.paymentMethod,
+        paymentReference: paid.paymentReference,
+        paymentProofName: paid.paymentProofName,
+        hasPaymentProof: Boolean(paid.paymentProofUrl),
+      },
+    });
+
+    return NextResponse.json({ assignment: serializeStagePartnerAssignment(paid) });
+  }
+
+  const projectStageId = safeText(body?.projectStageId);
+  const partnerId = safeText(body?.partnerId);
   if (!projectStageId || !partnerId) {
     return NextResponse.json({ error: "اختر المرحلة وشريك التنفيذ" }, { status: 400 });
   }
@@ -158,22 +266,20 @@ export async function POST(request: NextRequest) {
 
   const rawFee = body?.feeAmount;
   const feeAmount = rawFee == null || rawFee === "" ? null : Number(rawFee);
-  if (feeAmount != null && (!Number.isFinite(feeAmount) || feeAmount < 0 || feeAmount > 9_999_999_999.99)) {
-    return NextResponse.json({ error: "قيمة مستحق الشريك غير صالحة" }, { status: 400 });
+  if (feeAmount == null || !Number.isFinite(feeAmount) || feeAmount <= 0 || feeAmount > 9_999_999_999.99) {
+    return NextResponse.json({ error: "حدد مستحقًا صحيحًا أكبر من صفر لشريك التنفيذ" }, { status: 400 });
   }
   const feeCurrency = typeof body?.feeCurrency === "string" ? body.feeCurrency.trim().toUpperCase() : stage.project.currency;
   if (!/^[A-Z]{3}$/.test(feeCurrency)) return NextResponse.json({ error: "عملة المستحق غير صالحة" }, { status: 400 });
   const dueAt = optionalDate(body?.dueAt);
   if (dueAt === undefined) return NextResponse.json({ error: "موعد التسليم الداخلي غير صالح" }, { status: 400 });
 
-  const allowedPaymentStatuses = new Set<StagePartnerPaymentStatus>(["PENDING", "APPROVED", "PAID", "CANCELLED"]);
-  const paymentStatus = typeof body?.paymentStatus === "string" && allowedPaymentStatuses.has(body.paymentStatus as StagePartnerPaymentStatus)
-    ? body.paymentStatus as StagePartnerPaymentStatus
-    : "PENDING";
-
   const before = (await listStagePartnerAssignments({ projectId: stage.project.id })).find(
     (assignment) => assignment.projectStageId === projectStageId && assignment.partnerId === partnerId,
   );
+  if (before && (before.progress > 0 || before.status !== "ASSIGNED" || before.paymentStatus !== "PENDING")) {
+    return NextResponse.json({ error: "بدأ تنفيذ هذا الإسناد بالفعل. لا يمكن تغيير المهام أو المستحق بعد بدء العمل" }, { status: 409 });
+  }
 
   const saved = await upsertStagePartnerAssignment({
     projectStageId,
@@ -183,7 +289,6 @@ export async function POST(request: NextRequest) {
     feeAmount,
     feeCurrency,
     dueAt,
-    paymentStatus,
   });
   if (!saved) return NextResponse.json({ error: "تعذر حفظ إسناد المرحلة" }, { status: 500 });
 
@@ -191,10 +296,11 @@ export async function POST(request: NextRequest) {
     actorId: access.userId,
     action: before ? "STAGE_PARTNER_ASSIGNMENT_UPDATED" : "STAGE_PARTNER_ASSIGNED",
     category: before ? "NORMAL" : "POSITIVE",
-    entityType: "PROJECT_STAGE",
-    entityId: projectStageId,
+    entityType: "PROJECT_STAGE_PARTNER_ASSIGNMENT",
+    entityId: saved.id,
     entityLabel: `${stage.project.title} — ${stage.name}`,
     before: before ? {
+      projectStageId,
       partnerId: before.partnerId,
       tasks: before.tasks,
       deliverables: before.deliverables,
@@ -203,7 +309,7 @@ export async function POST(request: NextRequest) {
       dueAt: before.dueAt?.toISOString() || null,
     } : undefined,
     after: {
-      assignmentId: saved.id,
+      projectStageId,
       partnerId,
       partnerEmail: partner.user.email,
       tasks,
@@ -211,7 +317,7 @@ export async function POST(request: NextRequest) {
       feeAmount,
       feeCurrency,
       dueAt: dueAt?.toISOString() || null,
-      paymentStatus,
+      paymentStatus: saved.paymentStatus,
     },
   });
 
