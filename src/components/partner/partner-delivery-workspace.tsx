@@ -276,7 +276,14 @@ export function PartnerDeliveryWorkspace() {
                           <span className="text-xs text-slate-500">10 MB للملف الواحد، و30 MB كحد إجمالي. تُرفع الملفات مباشرة إلى التخزين الآمن ثم يُرسل سجل التسليم إلى الإدارة.</span>
                         </div>
 
-                        <button type="submit" disabled={busy === assignment.id} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50"><Send className="h-4 w-4" />{busy === assignment.id ? (busyText[assignment.id] || "جارٍ الإرسال...") : "إرسال التسليم إلى الإدارة"}</button>
+                        <button
+                          type="submit"
+                          disabled={busy === assignment.id}
+                          className={`inline-flex items-center justify-center gap-2 rounded-xl border px-5 py-3 font-black transition ${busy === assignment.id ? "border-[#D8D2C4] bg-white text-[#111827]" : "border-[#111827] bg-[#111827] text-white hover:border-[#9f7d3d] hover:bg-[#9f7d3d]"}`}
+                        >
+                          <Send className="h-4 w-4" />
+                          {busy === assignment.id ? (busyText[assignment.id] || "جارٍ الإرسال...") : "إرسال التسليم إلى الإدارة"}
+                        </button>
                       </form>
                     )}
 
