@@ -186,13 +186,13 @@ model PasswordResetToken {
 }
 
 model Partner {
-  id                 String                    @id @default(cuid())
-  referralNumber     Int                       @unique @default(autoincrement())
-  status             PartnerStatus             @default(PENDING)
-  userId             String                    @unique
-  user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  applicationId      String?                   @unique
-  application        CollaborationApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  id                 String                          @id @default(cuid())
+  referralNumber     Int                             @unique @default(autoincrement())
+  status             PartnerStatus                   @default(PENDING)
+  userId             String                          @unique
+  user               User                            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applicationId      String?                         @unique
+  application        CollaborationApplication?       @relation(fields: [applicationId], references: [id], onDelete: SetNull)
   referrals          PartnerReferral[]
   profileCompletedAt DateTime?
   age                Int?
@@ -209,22 +209,23 @@ model Partner {
   payoutMethods      String?
   countryRegion      String?
   partnerType        String?
-  workAreas          String[]                  @default([])
-  supportServices    String[]                  @default([])
+  workAreas          String[]                        @default([])
+  supportServices    String[]                        @default([])
   experienceLevel    String?
   experienceYears    Int?
   availabilityType   String?
   weeklyHours        Int?
-  cooperationTypes   String[]                  @default([])
+  cooperationTypes   String[]                        @default([])
   shortBio           String?
-  paymentMethods     String[]                  @default([])
+  paymentMethods     String[]                        @default([])
   otherPaymentMethod String?
   adminNotes         String?
   decisionNotes      String?
   decidedAt          DateTime?
   assignments        PartnerProject[]
-  createdAt          DateTime                  @default(now())
-  updatedAt          DateTime                  @updatedAt
+  stageAssignments   ProjectStagePartnerAssignment[]
+  createdAt          DateTime                        @default(now())
+  updatedAt          DateTime                        @updatedAt
 
   @@index([status])
 }
@@ -359,7 +360,7 @@ model PartnerReferral {
   ambassador           Ambassador?        @relation(fields: [ambassadorId], references: [id], onDelete: SetNull)
   name                 String?
   email                String?
-  phone                String?
+  phone                 String?
   company              String?
   status               ReferralStatus     @default(NEW)
   sourcePath           String?
@@ -440,25 +441,50 @@ model AmbassadorRewardLevel {
 }
 
 model ProjectStage {
-  id            String                    @id @default(cuid())
-  projectId     String
-  project       ClientProject             @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name          String
-  amount        Decimal                   @db.Decimal(12, 2)
-  currency      String                    @default("USD")
-  status        ProjectStageStatus        @default(NOT_STARTED)
-  paymentStatus ProjectStagePaymentStatus @default(PENDING)
-  startsAt      DateTime?
-  completedAt   DateTime?
-  paidAt        DateTime?
-  approvedAt    DateTime?
-  approvedById  String?
-  approvedBy    User?                     @relation("ProjectStageApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
-  rewards       AmbassadorReward[]
-  createdAt     DateTime                  @default(now())
-  updatedAt     DateTime                  @updatedAt
+  id                 String                          @id @default(cuid())
+  projectId          String
+  project            ClientProject                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name               String
+  amount             Decimal                         @db.Decimal(12, 2)
+  currency           String                          @default("USD")
+  status             ProjectStageStatus              @default(NOT_STARTED)
+  paymentStatus      ProjectStagePaymentStatus       @default(PENDING)
+  startsAt           DateTime?
+  completedAt        DateTime?
+  paidAt             DateTime?
+  approvedAt         DateTime?
+  approvedById       String?
+  approvedBy         User?                           @relation("ProjectStageApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  rewards            AmbassadorReward[]
+  partnerAssignments ProjectStagePartnerAssignment[]
+  createdAt          DateTime                        @default(now())
+  updatedAt          DateTime                        @updatedAt
 
   @@index([projectId, status])
+  @@index([paymentStatus])
+}
+
+model ProjectStagePartnerAssignment {
+  id             String               @id
+  projectStageId String
+  projectStage   ProjectStage         @relation(fields: [projectStageId], references: [id], onDelete: Cascade)
+  partnerId      String
+  partner        Partner              @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  tasks          String[]             @default([])
+  deliverables   String[]             @default([])
+  status         String               @default("ASSIGNED")
+  progress       Int                  @default(0)
+  feeAmount      Decimal?             @db.Decimal(12, 2)
+  feeCurrency    String               @default("USD")
+  paymentStatus  ProjectPaymentStatus @default(PENDING)
+  paidAt         DateTime?
+  dueAt          DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @default(now())
+
+  @@unique([partnerId, projectStageId])
+  @@index([projectStageId])
+  @@index([partnerId, status])
   @@index([paymentStatus])
 }
 
