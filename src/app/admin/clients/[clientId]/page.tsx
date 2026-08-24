@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { AdminClientEditor } from "@/components/admin-client-editor";
+import { ClientProjectCreationRedirect } from "@/components/admin/client-project-creation-redirect";
 import { ClientDashboard } from "@/components/client-dashboard";
 import { ProjectCreationExperience } from "@/components/project-creation-experience";
 
@@ -29,6 +30,7 @@ export default function AdminClientWorkspacePage() {
     return (
       <>
         <ProjectCreationExperience />
+        <ClientProjectCreationRedirect />
         <AdminClientEditor
           initialSection={manageSection}
           onPreview={(notice = "") => {
