@@ -7,7 +7,6 @@ import { writeAdminAudit } from "@/lib/admin-audit";
 import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security";
 
 const stageStatuses = new Set<ProjectStageStatus>(["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"]);
-const paymentStatuses = new Set<ProjectStagePaymentStatus>(["PENDING", "PAID", "CANCELLED"]);
 
 async function requireProjectsAdmin(request: NextRequest) {
   const access = await currentAdminAccess(request);
@@ -78,12 +77,6 @@ function projectStageDrafts(stagesValue: string | null, financialPlanValue: stri
   };
 }
 
-function plannedStageCount(financialPlan: string | null, stagesValue?: string | null) {
-  const names = stageNames(stagesValue || null);
-  if (names.length) return names.length;
-  return stageAmounts(financialPlan).length;
-}
-
 function firstStageSuggestion(financialPlan: string | null, stagesValue?: string | null) {
   const drafts = projectStageDrafts(stagesValue || null, financialPlan, "USD");
   if (!drafts.error && drafts.stages.length) return { name: drafts.stages[0].name, amount: drafts.stages[0].amount };
@@ -119,6 +112,34 @@ function stagePayload(stage: {
   return { ...stage, amount: stage.amount.toString() };
 }
 
+function invoicePayload(invoice: {
+  id: string;
+  number: string;
+  amount: { toString(): string };
+  currency: string;
+  status: string;
+  dueAt: Date | null;
+  paidAt: Date | null;
+  createdAt: Date;
+}) {
+  return { ...invoice, amount: invoice.amount.toString() };
+}
+
+function closeBlockers(
+  stages: Array<{ status: ProjectStageStatus; paymentStatus: ProjectStagePaymentStatus; approvedAt: Date | null }>,
+  invoices: Array<{ status: string }>,
+) {
+  const blockers: string[] = [];
+  if (!stages.length) blockers.push("لا توجد مراحل تنفيذ للمشروع.");
+  if (stages.some((stage) => stage.status === "CANCELLED")) blockers.push("توجد مرحلة ملغاة تحتاج معالجة قبل الإغلاق.");
+  if (stages.some((stage) => stage.status !== "COMPLETED")) blockers.push("لم تكتمل جميع مراحل المشروع بعد.");
+  if (stages.some((stage) => stage.paymentStatus !== "PAID")) blockers.push("توجد مرحلة لم تُدفع فاتورتها بعد.");
+  if (stages.some((stage) => !stage.approvedAt)) blockers.push("توجد مرحلة لم تعتمدها الإدارة بعد التسليم.");
+  if (invoices.length < stages.length) blockers.push("لم تصدر فاتورة لكل مرحلة من مراحل المشروع.");
+  if (invoices.some((invoice) => invoice.status !== "PAID")) blockers.push("توجد فاتورة مشروع غير مدفوعة.");
+  return blockers;
+}
+
 export async function GET(request: NextRequest) {
   if (!(await requireProjectsAdmin(request))) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
@@ -131,22 +152,43 @@ export async function GET(request: NextRequest) {
       title: true,
       currency: true,
       status: true,
+      progress: true,
       financialPlan: true,
       stages: true,
       client: { select: { id: true, name: true, email: true } },
       referral: { select: { ambassadorId: true } },
       ambassadorRewardRate: true,
-      projectStages: { orderBy: { createdAt: "asc" } },
+      projectStages: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
+      invoices: {
+        where: { type: "STANDARD" },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: { id: true, number: true, amount: true, currency: true, status: true, dueAt: true, paidAt: true, createdAt: true },
+      },
     },
   });
 
   return NextResponse.json({
-    projects: projects.map((project) => ({
-      ...project,
-      ambassadorRewardRate: project.ambassadorRewardRate?.toString() || null,
-      projectStages: project.projectStages.map(stagePayload),
-      firstStageSuggestion: project.projectStages.length ? null : firstStageSuggestion(project.financialPlan, project.stages),
-    })),
+    projects: projects.map((project) => {
+      const blockers = closeBlockers(project.projectStages, project.invoices);
+      return {
+        id: project.id,
+        title: project.title,
+        currency: project.currency,
+        status: project.status,
+        progress: project.progress,
+        financialPlan: project.financialPlan,
+        stages: project.stages,
+        client: project.client,
+        referral: project.referral,
+        ambassadorRewardRate: project.ambassadorRewardRate?.toString() || null,
+        projectStages: project.projectStages.map((stage, index) => ({
+          ...stagePayload(stage),
+          invoice: project.invoices[index] ? invoicePayload(project.invoices[index]) : null,
+        })),
+        closeReadiness: { ready: blockers.length === 0, blockers },
+        firstStageSuggestion: project.projectStages.length ? null : firstStageSuggestion(project.financialPlan, project.stages),
+      };
+    }),
   });
 }
 
@@ -188,12 +230,7 @@ export async function POST(request: NextRequest) {
         const stageIds: string[] = [];
         for (const input of parsed.stages) {
           const stage = await tx.projectStage.create({
-            data: {
-              projectId,
-              name: input.name,
-              amount: input.amount,
-              currency: input.currency,
-            },
+            data: { projectId, name: input.name, amount: input.amount, currency: input.currency },
           });
           stageIds.push(stage.id);
           await syncStageReward(tx, stage.id);
@@ -236,13 +273,7 @@ export async function POST(request: NextRequest) {
 
       const created = await db.$transaction(async (tx) => {
         const stage = await tx.projectStage.create({
-          data: {
-            projectId,
-            name,
-            amount,
-            currency: project.currency,
-            startsAt: dueAt,
-          },
+          data: { projectId, name, amount, currency: project.currency, startsAt: dueAt },
         });
         const reward = await syncStageReward(tx, stage.id);
         let invoiceNumber: string | null = null;
@@ -256,15 +287,7 @@ export async function POST(request: NextRequest) {
           });
           invoiceNumber = `CW-${year}-${String(sequence.lastNumber).padStart(4, "0")}`;
           await tx.clientInvoice.create({
-            data: {
-              projectId: project.id,
-              number: invoiceNumber,
-              type: "STANDARD",
-              amount,
-              currency: project.currency,
-              status: "DUE",
-              dueAt,
-            },
+            data: { projectId: project.id, number: invoiceNumber, type: "STANDARD", amount, currency: project.currency, status: "DUE", dueAt },
           });
           await tx.clientNotification.create({
             data: {
@@ -283,13 +306,7 @@ export async function POST(request: NextRequest) {
           entityType: "PROJECT_STAGE",
           entityId: stage.id,
           entityLabel: `${project.title} — ${name}`,
-          after: {
-            amount: String(amount),
-            currency: project.currency,
-            dueAt: dueAt?.toISOString() || null,
-            rewardId: reward?.id || null,
-            invoiceNumber,
-          },
+          after: { amount: String(amount), currency: project.currency, dueAt: dueAt?.toISOString() || null, rewardId: reward?.id || null, invoiceNumber },
         });
         return { stage, invoiceNumber };
       });
@@ -297,25 +314,149 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ stage: stagePayload(created.stage), invoiceNumber: created.invoiceNumber }, { status: 201 });
     }
 
+    if (action === "start_stage") {
+      const stageId = typeof body?.stageId === "string" ? body.stageId.trim() : "";
+      const existing = await db.projectStage.findUnique({
+        where: { id: stageId },
+        include: {
+          project: {
+            select: {
+              id: true,
+              title: true,
+              currency: true,
+              clientId: true,
+              status: true,
+              projectStages: {
+                orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+                select: { id: true, status: true, paymentStatus: true, approvedAt: true },
+              },
+              invoices: {
+                where: { type: "STANDARD" },
+                orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+                select: { id: true, number: true, status: true },
+              },
+            },
+          },
+        },
+      });
+      if (!existing) return NextResponse.json({ error: "المرحلة غير موجودة" }, { status: 404 });
+      if (["COMPLETED", "CANCELLED"].includes(existing.status)) {
+        return NextResponse.json({ error: "لا يمكن بدء مرحلة مكتملة أو ملغاة" }, { status: 409 });
+      }
+
+      const stageIndex = existing.project.projectStages.findIndex((stage) => stage.id === existing.id);
+      if (stageIndex < 0) return NextResponse.json({ error: "تعذر تحديد ترتيب المرحلة" }, { status: 409 });
+      const previousStages = existing.project.projectStages.slice(0, stageIndex);
+      if (previousStages.some((stage) => stage.status !== "COMPLETED" || stage.paymentStatus !== "PAID" || !stage.approvedAt)) {
+        return NextResponse.json({ error: "لا يمكن بدء هذه المرحلة قبل إكمال ودفع واعتماد المرحلة السابقة." }, { status: 409 });
+      }
+
+      const linkedInvoice = existing.project.invoices[stageIndex] || null;
+      if (linkedInvoice?.status === "CANCELLED") {
+        return NextResponse.json({ error: "فاتورة هذه المرحلة ملغاة. عالج الفاتورة أولًا قبل متابعة التنفيذ." }, { status: 409 });
+      }
+
+      const dueAt = existing.startsAt || new Date();
+      const result = await db.$transaction(async (tx) => {
+        let invoice = linkedInvoice;
+        if (!invoice) {
+          const year = new Date().getUTCFullYear();
+          const sequence = await tx.invoiceSequence.upsert({
+            where: { year },
+            create: { year, lastNumber: 1 },
+            update: { lastNumber: { increment: 1 } },
+          });
+          const number = `CW-${year}-${String(sequence.lastNumber).padStart(4, "0")}`;
+          invoice = await tx.clientInvoice.create({
+            data: {
+              projectId: existing.projectId,
+              number,
+              type: "STANDARD",
+              amount: existing.amount,
+              currency: existing.currency,
+              status: "DUE",
+              dueAt,
+            },
+            select: { id: true, number: true, status: true },
+          });
+          await tx.clientNotification.create({
+            data: {
+              clientId: existing.project.clientId,
+              title: "بدأت مرحلة جديدة وصدرت فاتورتها",
+              body: `${existing.project.title} — ${existing.name} — ${Number(existing.amount)} ${existing.currency} — ${number}`,
+              section: "invoices",
+            },
+          });
+        }
+
+        const stage = await tx.projectStage.update({
+          where: { id: existing.id },
+          data: { status: "IN_PROGRESS", startsAt: dueAt },
+        });
+        if (existing.project.status === "PLANNING") {
+          await tx.clientProject.update({ where: { id: existing.projectId }, data: { status: "IN_PROGRESS" } });
+          await tx.partnerProject.updateMany({ where: { clientProjectId: existing.projectId }, data: { status: "IN_PROGRESS" } });
+        }
+        await writeAdminAudit(tx, {
+          actorId: access.userId,
+          action: linkedInvoice ? "PROJECT_STAGE_STARTED" : "PROJECT_STAGE_STARTED_AND_INVOICED",
+          category: "NORMAL",
+          entityType: "PROJECT_STAGE",
+          entityId: existing.id,
+          entityLabel: `${existing.project.title} — ${existing.name}`,
+          before: { status: existing.status },
+          after: { status: "IN_PROGRESS", invoiceId: invoice.id, invoiceNumber: invoice.number, invoiceStatus: invoice.status },
+        });
+        return { stage, invoice };
+      });
+
+      return NextResponse.json({ stage: stagePayload(result.stage), invoice: result.invoice });
+    }
+
     if (action === "update") {
       const stageId = typeof body?.stageId === "string" ? body.stageId.trim() : "";
       const existing = await db.projectStage.findUnique({
         where: { id: stageId },
-        include: { project: { select: { title: true, financialPlan: true, stages: true, progress: true } } },
+        include: {
+          project: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              progress: true,
+              projectStages: {
+                orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+                select: { id: true },
+              },
+              invoices: {
+                where: { type: "STANDARD" },
+                orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+                select: { id: true, status: true },
+              },
+            },
+          },
+        },
       });
       if (!existing) return NextResponse.json({ error: "المرحلة غير موجودة" }, { status: 404 });
 
       const status = stageStatuses.has(body?.status as ProjectStageStatus) ? body.status as ProjectStageStatus : existing.status;
-      const paymentStatus = paymentStatuses.has(body?.paymentStatus as ProjectStagePaymentStatus) ? body.paymentStatus as ProjectStagePaymentStatus : existing.paymentStatus;
       const amount = body?.amount === undefined ? Number(existing.amount) : Number(body.amount);
       const dueAt = body?.dueAt === undefined ? existing.startsAt : dateValue(body.dueAt);
       const approved = body?.approved === true && status === "COMPLETED";
+      const stageIndex = existing.project.projectStages.findIndex((stage) => stage.id === existing.id);
+      const linkedInvoice = stageIndex >= 0 ? existing.project.invoices[stageIndex] || null : null;
 
       if (!Number.isFinite(amount) || amount <= 0 || amount > 9_999_999_999.99 || dueAt === undefined) {
         return NextResponse.json({ error: "بيانات المرحلة غير صالحة" }, { status: 400 });
       }
       if (approved && status !== "COMPLETED") {
         return NextResponse.json({ error: "لا يمكن اعتماد مرحلة غير مكتملة" }, { status: 409 });
+      }
+      if (approved && existing.paymentStatus !== "PAID") {
+        return NextResponse.json({ error: "لا يمكن اعتماد تسليم المرحلة قبل تسجيل دفع فاتورتها." }, { status: 409 });
+      }
+      if (linkedInvoice?.status === "PAID" && amount !== Number(existing.amount)) {
+        return NextResponse.json({ error: "لا يمكن تغيير مبلغ مرحلة بعد دفع فاتورتها." }, { status: 409 });
       }
 
       const updated = await db.$transaction(async (tx) => {
@@ -325,70 +466,57 @@ export async function POST(request: NextRequest) {
             name: typeof body?.name === "string" && body.name.trim() ? body.name.trim().slice(0, 160) : existing.name,
             amount,
             status,
-            paymentStatus,
             startsAt: dueAt,
             completedAt: status === "COMPLETED" ? existing.completedAt || new Date() : null,
-            paidAt: paymentStatus === "PAID" ? existing.paidAt || new Date() : null,
             approvedAt: approved ? existing.approvedAt || new Date() : null,
             approvedById: approved ? access.userId : null,
           },
         });
 
-        const firstStage = await tx.projectStage.findFirst({
-          where: { projectId: existing.projectId },
-          orderBy: { createdAt: "asc" },
-          select: { id: true },
-        });
         let syncedInvoiceId: string | null = null;
-        if (firstStage?.id === stage.id) {
-          const linkedInvoice = await tx.clientInvoice.findFirst({
-            where: {
-              projectId: existing.projectId,
-              type: "STANDARD",
-              amount: existing.amount,
-              currency: existing.currency,
-              createdAt: {
-                gte: existing.createdAt,
-                lte: new Date(existing.createdAt.getTime() + 15_000),
-              },
-            },
-            orderBy: { createdAt: "asc" },
-            select: { id: true },
-          });
-          if (linkedInvoice) {
-            await tx.clientInvoice.update({
-              where: { id: linkedInvoice.id },
-              data: { amount, dueAt },
-            });
-            syncedInvoiceId = linkedInvoice.id;
-          }
+        if (linkedInvoice && linkedInvoice.status !== "PAID" && linkedInvoice.status !== "CANCELLED") {
+          await tx.clientInvoice.update({ where: { id: linkedInvoice.id }, data: { amount, dueAt } });
+          syncedInvoiceId = linkedInvoice.id;
         }
 
-        const completedStages = await tx.projectStage.count({
-          where: { projectId: existing.projectId, status: "COMPLETED" },
+        const allStages = await tx.projectStage.findMany({
+          where: { projectId: existing.projectId },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          select: { status: true, paymentStatus: true, approvedAt: true },
         });
-        const totalPlannedStages = plannedStageCount(existing.project.financialPlan, existing.project.stages);
-        const automaticProgress = totalPlannedStages > 0
-          ? Math.min(100, Math.round((completedStages / totalPlannedStages) * 100))
-          : existing.project.progress;
-        const projectProgress = Math.max(existing.project.progress, automaticProgress);
-        if (projectProgress !== existing.project.progress) {
-          await tx.clientProject.update({
-            where: { id: existing.projectId },
-            data: { progress: projectProgress },
-          });
-        }
+        const allInvoices = await tx.clientInvoice.findMany({
+          where: { projectId: existing.projectId, type: "STANDARD" },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          select: { status: true },
+        });
+        const completedStages = allStages.filter((item) => item.status === "COMPLETED").length;
+        const projectProgress = allStages.length ? Math.min(100, Math.round((completedStages / allStages.length) * 100)) : 0;
+        const blockers = closeBlockers(allStages, allInvoices);
+        const preserveExceptionalStatus = ["ON_HOLD", "CANCELLED", "COMPLETED"].includes(existing.project.status);
+        const projectStatus = preserveExceptionalStatus
+          ? existing.project.status
+          : blockers.length === 0
+            ? "REVIEW"
+            : allStages.some((item) => ["IN_PROGRESS", "COMPLETED"].includes(item.status))
+              ? "IN_PROGRESS"
+              : "PLANNING";
+
+        await tx.clientProject.update({ where: { id: existing.projectId }, data: { progress: projectProgress, status: projectStatus } });
+        await tx.partnerProject.updateMany({
+          where: { clientProjectId: existing.projectId },
+          data: { progress: projectProgress, status: projectStatus === "PLANNING" ? "ASSIGNED" : projectStatus },
+        });
 
         const reward = await syncStageReward(tx, stage.id);
         await writeAdminAudit(tx, {
           actorId: access.userId,
           action: "PROJECT_EXECUTION_STAGE_UPDATED",
-          category: status === "CANCELLED" || paymentStatus === "CANCELLED" ? "SENSITIVE" : status === "COMPLETED" && approved ? "POSITIVE" : "NORMAL",
+          category: status === "CANCELLED" ? "SENSITIVE" : status === "COMPLETED" && approved ? "POSITIVE" : "NORMAL",
           entityType: "PROJECT_STAGE",
           entityId: stage.id,
           entityLabel: `${existing.project.title} — ${stage.name}`,
           before: { status: existing.status, paymentStatus: existing.paymentStatus, amount: existing.amount.toString(), dueAt: existing.startsAt?.toISOString() || null, projectProgress: existing.project.progress },
-          after: { status, paymentStatus, amount: String(amount), dueAt: dueAt?.toISOString() || null, approved, rewardStatus: reward?.status || null, syncedInvoiceId, projectProgress },
+          after: { status, paymentStatus: existing.paymentStatus, amount: String(amount), dueAt: dueAt?.toISOString() || null, approved, rewardStatus: reward?.status || null, syncedInvoiceId, projectProgress, projectStatus },
         });
         return stage;
       });
