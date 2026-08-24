@@ -29,16 +29,59 @@ function normalizeDigits(value: string) {
     .replace(/[۰-۹]/g, (digit) => String(eastern.indexOf(digit)));
 }
 
-function plannedStageCount(financialPlan: string | null) {
-  return (financialPlan || "")
+function stageNames(value: string | null) {
+  return (value || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 30);
+}
+
+function stageAmounts(value: string | null) {
+  return (value || "")
     .split(/\r?\n/)
     .map((line) => normalizeDigits(line).trim())
     .filter(Boolean)
-    .filter((line) => /(?:\$\s*[\d.,]+|[\d.,]+\s*(?:USD|EUR|SYP|TRY|\$|دولار|دولارات|يورو|ليرة))/i.test(line))
-    .length;
+    .map((line) => {
+      const match = line.match(/(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة))/i);
+      return Number((match?.[1] || match?.[2] || "0").replace(/,/g, ""));
+    })
+    .filter((amount) => Number.isFinite(amount) && amount > 0);
 }
 
-function firstStageSuggestion(financialPlan: string | null) {
+function projectStageDrafts(stagesValue: string | null, financialPlanValue: string | null, currency: string) {
+  const names = stageNames(stagesValue);
+  if (!names.length) {
+    return {
+      stages: [] as Array<{ name: string; amount: number; currency: string }>,
+      error: "أدخل مراحل المشروع أولًا، مرحلة واحدة في كل سطر.",
+    };
+  }
+
+  const amounts = stageAmounts(financialPlanValue);
+  if (amounts.length !== names.length) {
+    return {
+      stages: [] as Array<{ name: string; amount: number; currency: string }>,
+      error: `عدد مبالغ الخطة المالية (${amounts.length}) يجب أن يساوي عدد مراحل المشروع (${names.length}). اكتب مبلغًا واحدًا لكل مرحلة في سطر مستقل.`,
+    };
+  }
+
+  return {
+    stages: names.map((name, index) => ({ name: name.slice(0, 160), amount: amounts[index], currency })),
+    error: null as string | null,
+  };
+}
+
+function plannedStageCount(financialPlan: string | null, stagesValue?: string | null) {
+  const names = stageNames(stagesValue || null);
+  if (names.length) return names.length;
+  return stageAmounts(financialPlan).length;
+}
+
+function firstStageSuggestion(financialPlan: string | null, stagesValue?: string | null) {
+  const drafts = projectStageDrafts(stagesValue || null, financialPlan, "USD");
+  if (!drafts.error && drafts.stages.length) return { name: drafts.stages[0].name, amount: drafts.stages[0].amount };
+
   const line = financialPlan?.split(/\r?\n/).map((item) => item.trim()).find(Boolean) || "";
   if (!line) return null;
   const normalized = normalizeDigits(line);
@@ -84,6 +127,7 @@ export async function GET(request: NextRequest) {
       currency: true,
       status: true,
       financialPlan: true,
+      stages: true,
       client: { select: { id: true, name: true, email: true } },
       referral: { select: { ambassadorId: true } },
       ambassadorRewardRate: true,
@@ -96,7 +140,7 @@ export async function GET(request: NextRequest) {
       ...project,
       ambassadorRewardRate: project.ambassadorRewardRate?.toString() || null,
       projectStages: project.projectStages.map(stagePayload),
-      firstStageSuggestion: project.projectStages.length ? null : firstStageSuggestion(project.financialPlan),
+      firstStageSuggestion: project.projectStages.length ? null : firstStageSuggestion(project.financialPlan, project.stages),
     })),
   });
 }
@@ -110,6 +154,62 @@ export async function POST(request: NextRequest) {
   const action = typeof body?.action === "string" ? body.action : "";
 
   try {
+    if (action === "sync_from_project") {
+      const projectId = typeof body?.projectId === "string" ? body.projectId.trim() : "";
+      if (!projectId) return NextResponse.json({ error: "المشروع مطلوب" }, { status: 400 });
+
+      const project = await db.clientProject.findUnique({
+        where: { id: projectId },
+        select: {
+          id: true,
+          title: true,
+          currency: true,
+          stages: true,
+          financialPlan: true,
+          projectStages: { orderBy: { createdAt: "asc" }, select: { id: true }, take: 1 },
+        },
+      });
+      if (!project) return NextResponse.json({ error: "المشروع غير موجود" }, { status: 404 });
+      if (project.projectStages.length) return NextResponse.json({ ok: true, created: 0, skipped: true });
+
+      const parsed = projectStageDrafts(project.stages, project.financialPlan, project.currency);
+      if (parsed.error) return NextResponse.json({ error: parsed.error }, { status: 400 });
+
+      const createdStages = await db.$transaction(async (tx) => {
+        const existing = await tx.projectStage.findFirst({ where: { projectId }, select: { id: true } });
+        if (existing) return [];
+
+        const created: Array<ReturnType<typeof stagePayload>> = [];
+        const stageIds: string[] = [];
+        for (const input of parsed.stages) {
+          const stage = await tx.projectStage.create({
+            data: {
+              projectId,
+              name: input.name,
+              amount: input.amount,
+              currency: input.currency,
+            },
+          });
+          stageIds.push(stage.id);
+          await syncStageReward(tx, stage.id);
+          created.push(stagePayload(stage));
+        }
+
+        await writeAdminAudit(tx, {
+          actorId: access.userId,
+          action: "PROJECT_STAGES_SYNCED_FROM_PROJECT",
+          category: "POSITIVE",
+          entityType: "CLIENT_PROJECT",
+          entityId: project.id,
+          entityLabel: project.title,
+          after: { stageCount: stageIds.length, stageIds },
+        });
+        return created;
+      });
+
+      return NextResponse.json({ ok: true, created: createdStages.length, stages: createdStages });
+    }
+
     if (action === "create") {
       const projectId = typeof body?.projectId === "string" ? body.projectId.trim() : "";
       const name = typeof body?.name === "string" ? body.name.trim().slice(0, 160) : "";
@@ -196,7 +296,7 @@ export async function POST(request: NextRequest) {
       const stageId = typeof body?.stageId === "string" ? body.stageId.trim() : "";
       const existing = await db.projectStage.findUnique({
         where: { id: stageId },
-        include: { project: { select: { title: true, financialPlan: true, progress: true } } },
+        include: { project: { select: { title: true, financialPlan: true, stages: true, progress: true } } },
       });
       if (!existing) return NextResponse.json({ error: "المرحلة غير موجودة" }, { status: 404 });
 
@@ -262,7 +362,7 @@ export async function POST(request: NextRequest) {
         const completedStages = await tx.projectStage.count({
           where: { projectId: existing.projectId, status: "COMPLETED" },
         });
-        const totalPlannedStages = plannedStageCount(existing.project.financialPlan);
+        const totalPlannedStages = plannedStageCount(existing.project.financialPlan, existing.project.stages);
         const automaticProgress = totalPlannedStages > 0
           ? Math.min(100, Math.round((completedStages / totalPlannedStages) * 100))
           : existing.project.progress;
