@@ -1,5 +1,6 @@
 "use client";
 
+import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 const STORAGE_KEY = "cyberweel-partner-delivery-feedback";
@@ -42,26 +43,28 @@ export function PartnerDeliveryFeedback() {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (!feedback) return;
-    const timer = window.setTimeout(() => setFeedback(null), 6500);
-    return () => window.clearTimeout(timer);
-  }, [feedback]);
-
   if (!feedback) return null;
 
   return (
     <div
       dir="rtl"
-      role="status"
-      aria-live="polite"
-      className={`fixed left-1/2 top-5 z-[220] w-[min(92vw,42rem)] -translate-x-1/2 rounded-2xl border px-5 py-4 text-center text-sm font-black shadow-2xl ${
+      role={feedback.kind === "error" ? "alert" : "status"}
+      aria-live={feedback.kind === "error" ? "assertive" : "polite"}
+      className={`fixed left-1/2 top-5 z-[220] flex w-[min(92vw,44rem)] -translate-x-1/2 items-start gap-3 rounded-2xl border px-5 py-4 text-sm font-black shadow-2xl ${
         feedback.kind === "success"
           ? "border-emerald-300 bg-emerald-50 text-emerald-900"
           : "border-rose-300 bg-rose-50 text-rose-900"
       }`}
     >
-      {feedback.message}
+      <p className="min-w-0 flex-1 text-center leading-7">{feedback.message}</p>
+      <button
+        type="button"
+        onClick={() => setFeedback(null)}
+        aria-label="إغلاق الرسالة"
+        className="shrink-0 rounded-lg border border-current/20 bg-white/60 p-1.5 transition hover:bg-white"
+      >
+        <X className="h-4 w-4" />
+      </button>
     </div>
   );
 }
