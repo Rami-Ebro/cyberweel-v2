@@ -2,6 +2,7 @@
 
 import { Languages } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { createPortal } from "react-dom";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { type DashboardLang, translateDashboardText } from "@/lib/dashboard-i18n";
 
@@ -94,6 +95,24 @@ export function DashboardLanguageButton({ className = "" }: { className?: string
   );
 }
 
+function PartnerHeaderLanguageButton() {
+  const [host, setHost] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const findHost = () => {
+      const themeButton = document.querySelector<HTMLButtonElement>('button[aria-label="تبديل المظهر"]');
+      if (themeButton?.parentElement) setHost(themeButton.parentElement);
+    };
+    findHost();
+    if (host) return;
+    const observer = new MutationObserver(findHost);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [host]);
+
+  return host ? createPortal(<DashboardLanguageButton className="h-11 px-3" />, host) : null;
+}
+
 export function DashboardI18nProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const active = isDashboardPath(pathname);
@@ -144,7 +163,8 @@ export function DashboardI18nProvider({ children }: { children: ReactNode }) {
   return (
     <DashboardI18nContext.Provider value={context}>
       {children}
-      {active && !pathname.startsWith("/admin") && !pathname.startsWith("/client") ? (
+      {active && pathname.startsWith("/partner/dashboard") ? <PartnerHeaderLanguageButton /> : null}
+      {active && !pathname.startsWith("/admin") && !pathname.startsWith("/client") && !pathname.startsWith("/partner/dashboard") ? (
         <DashboardLanguageButton className="fixed bottom-5 left-5 z-[100] h-11 shadow-lg" />
       ) : null}
       {active ? <style jsx global>{`
