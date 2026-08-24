@@ -12,12 +12,23 @@ CREATE TABLE IF NOT EXISTS "ProjectStagePartnerAssignment" (
     "feeAmount" DECIMAL(12,2),
     "feeCurrency" TEXT NOT NULL DEFAULT 'USD',
     "paymentStatus" "ProjectPaymentStatus" NOT NULL DEFAULT 'PENDING',
+    "approvedAt" TIMESTAMP(3),
     "paidAt" TIMESTAMP(3),
+    "paymentMethod" TEXT,
+    "paymentReference" TEXT,
+    "paymentProofUrl" TEXT,
+    "paymentProofName" TEXT,
     "dueAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "ProjectStagePartnerAssignment_pkey" PRIMARY KEY ("id")
 );
+
+ALTER TABLE "ProjectStagePartnerAssignment" ADD COLUMN IF NOT EXISTS "approvedAt" TIMESTAMP(3);
+ALTER TABLE "ProjectStagePartnerAssignment" ADD COLUMN IF NOT EXISTS "paymentMethod" TEXT;
+ALTER TABLE "ProjectStagePartnerAssignment" ADD COLUMN IF NOT EXISTS "paymentReference" TEXT;
+ALTER TABLE "ProjectStagePartnerAssignment" ADD COLUMN IF NOT EXISTS "paymentProofUrl" TEXT;
+ALTER TABLE "ProjectStagePartnerAssignment" ADD COLUMN IF NOT EXISTS "paymentProofName" TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS "ProjectStagePartnerAssignment_partnerId_projectStageId_key"
 ON "ProjectStagePartnerAssignment"("partnerId", "projectStageId");
