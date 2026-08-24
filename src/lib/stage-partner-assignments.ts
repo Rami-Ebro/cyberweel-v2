@@ -23,7 +23,12 @@ export type StagePartnerAssignmentRow = {
   feeAmount: Prisma.Decimal | string | number | null;
   feeCurrency: string;
   paymentStatus: StagePartnerPaymentStatus;
+  approvedAt: Date | null;
   paidAt: Date | null;
+  paymentMethod: string | null;
+  paymentReference: string | null;
+  paymentProofUrl: string | null;
+  paymentProofName: string | null;
   dueAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -54,6 +59,49 @@ export function serializeStagePartnerAssignment(row: StagePartnerAssignmentRow):
   };
 }
 
+function assignmentSelect(where: Prisma.Sql) {
+  return db.$queryRaw<StagePartnerAssignmentRow[]>(Prisma.sql`
+    SELECT
+      a."id",
+      a."projectStageId",
+      a."partnerId",
+      a."tasks",
+      a."deliverables",
+      a."status",
+      a."progress",
+      a."feeAmount",
+      a."feeCurrency",
+      a."paymentStatus",
+      a."approvedAt",
+      a."paidAt",
+      a."paymentMethod",
+      a."paymentReference",
+      a."paymentProofUrl",
+      a."paymentProofName",
+      a."dueAt",
+      a."createdAt",
+      a."updatedAt",
+      ps."projectId",
+      cp."title" AS "projectTitle",
+      cp."description" AS "projectDescription",
+      cp."status"::text AS "projectStatus",
+      cp."progress" AS "projectProgress",
+      ps."name" AS "stageName",
+      ps."status"::text AS "stageStatus",
+      ps."paymentStatus"::text AS "stagePaymentStatus",
+      ps."amount" AS "stageAmount",
+      ps."currency" AS "stageCurrency",
+      u."name" AS "partnerName",
+      u."email" AS "partnerEmail"
+    FROM "ProjectStagePartnerAssignment" a
+    INNER JOIN "ProjectStage" ps ON ps."id" = a."projectStageId"
+    INNER JOIN "ClientProject" cp ON cp."id" = ps."projectId"
+    INNER JOIN "Partner" p ON p."id" = a."partnerId"
+    INNER JOIN "User" u ON u."id" = p."userId"
+    ${where}
+  `);
+}
+
 export async function listStagePartnerAssignments(options: { projectId?: string; partnerId?: string } = {}) {
   const filters: Prisma.Sql[] = [];
   if (options.projectId) filters.push(Prisma.sql`ps."projectId" = ${options.projectId}`);
@@ -72,7 +120,12 @@ export async function listStagePartnerAssignments(options: { projectId?: string;
       a."feeAmount",
       a."feeCurrency",
       a."paymentStatus",
+      a."approvedAt",
       a."paidAt",
+      a."paymentMethod",
+      a."paymentReference",
+      a."paymentProofUrl",
+      a."paymentProofName",
       a."dueAt",
       a."createdAt",
       a."updatedAt",
@@ -99,39 +152,7 @@ export async function listStagePartnerAssignments(options: { projectId?: string;
 }
 
 export async function getStagePartnerAssignment(id: string, partnerId?: string) {
-  const rows = await db.$queryRaw<StagePartnerAssignmentRow[]>(Prisma.sql`
-    SELECT
-      a."id",
-      a."projectStageId",
-      a."partnerId",
-      a."tasks",
-      a."deliverables",
-      a."status",
-      a."progress",
-      a."feeAmount",
-      a."feeCurrency",
-      a."paymentStatus",
-      a."paidAt",
-      a."dueAt",
-      a."createdAt",
-      a."updatedAt",
-      ps."projectId",
-      cp."title" AS "projectTitle",
-      cp."description" AS "projectDescription",
-      cp."status"::text AS "projectStatus",
-      cp."progress" AS "projectProgress",
-      ps."name" AS "stageName",
-      ps."status"::text AS "stageStatus",
-      ps."paymentStatus"::text AS "stagePaymentStatus",
-      ps."amount" AS "stageAmount",
-      ps."currency" AS "stageCurrency",
-      u."name" AS "partnerName",
-      u."email" AS "partnerEmail"
-    FROM "ProjectStagePartnerAssignment" a
-    INNER JOIN "ProjectStage" ps ON ps."id" = a."projectStageId"
-    INNER JOIN "ClientProject" cp ON cp."id" = ps."projectId"
-    INNER JOIN "Partner" p ON p."id" = a."partnerId"
-    INNER JOIN "User" u ON u."id" = p."userId"
+  const rows = await assignmentSelect(Prisma.sql`
     WHERE a."id" = ${id}
       ${partnerId ? Prisma.sql`AND a."partnerId" = ${partnerId}` : Prisma.empty}
     LIMIT 1
@@ -147,37 +168,26 @@ export async function upsertStagePartnerAssignment(input: {
   feeAmount: number | null;
   feeCurrency: string;
   dueAt: Date | null;
-  paymentStatus?: StagePartnerPaymentStatus;
 }) {
   const id = randomUUID();
-  const paymentStatus = input.paymentStatus || "PENDING";
-  const rows = await db.$queryRaw<StagePartnerAssignmentRow[]>(Prisma.sql`
+  const rows = await db.$queryRaw<Array<{ id: string }>>(Prisma.sql`
     INSERT INTO "ProjectStagePartnerAssignment" (
       "id", "projectStageId", "partnerId", "tasks", "deliverables",
-      "feeAmount", "feeCurrency", "paymentStatus", "dueAt", "updatedAt"
+      "feeAmount", "feeCurrency", "dueAt", "updatedAt"
     ) VALUES (
       ${id}, ${input.projectStageId}, ${input.partnerId}, ${input.tasks}, ${input.deliverables},
-      ${input.feeAmount}, ${input.feeCurrency}, ${paymentStatus}::"ProjectPaymentStatus", ${input.dueAt}, CURRENT_TIMESTAMP
+      ${input.feeAmount}, ${input.feeCurrency}, ${input.dueAt}, CURRENT_TIMESTAMP
     )
     ON CONFLICT ("partnerId", "projectStageId") DO UPDATE SET
       "tasks" = EXCLUDED."tasks",
       "deliverables" = EXCLUDED."deliverables",
       "feeAmount" = EXCLUDED."feeAmount",
       "feeCurrency" = EXCLUDED."feeCurrency",
-      "paymentStatus" = EXCLUDED."paymentStatus",
-      "paidAt" = CASE WHEN EXCLUDED."paymentStatus" = 'PAID'::"ProjectPaymentStatus" THEN COALESCE("ProjectStagePartnerAssignment"."paidAt", CURRENT_TIMESTAMP) ELSE NULL END,
       "dueAt" = EXCLUDED."dueAt",
       "updatedAt" = CURRENT_TIMESTAMP
-    RETURNING
-      "id", "projectStageId", "partnerId", "tasks", "deliverables", "status", "progress",
-      "feeAmount", "feeCurrency", "paymentStatus", "paidAt", "dueAt", "createdAt", "updatedAt",
-      ''::text AS "projectId", ''::text AS "projectTitle", NULL::text AS "projectDescription",
-      ''::text AS "projectStatus", 0::integer AS "projectProgress", ''::text AS "stageName",
-      ''::text AS "stageStatus", ''::text AS "stagePaymentStatus", 0::numeric AS "stageAmount",
-      ''::text AS "stageCurrency", NULL::text AS "partnerName", ''::text AS "partnerEmail"
+    RETURNING "id"
   `);
-  const assignmentId = rows[0]?.id || id;
-  return getStagePartnerAssignment(assignmentId);
+  return getStagePartnerAssignment(rows[0]?.id || id);
 }
 
 export async function updateStagePartnerProgress(input: {
@@ -189,9 +199,60 @@ export async function updateStagePartnerProgress(input: {
   await db.$executeRaw(Prisma.sql`
     UPDATE "ProjectStagePartnerAssignment"
     SET "progress" = ${input.progress}, "status" = ${status}, "updatedAt" = CURRENT_TIMESTAMP
-    WHERE "id" = ${input.assignmentId} AND "partnerId" = ${input.partnerId}
+    WHERE "id" = ${input.assignmentId}
+      AND "partnerId" = ${input.partnerId}
+      AND "paymentStatus" = 'PENDING'::"ProjectPaymentStatus"
+      AND "status" <> 'COMPLETED'
   `);
   return getStagePartnerAssignment(input.assignmentId, input.partnerId);
+}
+
+export async function approveStagePartnerDelivery(assignmentId: string) {
+  const rows = await db.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    UPDATE "ProjectStagePartnerAssignment"
+    SET
+      "status" = 'COMPLETED',
+      "progress" = 100,
+      "paymentStatus" = 'APPROVED'::"ProjectPaymentStatus",
+      "approvedAt" = COALESCE("approvedAt", CURRENT_TIMESTAMP),
+      "updatedAt" = CURRENT_TIMESTAMP
+    WHERE "id" = ${assignmentId}
+      AND "status" = 'REVIEW'
+      AND "progress" = 100
+      AND "paymentStatus" = 'PENDING'::"ProjectPaymentStatus"
+      AND "feeAmount" IS NOT NULL
+      AND "feeAmount" > 0
+    RETURNING "id"
+  `);
+  if (!rows.length) return null;
+  return getStagePartnerAssignment(assignmentId);
+}
+
+export async function recordStagePartnerPayment(input: {
+  assignmentId: string;
+  paidAt: Date;
+  paymentMethod: string;
+  paymentReference: string;
+  paymentProofUrl?: string | null;
+  paymentProofName?: string | null;
+}) {
+  const rows = await db.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    UPDATE "ProjectStagePartnerAssignment"
+    SET
+      "paymentStatus" = 'PAID'::"ProjectPaymentStatus",
+      "paidAt" = ${input.paidAt},
+      "paymentMethod" = ${input.paymentMethod},
+      "paymentReference" = ${input.paymentReference},
+      "paymentProofUrl" = ${input.paymentProofUrl || null},
+      "paymentProofName" = ${input.paymentProofName || null},
+      "updatedAt" = CURRENT_TIMESTAMP
+    WHERE "id" = ${input.assignmentId}
+      AND "status" = 'COMPLETED'
+      AND "paymentStatus" = 'APPROVED'::"ProjectPaymentStatus"
+    RETURNING "id"
+  `);
+  if (!rows.length) return null;
+  return getStagePartnerAssignment(input.assignmentId);
 }
 
 export async function deleteStagePartnerAssignment(id: string) {
