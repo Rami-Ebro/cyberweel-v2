@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
+import { stageExecutionProgressByStageIds } from "@/lib/stage-partner-assignments";
 import { NextRequest, NextResponse } from "next/server";
 
 function normalizeDigits(value: string) {
@@ -15,8 +16,8 @@ function plannedAmounts(financialPlan: string | null) {
     .split(/\r?\n/)
     .map((line) => normalizeDigits(line))
     .map((line) => {
-      const match = line.match(/(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة))/i);
-      return Number((match?.[1] || match?.[2] || "0").replace(/,/g, ""));
+      const match = line.match(/(?:\$\s*([0-9][0-9.,]*)|([0-9][0-9.,]*)\s*(?:\$|USD|EUR|SYP|TRY|دولار|دولارات|يورو|ليرة)|^([0-9][0-9.,]*)(?:\s|$))/i);
+      return Number((match?.[1] || match?.[2] || match?.[3] || "0").replace(/,/g, ""));
     })
     .filter((amount) => Number.isFinite(amount) && amount > 0);
 }
@@ -36,11 +37,11 @@ function plannedStageNames(financialPlan: string | null) {
     .filter(Boolean);
 }
 
-function plannedTotal(financialPlan: string | null) {
+function legacyPlannedTotal(financialPlan: string | null) {
   return plannedAmounts(financialPlan).reduce((sum, amount) => sum + amount, 0);
 }
 
-function plannedStageCount(financialPlan: string | null) {
+function legacyPlannedStageCount(financialPlan: string | null) {
   return plannedAmounts(financialPlan).length;
 }
 
@@ -80,6 +81,9 @@ export async function GET(request: NextRequest) {
 
   if (!client) return NextResponse.json({ error: "الحساب غير متاح" }, { status: 403 });
 
+  const stageIds = client.clientProjects.flatMap((project) => project.projectStages.map((stage) => stage.id));
+  const executionProgress = await stageExecutionProgressByStageIds(stageIds);
+
   const invoices = client.clientProjects.flatMap((project) =>
     project.invoices.map((invoice) => ({ ...invoice, amount: Number(invoice.amount), projectTitle: project.title })),
   );
@@ -116,7 +120,10 @@ export async function GET(request: NextRequest) {
     projects: client.clientProjects.map((project) => {
       const plannedNames = plannedStageNames(project.financialPlan);
       const completedCount = project.projectStages.filter((stage) => stage.status === "COMPLETED").length;
-      const nextPlannedStageName = plannedNames[completedCount] || null;
+      const nextPlannedStageName = project.projectStages[completedCount]?.name || plannedNames[completedCount] || null;
+      const structuredTotal = project.projectStages.reduce((sum, stage) => sum + Number(stage.amount), 0);
+      const plannedTotal = structuredTotal > 0 ? structuredTotal : legacyPlannedTotal(project.financialPlan);
+      const plannedStageCount = project.projectStages.length || legacyPlannedStageCount(project.financialPlan);
 
       return {
         id: project.id,
@@ -143,10 +150,11 @@ export async function GET(request: NextRequest) {
           dueAt: stage.startsAt,
           completedAt: stage.completedAt,
           paidAt: stage.paidAt,
+          executionProgress: stage.status === "COMPLETED" ? 100 : executionProgress.get(stage.id) || 0,
           projectProgress: project.progress,
           projectStatus: project.status,
-          plannedTotal: plannedTotal(project.financialPlan),
-          plannedStageCount: plannedStageCount(project.financialPlan),
+          plannedTotal,
+          plannedStageCount,
           nextPlannedStageName,
         })),
         files: project.files.map((file) => ({
