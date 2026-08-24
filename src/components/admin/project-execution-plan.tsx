@@ -249,6 +249,7 @@ export function ProjectExecutionPlan(props: Props) {
       setProjectStatus(payload.project.status as ProjectStatus);
       setServerProgress(payload.project.progress);
       setMessage("تم حفظ الحالة التشغيلية. نسبة الإنجاز تُحسب تلقائيًا من المراحل.");
+      window.dispatchEvent(new Event("admin-projects-refresh"));
     } catch {
       setMessage("تعذر الاتصال بالخادم. لم تُحفظ حالة المشروع.");
     } finally {
@@ -271,6 +272,7 @@ export function ProjectExecutionPlan(props: Props) {
       if (!response.ok) return setMessage(payload.error || "تعذر إنشاء المرحلة");
       setMessage(firstStage ? `تم إنشاء المرحلة الأولى وإرسال مطالبة الدفع${payload.invoiceNumber ? ` — ${payload.invoiceNumber}` : ""}.` : `تم إنشاء المرحلة ${nextStageNumber} تلقائيًا.`);
       await loadStages();
+      window.dispatchEvent(new Event("admin-projects-refresh"));
     } catch {
       setMessage("تعذر الاتصال بالخادم. لم تُحفظ المرحلة.");
     } finally {
@@ -291,6 +293,7 @@ export function ProjectExecutionPlan(props: Props) {
       if (!response.ok) return setMessage(payload.error || "تعذر بدء المرحلة");
       setMessage(payload.invoice?.number ? `بدأت المرحلة وصدرت فاتورتها ${payload.invoice.number}.` : "بدأت المرحلة.");
       await loadStages();
+      window.dispatchEvent(new Event("admin-projects-refresh"));
     } catch {
       setMessage("تعذر الاتصال بالخادم. لم تبدأ المرحلة.");
     } finally {
@@ -317,6 +320,7 @@ export function ProjectExecutionPlan(props: Props) {
       setCloseReadiness({ ready: true, blockers: [] });
       setMessage("✓ تم إغلاق المشروع بنجاح بعد تحقق جميع الشروط.");
       await loadStages();
+      window.dispatchEvent(new Event("admin-projects-refresh"));
     } catch {
       setMessage("تعذر الاتصال بالخادم. لم يُغلق المشروع.");
     } finally {
@@ -342,6 +346,7 @@ export function ProjectExecutionPlan(props: Props) {
       }
       setMessage("تم تحديث المرحلة.");
       await loadStages();
+      window.dispatchEvent(new Event("admin-projects-refresh"));
       return true;
     } catch {
       setMessage("تعذر الاتصال بالخادم. لم تُحفظ التعديلات.");
@@ -419,8 +424,16 @@ export function ProjectExecutionPlan(props: Props) {
           <section className={`rounded-2xl border p-4 ${closeReadiness.ready ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h4 className={`text-lg font-black ${closeReadiness.ready ? "text-emerald-900" : "text-amber-900"}`}>{closeReadiness.ready ? "المشروع جاهز للإغلاق" : "المشروع غير جاهز للإغلاق بعد"}</h4>
-                {closeReadiness.ready ? <p className="mt-1 text-sm font-bold text-emerald-800">جميع المراحل مكتملة ومدفوعة ومعتمدة، وجميع فواتير المشروع مدفوعة.</p> : <ul className="mt-2 list-disc space-y-1 pe-5 text-sm font-bold text-amber-900">{closeReadiness.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul>}
+                <h4 className={`text-lg font-black ${closeReadiness.ready ? "text-emerald-900" : "text-amber-900"}`}>
+                  {projectStatus === "COMPLETED" ? "المشروع مغلق ومكتمل" : closeReadiness.ready ? "المشروع جاهز للإغلاق" : "المشروع غير جاهز للإغلاق بعد"}
+                </h4>
+                {projectStatus === "COMPLETED" ? (
+                  <p className="mt-1 text-sm font-bold text-emerald-800">تم إغلاق المشروع بعد اكتمال جميع المراحل ودفعها واعتمادها، وسداد جميع فواتير المشروع.</p>
+                ) : closeReadiness.ready ? (
+                  <p className="mt-1 text-sm font-bold text-emerald-800">جميع المراحل مكتملة ومدفوعة ومعتمدة، وجميع فواتير المشروع مدفوعة.</p>
+                ) : (
+                  <ul className="mt-2 list-disc space-y-1 pe-5 text-sm font-bold text-amber-900">{closeReadiness.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul>
+                )}
               </div>
               {projectStatus !== "COMPLETED" && <button type="button" disabled={!closeReadiness.ready || busy === "close-project"} onClick={() => void closeProject()} className="rounded-xl bg-emerald-700 px-5 py-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-40">{busy === "close-project" ? "جارٍ الإغلاق..." : "إغلاق المشروع"}</button>}
             </div>
