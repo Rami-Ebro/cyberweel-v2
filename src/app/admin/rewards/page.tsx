@@ -82,7 +82,7 @@ const MAX_PAYMENT_PROOF_SIZE = 4 * 1024 * 1024;
 const ALLOWED_PAYMENT_PROOF_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "application/pdf"]);
 const statusLabels: Record<RewardStatus, string> = {
   EXPECTED: "قيد الاستحقاق",
-  EARNED: "مستحقة",
+  EARNED: "بانتظار الدفع",
   PAID: "مدفوعة",
   CANCELLED: "ملغاة",
 };
@@ -334,11 +334,11 @@ export default function AdminRewardsPage() {
   const quickCards = [
     { key: "total", label: "إجمالي المكافأة" },
     { key: "remaining", label: "متبقية متوقعة" },
-    { key: "earned", label: "مستحقة الآن" },
+    { key: "earned", label: "بانتظار الدفع" },
     { key: "paid", label: "مدفوعة" },
   ] as const;
 
-  return <AdminShell active="rewards" title="مكافآت السفراء" description="المراحل تأتي من بيانات المشروع؛ هنا نتابع الاستحقاق والدفع فقط.">
+  return <AdminShell active="rewards" title="مكافآت السفراء" description="المراحل تأتي من بيانات المشروع؛ هنا نتابع المتوقع وما ينتظر الدفع وما تم دفعه.">
     {message && <p className="mt-6 rounded-xl border border-[#D8D2C4] bg-white p-4 font-bold">{message}</p>}
     {loading ? <p className="mt-7 flex items-center justify-center gap-2 rounded-2xl bg-white p-12"><RefreshCw className="animate-spin" /> جارٍ التحميل...</p> : <>
       <section className="mt-7 rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm">
@@ -366,7 +366,7 @@ export default function AdminRewardsPage() {
       <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">{quickCards.map((card) => <article key={card.key} className="rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">{card.label}</p><div className="mt-2 space-y-1">{accountSummary.length ? accountSummary.map((summary) => <strong key={summary.currency} className="block text-xl">{amount(summary[card.key], summary.currency)}</strong>) : <strong className="text-xl">0.00</strong>}</div></article>)}</section>
 
       <section className="mt-6 rounded-2xl border border-[#D8D2C4] bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-sm font-black text-[#9A7D43]">من الاتفاق حتى الاستحقاق</p><h2 className="mt-1 text-2xl font-black">المشاريع المؤهلة للمكافآت</h2><p className="mt-2 text-sm text-slate-500">تأتي المراحل تلقائيًا من معلومات المشروع وتُدار من صفحة المشروع، وليست من قسم مكافآت السفراء.</p></div><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-sm font-black text-[#7A6233]">{qualifiedProjects.length}</span></div>
+        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-sm font-black text-[#9A7D43]">من الاتفاق حتى الدفع</p><h2 className="mt-1 text-2xl font-black">المشاريع المؤهلة للمكافآت</h2><p className="mt-2 text-sm text-slate-500">تأتي المراحل تلقائيًا من معلومات المشروع وتُدار من صفحة المشروع، وليست من قسم مكافآت السفراء.</p></div><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-sm font-black text-[#7A6233]">{qualifiedProjects.length}</span></div>
         <div className="mt-5 grid gap-4 lg:grid-cols-2">{qualifiedProjects.map((project) => {
           const ambassadorName = project.referral.ambassador?.user.name || project.referral.ambassador?.user.email || "سفير غير محدد";
           const hasStages = project.projectStages.length > 0;
