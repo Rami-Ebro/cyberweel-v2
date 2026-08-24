@@ -2,6 +2,13 @@ import { db } from "@/lib/db";
 import { canAdmin } from "@/lib/admin-permissions";
 import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
 import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security";
+import {
+  getStagePartnerAssignment,
+  listStagePartnerAssignments,
+  serializeStagePartnerAssignment,
+  updateStagePartnerProgress,
+  type SerializedStagePartnerAssignment,
+} from "@/lib/stage-partner-assignments";
 import { NextRequest, NextResponse } from "next/server";
 
 const PROJECT_STATUSES = ["ASSIGNED", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD"] as const;
@@ -28,15 +35,7 @@ async function currentPartner(request: NextRequest) {
     },
   });
 
-  if (
-    !user ||
-    !user.isActive ||
-    !user.partner ||
-    user.partner.status !== "ACTIVE"
-  ) {
-    return null;
-  }
-
+  if (!user || !user.isActive || !user.partner || user.partner.status !== "ACTIVE") return null;
   return user;
 }
 
@@ -64,12 +63,35 @@ async function dashboardPartner(request: NextRequest) {
   return user ? { ...user, isAdminPreview: false } : null;
 }
 
-function serializeProject<T extends {
-  feeAmount: { toString(): string } | null;
-}>(project: T) {
+function serializeLegacyProject<T extends { feeAmount: { toString(): string } | null }>(project: T) {
+  return { ...project, feeAmount: project.feeAmount?.toString() ?? null };
+}
+
+function stageCard(row: SerializedStagePartnerAssignment) {
+  const closedStatus = row.stageStatus === "COMPLETED"
+    ? "COMPLETED"
+    : row.stageStatus === "CANCELLED"
+      ? "CANCELLED"
+      : row.status;
   return {
-    ...project,
-    feeAmount: project.feeAmount?.toString() ?? null,
+    id: row.id,
+    clientProjectId: row.projectId,
+    projectStageId: row.projectStageId,
+    title: row.projectTitle,
+    description: `المرحلة: ${row.stageName}${row.projectDescription ? ` — ${row.projectDescription}` : ""}`,
+    status: closedStatus,
+    progress: row.stageStatus === "COMPLETED" ? 100 : row.progress,
+    tasks: row.tasks,
+    deliverables: row.deliverables,
+    files: [] as string[],
+    updates: [] as string[],
+    feeAmount: row.feeAmount,
+    feeCurrency: row.feeCurrency,
+    paymentStatus: row.paymentStatus,
+    paidAt: row.paidAt,
+    dueAt: row.dueAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   };
 }
 
@@ -77,13 +99,22 @@ export async function GET(request: NextRequest) {
   const user = await dashboardPartner(request);
   if (!user) return NextResponse.json({ error: "الحساب غير متاح" }, { status: 401 });
 
-  const assignments = await db.partnerProject.findMany({
-    where: { partnerId: user.partner!.id },
-    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-  });
+  const [stageRows, legacyAssignments] = await Promise.all([
+    listStagePartnerAssignments({ partnerId: user.partner!.id }),
+    db.partnerProject.findMany({
+      where: { partnerId: user.partner!.id },
+      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    }),
+  ]);
 
-  const projects = assignments.map(serializeProject);
-  const activeProjects = projects.filter((project) => project.status !== "COMPLETED");
+  const serializedStageRows = stageRows.map(serializeStagePartnerAssignment);
+  const stageProjectIds = new Set(serializedStageRows.map((row) => row.projectId));
+  const stageProjects = serializedStageRows.map(stageCard);
+  const legacyProjects = legacyAssignments
+    .filter((assignment) => !assignment.clientProjectId || !stageProjectIds.has(assignment.clientProjectId))
+    .map(serializeLegacyProject);
+  const projects = [...stageProjects, ...legacyProjects];
+  const activeProjects = projects.filter((project) => project.status !== "COMPLETED" && project.status !== "CANCELLED");
   const dues = new Map<string, { currency: string; outstanding: number; paid: number }>();
 
   for (const project of projects) {
@@ -97,6 +128,17 @@ export async function GET(request: NextRequest) {
     dues.set(currency, current);
   }
 
+  const projectGroups = new Map<string, Array<{ status: string }>>();
+  for (const project of projects) {
+    const key = "clientProjectId" in project && typeof project.clientProjectId === "string" && project.clientProjectId
+      ? project.clientProjectId
+      : project.id;
+    const group = projectGroups.get(key) || [];
+    group.push({ status: project.status });
+    projectGroups.set(key, group);
+  }
+  const activeProjectCount = Array.from(projectGroups.values()).filter((group) => group.some((item) => !["COMPLETED", "CANCELLED"].includes(item.status))).length;
+  const completedProjectCount = Array.from(projectGroups.values()).filter((group) => group.length > 0 && group.every((item) => item.status === "COMPLETED")).length;
   const averageProgress = activeProjects.length
     ? Math.round(activeProjects.reduce((total, project) => total + project.progress, 0) / activeProjects.length)
     : 0;
@@ -109,8 +151,8 @@ export async function GET(request: NextRequest) {
     },
     isAdminPreview: user.isAdminPreview,
     stats: {
-      activeProjects: activeProjects.length,
-      completedProjects: projects.filter((project) => project.status === "COMPLETED").length,
+      activeProjects: activeProjectCount,
+      completedProjects: completedProjectCount,
       averageProgress,
       duesByCurrency: Array.from(dues.values()).map((item) => ({
         ...item,
@@ -135,6 +177,24 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "طلب غير صالح" }, { status: 400 });
   }
 
+  const progress = Number(body?.progress);
+  if (!Number.isInteger(progress) || progress < 0 || progress > 100) {
+    return NextResponse.json({ error: "نسبة التقدم يجب أن تكون بين 0 و100" }, { status: 400 });
+  }
+
+  const stageAssignment = await getStagePartnerAssignment(projectId, user.partner!.id);
+  if (stageAssignment) {
+    if (stageAssignment.stageStatus === "NOT_STARTED") {
+      return NextResponse.json({ error: "لا يمكن بدء التنفيذ قبل أن تبدأ الإدارة هذه المرحلة" }, { status: 409 });
+    }
+    if (["COMPLETED", "CANCELLED"].includes(stageAssignment.stageStatus)) {
+      return NextResponse.json({ error: "لا يمكن تعديل مرحلة مكتملة أو ملغاة" }, { status: 409 });
+    }
+    const updated = await updateStagePartnerProgress({ assignmentId: projectId, partnerId: user.partner!.id, progress });
+    if (!updated) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });
+    return NextResponse.json({ project: stageCard(serializeStagePartnerAssignment(updated)) });
+  }
+
   const project = await db.partnerProject.findFirst({
     where: { id: projectId, partnerId: user.partner!.id },
     select: { id: true, status: true },
@@ -144,14 +204,6 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "لا يمكن تعديل مشروع مكتمل" }, { status: 409 });
   }
 
-  const progress = Number(body?.progress);
-  if (!Number.isInteger(progress) || progress < 0 || progress > 100) {
-    return NextResponse.json({ error: "نسبة التقدم يجب أن تكون بين 0 و100" }, { status: 400 });
-  }
-
-  const updated = await db.partnerProject.update({
-    where: { id: project.id },
-    data: { progress },
-  });
-  return NextResponse.json({ project: serializeProject(updated) });
+  const updated = await db.partnerProject.update({ where: { id: project.id }, data: { progress } });
+  return NextResponse.json({ project: serializeLegacyProject(updated) });
 }
