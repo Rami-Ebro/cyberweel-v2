@@ -4,7 +4,6 @@ import { writeAdminAudit } from "@/lib/admin-audit";
 import { db } from "@/lib/db";
 import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security";
 import {
-  approveStagePartnerDelivery,
   deleteStagePartnerAssignment,
   getStagePartnerAssignment,
   listStagePartnerAssignments,
@@ -12,26 +11,24 @@ import {
   serializeStagePartnerAssignment,
   upsertStagePartnerAssignment,
 } from "@/lib/stage-partner-assignments";
+import {
+  listStagePartnerSubmissions,
+  reviewStagePartnerSubmission,
+  serializeStagePartnerSubmission,
+  StagePartnerSubmissionError,
+} from "@/lib/stage-partner-submissions";
 
 async function requireAccess(request: NextRequest) {
   const access = await currentAdminAccess(request);
-  if (!access || !(access.isOwner || access.permissions.includes("projects") || access.permissions.includes("partners"))) {
-    return null;
-  }
+  if (!access || !(access.isOwner || access.permissions.includes("projects") || access.permissions.includes("partners"))) return null;
   return access;
 }
 
 function stringList(value: unknown) {
   if (Array.isArray(value)) {
-    return value
-      .filter((item): item is string => typeof item === "string")
-      .map((item) => item.trim())
-      .filter(Boolean)
-      .slice(0, 100);
+    return value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean).slice(0, 100);
   }
-  if (typeof value === "string") {
-    return value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean).slice(0, 100);
-  }
+  if (typeof value === "string") return value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean).slice(0, 100);
   return [];
 }
 
@@ -69,15 +66,7 @@ export async function GET(request: NextRequest) {
         currency: true,
         projectStages: {
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-          select: {
-            id: true,
-            name: true,
-            status: true,
-            paymentStatus: true,
-            amount: true,
-            currency: true,
-            startsAt: true,
-          },
+          select: { id: true, name: true, status: true, paymentStatus: true, amount: true, currency: true, startsAt: true },
         },
       },
     }),
@@ -91,21 +80,29 @@ export async function GET(request: NextRequest) {
 
   if (!project) return NextResponse.json({ error: "المشروع غير موجود" }, { status: 404 });
 
-  const serialized = assignments.map(serializeStagePartnerAssignment);
+  const serializedAssignments = assignments.map(serializeStagePartnerAssignment);
+  const submissions = await listStagePartnerSubmissions(serializedAssignments.map((item) => item.id));
+  const submissionsByAssignment = new Map<string, ReturnType<typeof serializeStagePartnerSubmission>[]>();
+  for (const submission of submissions) {
+    const list = submissionsByAssignment.get(submission.assignmentId) || [];
+    list.push(serializeStagePartnerSubmission(submission));
+    submissionsByAssignment.set(submission.assignmentId, list);
+  }
+  const assignmentsWithSubmissions = serializedAssignments.map((assignment) => ({
+    ...assignment,
+    submissions: submissionsByAssignment.get(assignment.id) || [],
+  }));
+
   return NextResponse.json({
     project: {
       ...project,
       projectStages: project.projectStages.map((stage) => ({
         ...stage,
         amount: stage.amount.toString(),
-        assignments: serialized.filter((assignment) => assignment.projectStageId === stage.id),
+        assignments: assignmentsWithSubmissions.filter((assignment) => assignment.projectStageId === stage.id),
       })),
     },
-    partners: partners.map((partner) => ({
-      id: partner.id,
-      name: partner.user.name || partner.user.email,
-      email: partner.user.email,
-    })),
+    partners: partners.map((partner) => ({ id: partner.id, name: partner.user.name || partner.user.email, email: partner.user.email })),
   });
 }
 
@@ -122,11 +119,9 @@ export async function POST(request: NextRequest) {
     if (!assignmentId) return NextResponse.json({ error: "الإسناد مطلوب" }, { status: 400 });
     const existing = await getStagePartnerAssignment(assignmentId);
     if (!existing) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });
-    if (["COMPLETED", "CANCELLED"].includes(existing.stageStatus)) {
-      return NextResponse.json({ error: "لا يمكن حذف إسناد من مرحلة مغلقة أو ملغاة" }, { status: 409 });
-    }
+    if (["COMPLETED", "CANCELLED"].includes(existing.stageStatus)) return NextResponse.json({ error: "لا يمكن حذف إسناد من مرحلة مغلقة أو ملغاة" }, { status: 409 });
     if (existing.progress > 0 || existing.status !== "ASSIGNED" || existing.paymentStatus !== "PENDING") {
-      return NextResponse.json({ error: "لا يمكن حذف الإسناد بعد بدء التنفيذ أو اعتماد مستحق الشريك" }, { status: 409 });
+      return NextResponse.json({ error: "لا يمكن حذف الإسناد بعد بدء التنفيذ أو إرسال تسليم" }, { status: 409 });
     }
     await deleteStagePartnerAssignment(assignmentId);
     await writeAdminAudit(db, {
@@ -141,39 +136,61 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  if (action === "approve_delivery") {
+  if (action === "approve_delivery" || action === "request_changes") {
     const assignmentId = safeText(body?.assignmentId);
-    if (!assignmentId) return NextResponse.json({ error: "الإسناد مطلوب" }, { status: 400 });
+    const submissionId = safeText(body?.submissionId);
+    const reviewNote = safeText(body?.reviewNote, 2000) || null;
+    if (!assignmentId || !submissionId) return NextResponse.json({ error: "حدد إسناد الشريك ونسخة التسليم التي ستتم مراجعتها" }, { status: 400 });
+    if (action === "request_changes" && !reviewNote) return NextResponse.json({ error: "اكتب بوضوح ما المطلوب تعديله قبل إعادة التسليم" }, { status: 400 });
+
     const existing = await getStagePartnerAssignment(assignmentId);
     if (!existing) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });
-    if (existing.progress !== 100 || existing.status !== "REVIEW") {
-      return NextResponse.json({ error: "لا يمكن اعتماد التسليم قبل أن يرفع الشريك التقدم إلى 100٪ ويرسله للمراجعة" }, { status: 409 });
+    if (existing.status !== "REVIEW" || existing.progress !== 100 || existing.paymentStatus !== "PENDING") {
+      return NextResponse.json({ error: "لا توجد نسخة تسليم حالية بانتظار المراجعة لهذا الإسناد" }, { status: 409 });
     }
-    if (existing.paymentStatus !== "PENDING") {
-      return NextResponse.json({ error: "مستحق هذا التسليم سبق اعتماده أو دفعه" }, { status: 409 });
-    }
-    if (existing.feeAmount == null || Number(existing.feeAmount) <= 0) {
+    if (action === "approve_delivery" && (existing.feeAmount == null || Number(existing.feeAmount) <= 0)) {
       return NextResponse.json({ error: "حدد مستحق الشريك لهذه المرحلة قبل اعتماد التسليم" }, { status: 409 });
     }
-    if (["CANCELLED"].includes(existing.stageStatus) || existing.projectStatus === "CANCELLED") {
-      return NextResponse.json({ error: "لا يمكن اعتماد تسليم مرتبط بمرحلة أو مشروع ملغى" }, { status: 409 });
+    if (existing.stageStatus === "CANCELLED" || existing.projectStatus === "CANCELLED") {
+      return NextResponse.json({ error: "لا يمكن مراجعة تسليم مرتبط بمرحلة أو مشروع ملغى" }, { status: 409 });
     }
 
-    const approved = await approveStagePartnerDelivery(assignmentId);
-    if (!approved) return NextResponse.json({ error: "تعذر اعتماد التسليم. حدّث الصفحة وتحقق من حالة الإسناد" }, { status: 409 });
+    try {
+      const result = await reviewStagePartnerSubmission({
+        assignmentId,
+        submissionId,
+        decision: action === "approve_delivery" ? "APPROVED" : "CHANGES_REQUESTED",
+        reviewNote,
+      });
+      const refreshed = await getStagePartnerAssignment(assignmentId);
+      if (!refreshed) return NextResponse.json({ error: "تعذر إعادة تحميل الإسناد بعد المراجعة" }, { status: 500 });
 
-    await writeAdminAudit(db, {
-      actorId: access.userId,
-      action: "STAGE_PARTNER_DELIVERY_APPROVED",
-      category: "POSITIVE",
-      entityType: "PROJECT_STAGE_PARTNER_ASSIGNMENT",
-      entityId: assignmentId,
-      entityLabel: `${existing.projectTitle} — ${existing.stageName} — ${existing.partnerName || existing.partnerEmail}`,
-      before: { status: existing.status, progress: existing.progress, paymentStatus: existing.paymentStatus },
-      after: { status: approved.status, progress: approved.progress, paymentStatus: approved.paymentStatus, approvedAt: approved.approvedAt?.toISOString() || null },
-    });
+      await writeAdminAudit(db, {
+        actorId: access.userId,
+        action: action === "approve_delivery" ? "STAGE_PARTNER_DELIVERY_APPROVED" : "STAGE_PARTNER_DELIVERY_CHANGES_REQUESTED",
+        category: action === "approve_delivery" ? "POSITIVE" : "NORMAL",
+        entityType: "PROJECT_STAGE_PARTNER_ASSIGNMENT",
+        entityId: assignmentId,
+        entityLabel: `${existing.projectTitle} — ${existing.stageName} — ${existing.partnerName || existing.partnerEmail}`,
+        before: { status: existing.status, progress: existing.progress, paymentStatus: existing.paymentStatus, submissionId },
+        after: {
+          status: refreshed.status,
+          progress: refreshed.progress,
+          paymentStatus: refreshed.paymentStatus,
+          approvedAt: refreshed.approvedAt?.toISOString() || null,
+          submissionStatus: result.submission.status,
+          reviewNote: result.submission.reviewNote,
+        },
+      });
 
-    return NextResponse.json({ assignment: serializeStagePartnerAssignment(approved) });
+      return NextResponse.json({
+        assignment: serializeStagePartnerAssignment(refreshed),
+        submission: serializeStagePartnerSubmission(result.submission),
+      });
+    } catch (error) {
+      if (error instanceof StagePartnerSubmissionError) return NextResponse.json({ error: error.message }, { status: error.status });
+      throw error;
+    }
   }
 
   if (action === "record_payment") {
@@ -187,13 +204,8 @@ export async function POST(request: NextRequest) {
     if (!assignmentId) return NextResponse.json({ error: "الإسناد مطلوب" }, { status: 400 });
     if (!paymentMethod) return NextResponse.json({ error: "طريقة الدفع مطلوبة" }, { status: 400 });
     if (!paymentReference) return NextResponse.json({ error: "مرجع عملية الدفع مطلوب" }, { status: 400 });
-    if (!paidAt) return NextResponse.json({ error: "تاريخ الدفع مطلوب وصحيح" }, { status: 400 });
-    if (paidAt === undefined || paidAt.getTime() > Date.now() + 24 * 60 * 60 * 1000) {
-      return NextResponse.json({ error: "تاريخ الدفع غير صالح" }, { status: 400 });
-    }
-    if (paymentProofUrl && !validProofUrl(paymentProofUrl, assignmentId)) {
-      return NextResponse.json({ error: "مرفق إثبات الدفع غير صالح" }, { status: 400 });
-    }
+    if (!paidAt || paidAt === undefined || paidAt.getTime() > Date.now() + 24 * 60 * 60 * 1000) return NextResponse.json({ error: "تاريخ الدفع مطلوب وصحيح" }, { status: 400 });
+    if (paymentProofUrl && !validProofUrl(paymentProofUrl, assignmentId)) return NextResponse.json({ error: "مرفق إثبات الدفع غير صالح" }, { status: 400 });
 
     const existing = await getStagePartnerAssignment(assignmentId);
     if (!existing) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });
@@ -201,14 +213,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "لا يمكن تسجيل الدفع قبل اعتماد تسليم الشريك واستحقاق المبلغ" }, { status: 409 });
     }
 
-    const paid = await recordStagePartnerPayment({
-      assignmentId,
-      paidAt,
-      paymentMethod,
-      paymentReference,
-      paymentProofUrl,
-      paymentProofName,
-    });
+    const paid = await recordStagePartnerPayment({ assignmentId, paidAt, paymentMethod, paymentReference, paymentProofUrl, paymentProofName });
     if (!paid) return NextResponse.json({ error: "تعذر تسجيل الدفع. حدّث الصفحة وتحقق من حالة المستحق" }, { status: 409 });
 
     await writeAdminAudit(db, {
@@ -230,15 +235,12 @@ export async function POST(request: NextRequest) {
         hasPaymentProof: Boolean(paid.paymentProofUrl),
       },
     });
-
     return NextResponse.json({ assignment: serializeStagePartnerAssignment(paid) });
   }
 
   const projectStageId = safeText(body?.projectStageId);
   const partnerId = safeText(body?.partnerId);
-  if (!projectStageId || !partnerId) {
-    return NextResponse.json({ error: "اختر المرحلة وشريك التنفيذ" }, { status: 400 });
-  }
+  if (!projectStageId || !partnerId) return NextResponse.json({ error: "اختر المرحلة وشريك التنفيذ" }, { status: 400 });
 
   const [stage, partner] = await Promise.all([
     db.projectStage.findUnique({
@@ -252,12 +254,8 @@ export async function POST(request: NextRequest) {
   ]);
   if (!stage) return NextResponse.json({ error: "مرحلة المشروع غير موجودة" }, { status: 404 });
   if (!partner) return NextResponse.json({ error: "شريك التنفيذ غير موجود أو غير فعال" }, { status: 404 });
-  if (["COMPLETED", "CANCELLED"].includes(stage.status)) {
-    return NextResponse.json({ error: "لا يمكن إسناد شريك إلى مرحلة مكتملة أو ملغاة" }, { status: 409 });
-  }
-  if (stage.project.status === "COMPLETED" || stage.project.status === "CANCELLED") {
-    return NextResponse.json({ error: "المشروع مغلق ولا يقبل إسنادات جديدة" }, { status: 409 });
-  }
+  if (["COMPLETED", "CANCELLED"].includes(stage.status)) return NextResponse.json({ error: "لا يمكن إسناد شريك إلى مرحلة مكتملة أو ملغاة" }, { status: 409 });
+  if (["COMPLETED", "CANCELLED"].includes(stage.project.status)) return NextResponse.json({ error: "المشروع مغلق ولا يقبل إسنادات جديدة" }, { status: 409 });
 
   const tasks = stringList(body?.tasks);
   const deliverables = stringList(body?.deliverables);
@@ -266,30 +264,18 @@ export async function POST(request: NextRequest) {
 
   const rawFee = body?.feeAmount;
   const feeAmount = rawFee == null || rawFee === "" ? null : Number(rawFee);
-  if (feeAmount == null || !Number.isFinite(feeAmount) || feeAmount <= 0 || feeAmount > 9_999_999_999.99) {
-    return NextResponse.json({ error: "حدد مستحقًا صحيحًا أكبر من صفر لشريك التنفيذ" }, { status: 400 });
-  }
+  if (feeAmount == null || !Number.isFinite(feeAmount) || feeAmount <= 0 || feeAmount > 9_999_999_999.99) return NextResponse.json({ error: "حدد مستحقًا صحيحًا أكبر من صفر لشريك التنفيذ" }, { status: 400 });
   const feeCurrency = typeof body?.feeCurrency === "string" ? body.feeCurrency.trim().toUpperCase() : stage.project.currency;
   if (!/^[A-Z]{3}$/.test(feeCurrency)) return NextResponse.json({ error: "عملة المستحق غير صالحة" }, { status: 400 });
   const dueAt = optionalDate(body?.dueAt);
   if (dueAt === undefined) return NextResponse.json({ error: "موعد التسليم الداخلي غير صالح" }, { status: 400 });
 
-  const before = (await listStagePartnerAssignments({ projectId: stage.project.id })).find(
-    (assignment) => assignment.projectStageId === projectStageId && assignment.partnerId === partnerId,
-  );
+  const before = (await listStagePartnerAssignments({ projectId: stage.project.id })).find((assignment) => assignment.projectStageId === projectStageId && assignment.partnerId === partnerId);
   if (before && (before.progress > 0 || before.status !== "ASSIGNED" || before.paymentStatus !== "PENDING")) {
     return NextResponse.json({ error: "بدأ تنفيذ هذا الإسناد بالفعل. لا يمكن تغيير المهام أو المستحق بعد بدء العمل" }, { status: 409 });
   }
 
-  const saved = await upsertStagePartnerAssignment({
-    projectStageId,
-    partnerId,
-    tasks,
-    deliverables,
-    feeAmount,
-    feeCurrency,
-    dueAt,
-  });
+  const saved = await upsertStagePartnerAssignment({ projectStageId, partnerId, tasks, deliverables, feeAmount, feeCurrency, dueAt });
   if (!saved) return NextResponse.json({ error: "تعذر حفظ إسناد المرحلة" }, { status: 500 });
 
   await writeAdminAudit(db, {
@@ -308,17 +294,7 @@ export async function POST(request: NextRequest) {
       feeCurrency: before.feeCurrency,
       dueAt: before.dueAt?.toISOString() || null,
     } : undefined,
-    after: {
-      projectStageId,
-      partnerId,
-      partnerEmail: partner.user.email,
-      tasks,
-      deliverables,
-      feeAmount,
-      feeCurrency,
-      dueAt: dueAt?.toISOString() || null,
-      paymentStatus: saved.paymentStatus,
-    },
+    after: { projectStageId, partnerId, partnerEmail: partner.user.email, tasks, deliverables, feeAmount, feeCurrency, dueAt: dueAt?.toISOString() || null, paymentStatus: saved.paymentStatus },
   });
 
   return NextResponse.json({ assignment: serializeStagePartnerAssignment(saved) }, { status: before ? 200 : 201 });

@@ -25,13 +25,7 @@ async function currentPartner(request: NextRequest) {
       email: true,
       role: true,
       isActive: true,
-      partner: {
-        select: {
-          id: true,
-          status: true,
-          createdAt: true,
-        },
-      },
+      partner: { select: { id: true, status: true, createdAt: true } },
     },
   });
 
@@ -145,25 +139,17 @@ export async function GET(request: NextRequest) {
 
   const projectGroups = new Map<string, Array<{ status: string }>>();
   for (const project of projects) {
-    const key = "clientProjectId" in project && typeof project.clientProjectId === "string" && project.clientProjectId
-      ? project.clientProjectId
-      : project.id;
+    const key = "clientProjectId" in project && typeof project.clientProjectId === "string" && project.clientProjectId ? project.clientProjectId : project.id;
     const group = projectGroups.get(key) || [];
     group.push({ status: project.status });
     projectGroups.set(key, group);
   }
   const activeProjectCount = Array.from(projectGroups.values()).filter((group) => group.some((item) => !["COMPLETED", "CANCELLED"].includes(item.status))).length;
   const completedProjectCount = Array.from(projectGroups.values()).filter((group) => group.length > 0 && group.every((item) => item.status === "COMPLETED")).length;
-  const averageProgress = activeProjects.length
-    ? Math.round(activeProjects.reduce((total, project) => total + project.progress, 0) / activeProjects.length)
-    : 0;
+  const averageProgress = activeProjects.length ? Math.round(activeProjects.reduce((total, project) => total + project.progress, 0) / activeProjects.length) : 0;
 
   return NextResponse.json({
-    partner: {
-      name: user.name || "شريك تنفيذ CyberWeel",
-      email: user.email,
-      joinedAt: user.partner!.createdAt,
-    },
+    partner: { name: user.name || "شريك تنفيذ CyberWeel", email: user.email, joinedAt: user.partner!.createdAt },
     isAdminPreview: user.isAdminPreview,
     stats: {
       activeProjects: activeProjectCount,
@@ -191,52 +177,31 @@ export async function PATCH(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
   const projectId = typeof body?.projectId === "string" ? body.projectId : "";
-  if (!projectId || body?.action !== "progress") {
-    return NextResponse.json({ error: "طلب غير صالح" }, { status: 400 });
-  }
+  if (!projectId || body?.action !== "progress") return NextResponse.json({ error: "طلب غير صالح" }, { status: 400 });
 
   const progress = Number(body?.progress);
-  if (!Number.isInteger(progress) || progress < 0 || progress > 100) {
-    return NextResponse.json({ error: "نسبة التقدم يجب أن تكون بين 0 و100" }, { status: 400 });
-  }
+  if (!Number.isInteger(progress) || progress < 0 || progress > 100) return NextResponse.json({ error: "نسبة التقدم يجب أن تكون بين 0 و100" }, { status: 400 });
 
   const stageAssignment = await getStagePartnerAssignment(projectId, user.partner!.id);
   if (stageAssignment) {
-    if (stageAssignment.stageStatus === "NOT_STARTED") {
-      return NextResponse.json({ error: "لا يمكن بدء التنفيذ قبل أن تبدأ الإدارة هذه المرحلة" }, { status: 409 });
-    }
-    if (["COMPLETED", "CANCELLED"].includes(stageAssignment.stageStatus)) {
-      return NextResponse.json({ error: "لا يمكن تعديل مرحلة مكتملة أو ملغاة" }, { status: 409 });
-    }
-    if (stageAssignment.status === "COMPLETED" || ["APPROVED", "PAID"].includes(stageAssignment.paymentStatus)) {
-      return NextResponse.json({ error: "اعتمدت الإدارة هذا التسليم، لذلك لم يعد تقدم الإسناد قابلًا للتعديل" }, { status: 409 });
+    if (stageAssignment.stageStatus === "NOT_STARTED") return NextResponse.json({ error: "لا يمكن بدء التنفيذ قبل أن تبدأ الإدارة هذه المرحلة" }, { status: 409 });
+    if (["COMPLETED", "CANCELLED"].includes(stageAssignment.stageStatus)) return NextResponse.json({ error: "لا يمكن تعديل مرحلة مكتملة أو ملغاة" }, { status: 409 });
+    if (stageAssignment.status === "REVIEW") return NextResponse.json({ error: "لديك تسليم بانتظار مراجعة الإدارة. لا يمكن تغيير التقدم حتى يصدر قرار المراجعة" }, { status: 409 });
+    if (stageAssignment.status === "COMPLETED" || ["APPROVED", "PAID"].includes(stageAssignment.paymentStatus)) return NextResponse.json({ error: "اعتمدت الإدارة هذا التسليم، لذلك لم يعد تقدم الإسناد قابلًا للتعديل" }, { status: 409 });
+    if (progress === 100) {
+      return NextResponse.json({
+        error: "لا يتم إكمال المرحلة برفع النسبة إلى 100٪ يدويًا. عند اكتمال العمل أرسل «تسليم المرحلة» بملاحظة أو رابط أو ملف ليصل إلى مراجعة الإدارة.",
+      }, { status: 409 });
     }
 
     const updated = await updateStagePartnerProgress({ assignmentId: projectId, partnerId: user.partner!.id, progress });
     if (!updated) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });
-
-    if (progress === 100 && stageAssignment.status !== "REVIEW") {
-      await db.adminNotification.create({
-        data: {
-          title: "تسليم شريك بانتظار المراجعة",
-          body: `${updated.partnerName || updated.partnerEmail} — ${updated.projectTitle} — ${updated.stageName}`,
-          href: "/admin/partners?section=projects",
-          kind: "PARTNER_STAGE_REVIEW",
-        },
-      }).catch(() => undefined);
-    }
-
     return NextResponse.json({ project: stageCard(serializeStagePartnerAssignment(updated)) });
   }
 
-  const project = await db.partnerProject.findFirst({
-    where: { id: projectId, partnerId: user.partner!.id },
-    select: { id: true, status: true },
-  });
+  const project = await db.partnerProject.findFirst({ where: { id: projectId, partnerId: user.partner!.id }, select: { id: true, status: true } });
   if (!project) return NextResponse.json({ error: "المشروع غير موجود" }, { status: 404 });
-  if (project.status === "COMPLETED") {
-    return NextResponse.json({ error: "لا يمكن تعديل مشروع مكتمل" }, { status: 409 });
-  }
+  if (project.status === "COMPLETED") return NextResponse.json({ error: "لا يمكن تعديل مشروع مكتمل" }, { status: 409 });
 
   const updated = await db.partnerProject.update({ where: { id: project.id }, data: { progress } });
   return NextResponse.json({ project: serializeLegacyProject(updated) });

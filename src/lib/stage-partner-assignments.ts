@@ -195,37 +195,16 @@ export async function updateStagePartnerProgress(input: {
   partnerId: string;
   progress: number;
 }) {
-  const status: StagePartnerAssignmentStatus = input.progress >= 100 ? "REVIEW" : input.progress > 0 ? "IN_PROGRESS" : "ASSIGNED";
+  const status: StagePartnerAssignmentStatus = input.progress > 0 ? "IN_PROGRESS" : "ASSIGNED";
   await db.$executeRaw(Prisma.sql`
     UPDATE "ProjectStagePartnerAssignment"
     SET "progress" = ${input.progress}, "status" = ${status}, "updatedAt" = CURRENT_TIMESTAMP
     WHERE "id" = ${input.assignmentId}
       AND "partnerId" = ${input.partnerId}
       AND "paymentStatus" = 'PENDING'::"ProjectPaymentStatus"
-      AND "status" <> 'COMPLETED'
+      AND "status" NOT IN ('REVIEW', 'COMPLETED', 'CANCELLED')
   `);
   return getStagePartnerAssignment(input.assignmentId, input.partnerId);
-}
-
-export async function approveStagePartnerDelivery(assignmentId: string) {
-  const rows = await db.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-    UPDATE "ProjectStagePartnerAssignment"
-    SET
-      "status" = 'COMPLETED',
-      "progress" = 100,
-      "paymentStatus" = 'APPROVED'::"ProjectPaymentStatus",
-      "approvedAt" = COALESCE("approvedAt", CURRENT_TIMESTAMP),
-      "updatedAt" = CURRENT_TIMESTAMP
-    WHERE "id" = ${assignmentId}
-      AND "status" = 'REVIEW'
-      AND "progress" = 100
-      AND "paymentStatus" = 'PENDING'::"ProjectPaymentStatus"
-      AND "feeAmount" IS NOT NULL
-      AND "feeAmount" > 0
-    RETURNING "id"
-  `);
-  if (!rows.length) return null;
-  return getStagePartnerAssignment(assignmentId);
 }
 
 export async function recordStagePartnerPayment(input: {
