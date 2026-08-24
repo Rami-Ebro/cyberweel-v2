@@ -1,19 +1,22 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
-const allowedPreviewBranch = "codex-9b7hcm";
+const legacyDbPushPreviewBranch = "codex-9b7hcm";
+const migrationPreviewBranch = "feat/stage-partner-assignment-workflow";
 const productionBranch = "main";
 const productionDatabaseHostFragment = "ep-quiet-bird-asiuetz3";
 
 const isVercel = process.env.VERCEL === "1";
+const previewRef = process.env.VERCEL_GIT_COMMIT_REF || "";
 const isAllowedPreview =
   isVercel &&
   process.env.VERCEL_ENV === "preview" &&
-  process.env.VERCEL_GIT_COMMIT_REF === allowedPreviewBranch;
+  [legacyDbPushPreviewBranch, migrationPreviewBranch].includes(previewRef);
 const isAllowedProduction =
   isVercel &&
   process.env.VERCEL_ENV === "production" &&
-  process.env.VERCEL_GIT_COMMIT_REF === productionBranch;
+  previewRef === productionBranch;
+const usePreviewMigrations = isAllowedPreview && previewRef === migrationPreviewBranch;
 
 if (!isAllowedPreview && !isAllowedProduction) {
   console.log("[deployment-db] Skipped outside the approved Vercel deployments.");
@@ -56,12 +59,16 @@ const prismaBinary = path.join(
   process.platform === "win32" ? "prisma.cmd" : "prisma",
 );
 const prismaArgs = isAllowedPreview
-  ? ["db", "push", "--skip-generate"]
+  ? usePreviewMigrations
+    ? ["migrate", "deploy"]
+    : ["db", "push", "--skip-generate"]
   : ["migrate", "deploy"];
 
 console.log(
   isAllowedPreview
-    ? "[deployment-db] Synchronizing the isolated Preview database schema."
+    ? usePreviewMigrations
+      ? "[deployment-db] Applying reviewed migrations to the isolated Preview database."
+      : "[deployment-db] Synchronizing the isolated Preview database schema."
     : "[deployment-db] Applying reviewed migrations to Production.",
 );
 
