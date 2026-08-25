@@ -150,7 +150,7 @@ export function DashboardVisualPolish({ mode }: { mode: Mode }) {
       border: 1px solid #283244;
       border-radius: 18px;
       background: linear-gradient(135deg, #111827 0%, #172033 100%);
-      padding: 24px 250px 24px 26px;
+      padding: 24px 26px 24px 250px;
       box-shadow: 0 16px 38px rgba(17, 24, 39, 0.12);
     }
 
@@ -260,6 +260,17 @@ export function DashboardVisualPolish({ mode }: { mode: Mode }) {
     @media (max-width: 900px) {
       [data-cyberweel-partner-projects-intro="true"] {
         padding: 22px !important;
+      }
+
+      [data-cyberweel-delivery-launcher="true"] {
+        position: static !important;
+        margin-top: 18px;
+        transform: none !important;
+      }
+
+      [data-cyberweel-delivery-launcher="true"] > button {
+        width: 100%;
+        min-width: 0 !important;
       }
     }
   `}</style>;
