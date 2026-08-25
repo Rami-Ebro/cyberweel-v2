@@ -1,4 +1,4 @@
-import { del, head } from "@vercel/blob";
+import { del, get, head } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { currentAdminAccess } from "@/lib/admin-permissions";
 import { db } from "@/lib/db";
@@ -17,10 +17,22 @@ export const runtime = "nodejs";
 type RouteContext = { params: Promise<{ assignmentId: string }> };
 type UploadedFileInput = { url?: unknown; name?: unknown; type?: unknown };
 type SubmissionBody = { note?: unknown; links?: unknown; files?: unknown };
+type ManifestChunk = { url?: unknown; size?: unknown };
+type ChunkManifest = {
+  version?: unknown;
+  assignmentId?: unknown;
+  fileId?: unknown;
+  fileName?: unknown;
+  fileType?: unknown;
+  totalSize?: unknown;
+  chunks?: unknown;
+};
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TOTAL_SIZE = 30 * 1024 * 1024;
+const MAX_CHUNK_SIZE = 3 * 1024 * 1024;
+const MAX_CHUNKS = Math.ceil(MAX_FILE_SIZE / MAX_CHUNK_SIZE);
 const ALLOWED_TYPES = new Set([
   "image/png",
   "image/jpeg",
@@ -73,6 +85,21 @@ function normalizedFileInput(value: UploadedFileInput) {
   return { url, name, type };
 }
 
+function validManifestFileId(value: unknown) {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{8,80}$/.test(value);
+}
+
+async function readChunkManifest(url: string, blobToken: string) {
+  const manifestBlob = await get(url, { access: "private", token: blobToken });
+  if (!manifestBlob || manifestBlob.statusCode !== 200) return null;
+  try {
+    const text = await new Response(manifestBlob.stream).text();
+    return JSON.parse(text) as ChunkManifest;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   const { assignmentId } = await context.params;
   const assignment = await getStagePartnerAssignment(assignmentId);
@@ -120,7 +147,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "أرسل ملاحظة تسليم أو رابطًا أو ملفًا واحدًا على الأقل" }, { status: 400 });
     }
     if (rawFiles.length > MAX_FILES) return NextResponse.json({ error: "يمكن إرفاق 5 ملفات كحد أقصى في كل نسخة تسليم" }, { status: 400 });
-    if (rawFiles.length && !process.env.BLOB_READ_WRITE_TOKEN?.trim()) {
+
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+    if (rawFiles.length && !blobToken) {
       return NextResponse.json({ error: "خدمة رفع ملفات التسليم غير مهيأة حاليًا" }, { status: 503 });
     }
 
@@ -142,13 +171,82 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
       let blob;
       try {
-        blob = await head(file.url);
+        blob = await head(file.url, { token: blobToken });
       } catch {
         return NextResponse.json({ error: `تعذر التحقق من الملف «${file.name}»` }, { status: 400 });
       }
       if (!blob.pathname.startsWith(requiredPrefix)) {
         return NextResponse.json({ error: `الملف «${file.name}» لا ينتمي إلى هذا التسليم` }, { status: 400 });
       }
+
+      const isChunkManifest = blob.pathname.startsWith(`${requiredPrefix}manifests/`) && blob.pathname.endsWith(".cwmanifest.json");
+      if (isChunkManifest) {
+        const manifest = await readChunkManifest(blob.url, blobToken!);
+        const fileId = manifest?.fileId;
+        const manifestFileName = typeof manifest?.fileName === "string" ? manifest.fileName : "";
+        const manifestFileType = typeof manifest?.fileType === "string" ? manifest.fileType : "";
+        const manifestTotalSize = Number(manifest?.totalSize);
+        const manifestChunks = Array.isArray(manifest?.chunks) ? manifest.chunks as ManifestChunk[] : [];
+
+        if (
+          manifest?.version !== 1 ||
+          manifest?.assignmentId !== assignmentId ||
+          !validManifestFileId(fileId) ||
+          manifestFileName !== file.name ||
+          !ALLOWED_TYPES.has(manifestFileType) ||
+          !Number.isInteger(manifestTotalSize) ||
+          manifestTotalSize <= 0 ||
+          manifestTotalSize > MAX_FILE_SIZE
+        ) {
+          return NextResponse.json({ error: `بيانات الملف «${file.name}» غير صالحة` }, { status: 400 });
+        }
+
+        const expectedChunks = Math.ceil(manifestTotalSize / MAX_CHUNK_SIZE);
+        if (!manifestChunks.length || manifestChunks.length !== expectedChunks || expectedChunks > MAX_CHUNKS) {
+          return NextResponse.json({ error: `أجزاء الملف «${file.name}» غير مكتملة` }, { status: 400 });
+        }
+
+        let manifestVerifiedSize = 0;
+        const manifestChunkUrls: string[] = [];
+        for (let index = 0; index < manifestChunks.length; index += 1) {
+          const chunkUrl = typeof manifestChunks[index]?.url === "string" ? manifestChunks[index].url!.trim() : "";
+          const declaredSize = Number(manifestChunks[index]?.size);
+          const expectedSize = Math.min(MAX_CHUNK_SIZE, manifestTotalSize - index * MAX_CHUNK_SIZE);
+          if (!chunkUrl || declaredSize !== expectedSize) {
+            return NextResponse.json({ error: `أحد أجزاء الملف «${file.name}» غير صالح` }, { status: 400 });
+          }
+
+          let chunkBlob;
+          try {
+            chunkBlob = await head(chunkUrl, { token: blobToken! });
+          } catch {
+            return NextResponse.json({ error: `تعذر التحقق من أجزاء الملف «${file.name}»` }, { status: 400 });
+          }
+          const expectedPath = `${requiredPrefix}chunks/${fileId}/${index}.part`;
+          if (chunkBlob.pathname !== expectedPath || chunkBlob.size !== expectedSize) {
+            return NextResponse.json({ error: `أحد أجزاء الملف «${file.name}» لا ينتمي إلى هذا التسليم` }, { status: 400 });
+          }
+
+          manifestVerifiedSize += chunkBlob.size;
+          manifestChunkUrls.push(chunkBlob.url);
+        }
+
+        if (manifestVerifiedSize !== manifestTotalSize) {
+          return NextResponse.json({ error: `حجم الملف «${file.name}» غير متطابق` }, { status: 400 });
+        }
+
+        totalSize += manifestTotalSize;
+        if (totalSize > MAX_TOTAL_SIZE) {
+          return NextResponse.json({ error: "إجمالي ملفات التسليم يجب ألا يتجاوز 30 MB" }, { status: 400 });
+        }
+
+        fileUrls.push(blob.url);
+        fileNames.push(file.name);
+        fileTypes.push(manifestFileType);
+        cleanupUrls.push(blob.url, ...manifestChunkUrls);
+        continue;
+      }
+
       if (blob.size > MAX_FILE_SIZE) {
         return NextResponse.json({ error: `الملف «${file.name}» يتجاوز الحد الأقصى 10 MB` }, { status: 400 });
       }
