@@ -9,8 +9,8 @@ export const runtime = "nodejs";
 
 // This route intentionally streams private delivery files through CyberWeel after
 // authorization. Chunked uploads are stored as a small private manifest plus private
-// chunk blobs; we resolve and validate every chunk before sending the response so a
-// missing/corrupt chunk produces a controlled error instead of crashing mid-stream.
+// chunk blobs; every chunk is resolved before the response starts. The manifest carries
+// the authoritative expected size because get() metadata is not reliable for body size.
 type RouteContext = { params: Promise<{ assignmentId: string; submissionId: string }> };
 type ManifestChunk = { url?: unknown; size?: unknown };
 type ChunkManifest = {
@@ -24,7 +24,6 @@ type ChunkManifest = {
 
 type ResolvedChunk = {
   stream: ReadableStream<Uint8Array>;
-  size: number;
 };
 
 function safeName(value: string | null | undefined) {
@@ -151,13 +150,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
         }
 
         const chunkBlob = await get(chunkUrl, { access: "private", token: blobToken, useCache: false });
-        if (!chunkBlob || chunkBlob.statusCode !== 200 || chunkBlob.blob.size !== declaredSize) {
-          console.error("[partner-stage-file] chunk unavailable", { assignmentId, submissionId, chunkIndex, declaredSize, actualSize: chunkBlob?.blob.size ?? null });
+        if (!chunkBlob || chunkBlob.statusCode !== 200) {
+          console.error("[partner-stage-file] chunk unavailable", { assignmentId, submissionId, chunkIndex, declaredSize });
           return NextResponse.json({ error: "تعذر قراءة أحد أجزاء الملف المخزن" }, { status: 500 });
         }
 
-        verifiedSize += chunkBlob.blob.size;
-        resolvedChunks.push({ stream: chunkBlob.stream, size: chunkBlob.blob.size });
+        verifiedSize += declaredSize;
+        resolvedChunks.push({ stream: chunkBlob.stream });
       }
 
       if (verifiedSize !== totalSize) {
@@ -176,16 +175,18 @@ export async function GET(request: NextRequest, context: RouteContext) {
       });
     }
 
-    return new Response(blob.stream, {
-      headers: {
-        "Content-Type": blob.blob.contentType || submission.fileTypes[index] || "application/octet-stream",
-        "Content-Length": String(blob.blob.size),
-        "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(safeName(submission.fileNames[index]))}`,
-        "Cache-Control": "private, no-store",
-        "X-Content-Type-Options": "nosniff",
-        ETag: blob.blob.etag,
-      },
-    });
+    const headers: Record<string, string> = {
+      "Content-Type": blob.blob.contentType || submission.fileTypes[index] || "application/octet-stream",
+      "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(safeName(submission.fileNames[index]))}`,
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+      ETag: blob.blob.etag,
+    };
+    if (Number.isFinite(blob.blob.size) && blob.blob.size > 0) {
+      headers["Content-Length"] = String(blob.blob.size);
+    }
+
+    return new Response(blob.stream, { headers });
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown file delivery error";
     console.error("[partner-stage-file] failed", { assignmentId, submissionId, message });
