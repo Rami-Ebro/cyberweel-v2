@@ -44,13 +44,28 @@ function safeFileName(value: string) {
   return ascii || `partner-delivery-${Date.now()}`;
 }
 
+export async function GET() {
+  return NextResponse.json({
+    hasBlobToken: Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim()),
+    hasBlobStoreId: Boolean(process.env.BLOB_STORE_ID?.trim()),
+    hasVercelOidcToken: Boolean(process.env.VERCEL_OIDC_TOKEN?.trim()),
+  });
+}
+
 export async function POST(request: NextRequest, context: RouteContext) {
   const { assignmentId } = await context.params;
   const body = await request.json().catch(() => null) as HandleUploadBody | null;
   if (!body) return NextResponse.json({ error: "تعذر قراءة طلب رفع الملف" }, { status: 400 });
 
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  if (!blobToken) {
+    console.error("[partner-stage-upload] BLOB_READ_WRITE_TOKEN is unavailable in this deployment");
+    return NextResponse.json({ error: "خدمة رفع الملفات غير مهيأة في بيئة الاختبار الحالية" }, { status: 503 });
+  }
+
   try {
     const jsonResponse = await handleUpload({
+      token: blobToken,
       body,
       request,
       onBeforeGenerateToken: async (_pathname, clientPayload) => {
@@ -76,18 +91,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
           throw new Error("لديك نسخة بانتظار مراجعة الإدارة. انتظر قرار المراجعة قبل رفع نسخة جديدة");
         }
 
-        let fileName = "partner-delivery";
         if (clientPayload) {
           try {
             const parsed = JSON.parse(clientPayload) as { fileName?: unknown };
-            if (typeof parsed.fileName === "string" && parsed.fileName.trim()) fileName = parsed.fileName.trim();
+            if (parsed.fileName !== undefined && typeof parsed.fileName !== "string") throw new Error();
           } catch {
             throw new Error("بيانات الملف غير صالحة");
           }
         }
 
         return {
-          pathname: `partner-stage-submissions/${assignmentId}/${safeFileName(fileName)}`,
           allowedContentTypes: ALLOWED_TYPES,
           maximumSizeInBytes: MAX_FILE_SIZE,
           addRandomSuffix: true,
@@ -105,6 +118,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json(jsonResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : "تعذر تجهيز رفع الملف";
+    console.error("[partner-stage-upload] failed", { assignmentId, message });
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
