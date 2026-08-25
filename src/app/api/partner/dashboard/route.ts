@@ -13,6 +13,17 @@ import { NextRequest, NextResponse } from "next/server";
 
 const PROJECT_STATUSES = ["ASSIGNED", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD"] as const;
 
+type StageSubmissionSummary = {
+  id: string;
+  assignmentId: string;
+  version: number;
+  status: string;
+  reviewNote: string | null;
+  fileNames: string[];
+  createdAt: Date;
+  reviewedAt: Date | null;
+};
+
 async function currentPartner(request: NextRequest) {
   const session = readPartnerSession(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
   if (!session) return null;
@@ -69,7 +80,15 @@ function serializeLegacyProject<T extends { feeAmount: { toString(): string } | 
   };
 }
 
-function stageCard(row: SerializedStagePartnerAssignment) {
+function submissionMessage(submission: StageSubmissionSummary) {
+  if (submission.status === "CHANGES_REQUESTED") {
+    return `النسخة ${submission.version}: طلبت الإدارة تعديلًا${submission.reviewNote ? ` — ${submission.reviewNote}` : ""}`;
+  }
+  if (submission.status === "APPROVED") return `النسخة ${submission.version}: اعتمدتها الإدارة`;
+  return `النسخة ${submission.version}: بانتظار مراجعة الإدارة`;
+}
+
+function stageCard(row: SerializedStagePartnerAssignment, submissions: StageSubmissionSummary[] = [], origin = "") {
   const closedStatus = row.stageStatus === "COMPLETED"
     ? "COMPLETED"
     : row.stageStatus === "CANCELLED"
@@ -85,8 +104,11 @@ function stageCard(row: SerializedStagePartnerAssignment) {
     progress: row.stageStatus === "COMPLETED" ? 100 : row.progress,
     tasks: row.tasks,
     deliverables: row.deliverables,
-    files: [] as string[],
-    updates: [] as string[],
+    files: submissions.flatMap((submission) => submission.fileNames.map((name, index) => {
+      const displayName = `النسخة-${submission.version}-${name}`;
+      return `${origin}/api/partner/stage-assignments/${encodeURIComponent(row.id)}/submissions/${encodeURIComponent(submission.id)}/files/${encodeURIComponent(displayName)}?index=${index}`;
+    })),
+    updates: submissions.map((submission) => `${(submission.reviewedAt || submission.createdAt).toISOString()} — ${submissionMessage(submission)}`),
     feeAmount: row.feeAmount,
     feeCurrency: row.feeCurrency,
     paymentStatus: row.paymentStatus,
@@ -102,6 +124,31 @@ function stageCard(row: SerializedStagePartnerAssignment) {
   };
 }
 
+async function submissionsForAssignments(assignmentIds: string[]) {
+  if (!assignmentIds.length) return new Map<string, StageSubmissionSummary[]>();
+  const rows = await db.projectStagePartnerSubmission.findMany({
+    where: { assignmentId: { in: assignmentIds } },
+    orderBy: [{ assignmentId: "asc" }, { version: "asc" }],
+    select: {
+      id: true,
+      assignmentId: true,
+      version: true,
+      status: true,
+      reviewNote: true,
+      fileNames: true,
+      createdAt: true,
+      reviewedAt: true,
+    },
+  });
+  const grouped = new Map<string, StageSubmissionSummary[]>();
+  for (const row of rows) {
+    const list = grouped.get(row.assignmentId) || [];
+    list.push(row);
+    grouped.set(row.assignmentId, list);
+  }
+  return grouped;
+}
+
 export async function GET(request: NextRequest) {
   const user = await dashboardPartner(request);
   if (!user) return NextResponse.json({ error: "الحساب غير متاح" }, { status: 401 });
@@ -115,8 +162,9 @@ export async function GET(request: NextRequest) {
   ]);
 
   const serializedStageRows = stageRows.map(serializeStagePartnerAssignment);
+  const submissionsByAssignment = await submissionsForAssignments(serializedStageRows.map((row) => row.id));
   const stageProjectIds = new Set(serializedStageRows.map((row) => row.projectId));
-  const stageProjects = serializedStageRows.map(stageCard);
+  const stageProjects = serializedStageRows.map((row) => stageCard(row, submissionsByAssignment.get(row.id) || [], request.nextUrl.origin));
   const legacyProjects = legacyAssignments
     .filter((assignment) => !assignment.clientProjectId || !stageProjectIds.has(assignment.clientProjectId))
     .map(serializeLegacyProject);
@@ -196,7 +244,8 @@ export async function PATCH(request: NextRequest) {
 
     const updated = await updateStagePartnerProgress({ assignmentId: projectId, partnerId: user.partner!.id, progress });
     if (!updated) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });
-    return NextResponse.json({ project: stageCard(serializeStagePartnerAssignment(updated)) });
+    const submissions = (await submissionsForAssignments([projectId])).get(projectId) || [];
+    return NextResponse.json({ project: stageCard(serializeStagePartnerAssignment(updated), submissions, request.nextUrl.origin) });
   }
 
   const project = await db.partnerProject.findFirst({ where: { id: projectId, partnerId: user.partner!.id }, select: { id: true, status: true } });
