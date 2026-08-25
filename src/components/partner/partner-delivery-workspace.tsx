@@ -1,6 +1,5 @@
 "use client";
 
-import { uploadPresigned } from "@vercel/blob/client";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { CheckCircle2, ExternalLink, FileUp, History, Paperclip, Send, Trash2, X } from "lucide-react";
@@ -35,9 +34,12 @@ type DashboardPayload = {
   projects: Assignment[];
 };
 
+type UploadedChunk = { url: string; size: number };
+
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TOTAL_SIZE = 30 * 1024 * 1024;
+const UPLOAD_CHUNK_SIZE = 3 * 1024 * 1024;
 const UPLOAD_INACTIVITY_TIMEOUT_MS = 20_000;
 
 const statusLabel: Record<Submission["status"], string> = {
@@ -60,11 +62,70 @@ function fileSize(size: number) {
   return size < 1024 * 1024 ? `${(size / 1024).toFixed(1)} KB` : `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function storageFileName(file: File, index: number) {
-  const extension = file.name.includes(".")
-    ? file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || ""
-    : "";
-  return `delivery-${Date.now()}-${index + 1}${extension ? `.${extension}` : ""}`;
+function createFileId() {
+  const value = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return value.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 80);
+}
+
+function uploadChunkViaApp(input: {
+  endpoint: string;
+  chunk: Blob;
+  onProgress: (loaded: number) => void;
+}) {
+  return new Promise<UploadedChunk>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+    let settled = false;
+    let timedOut = false;
+
+    const clearTimer = () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      inactivityTimer = null;
+    };
+    const armTimer = () => {
+      clearTimer();
+      inactivityTimer = setTimeout(() => {
+        timedOut = true;
+        xhr.abort();
+      }, UPLOAD_INACTIVITY_TIMEOUT_MS);
+    };
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      clearTimer();
+      reject(error);
+    };
+    const succeed = (value: UploadedChunk) => {
+      if (settled) return;
+      settled = true;
+      clearTimer();
+      resolve(value);
+    };
+
+    xhr.open("POST", input.endpoint);
+    xhr.responseType = "json";
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+
+    xhr.upload.onprogress = (event) => {
+      armTimer();
+      input.onProgress(event.loaded);
+    };
+    xhr.onload = () => {
+      const payload = xhr.response && typeof xhr.response === "object" ? xhr.response as Record<string, unknown> : null;
+      if (xhr.status >= 200 && xhr.status < 300 && typeof payload?.url === "string" && typeof payload?.size === "number") {
+        succeed({ url: payload.url, size: payload.size });
+        return;
+      }
+      fail(new Error(typeof payload?.error === "string" ? payload.error : `تعذر رفع جزء الملف (${xhr.status || "network"})`));
+    };
+    xhr.onerror = () => fail(new Error("تعذر الاتصال بخادم CyberWeel أثناء رفع الملف"));
+    xhr.onabort = () => fail(new Error(timedOut ? "UPLOAD_STALLED" : "تم إلغاء رفع الملف"));
+
+    armTimer();
+    xhr.send(input.chunk);
+  });
 }
 
 export function PartnerDeliveryWorkspace() {
@@ -179,56 +240,87 @@ export function PartnerDeliveryWorkspace() {
     setBusyText((value) => ({ ...value, [assignment.id]: files.length ? `جارٍ تجهيز رفع الملف 1 من ${files.length}...` : "جارٍ إرسال التسليم..." }));
     setError("");
     setNotice("");
+
     try {
       const uploadedFiles: Array<{ url: string; name: string; type: string }> = [];
+      const totalUploadBytes = files.reduce((sum, file) => sum + file.size, 0);
+      let completedUploadBytes = 0;
+
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index];
-        const controller = new AbortController();
-        let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
-        const armInactivityTimeout = () => {
-          if (inactivityTimer) clearTimeout(inactivityTimer);
-          inactivityTimer = setTimeout(() => controller.abort(), UPLOAD_INACTIVITY_TIMEOUT_MS);
-        };
+        const fileId = createFileId();
+        const chunkCount = Math.ceil(file.size / UPLOAD_CHUNK_SIZE);
+        const uploadedChunks: UploadedChunk[] = [];
+        let completedFileBytes = 0;
+        const uploadEndpoint = `/api/partner/stage-assignments/${encodeURIComponent(assignment.id)}/submissions/upload`;
 
-        armInactivityTimeout();
-        setBusyText((value) => ({ ...value, [assignment.id]: `جارٍ رفع الملف ${index + 1} من ${files.length} — 0٪` }));
+        for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex += 1) {
+          const start = chunkIndex * UPLOAD_CHUNK_SIZE;
+          const end = Math.min(file.size, start + UPLOAD_CHUNK_SIZE);
+          const chunk = file.slice(start, end);
+          const params = new URLSearchParams({
+            action: "chunk",
+            fileId,
+            fileName: file.name,
+            fileType: file.type || "application/octet-stream",
+            totalSize: String(file.size),
+            chunkIndex: String(chunkIndex),
+          });
 
-        try {
-          const blob = await uploadPresigned(
-            `partner-stage-submissions/${assignment.id}/${storageFileName(file, index)}`,
-            file,
-            {
-              access: "private",
-              handleUploadUrl: `/api/partner/stage-assignments/${encodeURIComponent(assignment.id)}/submissions/upload`,
-              clientPayload: JSON.stringify({ fileName: file.name }),
-              multipart: file.size > 4 * 1024 * 1024,
-              abortSignal: controller.signal,
-              onUploadProgress: (progressEvent) => {
-                armInactivityTimeout();
-                const filePercentage = Math.max(0, Math.min(100, Math.round(progressEvent.percentage || 0)));
-                const overallPercentage = files.length
-                  ? Math.round(((index + filePercentage / 100) / files.length) * 90)
+          setBusyText((value) => ({ ...value, [assignment.id]: `جارٍ رفع الملف ${index + 1} من ${files.length} — ${Math.round((completedFileBytes / file.size) * 100)}٪` }));
+
+          try {
+            const uploadedChunk = await uploadChunkViaApp({
+              endpoint: `${uploadEndpoint}?${params.toString()}`,
+              chunk,
+              onProgress: (loaded) => {
+                const fileLoaded = Math.min(file.size, completedFileBytes + loaded);
+                const filePercentage = Math.max(0, Math.min(100, Math.round((fileLoaded / file.size) * 100)));
+                const overallLoaded = completedUploadBytes + loaded;
+                const overallPercentage = totalUploadBytes > 0
+                  ? Math.max(0, Math.min(90, Math.round((overallLoaded / totalUploadBytes) * 90)))
                   : 90;
                 setUploadProgress((value) => ({ ...value, [assignment.id]: overallPercentage }));
                 setBusyText((value) => ({ ...value, [assignment.id]: `جارٍ رفع الملف ${index + 1} من ${files.length} — ${filePercentage}٪` }));
               },
-              ...(file.type ? { contentType: file.type } : {}),
-            },
-          );
-          uploadedFiles.push({
-            url: blob.url,
-            name: file.name,
-            type: file.type || blob.contentType || "application/octet-stream",
-          });
-          setUploadProgress((value) => ({ ...value, [assignment.id]: Math.round(((index + 1) / files.length) * 90) }));
-        } catch (uploadError) {
-          if (controller.signal.aborted) {
-            throw new Error(`توقف رفع الملف «${file.name}» لأنه لم يحقق أي تقدم لمدة 20 ثانية. قد يكون الاتصال بخدمة التخزين محجوبًا أو غير مستقر على الشبكة الحالية.`);
+            });
+            uploadedChunks.push(uploadedChunk);
+            completedFileBytes += chunk.size;
+            completedUploadBytes += chunk.size;
+            const completedPercentage = totalUploadBytes > 0
+              ? Math.min(90, Math.round((completedUploadBytes / totalUploadBytes) * 90))
+              : 90;
+            setUploadProgress((value) => ({ ...value, [assignment.id]: completedPercentage }));
+          } catch (uploadError) {
+            if (uploadError instanceof Error && uploadError.message === "UPLOAD_STALLED") {
+              throw new Error(`توقف رفع الملف «${file.name}» لأنه لم يحقق أي تقدم لمدة 20 ثانية عبر خادم CyberWeel. تحقق من الاتصال وحاول مجددًا.`);
+            }
+            throw uploadError;
           }
-          throw uploadError;
-        } finally {
-          if (inactivityTimer) clearTimeout(inactivityTimer);
         }
+
+        setBusyText((value) => ({ ...value, [assignment.id]: `جارٍ تثبيت الملف ${index + 1} من ${files.length}...` }));
+        const manifestResponse = await fetch(`${uploadEndpoint}?action=manifest`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileId,
+            fileName: file.name,
+            fileType: file.type || "application/octet-stream",
+            totalSize: file.size,
+            chunks: uploadedChunks,
+          }),
+        });
+        const manifestPayload = await manifestResponse.json().catch(() => null);
+        if (!manifestResponse.ok || !manifestPayload?.url) {
+          throw new Error(manifestPayload?.error || `تعذر تثبيت الملف «${file.name}»`);
+        }
+
+        uploadedFiles.push({
+          url: manifestPayload.url,
+          name: file.name,
+          type: file.type || manifestPayload.type || "application/octet-stream",
+        });
       }
 
       setUploadProgress((value) => ({ ...value, [assignment.id]: files.length ? 94 : 90 }));
@@ -319,7 +411,7 @@ export function PartnerDeliveryWorkspace() {
                           <div className="flex items-center justify-between gap-3"><span className="inline-flex items-center gap-2 text-sm font-black"><Paperclip className="h-4 w-4 text-[#9A7D43]" />ملفات التسليم</span><span className="rounded-full bg-[#F7F3EB] px-3 py-1 text-xs font-black">{files.length} / {MAX_FILES}</span></div>
                           <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-xl border border-[#D8D2C4] bg-[#F7F3EB] px-4 py-2.5 text-sm font-black text-[#755D32]"><FileUp className="h-4 w-4" />إضافة ملفات<input type="file" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.zip,.txt,.csv,.docx,.xlsx,.pptx" className="sr-only" onChange={(event) => { addFiles(assignment.id, event.currentTarget.files); event.currentTarget.value = ""; }} /></label>
                           {files.length ? <div className="grid gap-2">{files.map((file) => <div key={fileKey(file)} className="flex items-center gap-3 rounded-xl border border-[#E6E0D4] bg-[#FCFAF6] px-3 py-2"><Paperclip className="h-4 w-4 shrink-0 text-[#9A7D43]" /><div className="min-w-0 flex-1"><p dir="auto" className="truncate text-sm font-black">{file.name}</p><p className="text-xs text-slate-500">{fileSize(file.size)}</p></div><button type="button" onClick={() => removeFile(assignment.id, fileKey(file))} className="rounded-lg bg-rose-50 p-2 text-rose-700" aria-label={`حذف ${file.name}`}><Trash2 className="h-4 w-4" /></button></div>)}</div> : <p className="text-xs text-slate-500">يمكنك اختيار صورتين أو أكثر على دفعات، حتى 5 ملفات.</p>}
-                          <span className="text-xs text-slate-500">10 MB للملف الواحد، و30 MB كحد إجمالي. تُرفع الملفات مباشرة إلى التخزين الآمن ثم يُرسل سجل التسليم إلى الإدارة.</span>
+                          <span className="text-xs text-slate-500">10 MB للملف الواحد، و30 MB كحد إجمالي. تُقسم الملفات إلى أجزاء آمنة وتُرفع عبر خادم CyberWeel نفسه، ثم يُرسل سجل التسليم إلى الإدارة.</span>
                         </div>
 
                         {busy === assignment.id && (
