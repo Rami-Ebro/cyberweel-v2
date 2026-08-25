@@ -14,22 +14,38 @@ function displayValue(value: string) {
   return match ? `${match[1]}/${match[2]}/${match[3]}` : "YYYY/MM/DD";
 }
 
+function cyberweelToday() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Damascus",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value || "";
+  const month = parts.find((part) => part.type === "month")?.value || "";
+  const day = parts.find((part) => part.type === "day")?.value || "";
+  return year && month && day ? `${year}-${month}-${day}` : "";
+}
+
 /** Keeps the native picker while presenting a stable year/month/day value. */
-export function DateInput({ className, defaultValue, value, onChange, ...props }: DateInputProps) {
+export function DateInput({ className, defaultValue, value, onChange, name, max, ...props }: DateInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const controlled = value !== undefined;
-  const [localValue, setLocalValue] = useState(() => inputValue(value ?? defaultValue));
+  const paymentToday = name === "paidAt" ? cyberweelToday() : "";
+  const effectiveDefaultValue = defaultValue ?? paymentToday;
+  const effectiveMax = max ?? (paymentToday || undefined);
+  const [localValue, setLocalValue] = useState(() => inputValue(value ?? effectiveDefaultValue));
   const currentValue = controlled ? inputValue(value) : localValue;
 
   useEffect(() => {
     const form = inputRef.current?.form;
     if (!form || controlled) return;
     const handleReset = () => {
-      requestAnimationFrame(() => setLocalValue(inputRef.current?.value || inputValue(defaultValue)));
+      requestAnimationFrame(() => setLocalValue(inputRef.current?.value || inputValue(effectiveDefaultValue)));
     };
     form.addEventListener("reset", handleReset);
     return () => form.removeEventListener("reset", handleReset);
-  }, [controlled, defaultValue]);
+  }, [controlled, effectiveDefaultValue]);
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     if (!controlled) setLocalValue(event.currentTarget.value);
@@ -51,11 +67,13 @@ export function DateInput({ className, defaultValue, value, onChange, ...props }
       <input
         {...props}
         ref={inputRef}
+        name={name}
+        max={effectiveMax}
         type="date"
         lang="en-CA"
         dir="rtl"
         style={{ direction: "rtl" }}
-        defaultValue={controlled ? undefined : inputValue(defaultValue)}
+        defaultValue={controlled ? undefined : inputValue(effectiveDefaultValue)}
         value={controlled ? currentValue : undefined}
         onChange={handleChange}
         className={cn(

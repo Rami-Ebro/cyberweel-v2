@@ -1,19 +1,22 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
-const allowedPreviewBranch = "codex-9b7hcm";
+const legacyDbPushPreviewBranch = "codex-9b7hcm";
+const stagePartnerPreviewBranch = "feat/stage-partner-assignment-workflow";
 const productionBranch = "main";
 const productionDatabaseHostFragment = "ep-quiet-bird-asiuetz3";
 
 const isVercel = process.env.VERCEL === "1";
+const gitRef = process.env.VERCEL_GIT_COMMIT_REF || "";
 const isAllowedPreview =
   isVercel &&
   process.env.VERCEL_ENV === "preview" &&
-  process.env.VERCEL_GIT_COMMIT_REF === allowedPreviewBranch;
+  [legacyDbPushPreviewBranch, stagePartnerPreviewBranch].includes(gitRef);
+const isStagePartnerPreview = isAllowedPreview && gitRef === stagePartnerPreviewBranch;
 const isAllowedProduction =
   isVercel &&
   process.env.VERCEL_ENV === "production" &&
-  process.env.VERCEL_GIT_COMMIT_REF === productionBranch;
+  gitRef === productionBranch;
 
 if (!isAllowedPreview && !isAllowedProduction) {
   console.log("[deployment-db] Skipped outside the approved Vercel deployments.");
@@ -55,41 +58,44 @@ const prismaBinary = path.join(
   ".bin",
   process.platform === "win32" ? "prisma.cmd" : "prisma",
 );
-const prismaArgs = isAllowedPreview
-  ? ["db", "push", "--skip-generate"]
-  : ["migrate", "deploy"];
-
-console.log(
-  isAllowedPreview
-    ? "[deployment-db] Synchronizing the isolated Preview database schema."
-    : "[deployment-db] Applying reviewed migrations to Production.",
-);
-
 const maxAttempts = 3;
 
-for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-  console.log(`[deployment-db] Prisma attempt ${attempt}/${maxAttempts}.`);
+async function runPrisma(args, label) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    console.log(`[deployment-db] ${label} attempt ${attempt}/${maxAttempts}.`);
+    const result = spawnSync(prismaBinary, args, {
+      env: process.env,
+      stdio: "inherit",
+    });
 
-  const result = spawnSync(prismaBinary, prismaArgs, {
-    env: process.env,
-    stdio: "inherit",
-  });
+    if (!result.error && result.status === 0) return true;
+    if (result.error) console.error("[deployment-db] Failed to start Prisma:", result.error.message);
 
-  if (!result.error && result.status === 0) {
-    process.exit(0);
+    if (attempt < maxAttempts) {
+      const delayMs = attempt * 5000;
+      console.warn(`[deployment-db] Prisma did not complete; retrying in ${delayMs / 1000} seconds.`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    } else {
+      process.exit(result.status ?? 1);
+    }
   }
-
-  if (result.error) {
-    console.error("[deployment-db] Failed to start Prisma:", result.error.message);
-  }
-
-  if (attempt < maxAttempts) {
-    const delayMs = attempt * 5000;
-    console.warn(
-      `[deployment-db] Prisma did not complete; retrying in ${delayMs / 1000} seconds.`,
-    );
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
-  } else {
-    process.exit(result.status ?? 1);
-  }
+  return false;
 }
+
+if (isAllowedPreview) {
+  console.log("[deployment-db] Synchronizing the isolated Preview database schema.");
+  await runPrisma(["db", "push", "--skip-generate"], "Preview schema sync");
+
+  if (isStagePartnerPreview) {
+    console.log("[deployment-db] Applying the stage-partner Preview-only schema extension.");
+    await runPrisma(
+      ["db", "execute", "--file", "scripts/preview-stage-partner-schema.sql", "--schema", "prisma/schema.prisma"],
+      "Stage-partner Preview schema",
+    );
+  }
+  process.exit(0);
+}
+
+console.log("[deployment-db] Applying reviewed migrations to Production.");
+await runPrisma(["migrate", "deploy"], "Production migration");
+process.exit(0);
