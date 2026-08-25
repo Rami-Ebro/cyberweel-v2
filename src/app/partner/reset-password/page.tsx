@@ -6,6 +6,8 @@ import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { dashboardErrorMessage } from "@/lib/dashboard-labels";
 
+const LOGIN_REDIRECT_DELAY_MS = 1500;
+
 function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -20,7 +22,7 @@ function ResetPasswordForm() {
     if (!done) return;
     const timer = window.setTimeout(() => {
       router.replace("/login");
-    }, 1500);
+    }, LOGIN_REDIRECT_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [done, router]);
 
