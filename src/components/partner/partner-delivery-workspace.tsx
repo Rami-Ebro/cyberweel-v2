@@ -1,6 +1,6 @@
 "use client";
 
-import { upload } from "@vercel/blob/client";
+import { uploadPresigned } from "@vercel/blob/client";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { CheckCircle2, ExternalLink, FileUp, History, Paperclip, Send, Trash2, X } from "lucide-react";
@@ -57,6 +57,13 @@ function fileKey(file: File) {
 
 function fileSize(size: number) {
   return size < 1024 * 1024 ? `${(size / 1024).toFixed(1)} KB` : `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function storageFileName(file: File, index: number) {
+  const extension = file.name.includes(".")
+    ? file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || ""
+    : "";
+  return `delivery-${Date.now()}-${index + 1}${extension ? `.${extension}` : ""}`;
 }
 
 export function PartnerDeliveryWorkspace() {
@@ -174,14 +181,13 @@ export function PartnerDeliveryWorkspace() {
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index];
         setBusyText((value) => ({ ...value, [assignment.id]: `جارٍ رفع الملف ${index + 1} من ${files.length}...` }));
-        const blob = await upload(
-          `partner-stage-submissions/${assignment.id}/${file.name}`,
+        const blob = await uploadPresigned(
+          `partner-stage-submissions/${assignment.id}/${storageFileName(file, index)}`,
           file,
           {
             access: "private",
             handleUploadUrl: `/api/partner/stage-assignments/${encodeURIComponent(assignment.id)}/submissions/upload`,
             clientPayload: JSON.stringify({ fileName: file.name }),
-            multipart: file.size > 4 * 1024 * 1024,
             ...(file.type ? { contentType: file.type } : {}),
           },
         );
@@ -208,7 +214,7 @@ export function PartnerDeliveryWorkspace() {
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "تعذر إرسال التسليم";
       setError(message.includes("413") || message.toLowerCase().includes("payload too large")
-        ? "تعذر رفع الملفات بالطريقة السابقة بسبب حجم الطلب. حدّث الصفحة وحاول مجددًا؛ تم تحويل الرفع إلى المسار المباشر."
+        ? "تعذر رفع الملفات بسبب حجم الطلب. حاول مجددًا بعد تحديث الصفحة."
         : message);
     } finally {
       setBusy(null);
