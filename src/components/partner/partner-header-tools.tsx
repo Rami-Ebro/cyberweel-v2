@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Bell, CheckCircle2, RefreshCw } from "lucide-react";
+import { ArrowLeft, Bell, CheckCircle2, CheckCheck, RefreshCw } from "lucide-react";
 
 type PartnerProject = {
   id: string;
@@ -32,7 +32,8 @@ type PartnerNotification = {
   section: PartnerSection;
 };
 
-const SEEN_KEY = "cyberweel-partner-notifications-seen-at";
+const LEGACY_SEEN_KEY = "cyberweel-partner-notifications-seen-at";
+const SEEN_IDS_KEY = "cyberweel-partner-notifications-seen-ids";
 const SECTION_INDEX: Record<PartnerSection, number> = {
   overview: 0,
   projects: 1,
@@ -102,6 +103,15 @@ function displayDate(value: string) {
   }
 }
 
+function storedSeenIds() {
+  try {
+    const value = JSON.parse(localStorage.getItem(SEEN_IDS_KEY) || "[]");
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 function reorderHeaderButtons(host: HTMLElement) {
   host.classList.add("flex-wrap", "justify-end");
 
@@ -127,11 +137,13 @@ export function PartnerHeaderTools() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [seenAt, setSeenAt] = useState(0);
+  const [seenIds, setSeenIds] = useState<string[]>([]);
+  const [seenReady, setSeenReady] = useState(false);
   const notificationRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setSeenAt(Date.parse(localStorage.getItem(SEEN_KEY) || "") || 0);
+    setSeenIds(storedSeenIds());
+    setSeenReady(true);
 
     const attach = () => {
       const header = document.querySelector("main header");
@@ -192,7 +204,25 @@ export function PartnerHeaderTools() {
   }, []);
 
   const notifications = useMemo(() => buildNotifications(projects), [projects]);
-  const unread = notifications.filter((item) => Date.parse(item.timestamp) > seenAt).length;
+
+  useEffect(() => {
+    if (!seenReady || !notifications.length || localStorage.getItem(SEEN_IDS_KEY)) return;
+    const legacySeenAt = Date.parse(localStorage.getItem(LEGACY_SEEN_KEY) || "") || 0;
+    if (!legacySeenAt) return;
+    const migrated = notifications
+      .filter((item) => Date.parse(item.timestamp) <= legacySeenAt)
+      .map((item) => item.id);
+    setSeenIds(migrated);
+    localStorage.setItem(SEEN_IDS_KEY, JSON.stringify(migrated));
+  }, [notifications, seenReady]);
+
+  const unread = notifications.filter((item) => !seenIds.includes(item.id)).length;
+
+  function rememberSeen(ids: string[]) {
+    const next = Array.from(new Set([...seenIds, ...ids])).slice(-100);
+    setSeenIds(next);
+    localStorage.setItem(SEEN_IDS_KEY, JSON.stringify(next));
+  }
 
   function toggleNotifications() {
     setOpen((current) => {
@@ -209,11 +239,13 @@ export function PartnerHeaderTools() {
   }
 
   function actOnNotification(item: PartnerNotification) {
-    const now = Date.now();
-    setSeenAt(now);
-    localStorage.setItem(SEEN_KEY, new Date(now).toISOString());
+    rememberSeen([item.id]);
     setOpen(false);
     openSection(item.section);
+  }
+
+  function markAllSeen() {
+    rememberSeen(notifications.map((item) => item.id));
   }
 
   function refreshDashboard() {
@@ -243,38 +275,49 @@ export function PartnerHeaderTools() {
 
         {open && (
           <div className="absolute left-0 top-[calc(100%+10px)] z-[80] w-[min(380px,calc(100vw-24px))] overflow-hidden rounded-xl border border-[#D8D2C4] bg-white text-[#111827] shadow-2xl dark:border-slate-700 dark:bg-slate-900 dark:text-white">
-            <div className="flex items-center justify-between border-b border-[#E6E0D4] px-4 py-3 dark:border-slate-800">
+            <div className="flex items-center justify-between gap-3 border-b border-[#E6E0D4] px-4 py-3 dark:border-slate-800">
               <div>
                 <p className="font-black">تنبيهات الشريك</p>
                 <p className="mt-0.5 text-xs text-slate-500">اضغط على أي تنبيه للانتقال إلى الإجراء المرتبط به</p>
               </div>
-              <button type="button" onClick={() => void loadNotifications()} disabled={loading} className="rounded-lg p-2 text-slate-500 hover:bg-[#F7F3EB] disabled:opacity-50 dark:hover:bg-slate-800" aria-label="تحديث التنبيهات">
-                <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-              </button>
+              <div className="flex items-center gap-1">
+                {unread > 0 && (
+                  <button type="button" onClick={markAllSeen} className="rounded-lg p-2 text-[#9A7D43] hover:bg-[#F7F3EB] dark:hover:bg-slate-800" aria-label="تعليم كل التنبيهات كمقروءة" title="تعليم الكل كمقروء">
+                    <CheckCheck size={17} />
+                  </button>
+                )}
+                <button type="button" onClick={() => void loadNotifications()} disabled={loading} className="rounded-lg p-2 text-slate-500 hover:bg-[#F7F3EB] disabled:opacity-50 dark:hover:bg-slate-800" aria-label="تحديث التنبيهات">
+                  <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+                </button>
+              </div>
             </div>
             <div className="max-h-[420px] overflow-y-auto p-2">
               {loading && !notifications.length ? (
                 <p className="p-5 text-center text-sm text-slate-500">جارٍ تحميل التنبيهات...</p>
-              ) : notifications.length ? notifications.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => actOnNotification(item)}
-                  className="group w-full rounded-lg px-3 py-3 text-right transition hover:bg-[#F7F3EB] dark:hover:bg-slate-800/70"
-                >
-                  <div className="flex items-start gap-2">
-                    <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-[#B89A5A]" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="font-black">{item.title}</p>
-                        <ArrowLeft size={15} className="mt-1 shrink-0 text-[#9A7D43] transition group-hover:-translate-x-0.5" />
+              ) : notifications.length ? notifications.map((item) => {
+                const isUnread = !seenIds.includes(item.id);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => actOnNotification(item)}
+                    className={`group w-full rounded-lg px-3 py-3 text-right transition hover:bg-[#F7F3EB] dark:hover:bg-slate-800/70 ${isUnread ? "bg-[#FFFDF8]" : "opacity-75"}`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${isUnread ? "bg-[#B89A5A]" : "bg-transparent"}`} />
+                      <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-[#B89A5A]" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="font-black">{item.title}</p>
+                          <ArrowLeft size={15} className="mt-1 shrink-0 text-[#9A7D43] transition group-hover:-translate-x-0.5" />
+                        </div>
+                        <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{item.body}</p>
+                        <p className="mt-1 text-[11px] text-slate-400">{displayDate(item.timestamp)}</p>
                       </div>
-                      <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{item.body}</p>
-                      <p className="mt-1 text-[11px] text-slate-400">{displayDate(item.timestamp)}</p>
                     </div>
-                  </div>
-                </button>
-              )) : (
+                  </button>
+                );
+              }) : (
                 <p className="p-5 text-center text-sm text-slate-500">لا توجد تنبيهات حتى الآن.</p>
               )}
             </div>
