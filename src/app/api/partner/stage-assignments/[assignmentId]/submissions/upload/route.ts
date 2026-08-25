@@ -1,4 +1,8 @@
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { issueSignedToken } from "@vercel/blob";
+import {
+  handleUploadPresigned,
+  type HandleUploadPresignedBody,
+} from "@vercel/blob/client";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
@@ -35,26 +39,16 @@ async function currentPartnerId(request: NextRequest) {
   return user.partner.id;
 }
 
-function safeFileName(value: string) {
-  const ascii = value
-    .normalize("NFKD")
-    .replace(/[^a-zA-Z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 140);
-  return ascii || `partner-delivery-${Date.now()}`;
-}
-
 export async function GET() {
   return NextResponse.json({
     hasBlobToken: Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim()),
-    hasBlobStoreId: Boolean(process.env.BLOB_STORE_ID?.trim()),
-    hasVercelOidcToken: Boolean(process.env.VERCEL_OIDC_TOKEN?.trim()),
+    mode: "presigned",
   });
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
   const { assignmentId } = await context.params;
-  const body = await request.json().catch(() => null) as HandleUploadBody | null;
+  const body = await request.json().catch(() => null) as HandleUploadPresignedBody | null;
   if (!body) return NextResponse.json({ error: "تعذر قراءة طلب رفع الملف" }, { status: 400 });
 
   const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
@@ -64,11 +58,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
   }
 
   try {
-    const jsonResponse = await handleUpload({
-      token: blobToken,
+    const jsonResponse = await handleUploadPresigned({
       body,
       request,
-      onBeforeGenerateToken: async (_pathname, clientPayload) => {
+      getSignedToken: async (pathname, clientPayload) => {
         const partnerId = await currentPartnerId(request);
         if (!partnerId) throw new Error("الحساب غير متاح");
 
@@ -91,6 +84,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
           throw new Error("لديك نسخة بانتظار مراجعة الإدارة. انتظر قرار المراجعة قبل رفع نسخة جديدة");
         }
 
+        if (!pathname.startsWith(`partner-stage-submissions/${assignmentId}/`)) {
+          throw new Error("مسار ملف التسليم غير صالح");
+        }
+
         if (clientPayload) {
           try {
             const parsed = JSON.parse(clientPayload) as { fileName?: unknown };
@@ -101,17 +98,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
         }
 
         return {
-          allowedContentTypes: ALLOWED_TYPES,
-          maximumSizeInBytes: MAX_FILE_SIZE,
-          addRandomSuffix: true,
-          tokenPayload: JSON.stringify({ assignmentId, partnerId }),
+          token: await issueSignedToken({
+            pathname,
+            operations: ["put"],
+            allowedContentTypes: ALLOWED_TYPES,
+            maximumSizeInBytes: MAX_FILE_SIZE,
+            validUntil: Date.now() + 10 * 60 * 1000,
+            token: blobToken,
+          }),
+          urlOptions: {
+            allowedContentTypes: ALLOWED_TYPES,
+            addRandomSuffix: true,
+            allowOverwrite: false,
+          },
         };
-      },
-      onUploadCompleted: async ({ blob, tokenPayload }) => {
-        const payload = JSON.parse(tokenPayload || "{}") as { assignmentId?: string };
-        if (!payload.assignmentId || !blob.pathname.startsWith(`partner-stage-submissions/${payload.assignmentId}/`)) {
-          throw new Error("مسار ملف التسليم غير صالح");
-        }
       },
     });
 
