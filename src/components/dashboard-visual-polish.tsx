@@ -62,6 +62,15 @@ function fixPartnerEmptyDue(root: HTMLElement) {
   if (value) value.textContent = "0.00 USD";
 }
 
+function fixPartnerSupportLink(root: HTMLElement) {
+  for (const link of Array.from(root.querySelectorAll<HTMLAnchorElement>('a[href="/contact"]'))) {
+    link.href = "/wa?context=partner-support";
+    link.target = "_blank";
+    link.rel = "noreferrer noopener";
+    link.title = "التواصل مع فريق CyberWeel عبر واتساب";
+  }
+}
+
 function isPartnerProjectsHeading(value: string) {
   const text = value.trim().toLowerCase();
   return text === "المشاريع المحالة إليك" || (text.includes("project") && text.includes("assign"));
@@ -122,6 +131,7 @@ export function DashboardVisualPolish({ mode }: { mode: Mode }) {
       reserveLanguageSpace();
       if (mode === "partner") {
         fixPartnerEmptyDue(root);
+        fixPartnerSupportLink(root);
         polishPartnerProjects(root);
       }
       if (mode === "client") fixClientFinancialPlan(root);
