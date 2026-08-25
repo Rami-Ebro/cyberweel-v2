@@ -38,6 +38,7 @@ type DashboardPayload = {
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TOTAL_SIZE = 30 * 1024 * 1024;
+const UPLOAD_INACTIVITY_TIMEOUT_MS = 20_000;
 
 const statusLabel: Record<Submission["status"], string> = {
   SUBMITTED: "بانتظار مراجعة الإدارة",
@@ -72,6 +73,7 @@ export function PartnerDeliveryWorkspace() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [busyText, setBusyText] = useState<Record<string, string>>({});
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null);
@@ -173,31 +175,63 @@ export function PartnerDeliveryWorkspace() {
     if (!note && !links && !files.length) return setError("أرسل ملاحظة تسليم أو رابطًا أو ملفًا واحدًا على الأقل.");
 
     setBusy(assignment.id);
-    setBusyText((value) => ({ ...value, [assignment.id]: files.length ? `جارٍ رفع الملف 1 من ${files.length}...` : "جارٍ إرسال التسليم..." }));
+    setUploadProgress((value) => ({ ...value, [assignment.id]: 0 }));
+    setBusyText((value) => ({ ...value, [assignment.id]: files.length ? `جارٍ تجهيز رفع الملف 1 من ${files.length}...` : "جارٍ إرسال التسليم..." }));
     setError("");
     setNotice("");
     try {
       const uploadedFiles: Array<{ url: string; name: string; type: string }> = [];
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index];
-        setBusyText((value) => ({ ...value, [assignment.id]: `جارٍ رفع الملف ${index + 1} من ${files.length}...` }));
-        const blob = await uploadPresigned(
-          `partner-stage-submissions/${assignment.id}/${storageFileName(file, index)}`,
-          file,
-          {
-            access: "private",
-            handleUploadUrl: `/api/partner/stage-assignments/${encodeURIComponent(assignment.id)}/submissions/upload`,
-            clientPayload: JSON.stringify({ fileName: file.name }),
-            ...(file.type ? { contentType: file.type } : {}),
-          },
-        );
-        uploadedFiles.push({
-          url: blob.url,
-          name: file.name,
-          type: file.type || blob.contentType || "application/octet-stream",
-        });
+        const controller = new AbortController();
+        let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+        const armInactivityTimeout = () => {
+          if (inactivityTimer) clearTimeout(inactivityTimer);
+          inactivityTimer = setTimeout(() => controller.abort(), UPLOAD_INACTIVITY_TIMEOUT_MS);
+        };
+
+        armInactivityTimeout();
+        setBusyText((value) => ({ ...value, [assignment.id]: `جارٍ رفع الملف ${index + 1} من ${files.length} — 0٪` }));
+
+        try {
+          const blob = await uploadPresigned(
+            `partner-stage-submissions/${assignment.id}/${storageFileName(file, index)}`,
+            file,
+            {
+              access: "private",
+              handleUploadUrl: `/api/partner/stage-assignments/${encodeURIComponent(assignment.id)}/submissions/upload`,
+              clientPayload: JSON.stringify({ fileName: file.name }),
+              multipart: file.size > 4 * 1024 * 1024,
+              abortSignal: controller.signal,
+              onUploadProgress: (progressEvent) => {
+                armInactivityTimeout();
+                const filePercentage = Math.max(0, Math.min(100, Math.round(progressEvent.percentage || 0)));
+                const overallPercentage = files.length
+                  ? Math.round(((index + filePercentage / 100) / files.length) * 90)
+                  : 90;
+                setUploadProgress((value) => ({ ...value, [assignment.id]: overallPercentage }));
+                setBusyText((value) => ({ ...value, [assignment.id]: `جارٍ رفع الملف ${index + 1} من ${files.length} — ${filePercentage}٪` }));
+              },
+              ...(file.type ? { contentType: file.type } : {}),
+            },
+          );
+          uploadedFiles.push({
+            url: blob.url,
+            name: file.name,
+            type: file.type || blob.contentType || "application/octet-stream",
+          });
+          setUploadProgress((value) => ({ ...value, [assignment.id]: Math.round(((index + 1) / files.length) * 90) }));
+        } catch (uploadError) {
+          if (controller.signal.aborted) {
+            throw new Error(`توقف رفع الملف «${file.name}» لأنه لم يحقق أي تقدم لمدة 20 ثانية. قد يكون الاتصال بخدمة التخزين محجوبًا أو غير مستقر على الشبكة الحالية.`);
+          }
+          throw uploadError;
+        } finally {
+          if (inactivityTimer) clearTimeout(inactivityTimer);
+        }
       }
 
+      setUploadProgress((value) => ({ ...value, [assignment.id]: files.length ? 94 : 90 }));
       setBusyText((value) => ({ ...value, [assignment.id]: "جارٍ تثبيت التسليم لدى الإدارة..." }));
       const response = await fetch(`/api/partner/stage-assignments/${encodeURIComponent(assignment.id)}/submissions`, {
         method: "POST",
@@ -207,6 +241,7 @@ export function PartnerDeliveryWorkspace() {
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload?.error || "تعذر إرسال التسليم");
 
+      setUploadProgress((value) => ({ ...value, [assignment.id]: 100 }));
       setNotice(`✓ تم الإرسال بنجاح. النسخة ${payload.submission?.version || "الجديدة"} محفوظة لدى الإدارة وبانتظار المراجعة.`);
       setSelectedFiles((value) => ({ ...value, [assignment.id]: [] }));
       formElement.reset();
@@ -219,6 +254,11 @@ export function PartnerDeliveryWorkspace() {
     } finally {
       setBusy(null);
       setBusyText((value) => {
+        const next = { ...value };
+        delete next[assignment.id];
+        return next;
+      });
+      setUploadProgress((value) => {
         const next = { ...value };
         delete next[assignment.id];
         return next;
@@ -281,6 +321,22 @@ export function PartnerDeliveryWorkspace() {
                           {files.length ? <div className="grid gap-2">{files.map((file) => <div key={fileKey(file)} className="flex items-center gap-3 rounded-xl border border-[#E6E0D4] bg-[#FCFAF6] px-3 py-2"><Paperclip className="h-4 w-4 shrink-0 text-[#9A7D43]" /><div className="min-w-0 flex-1"><p dir="auto" className="truncate text-sm font-black">{file.name}</p><p className="text-xs text-slate-500">{fileSize(file.size)}</p></div><button type="button" onClick={() => removeFile(assignment.id, fileKey(file))} className="rounded-lg bg-rose-50 p-2 text-rose-700" aria-label={`حذف ${file.name}`}><Trash2 className="h-4 w-4" /></button></div>)}</div> : <p className="text-xs text-slate-500">يمكنك اختيار صورتين أو أكثر على دفعات، حتى 5 ملفات.</p>}
                           <span className="text-xs text-slate-500">10 MB للملف الواحد، و30 MB كحد إجمالي. تُرفع الملفات مباشرة إلى التخزين الآمن ثم يُرسل سجل التسليم إلى الإدارة.</span>
                         </div>
+
+                        {busy === assignment.id && (
+                          <div className="grid gap-2 rounded-xl border border-[#D8D2C4] bg-white p-3">
+                            <div className="flex items-center justify-between gap-3 text-xs font-black text-[#111827]">
+                              <span>{busyText[assignment.id] || "جارٍ الإرسال..."}</span>
+                              <span>{Math.round(uploadProgress[assignment.id] || 0)}٪</span>
+                            </div>
+                            <div className="h-2 overflow-hidden rounded-full bg-[#E6E0D4]">
+                              <div
+                                className="h-full bg-[#B89A5A] transition-[width] duration-200"
+                                style={{ width: `${Math.max(0, Math.min(100, uploadProgress[assignment.id] || 0))}%` }}
+                              />
+                            </div>
+                            <p className="text-[11px] font-bold text-slate-500">إذا توقف النقل بلا أي تقدم لمدة 20 ثانية، سيُلغى تلقائيًا وتظهر رسالة السبب بدل أن يبقى عالقًا.</p>
+                          </div>
+                        )}
 
                         <button
                           type="submit"
