@@ -62,7 +62,12 @@ export async function sendClientInvitation(
   origin: string,
   language: AccountInvitationLanguage = "ar",
 ): Promise<ClientInvitationResult> {
-  return sendAccountInvitation(userId, email, origin, "CLIENT", language);
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  const audience: AccountInvitationAudience = user?.role === "PARTNER" ? "PARTNER" : "CLIENT";
+  return sendAccountInvitation(userId, email, origin, audience, language);
 }
 
 export async function sendAmbassadorInvitation(

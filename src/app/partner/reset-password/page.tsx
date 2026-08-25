@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
-import { FormEvent, Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { dashboardErrorMessage } from "@/lib/dashboard-labels";
 
+const LOGIN_REDIRECT_DELAY_MS = 1500;
+
 function ResetPasswordForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
   const [message, setMessage] = useState("");
@@ -14,6 +17,14 @@ function ResetPasswordForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (!done) return;
+    const timer = window.setTimeout(() => {
+      router.replace("/login");
+    }, LOGIN_REDIRECT_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [done, router]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,7 +54,7 @@ function ResetPasswordForm() {
     }
 
     setDone(true);
-    setMessage("تم تغيير كلمة المرور بنجاح");
+    setMessage("تم تغيير كلمة المرور بنجاح. سيتم نقلك إلى تسجيل الدخول...");
   }
 
   return (
