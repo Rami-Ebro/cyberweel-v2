@@ -209,8 +209,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
         let manifestVerifiedSize = 0;
         const manifestChunkUrls: string[] = [];
         for (let index = 0; index < manifestChunks.length; index += 1) {
-          const chunkUrl = typeof manifestChunks[index]?.url === "string" ? manifestChunks[index].url!.trim() : "";
-          const declaredSize = Number(manifestChunks[index]?.size);
+          const chunkEntry = manifestChunks[index];
+          const chunkUrlValue = chunkEntry?.url;
+          const chunkUrl = typeof chunkUrlValue === "string" ? chunkUrlValue.trim() : "";
+          const declaredSize = Number(chunkEntry?.size);
           const expectedSize = Math.min(MAX_CHUNK_SIZE, manifestTotalSize - index * MAX_CHUNK_SIZE);
           if (!chunkUrl || declaredSize !== expectedSize) {
             return NextResponse.json({ error: `أحد أجزاء الملف «${file.name}» غير صالح` }, { status: 400 });
