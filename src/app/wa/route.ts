@@ -9,10 +9,12 @@ const REFERRAL_COOKIE = "cyberweel_partner_referral";
 const WHATSAPP_NUMBER = "963982799800";
 
 export async function GET(request: NextRequest) {
+  const context = request.nextUrl.searchParams.get("context")?.trim() || "";
+  const partnerSupport = context === "partner-support";
   const partnerId = request.cookies.get(REFERRAL_COOKIE)?.value;
   let referralCode: string | null = null;
 
-  if (partnerId) {
+  if (!partnerSupport && partnerId) {
     const partner = await db.partner.findFirst({
       where: { id: partnerId, status: "ACTIVE" },
       select: { referralNumber: true },
@@ -23,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  if (!referralCode) {
+  if (!partnerSupport && !referralCode) {
     const referer = request.headers.get("referer");
 
     if (referer) {
@@ -43,9 +45,11 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const message = referralCode
-    ? `مرحبًا، أرغب في مناقشة مشروعي مع CyberWeel.\nرمز الإحالة: ${referralCode}`
-    : "مرحبًا، أرغب في مناقشة مشروعي مع CyberWeel.";
+  const message = partnerSupport
+    ? "مرحبًا فريق CyberWeel، أنا شريك تنفيذ وأحتاج إلى مساعدة بخصوص حسابي أو أحد المشاريع المسندة إلي."
+    : referralCode
+      ? `مرحبًا، أرغب في مناقشة مشروعي مع CyberWeel.\nرمز الإحالة: ${referralCode}`
+      : "مرحبًا، أرغب في مناقشة مشروعي مع CyberWeel.";
 
   const whatsappUrl = new URL("https://api.whatsapp.com/send");
   whatsappUrl.searchParams.set("phone", WHATSAPP_NUMBER);
