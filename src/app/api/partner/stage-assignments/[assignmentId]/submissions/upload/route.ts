@@ -175,8 +175,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const verifiedChunks: Array<{ url: string; size: number }> = [];
       let verifiedTotal = 0;
       for (let index = 0; index < chunks.length; index += 1) {
-        const url = typeof chunks[index]?.url === "string" ? chunks[index].url!.trim() : "";
-        const declaredSize = Number(chunks[index]?.size);
+        const chunkEntry = chunks[index];
+        const urlValue = chunkEntry?.url;
+        const url = typeof urlValue === "string" ? urlValue.trim() : "";
+        const declaredSize = Number(chunkEntry?.size);
         const expectedSize = Math.min(MAX_CHUNK_SIZE, totalSize - index * MAX_CHUNK_SIZE);
         if (!url || declaredSize !== expectedSize) {
           return NextResponse.json({ error: "أحد أجزاء الملف غير صالح" }, { status: 400 });
