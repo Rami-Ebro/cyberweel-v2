@@ -1,4 +1,4 @@
-name: Deep clean repository audit
+name: Deep clean repository verification
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  audit:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,7 +27,6 @@ jobs:
           root = Path('.')
           text_suffixes = {'.ts','.tsx','.mjs','.js','.cjs','.json','.md','.css','.scss','.html','.txt','.prisma','.yml','.yaml','.webmanifest'}
           ignored_parts = {'.git','node_modules','.next'}
-
           text_files = []
           for p in root.rglob('*'):
               if not p.is_file() or any(part in ignored_parts for part in p.parts):
@@ -42,7 +41,7 @@ jobs:
           env_text = env_path.read_text(encoding='utf-8')
           env_keys = re.findall(r'(?m)^([A-Z][A-Z0-9_]*)=', env_text)
           env_refs = set()
-          ref_patterns = [
+          patterns = [
               re.compile(r'process\.env\.([A-Z][A-Z0-9_]*)'),
               re.compile(r'process\.env\[["\']([A-Z][A-Z0-9_]*)["\']\]'),
               re.compile(r'env\(["\']([A-Z][A-Z0-9_]*)["\']\)'),
@@ -50,49 +49,35 @@ jobs:
           for path, text in text_files:
               if path == env_path:
                   continue
-              for pattern in ref_patterns:
+              for pattern in patterns:
                   env_refs.update(pattern.findall(text))
-
-          print('=== ENV AUDIT ===')
-          for key in env_keys:
-              literal_files = []
-              for path, text in text_files:
-                  if path == env_path:
-                      continue
-                  if key in text:
-                      literal_files.append(str(path))
-              print(f'{key}: referenced={key in env_refs}; literal_files={len(literal_files)}; files={literal_files[:12]}')
-          extra = sorted(env_refs - set(env_keys))
-          print(f'ENV_REFERENCED_NOT_DOCUMENTED={extra}')
+          print('ENV_UNUSED_DOCUMENTED=', sorted(set(env_keys) - env_refs))
 
           public = Path('public')
-          print('=== PUBLIC EXACT DUPLICATES ===')
-          by_hash = {}
           public_files = [p for p in public.rglob('*') if p.is_file()]
+          by_hash = {}
           for p in public_files:
-              digest = hashlib.sha256(p.read_bytes()).hexdigest()
-              by_hash.setdefault(digest, []).append(p)
-          for digest, paths in sorted(by_hash.items()):
-              if len(paths) > 1:
-                  print('DUP', digest[:12], [(str(p), p.stat().st_size) for p in paths])
-
-          print('=== PUBLIC EXACT-PATH REFERENCE AUDIT ===')
-          total_bytes = 0
-          zero_ref_bytes = 0
+              by_hash.setdefault(hashlib.sha256(p.read_bytes()).hexdigest(), []).append(str(p))
+          print('PUBLIC_DUPLICATES=', [paths for paths in by_hash.values() if len(paths) > 1])
           for p in sorted(public_files, key=lambda x: str(x)):
-              rel = p.relative_to(public).as_posix()
-              size = p.stat().st_size
-              total_bytes += size
-              route = f'/{rel}'
-              refs = set()
-              for path, text in text_files:
-                  if path == p:
-                      continue
-                  if route in text:
-                      refs.add(str(path))
-              if not refs:
-                  zero_ref_bytes += size
-              print(f'PUBLIC {rel} bytes={size} exact_refs={len(refs)} files={sorted(refs)[:12]}')
-          print(f'PUBLIC_TOTAL_BYTES={total_bytes}')
-          print(f'PUBLIC_ZERO_EXACT_REFERENCE_BYTES={zero_ref_bytes}')
+              route = '/' + p.relative_to(public).as_posix()
+              refs = [str(path) for path, text in text_files if path != p and route in text]
+              print(f'PUBLIC {p.relative_to(public).as_posix()} bytes={p.stat().st_size} exact_refs={len(refs)} files={refs[:10]}')
           PY
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: AI tests
+        run: npm run test:ai
+
+      - name: Ambassador delivery tests
+        run: npm run test:ambassador-delivery
