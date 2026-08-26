@@ -38,7 +38,7 @@ const siteDescription =
   "CyberWeel helps businesses understand digital and operational challenges, make sound decisions, and build the websites, systems, automation, and protection their next stage genuinely needs.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://cyberweel.com"),
+  metadataBase: new URL("https://www.cyberweel.com"),
   title: {
     default: siteTitle,
     template: "%s · CyberWeel",
@@ -71,11 +71,11 @@ export const metadata: Metadata = {
   openGraph: {
     title: siteTitle,
     description: siteDescription,
-    url: "https://cyberweel.com",
+    url: "https://www.cyberweel.com",
     siteName: "CyberWeel",
     type: "website",
-    locale: "en",
-    alternateLocale: ["ar"],
+    locale: "ar_AR",
+    alternateLocale: ["en_US"],
     images: [
       {
         url: "/og-image.png",
@@ -91,10 +91,6 @@ export const metadata: Metadata = {
     description:
       "Understand the problem. Make the right decision. Build what the business genuinely needs.",
     images: ["/og-image.png"],
-  },
-  robots: {
-    index: true,
-    follow: true,
   },
 };
 
@@ -113,8 +109,8 @@ export default function RootLayout({
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "CyberWeel",
-    url: "https://cyberweel.com",
-    logo: "https://cyberweel.com/logo.png",
+    url: "https://www.cyberweel.com",
+    logo: "https://www.cyberweel.com/logo.png",
     description: siteDescription,
     slogan: "From where you are… to where you want to be.",
     email: "hello@cyberweel.com",
@@ -130,64 +126,17 @@ export default function RootLayout({
     ],
   };
 
-  const faqLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "Is CyberWeel a digital agency?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Not in the conventional sense. CyberWeel begins by understanding the business problem and defining the right decision. When execution is needed, we design and build websites, systems, automation, cybersecurity safeguards, and other practical digital solutions.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "What does Clarity, Decision, Progress mean?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Clarity means understanding the current situation and the real problem. Decision means choosing the most sensible next step. Progress means executing that decision deliberately and measuring whether it creates real value.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Does CyberWeel take on every project?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "No. CyberWeel may recommend a smaller step, improving what already exists, or waiting until the timing is right. The goal is to solve the right problem, not manufacture unnecessary work.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Who does CyberWeel work with?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "CyberWeel works with business owners, founders, and teams that need to decide what to build, improve, automate, secure, or stop doing. A polished brief is not required.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "How does a project begin?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "It begins with a clear description of the current situation, the challenge, and the desired outcome. CyberWeel reviews the request, identifies the most useful next step, and then discusses whether and how to proceed.",
-        },
-      },
-    ],
-  };
-
   const websiteLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: "CyberWeel",
-    url: "https://cyberweel.com/",
+    url: "https://www.cyberweel.com/",
     description: siteDescription,
     inLanguage: ["ar", "en"],
     publisher: {
       "@type": "Organization",
       name: "CyberWeel",
-      url: "https://cyberweel.com",
+      url: "https://www.cyberweel.com",
     },
   };
 
@@ -199,10 +148,6 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }}
         />
         <script
           type="application/ld+json"

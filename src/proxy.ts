@@ -4,8 +4,23 @@ import { REFERRAL_CODE_COOKIE } from "@/lib/referral-tracking";
 
 const STATE_CHANGING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+function isNonIndexablePage(pathname: string) {
+  return (
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/ambassador") ||
+    pathname.startsWith("/client") ||
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/account") ||
+    pathname === "/login" ||
+    pathname.startsWith("/complete-profile") ||
+    pathname.startsWith("/partner/")
+  );
+}
+
 export function proxy(request: NextRequest) {
-  if (request.method === "GET" && request.nextUrl.pathname === "/") {
+  const pathname = request.nextUrl.pathname;
+
+  if (request.method === "GET" && pathname === "/") {
     const referralCode = normalizeReferralCode(request.nextUrl.searchParams.get("ref") || "");
     if (!referralCode) return NextResponse.next();
 
@@ -20,6 +35,15 @@ export function proxy(request: NextRequest) {
       new URL(`/ref/${encodeURIComponent(referralCode)}`, request.url),
       302,
     );
+  }
+
+  // Authentication and dashboard URLs should never compete with the public
+  // website in search results. Keep robots.txt crawlable so crawlers can see
+  // this response header instead of blocking the routes outright.
+  if (isNonIndexablePage(pathname)) {
+    const response = NextResponse.next();
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return response;
   }
 
   if (!STATE_CHANGING_METHODS.has(request.method)) {
@@ -41,5 +65,16 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/api/:path*"],
+  matcher: [
+    "/",
+    "/api/:path*",
+    "/admin/:path*",
+    "/ambassador/:path*",
+    "/client/:path*",
+    "/dashboard/:path*",
+    "/account/:path*",
+    "/login",
+    "/complete-profile/:path*",
+    "/partner/:path*",
+  ],
 };
