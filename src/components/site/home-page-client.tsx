@@ -13,6 +13,7 @@ import { ShortcutsHelp } from "@/components/site/shortcuts-help";
 import { WhatsAppButton } from "@/components/site/whatsapp-button";
 import { BRAND } from "@/lib/site-data";
 import { FinalHomeView } from "@/components/sections/final-home-view";
+import { ShareChallengeView } from "@/components/sections/share-challenge-view";
 import type { ViewId } from "@/lib/site-data";
 
 function ViewLoading() {
@@ -27,10 +28,6 @@ function ViewLoading() {
 
 const HowWeHelpView = dynamic(
   () => import("@/components/sections/how-we-help-streamlined-view").then((module) => module.HowWeHelpStreamlinedView),
-  { loading: ViewLoading },
-);
-const ShareChallengeView = dynamic(
-  () => import("@/components/sections/share-challenge-view").then((module) => module.ShareChallengeView),
   { loading: ViewLoading },
 );
 const PartnerView = dynamic(
@@ -71,7 +68,7 @@ function HomeInner() {
   const { view, navigate } = useViewRouter();
   const { t } = useI18n();
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const Current = VIEWS[view];
+  const Current = VIEWS[view] ?? FinalHomeView;
 
   useKeyboardNav(navigate);
 
