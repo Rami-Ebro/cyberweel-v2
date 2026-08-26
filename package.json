@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "node scripts/prepare-preview-db.mjs && prisma generate && node scripts/seed-preview-accounts.mjs && next build",
+    "build": "node scripts/prepare-production-db.mjs && prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
     "test:ai": "node --experimental-strip-types --test tests/ai-assistant.test.mjs",

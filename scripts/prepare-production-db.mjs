@@ -1,23 +1,16 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
-const legacyDbPushPreviewBranch = "codex-9b7hcm";
 const productionBranch = "main";
 const productionDatabaseHostFragment = "ep-quiet-bird-asiuetz3";
 
-const isVercel = process.env.VERCEL === "1";
-const gitRef = process.env.VERCEL_GIT_COMMIT_REF || "";
-const isAllowedPreview =
-  isVercel &&
-  process.env.VERCEL_ENV === "preview" &&
-  gitRef === legacyDbPushPreviewBranch;
 const isAllowedProduction =
-  isVercel &&
+  process.env.VERCEL === "1" &&
   process.env.VERCEL_ENV === "production" &&
-  gitRef === productionBranch;
+  process.env.VERCEL_GIT_COMMIT_REF === productionBranch;
 
-if (!isAllowedPreview && !isAllowedProduction) {
-  console.log("[deployment-db] Skipped outside the approved Vercel deployments.");
+if (!isAllowedProduction) {
+  console.log("[deployment-db] Skipped outside the approved Production deployment.");
   process.exit(0);
 }
 
@@ -40,12 +33,7 @@ if (!databaseUrl.hostname.endsWith(".neon.tech")) {
   process.exit(1);
 }
 
-if (isAllowedPreview && databaseUrl.hostname.includes(productionDatabaseHostFragment)) {
-  console.error("[deployment-db] Refusing to use the Production database from Preview.");
-  process.exit(1);
-}
-
-if (isAllowedProduction && !databaseUrl.hostname.includes(productionDatabaseHostFragment)) {
+if (!databaseUrl.hostname.includes(productionDatabaseHostFragment)) {
   console.error("[deployment-db] Refusing to migrate an unapproved Production database host.");
   process.exit(1);
 }
@@ -78,12 +66,6 @@ async function runPrisma(args, label) {
     }
   }
   return false;
-}
-
-if (isAllowedPreview) {
-  console.log("[deployment-db] Synchronizing the isolated Preview database schema.");
-  await runPrisma(["db", "push", "--skip-generate"], "Preview schema sync");
-  process.exit(0);
 }
 
 console.log("[deployment-db] Applying reviewed migrations to Production.");
