@@ -56,16 +56,20 @@ const VIEWS: Record<ViewId, React.ComponentType> = {
   contact: ContactView,
 };
 
-export function HomePageClient() {
+type HomePageClientProps = {
+  initialView?: ViewId;
+};
+
+export function HomePageClient({ initialView = "home" }: HomePageClientProps) {
   return (
     <I18nProvider>
-      <HomeInner />
+      <HomeInner initialView={initialView} />
     </I18nProvider>
   );
 }
 
-function HomeInner() {
-  const { view, navigate } = useViewRouter();
+function HomeInner({ initialView }: { initialView: ViewId }) {
+  const { view, navigate } = useViewRouter(initialView);
   const { t } = useI18n();
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const Current = VIEWS[view] ?? FinalHomeView;
