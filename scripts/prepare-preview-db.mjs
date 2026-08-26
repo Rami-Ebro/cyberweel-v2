@@ -2,7 +2,6 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const legacyDbPushPreviewBranch = "codex-9b7hcm";
-const stagePartnerPreviewBranch = "feat/stage-partner-assignment-workflow";
 const productionBranch = "main";
 const productionDatabaseHostFragment = "ep-quiet-bird-asiuetz3";
 
@@ -11,8 +10,7 @@ const gitRef = process.env.VERCEL_GIT_COMMIT_REF || "";
 const isAllowedPreview =
   isVercel &&
   process.env.VERCEL_ENV === "preview" &&
-  [legacyDbPushPreviewBranch, stagePartnerPreviewBranch].includes(gitRef);
-const isStagePartnerPreview = isAllowedPreview && gitRef === stagePartnerPreviewBranch;
+  gitRef === legacyDbPushPreviewBranch;
 const isAllowedProduction =
   isVercel &&
   process.env.VERCEL_ENV === "production" &&
@@ -85,14 +83,6 @@ async function runPrisma(args, label) {
 if (isAllowedPreview) {
   console.log("[deployment-db] Synchronizing the isolated Preview database schema.");
   await runPrisma(["db", "push", "--skip-generate"], "Preview schema sync");
-
-  if (isStagePartnerPreview) {
-    console.log("[deployment-db] Applying the stage-partner Preview-only schema extension.");
-    await runPrisma(
-      ["db", "execute", "--file", "scripts/preview-stage-partner-schema.sql", "--schema", "prisma/schema.prisma"],
-      "Stage-partner Preview schema",
-    );
-  }
   process.exit(0);
 }
 
