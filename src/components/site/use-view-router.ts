@@ -27,9 +27,15 @@ function parseLegacyHash(): ViewId | null {
   return Object.prototype.hasOwnProperty.call(VIEW_PATHS, raw) ? (raw as ViewId) : null;
 }
 
+function withCurrentQuery(path: string) {
+  if (typeof window === "undefined") return path;
+  return `${path}${window.location.search}`;
+}
+
 /**
  * Public navigation uses real, clean paths so links are shareable and indexable.
  * Legacy hash URLs remain supported and are normalized to their clean path.
+ * Existing query parameters are preserved so referral attribution is not lost.
  */
 export function useViewRouter(initialView: ViewId = "home") {
   const router = useRouter();
@@ -40,13 +46,12 @@ export function useViewRouter(initialView: ViewId = "home") {
     const legacyView = parseLegacyHash();
     if (!legacyView) return;
 
-    const target = VIEW_PATHS[legacyView];
-    router.replace(target, { scroll: false });
+    router.replace(withCurrentQuery(VIEW_PATHS[legacyView]), { scroll: false });
   }, [router]);
 
   const navigate = useCallback(
     (next: ViewId) => {
-      const target = VIEW_PATHS[next];
+      const target = withCurrentQuery(VIEW_PATHS[next]);
 
       if (view === next) {
         window.scrollTo({ top: 0, behavior: "smooth" });
