@@ -93,26 +93,32 @@ export function AdminNotificationCenter() {
 
   return (
     <div ref={centerRef} className="relative">
-      <button type="button" onClick={() => setOpen((value) => !value)} className="relative inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 font-bold shadow-sm transition hover:border-[#B89A5A] hover:bg-[#FFFDF8]" aria-label="إشعارات الإدارة" aria-expanded={open}>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#D8D2C4] bg-white shadow-sm transition hover:border-[#B89A5A] hover:bg-[#FFFDF8] dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
+        aria-label="إشعارات الإدارة"
+        aria-expanded={open}
+        title="إشعارات الإدارة"
+      >
         <Bell className="h-5 w-5" />
-        <span>الإشعارات</span>
-        {unread > 0 && <span className="absolute -left-1 -top-1 min-w-5 rounded-full bg-red-600 px-1.5 py-0.5 text-center text-xs font-black text-white">{unread > 99 ? "99+" : unread}</span>}
+        {unread > 0 && <span className="absolute -right-1.5 -top-1.5 grid min-h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-black text-white">{unread > 99 ? "99+" : unread}</span>}
       </button>
       {open && (
-        <div className="absolute left-0 top-14 z-50 w-[min(92vw,420px)] rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-2xl">
-          <div className="flex items-center justify-between gap-3 border-b border-[#EEE7DA] px-2 pb-3">
-            <div><strong>إشعارات الإدارة</strong><p className="text-xs text-slate-500">{unread} غير مقروء</p></div>
+        <div className="absolute left-0 top-[calc(100%+10px)] z-50 w-[min(92vw,420px)] rounded-2xl border border-[#D8D2C4] bg-white p-3 text-[#111827] shadow-2xl dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+          <div className="flex items-center justify-between gap-3 border-b border-[#EEE7DA] px-2 pb-3 dark:border-slate-800">
+            <div><strong>إشعارات الإدارة</strong><p className="text-xs text-slate-500 dark:text-slate-400">{unread} غير مقروء</p></div>
             <button type="button" onClick={() => void markAllRead()} disabled={!unread} className="text-xs font-bold text-[#9A7D43] disabled:opacity-40">تحديد الكل كمقروء</button>
           </div>
           <div className="mt-2 max-h-96 space-y-2 overflow-y-auto">
             {notifications.map((notification) => (
-              <button key={notification.id} type="button" onClick={() => void openNotification(notification)} className={`w-full rounded-xl p-3 text-right ${notification.readAt ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-[#111827]"}`}>
+              <button key={notification.id} type="button" onClick={() => void openNotification(notification)} className={`w-full rounded-xl p-3 text-right transition ${notification.readAt ? "bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300" : "bg-amber-50 text-[#111827] dark:bg-amber-950/30 dark:text-amber-100"}`}>
                 <div className="flex items-start justify-between gap-3"><strong className="text-sm">{notification.title}</strong>{!notification.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-600" />}</div>
-                {notification.body && <p className="mt-1 text-xs text-slate-500">{notification.body}</p>}
+                {notification.body && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{notification.body}</p>}
                 <p className="mt-2 text-[11px] font-black text-[#9A7D43]">فتح التفاصيل ←</p>
               </button>
             ))}
-            {!notifications.length && <p className="p-5 text-center text-sm text-slate-500">لا توجد إشعارات بعد.</p>}
+            {!notifications.length && <p className="p-5 text-center text-sm text-slate-500 dark:text-slate-400">لا توجد إشعارات بعد.</p>}
           </div>
         </div>
       )}
