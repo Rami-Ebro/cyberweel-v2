@@ -1,0 +1,121 @@
+name: Final deep-clean audit
+
+on:
+  push:
+    branches:
+      - chore/final-deep-clean-audit
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Audit source graph, dependencies, duplicates, and historical scripts
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, json, re
+
+          ROOT=Path('.').resolve(); SRC=ROOT/'src'
+          EXTS=['.ts','.tsx','.js','.jsx','.mjs','.cjs']
+          modules={p.resolve():p for p in SRC.rglob('*') if p.is_file() and p.suffix in EXTS}
+          patterns=[
+            re.compile(r'(?:import|export)\s+(?:[^;]*?\s+from\s+)?["\']([^"\']+)["\']'),
+            re.compile(r'import\(\s*["\']([^"\']+)["\']\s*\)'),
+            re.compile(r'require\(\s*["\']([^"\']+)["\']\s*\)'),
+          ]
+          def resolve(source,spec):
+            if spec.startswith('@/'): base=SRC/spec[2:]
+            elif spec.startswith('.'): base=source.parent/spec
+            else: return None
+            candidates=[base]
+            if base.suffix=='':
+              candidates += [Path(str(base)+e) for e in EXTS]
+              candidates += [base/('index'+e) for e in EXTS]
+            for c in candidates:
+              if c.resolve() in modules: return c.resolve()
+            return None
+
+          edges={p:set() for p in modules}; incoming={p:set() for p in modules}; unresolved=[]
+          external_specs=[]
+          for rp,p in modules.items():
+            text=p.read_text(encoding='utf-8'); specs=[]
+            for pat in patterns: specs += pat.findall(text)
+            for spec in specs:
+              if spec.startswith('@/') or spec.startswith('.'):
+                d=resolve(p,spec)
+                if d: edges[rp].add(d); incoming[d].add(rp)
+                elif not spec.endswith('.css'): unresolved.append((p.relative_to(ROOT).as_posix(),spec))
+              else: external_specs.append((p.relative_to(ROOT).as_posix(),spec))
+
+          roots=set(); next_names={'page.tsx','page.ts','layout.tsx','layout.ts','route.ts','route.tsx','loading.tsx','error.tsx','not-found.tsx','template.tsx','default.tsx'}
+          for rp,p in modules.items():
+            rel=p.relative_to(ROOT).as_posix()
+            if rel=='src/proxy.ts' or (rel.startswith('src/app/') and p.name in next_names): roots.add(rp)
+
+          for base_name in ['tests','scripts']:
+            base=ROOT/base_name
+            if not base.exists(): continue
+            for p in base.rglob('*'):
+              if not(p.is_file() and p.suffix in EXTS): continue
+              text=p.read_text(encoding='utf-8'); specs=[]
+              for pat in patterns: specs += pat.findall(text)
+              for spec in specs:
+                if spec.startswith('@/'):
+                  d=resolve(SRC/'dummy.ts',spec)
+                  if d: roots.add(d)
+                elif '/src/' in spec or spec.startswith('../src/') or spec.startswith('./src/'):
+                  basep=p.parent/spec
+                  for c in [basep]+[Path(str(basep)+e) for e in EXTS]:
+                    if c.resolve() in modules: roots.add(c.resolve()); break
+
+          reachable=set(); stack=list(roots)
+          while stack:
+            n=stack.pop()
+            if n in reachable: continue
+            reachable.add(n); stack.extend(edges[n])
+          dead=[modules[r].relative_to(ROOT).as_posix() for r in modules if r not in reachable]
+          print('=== SOURCE GRAPH ===')
+          print('modules=',len(modules),'roots=',len(roots),'reachable=',len(reachable),'dead=',len(dead),'unresolved=',len(unresolved))
+          for x in sorted(dead): print('DEAD',x)
+          for x in unresolved: print('UNRESOLVED',x)
+
+          pkg=json.loads(Path('package.json').read_text())
+          deps=pkg.get('dependencies',{}); dev=pkg.get('devDependencies',{})
+          all_text=[]
+          scan_suffix={'.ts','.tsx','.js','.jsx','.mjs','.cjs','.json','.css','.md','.prisma','.yml','.yaml'}
+          for p in ROOT.rglob('*'):
+            if not p.is_file() or any(part in {'.git','node_modules','.next'} for part in p.parts): continue
+            if p==ROOT/'package-lock.json' or p==ROOT/'package.json': continue
+            if p.suffix.lower() in scan_suffix:
+              try: all_text.append((p,p.read_text(encoding='utf-8')))
+              except UnicodeDecodeError: pass
+          print('=== DEPENDENCY LITERAL USAGE ===')
+          for name in list(deps)+list(dev):
+            hits=[]
+            needle_patterns=[f'"{name}"',f"'{name}'",f'"{name}/',f"'{name}/"]
+            for p,text in all_text:
+              if any(n in text for n in needle_patterns): hits.append(p.relative_to(ROOT).as_posix())
+            kind='dep' if name in deps else 'dev'
+            print(f'PKG {kind} {name} hits={len(hits)} files={hits[:12]}')
+
+          print('=== EXACT DUPLICATE SOURCE/TEXT FILES ===')
+          hashes={}
+          for p in list((ROOT/'src').rglob('*'))+list((ROOT/'scripts').rglob('*'))+list((ROOT/'tests').rglob('*')):
+            if p.is_file() and p.stat().st_size>0:
+              h=hashlib.sha256(p.read_bytes()).hexdigest(); hashes.setdefault(h,[]).append(p.relative_to(ROOT).as_posix())
+          for paths in hashes.values():
+            if len(paths)>1: print('DUP',paths)
+
+          print('=== PACKAGE SCRIPTS ===')
+          for name,cmd in pkg.get('scripts',{}).items(): print(f'SCRIPT {name} => {cmd}')
+          print('=== SMART LINK MIGRATIONS ===')
+          for p in sorted((ROOT/'prisma/migrations').glob('*smart_links*')): print('SMART',p.name)
+          PY
