@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     title: "Policies & Legal · CyberWeel",
     description:
       "Privacy, service terms, cancellations and refunds, cookies, and legal disclaimers for CyberWeel services.",
-    url: "https://cyberweel.com/legal",
+    url: "https://www.cyberweel.com/legal",
     type: "website",
   },
 };
