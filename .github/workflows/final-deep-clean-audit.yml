@@ -1,4 +1,4 @@
-name: Final deep-clean audit
+name: Final deep-clean closeout
 
 on:
   push:
@@ -6,116 +6,124 @@ on:
       - chore/final-deep-clean-audit
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  audit:
+  clean-and-verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
 
-      - name: Audit source graph, dependencies, duplicates, and historical scripts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Remove final unused direct dependencies and historical one-off script
+        shell: bash
+        run: |
+          npm uninstall cmdk date-fns --package-lock-only --ignore-scripts --no-audit --no-fund
+
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('package.json')
+          text=p.read_text(encoding='utf-8')
+          target='    "db:migrate:resolve-smart-links": "prisma migrate resolve --applied 20260704184924_init_smart_links && prisma migrate resolve --applied 20260713110839_init_smart_links",\n'
+          if target in text:
+              text=text.replace(target,'')
+          p.write_text(text,encoding='utf-8')
+          PY
+
+          if grep -R --line-number -E "from ['\"](cmdk|date-fns)(/|['\"])|require\(['\"](cmdk|date-fns)" src tests scripts 2>/dev/null; then
+            echo 'Removed dependency still has a direct source reference.' >&2
+            exit 1
+          fi
+          if grep -n 'db:migrate:resolve-smart-links' package.json; then
+            echo 'Historical resolve script still present.' >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: AI tests
+        run: npm run test:ai
+
+      - name: Ambassador delivery tests
+        run: npm run test:ambassador-delivery
+
+      - name: Confirm source graph is still fully reachable
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          import hashlib, json, re
-
-          ROOT=Path('.').resolve(); SRC=ROOT/'src'
-          EXTS=['.ts','.tsx','.js','.jsx','.mjs','.cjs']
-          modules={p.resolve():p for p in SRC.rglob('*') if p.is_file() and p.suffix in EXTS}
-          patterns=[
-            re.compile(r'(?:import|export)\s+(?:[^;]*?\s+from\s+)?["\']([^"\']+)["\']'),
-            re.compile(r'import\(\s*["\']([^"\']+)["\']\s*\)'),
-            re.compile(r'require\(\s*["\']([^"\']+)["\']\s*\)'),
-          ]
-          def resolve(source,spec):
-            if spec.startswith('@/'): base=SRC/spec[2:]
-            elif spec.startswith('.'): base=source.parent/spec
-            else: return None
-            candidates=[base]
-            if base.suffix=='':
-              candidates += [Path(str(base)+e) for e in EXTS]
-              candidates += [base/('index'+e) for e in EXTS]
-            for c in candidates:
-              if c.resolve() in modules: return c.resolve()
+          import re
+          ROOT=Path('.').resolve(); SRC=ROOT/'src'; EXTS=['.ts','.tsx','.js','.jsx','.mjs','.cjs']
+          mods={p.resolve():p for p in SRC.rglob('*') if p.is_file() and p.suffix in EXTS}
+          pats=[re.compile(r'(?:import|export)\s+(?:[^;]*?\s+from\s+)?["\']([^"\']+)["\']'),re.compile(r'import\(\s*["\']([^"\']+)["\']\s*\)'),re.compile(r'require\(\s*["\']([^"\']+)["\']\s*\)')]
+          def res(src,s):
+            if s.startswith('@/'): b=SRC/s[2:]
+            elif s.startswith('.'): b=src.parent/s
+            else:return None
+            cs=[b]
+            if b.suffix=='': cs += [Path(str(b)+e) for e in EXTS]+[b/('index'+e) for e in EXTS]
+            for c in cs:
+              if c.resolve() in mods:return c.resolve()
             return None
-
-          edges={p:set() for p in modules}; incoming={p:set() for p in modules}; unresolved=[]
-          external_specs=[]
-          for rp,p in modules.items():
-            text=p.read_text(encoding='utf-8'); specs=[]
-            for pat in patterns: specs += pat.findall(text)
-            for spec in specs:
-              if spec.startswith('@/') or spec.startswith('.'):
-                d=resolve(p,spec)
-                if d: edges[rp].add(d); incoming[d].add(rp)
-                elif not spec.endswith('.css'): unresolved.append((p.relative_to(ROOT).as_posix(),spec))
-              else: external_specs.append((p.relative_to(ROOT).as_posix(),spec))
-
-          roots=set(); next_names={'page.tsx','page.ts','layout.tsx','layout.ts','route.ts','route.tsx','loading.tsx','error.tsx','not-found.tsx','template.tsx','default.tsx'}
-          for rp,p in modules.items():
+          edges={x:set() for x in mods}; unresolved=[]
+          for rp,p in mods.items():
+            t=p.read_text(); specs=[]
+            for pat in pats:specs+=pat.findall(t)
+            for s in specs:
+              if s.startswith('@/') or s.startswith('.'):
+                d=res(p,s)
+                if d:edges[rp].add(d)
+                elif not s.endswith('.css'):unresolved.append((str(p),s))
+          roots=set(); nn={'page.tsx','page.ts','layout.tsx','layout.ts','route.ts','route.tsx','loading.tsx','error.tsx','not-found.tsx','template.tsx','default.tsx'}
+          for rp,p in mods.items():
             rel=p.relative_to(ROOT).as_posix()
-            if rel=='src/proxy.ts' or (rel.startswith('src/app/') and p.name in next_names): roots.add(rp)
-
+            if rel=='src/proxy.ts' or (rel.startswith('src/app/') and p.name in nn):roots.add(rp)
           for base_name in ['tests','scripts']:
             base=ROOT/base_name
-            if not base.exists(): continue
+            if not base.exists():continue
             for p in base.rglob('*'):
-              if not(p.is_file() and p.suffix in EXTS): continue
-              text=p.read_text(encoding='utf-8'); specs=[]
-              for pat in patterns: specs += pat.findall(text)
-              for spec in specs:
-                if spec.startswith('@/'):
-                  d=resolve(SRC/'dummy.ts',spec)
-                  if d: roots.add(d)
-                elif '/src/' in spec or spec.startswith('../src/') or spec.startswith('./src/'):
-                  basep=p.parent/spec
-                  for c in [basep]+[Path(str(basep)+e) for e in EXTS]:
-                    if c.resolve() in modules: roots.add(c.resolve()); break
-
-          reachable=set(); stack=list(roots)
+              if not(p.is_file() and p.suffix in EXTS):continue
+              t=p.read_text(); specs=[]
+              for pat in pats:specs+=pat.findall(t)
+              for s in specs:
+                if s.startswith('@/'):
+                  d=res(SRC/'dummy.ts',s)
+                  if d:roots.add(d)
+                elif '/src/' in s or s.startswith('../src/') or s.startswith('./src/'):
+                  bp=p.parent/s
+                  for c in [bp]+[Path(str(bp)+e) for e in EXTS]:
+                    if c.resolve() in mods:roots.add(c.resolve());break
+          seen=set(); stack=list(roots)
           while stack:
-            n=stack.pop()
-            if n in reachable: continue
-            reachable.add(n); stack.extend(edges[n])
-          dead=[modules[r].relative_to(ROOT).as_posix() for r in modules if r not in reachable]
-          print('=== SOURCE GRAPH ===')
-          print('modules=',len(modules),'roots=',len(roots),'reachable=',len(reachable),'dead=',len(dead),'unresolved=',len(unresolved))
-          for x in sorted(dead): print('DEAD',x)
-          for x in unresolved: print('UNRESOLVED',x)
-
-          pkg=json.loads(Path('package.json').read_text())
-          deps=pkg.get('dependencies',{}); dev=pkg.get('devDependencies',{})
-          all_text=[]
-          scan_suffix={'.ts','.tsx','.js','.jsx','.mjs','.cjs','.json','.css','.md','.prisma','.yml','.yaml'}
-          for p in ROOT.rglob('*'):
-            if not p.is_file() or any(part in {'.git','node_modules','.next'} for part in p.parts): continue
-            if p==ROOT/'package-lock.json' or p==ROOT/'package.json': continue
-            if p.suffix.lower() in scan_suffix:
-              try: all_text.append((p,p.read_text(encoding='utf-8')))
-              except UnicodeDecodeError: pass
-          print('=== DEPENDENCY LITERAL USAGE ===')
-          for name in list(deps)+list(dev):
-            hits=[]
-            needle_patterns=[f'"{name}"',f"'{name}'",f'"{name}/',f"'{name}/"]
-            for p,text in all_text:
-              if any(n in text for n in needle_patterns): hits.append(p.relative_to(ROOT).as_posix())
-            kind='dep' if name in deps else 'dev'
-            print(f'PKG {kind} {name} hits={len(hits)} files={hits[:12]}')
-
-          print('=== EXACT DUPLICATE SOURCE/TEXT FILES ===')
-          hashes={}
-          for p in list((ROOT/'src').rglob('*'))+list((ROOT/'scripts').rglob('*'))+list((ROOT/'tests').rglob('*')):
-            if p.is_file() and p.stat().st_size>0:
-              h=hashlib.sha256(p.read_bytes()).hexdigest(); hashes.setdefault(h,[]).append(p.relative_to(ROOT).as_posix())
-          for paths in hashes.values():
-            if len(paths)>1: print('DUP',paths)
-
-          print('=== PACKAGE SCRIPTS ===')
-          for name,cmd in pkg.get('scripts',{}).items(): print(f'SCRIPT {name} => {cmd}')
-          print('=== SMART LINK MIGRATIONS ===')
-          for p in sorted((ROOT/'prisma/migrations').glob('*smart_links*')): print('SMART',p.name)
+            x=stack.pop()
+            if x in seen:continue
+            seen.add(x);stack.extend(edges[x])
+          dead=[mods[x].relative_to(ROOT).as_posix() for x in mods if x not in seen]
+          print(f'modules={len(mods)} reachable={len(seen)} dead={len(dead)} unresolved={len(unresolved)}')
+          if dead or unresolved:
+            print('dead=',dead);print('unresolved=',unresolved);raise SystemExit(1)
           PY
+
+      - name: Commit verified closeout cleanup
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "No closeout cleanup changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: remove final unused dependencies and historical migration helper"
+          git push origin HEAD:${{ github.ref_name }}
