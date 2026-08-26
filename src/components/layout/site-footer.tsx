@@ -50,6 +50,7 @@ export function SiteFooter() {
   const copyright = isArabic
     ? "© 2026 CyberWeel — جميع الحقوق محفوظة"
     : "© 2026 CyberWeel — All rights reserved";
+  const legalLabel = isArabic ? "السياسات والأنظمة" : "Policies & Legal";
 
   const navLabel = (id: ViewId) => {
     if (isArabic && id === "how-we-help") return "كيف نساعدك";
@@ -141,8 +142,15 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-12 border-t border-[#F7F3EB]/10 pt-7 text-center">
+        <div className="mt-12 flex flex-col items-center justify-center gap-3 border-t border-[#F7F3EB]/10 pt-7 text-center sm:flex-row sm:gap-5">
           <p className="text-base text-[#D8D2C4]/75">{copyright}</p>
+          <span aria-hidden className="hidden h-4 w-px bg-[#F7F3EB]/20 sm:block" />
+          <a
+            href="/legal"
+            className="focus-ring rounded-md text-sm font-semibold text-[#D8D2C4]/90 underline decoration-[#D8D2C4]/30 underline-offset-4 transition-colors hover:text-[#F7F3EB] hover:decoration-camel"
+          >
+            {legalLabel}
+          </a>
         </div>
       </div>
     </footer>
