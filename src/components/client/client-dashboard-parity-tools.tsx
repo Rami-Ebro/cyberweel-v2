@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -70,7 +70,7 @@ function markClientDashboard() {
 export function ClientDashboardParityTools() {
   const router = useRouter();
   const [controls, setControls] = useState<HTMLElement | null>(null);
-  const [root, setRoot] = useState<HTMLElement | null>(null);
+  const rootRef = useRef<HTMLElement | null>(null);
   const [aside, setAside] = useState<HTMLElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -85,7 +85,7 @@ export function ClientDashboardParityTools() {
       const marked = markClientDashboard();
       if (!marked) return;
       setControls(marked.controls);
-      setRoot(marked.root);
+      rootRef.current = marked.root;
       setAside(marked.aside);
     };
 
@@ -96,15 +96,17 @@ export function ClientDashboardParityTools() {
   }, []);
 
   useEffect(() => {
+    const root = rootRef.current;
     if (!root) return;
     root.dataset.cwClientMenuOpen = menuOpen ? "true" : "false";
-  }, [menuOpen, root]);
+  }, [menuOpen, controls]);
 
   useEffect(() => {
+    const root = rootRef.current;
     if (!root) return;
     root.classList.toggle("dark", darkMode);
     root.dataset.cwClientTheme = darkMode ? "dark" : "light";
-  }, [darkMode, root]);
+  }, [darkMode, controls]);
 
   useEffect(() => {
     if (!aside) return;

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { CheckCircle2, ExternalLink, FileUp, History, Paperclip, Send, Trash2, X } from "lucide-react";
 import { DateText } from "@/components/ui/date-text";
@@ -128,8 +128,10 @@ function uploadChunkViaApp(input: {
   });
 }
 
+const subscribeToMount = () => () => {};
+
 export function PartnerDeliveryWorkspace() {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(subscribeToMount, () => true, () => false);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -140,8 +142,6 @@ export function PartnerDeliveryWorkspace() {
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null);
   const [submissions, setSubmissions] = useState<Record<string, Submission[]>>({});
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File[]>>({});
-
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!mounted) return;
@@ -195,10 +195,6 @@ export function PartnerDeliveryWorkspace() {
       setLoading(false);
     }
   }
-
-  useEffect(() => {
-    if (open) void load();
-  }, [open]);
 
   const assignments = useMemo(() => dashboard?.projects.filter((item) => Boolean(item.projectStageId)) || [], [dashboard]);
   const pendingCount = assignments.filter((item) => item.status === "REVIEW").length;
@@ -362,7 +358,7 @@ export function PartnerDeliveryWorkspace() {
 
   return createPortal(
     <>
-      <button type="button" onClick={() => setOpen(true)} className="fixed bottom-6 left-6 z-[80] inline-flex items-center gap-2 rounded-2xl bg-[#111827] px-5 py-3.5 text-sm font-black text-white shadow-2xl transition hover:bg-[#9f7d3d]">
+      <button type="button" onClick={() => { setOpen(true); void load(); }} className="fixed bottom-6 left-6 z-[80] inline-flex items-center gap-2 rounded-2xl bg-[#111827] px-5 py-3.5 text-sm font-black text-white shadow-2xl transition hover:bg-[#9f7d3d]">
         <FileUp className="h-5 w-5" />تسليم المرحلة
         {pendingCount > 0 && <span className="rounded-full bg-violet-500 px-2 py-0.5 text-xs text-white">{pendingCount}</span>}
       </button>

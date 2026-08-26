@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, type ReactNode, useMemo, useState } from "react";
 import { ChevronDown, ClipboardList, Plus } from "lucide-react";
 import { DateInput } from "@/components/ui/date-input";
 import { DateText } from "@/components/ui/date-text";
@@ -211,7 +211,10 @@ export function ProjectExecutionPlan(props: Props) {
     }
   }
 
-  useEffect(() => { if (open && !loaded) void loadStages(); }, [open, loaded]);
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (nextOpen && !loaded) void loadStages();
+  }
 
   const nextStageNumber = stages.length + 1;
   const suggestion = useMemo(() => stageSuggestion(props.legacyStages, props.financialPlan, stages.length), [props.legacyStages, props.financialPlan, stages.length]);
@@ -357,7 +360,7 @@ export function ProjectExecutionPlan(props: Props) {
   }
 
   return (
-    <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)} className="group mt-2 rounded-xl border border-[#D8D2C4] bg-white">
+    <details open={open} onToggle={(event) => handleOpenChange(event.currentTarget.open)} className="group mt-2 rounded-xl border border-[#D8D2C4] bg-white">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm font-black text-[#9A7D43]">
         <span className="flex items-center gap-2"><ClipboardList className="h-4 w-4" />خطة التنفيذ</span>
         <ChevronDown className="h-5 w-5 transition group-open:rotate-180" />
