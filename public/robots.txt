@@ -1,16 +1,16 @@
+User-agent: *
+Allow: /
+
 User-agent: Googlebot
 Allow: /
 
 User-agent: Bingbot
 Allow: /
 
-User-agent: Twitterbot
+User-agent: GPTBot
 Allow: /
 
-User-agent: facebookexternalhit
+User-agent: ChatGPT-User
 Allow: /
 
-User-agent: *
-Allow: /
-
-Sitemap: https://cyberweel.com/sitemap.xml
+Sitemap: https://www.cyberweel.com/sitemap.xml
