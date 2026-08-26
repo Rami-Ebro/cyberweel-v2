@@ -35,10 +35,6 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // Next.js 16.3.x does not emit the root NFT traces when Vercel's build
-  // adapter is active, while standalone finalization still expects them.
-  // Vercel does not need standalone output; keep it only for self-hosted builds.
-  output: process.env.VERCEL ? undefined : "standalone",
   async headers() {
     return [
       {
