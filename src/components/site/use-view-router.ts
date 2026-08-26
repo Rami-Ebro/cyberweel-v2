@@ -1,54 +1,70 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import type { ViewId } from "@/lib/site-data";
 
-const VALID_VIEWS: ViewId[] = [
-  "home",
-  "how-we-help",
-  "share-challenge",
-  "partner",
-  "about",
-  "contact",
-];
+const VIEW_PATHS: Record<ViewId, string> = {
+  home: "/",
+  "how-we-help": "/how-we-help",
+  "share-challenge": "/share-challenge",
+  partner: "/partner",
+  about: "/about",
+  contact: "/contact-us",
+};
 
-function parseHash(): ViewId {
-  if (typeof window === "undefined") return "home";
+const PATH_VIEWS = Object.entries(VIEW_PATHS).reduce<Record<string, ViewId>>(
+  (acc, [view, path]) => {
+    acc[path] = view as ViewId;
+    return acc;
+  },
+  {},
+);
+
+function parseLegacyHash(): ViewId | null {
+  if (typeof window === "undefined") return null;
   const raw = window.location.hash.replace(/^#\/?/, "").trim();
-  if (VALID_VIEWS.includes(raw as ViewId)) return raw as ViewId;
-  return "home";
+  return Object.prototype.hasOwnProperty.call(VIEW_PATHS, raw) ? (raw as ViewId) : null;
 }
 
-function subscribe(callback: () => void) {
-  window.addEventListener("hashchange", callback);
-  return () => window.removeEventListener("hashchange", callback);
-}
-
-function getSnapshot(): ViewId {
-  return parseHash();
-}
-
-function getServerSnapshot(): ViewId {
-  return "home";
+function withCurrentQuery(path: string) {
+  if (typeof window === "undefined") return path;
+  return `${path}${window.location.search}`;
 }
 
 /**
- * Lightweight hash-based view router.
- * Gives a multi-page feel (distinct shareable URLs, back-button support)
- * while honoring the single user-visible route constraint.
+ * Public navigation uses real, clean paths so links are shareable and indexable.
+ * Legacy hash URLs remain supported and are normalized to their clean path.
+ * Existing query parameters are preserved so referral attribution is not lost.
  */
-export function useViewRouter() {
-  const view = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+export function useViewRouter(initialView: ViewId = "home") {
+  const router = useRouter();
+  const pathname = usePathname();
+  const view = PATH_VIEWS[pathname] ?? initialView;
 
-  const navigate = useCallback((next: ViewId) => {
-    if (typeof window === "undefined") return;
-    if (parseHash() === next) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-    window.location.hash = `/${next}`;
-    window.scrollTo({ top: 0, behavior: "auto" });
-  }, []);
+  useEffect(() => {
+    const legacyView = parseLegacyHash();
+    if (!legacyView) return;
+
+    router.replace(withCurrentQuery(VIEW_PATHS[legacyView]), { scroll: false });
+  }, [router]);
+
+  const navigate = useCallback(
+    (next: ViewId) => {
+      const target = withCurrentQuery(VIEW_PATHS[next]);
+
+      if (view === next) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+
+      router.push(target, { scroll: false });
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "auto" });
+      });
+    },
+    [router, view],
+  );
 
   return { view, navigate };
 }
