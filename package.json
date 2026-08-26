@@ -14,8 +14,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:resolve-smart-links": "prisma migrate resolve --applied 20260704184924_init_smart_links && prisma migrate resolve --applied 20260713110839_init_smart_links",
-    "db:reset": "prisma migrate reset",
-    "db:seed:test-partner": "node scripts/seed-test-partner.mjs"
+    "db:reset": "prisma migrate reset"
   },
   "dependencies": {
     "@prisma/client": "^6.11.1",
