@@ -173,41 +173,48 @@ export function MailtoForm({
       }
 
       if (trackReferral) {
-        const organization = String(data.get("organization") ?? "").trim();
-        const details = fields
-          .filter((field) => !["name", "email", "phone", "organization"].includes(field.name))
-          .map((field) => {
-            const value = String(data.get(field.name) ?? "").trim();
-            return value ? `${field.label}: ${value}` : "";
-          })
-          .filter(Boolean);
+        try {
+          const organization = String(data.get("organization") ?? "").trim();
+          const details = fields
+            .filter((field) => !["name", "email", "phone", "organization"].includes(field.name))
+            .map((field) => {
+              const value = String(data.get(field.name) ?? "").trim();
+              return value ? `${field.label}: ${value}` : "";
+            })
+            .filter(Boolean);
 
-        if (organization) details.unshift(`${isArabic ? "المؤسسة" : "Organization"}: ${organization}`);
+          if (organization) details.unshift(`${isArabic ? "المؤسسة" : "Organization"}: ${organization}`);
 
-        const referralCode = new URLSearchParams(window.location.search).get("ref")?.trim() || "";
-        const referralResponse = await fetch("/api/referrals", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: String(data.get("name") ?? organization).trim(),
-            email: String(data.get("email") ?? "").trim(),
-            phone: String(data.get("phone") ?? "").trim(),
-            company: organization,
-            notes: details.join("\n\n"),
-            referralCode,
-          }),
-        });
+          const referralCode = new URLSearchParams(window.location.search).get("ref")?.trim() || "";
+          const referralResponse = await fetch("/api/referrals", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: String(data.get("name") ?? organization).trim(),
+              email: String(data.get("email") ?? "").trim(),
+              phone: String(data.get("phone") ?? "").trim(),
+              company: organization,
+              notes: details.join("\n\n"),
+              referralCode,
+            }),
+          });
 
-        const referralResult = (await referralResponse.json().catch(() => null)) as
-          | { ok?: boolean; attributed?: boolean; error?: string }
-          | null;
+          const referralResult = (await referralResponse.json().catch(() => null)) as
+            | { ok?: boolean; attributed?: boolean; error?: string }
+            | null;
 
-        if (!referralResponse.ok || !referralResult?.ok) {
-          throw new Error(referralResult?.error || "REFERRAL_FAILED");
-        }
+          if (!referralResponse.ok || !referralResult?.ok) {
+            throw new Error(referralResult?.error || "REFERRAL_FAILED");
+          }
 
-        if (referralCode && referralResult.attributed !== true) {
-          throw new Error("REFERRAL_NOT_ATTRIBUTED");
+          if (referralCode && referralResult.attributed !== true) {
+            throw new Error("REFERRAL_NOT_ATTRIBUTED");
+          }
+        } catch (referralError) {
+          // The contact request has already been confirmed by /api/contact.
+          // Referral attribution is secondary bookkeeping and must never turn
+          // a successful customer submission into a false send-error state.
+          console.error("[mailto-form] Referral tracking failed after confirmed contact submission", referralError);
         }
       }
 
