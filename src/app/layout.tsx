@@ -92,10 +92,6 @@ export const metadata: Metadata = {
       "Understand the problem. Make the right decision. Build what the business genuinely needs.",
     images: ["/og-image.png"],
   },
-  robots: {
-    index: true,
-    follow: true,
-  },
 };
 
 export const viewport: Viewport = {
