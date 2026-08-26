@@ -2,6 +2,7 @@
 
 import { createContext, useContext } from "react";
 import type { ViewId } from "@/lib/site-data";
+import { PUBLIC_PATH_VIEWS, publicViewPath } from "@/lib/public-navigation";
 
 type NavContextValue = {
   view: ViewId;
@@ -16,5 +17,16 @@ export const NavContext = createContext<NavContextValue>({
 });
 
 export function useNav() {
-  return useContext(NavContext);
+  const context = useContext(NavContext);
+
+  if (typeof window === "undefined" || PUBLIC_PATH_VIEWS[window.location.pathname]) {
+    return context;
+  }
+
+  return {
+    ...context,
+    navigate: (view: ViewId) => {
+      window.location.assign(publicViewPath(view, window.location.search));
+    },
+  };
 }

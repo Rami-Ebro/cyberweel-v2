@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPageClient } from "@/components/site/legal-page-client";
+import { LegalFragmentNavigation } from "@/components/site/legal-fragment-navigation";
 
 export const metadata: Metadata = {
   title: "Policies & Legal",
@@ -18,5 +19,10 @@ export const metadata: Metadata = {
 };
 
 export default function LegalPage() {
-  return <LegalPageClient />;
+  return (
+    <>
+      <LegalFragmentNavigation />
+      <LegalPageClient />
+    </>
+  );
 }
