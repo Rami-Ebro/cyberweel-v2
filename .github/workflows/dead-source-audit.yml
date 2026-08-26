@@ -1,0 +1,152 @@
+name: Dead source module audit
+
+on:
+  push:
+    branches:
+      - chore/remove-dead-source-modules
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Build source import graph
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          ROOT = Path('.').resolve()
+          SRC = ROOT / 'src'
+          EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
+
+          modules = {}
+          for p in SRC.rglob('*'):
+              if p.is_file() and p.suffix in EXTENSIONS:
+                  modules[p.resolve()] = p
+
+          import_patterns = [
+              re.compile(r'(?:import|export)\s+(?:[^;]*?\s+from\s+)?["\']([^"\']+)["\']'),
+              re.compile(r'import\(\s*["\']([^"\']+)["\']\s*\)'),
+              re.compile(r'require\(\s*["\']([^"\']+)["\']\s*\)'),
+          ]
+
+          def resolve_spec(source, spec):
+              if spec.startswith('@/'):
+                  base = SRC / spec[2:]
+              elif spec.startswith('.'):
+                  base = source.parent / spec
+              else:
+                  return None
+              candidates = [base]
+              if base.suffix == '':
+                  candidates += [Path(str(base) + ext) for ext in EXTENSIONS]
+                  candidates += [base / ('index' + ext) for ext in EXTENSIONS]
+              for c in candidates:
+                  try:
+                      r = c.resolve()
+                  except Exception:
+                      continue
+                  if r in modules:
+                      return r
+              return None
+
+          edges = {p: set() for p in modules}
+          incoming = {p: set() for p in modules}
+          unresolved_internal = []
+          for rp, p in modules.items():
+              text = p.read_text(encoding='utf-8')
+              specs = []
+              for pattern in import_patterns:
+                  specs.extend(pattern.findall(text))
+              for spec in specs:
+                  if not (spec.startswith('@/') or spec.startswith('.')):
+                      continue
+                  dest = resolve_spec(p, spec)
+                  if dest:
+                      edges[rp].add(dest)
+                      incoming[dest].add(rp)
+                  else:
+                      unresolved_internal.append((str(p.relative_to(ROOT)), spec))
+
+          roots = set()
+          for rp, p in modules.items():
+              rel = p.relative_to(ROOT).as_posix()
+              name = p.name
+              if rel == 'src/proxy.ts':
+                  roots.add(rp)
+              if rel.startswith('src/app/') and name in {
+                  'page.tsx','page.ts','layout.tsx','layout.ts','route.ts','route.tsx',
+                  'loading.tsx','error.tsx','not-found.tsx','template.tsx','default.tsx'
+              }:
+                  roots.add(rp)
+
+          # Include source modules referenced by tests/scripts/config files outside src.
+          outside_text = []
+          for base in ['tests', 'scripts']:
+              b = ROOT / base
+              if b.exists():
+                  for p in b.rglob('*'):
+                      if p.is_file() and p.suffix in EXTENSIONS:
+                          try:
+                              outside_text.append((p, p.read_text(encoding='utf-8')))
+                          except UnicodeDecodeError:
+                              pass
+          for p, text in outside_text:
+              specs=[]
+              for pattern in import_patterns:
+                  specs.extend(pattern.findall(text))
+              for spec in specs:
+                  if spec.startswith('@/'):
+                      fake_source = SRC / 'dummy.ts'
+                      dest = resolve_spec(fake_source, spec)
+                      if dest:
+                          roots.add(dest)
+                  elif spec.startswith('../src/') or spec.startswith('./src/'):
+                      base = p.parent / spec
+                      candidates=[base] + [Path(str(base)+ext) for ext in EXTENSIONS]
+                      for c in candidates:
+                          if c.resolve() in modules:
+                              roots.add(c.resolve())
+                              break
+
+          reachable = set()
+          stack = list(roots)
+          while stack:
+              node = stack.pop()
+              if node in reachable:
+                  continue
+              reachable.add(node)
+              stack.extend(edges.get(node, ()))
+
+          print('=== GRAPH SUMMARY ===')
+          print('modules', len(modules))
+          print('roots', len(roots))
+          print('reachable', len(reachable))
+          print('unreachable', len(modules)-len(reachable))
+          print('unresolved_internal', len(unresolved_internal))
+          for item in unresolved_internal[:50]:
+              print('UNRESOLVED', item)
+
+          print('=== UNREACHABLE COMPONENTS_HOOKS_LIB ===')
+          candidates=[]
+          for rp,p in modules.items():
+              rel=p.relative_to(ROOT).as_posix()
+              if rp not in reachable and (rel.startswith('src/components/') or rel.startswith('src/hooks/') or rel.startswith('src/lib/')):
+                  candidates.append((rel, p.stat().st_size, len(incoming[rp])))
+          for rel,size,inc in sorted(candidates):
+              print(f'DEAD {rel} bytes={size} incoming={inc}')
+
+          print('=== ZERO-INCOMING COMPONENTS_HOOKS ===')
+          for rp,p in sorted(modules.items(), key=lambda x: x[1].as_posix()):
+              rel=p.relative_to(ROOT).as_posix()
+              if (rel.startswith('src/components/') or rel.startswith('src/hooks/')) and not incoming[rp]:
+                  print(f'ZERO {rel} bytes={p.stat().st_size} reachable={rp in reachable}')
+          PY
