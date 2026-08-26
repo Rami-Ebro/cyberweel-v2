@@ -25,7 +25,7 @@ jobs:
           import re
 
           root = Path('.')
-          text_suffixes = {'.ts','.tsx','.mjs','.js','.cjs','.json','.md','.css','.scss','.html','.txt','.prisma','.yml','.yaml'}
+          text_suffixes = {'.ts','.tsx','.mjs','.js','.cjs','.json','.md','.css','.scss','.html','.txt','.prisma','.yml','.yaml','.webmanifest'}
           ignored_parts = {'.git','node_modules','.next'}
 
           text_files = []
@@ -76,23 +76,23 @@ jobs:
               if len(paths) > 1:
                   print('DUP', digest[:12], [(str(p), p.stat().st_size) for p in paths])
 
-          print('=== PUBLIC REFERENCE AUDIT ===')
+          print('=== PUBLIC EXACT-PATH REFERENCE AUDIT ===')
           total_bytes = 0
           zero_ref_bytes = 0
           for p in sorted(public_files, key=lambda x: str(x)):
               rel = p.relative_to(public).as_posix()
               size = p.stat().st_size
               total_bytes += size
-              tokens = {f'/{rel}', rel, p.name}
+              route = f'/{rel}'
               refs = set()
               for path, text in text_files:
                   if path == p:
                       continue
-                  if any(tok in text for tok in tokens):
+                  if route in text:
                       refs.add(str(path))
               if not refs:
                   zero_ref_bytes += size
-              print(f'PUBLIC {rel} bytes={size} refs={len(refs)} files={sorted(refs)[:10]}')
+              print(f'PUBLIC {rel} bytes={size} exact_refs={len(refs)} files={sorted(refs)[:12]}')
           print(f'PUBLIC_TOTAL_BYTES={total_bytes}')
-          print(f'PUBLIC_ZERO_REFERENCE_BYTES={zero_ref_bytes}')
+          print(f'PUBLIC_ZERO_EXACT_REFERENCE_BYTES={zero_ref_bytes}')
           PY
