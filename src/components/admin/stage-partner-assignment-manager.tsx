@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { CheckCircle2, ChevronDown, ExternalLink, FileUp, Pencil, RotateCcw, Trash2, UserRoundCheck } from "lucide-react";
 import { DateInput } from "@/components/ui/date-input";
 import { DateText } from "@/components/ui/date-text";
@@ -115,9 +115,10 @@ export function StagePartnerAssignmentManager({ projectId }: { projectId: string
     }
   }
 
-  useEffect(() => {
-    if (open && !data) void load();
-  }, [open, data]);
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (nextOpen && !data) void load();
+  }
 
   const assignedPartnerNames = useMemo(() => {
     const names = data?.project.projectStages.flatMap((stage) => stage.assignments.map((item) => item.partnerName || item.partnerEmail)) || [];
@@ -267,7 +268,7 @@ export function StagePartnerAssignmentManager({ projectId }: { projectId: string
   }
 
   return (
-    <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)} className="group mt-2 rounded-xl border border-[#D8D2C4] bg-white">
+    <details open={open} onToggle={(event) => handleOpenChange(event.currentTarget.open)} className="group mt-2 rounded-xl border border-[#D8D2C4] bg-white">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm font-black text-[#9A7D43]">
         <span className="flex items-center gap-2"><UserRoundCheck className="h-4 w-4" />إسناد التنفيذ للشركاء{!!assignedPartnerNames.length && <span className="rounded-full bg-[#F7F3EB] px-2.5 py-1 text-xs text-[#111827]">{assignedPartnerNames.length}</span>}</span>
         <ChevronDown className="h-5 w-5 transition group-open:rotate-180" />

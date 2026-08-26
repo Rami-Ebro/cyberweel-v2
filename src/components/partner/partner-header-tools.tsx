@@ -138,12 +138,10 @@ export function PartnerHeaderTools() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [seenIds, setSeenIds] = useState<string[]>([]);
-  const [seenReady, setSeenReady] = useState(false);
   const notificationRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setSeenIds(storedSeenIds());
-    setSeenReady(true);
+    queueMicrotask(() => setSeenIds(storedSeenIds()));
 
     const attach = () => {
       const header = document.querySelector("main header");
@@ -200,21 +198,23 @@ export function PartnerHeaderTools() {
   }
 
   useEffect(() => {
-    void loadNotifications();
+    queueMicrotask(() => void loadNotifications());
   }, []);
 
   const notifications = useMemo(() => buildNotifications(projects), [projects]);
 
   useEffect(() => {
-    if (!seenReady || !notifications.length || localStorage.getItem(SEEN_IDS_KEY)) return;
+    if (!notifications.length || localStorage.getItem(SEEN_IDS_KEY)) return;
     const legacySeenAt = Date.parse(localStorage.getItem(LEGACY_SEEN_KEY) || "") || 0;
     if (!legacySeenAt) return;
     const migrated = notifications
       .filter((item) => Date.parse(item.timestamp) <= legacySeenAt)
       .map((item) => item.id);
-    setSeenIds(migrated);
-    localStorage.setItem(SEEN_IDS_KEY, JSON.stringify(migrated));
-  }, [notifications, seenReady]);
+    queueMicrotask(() => {
+      setSeenIds(migrated);
+      localStorage.setItem(SEEN_IDS_KEY, JSON.stringify(migrated));
+    });
+  }, [notifications]);
 
   const unread = notifications.filter((item) => !seenIds.includes(item.id)).length;
 

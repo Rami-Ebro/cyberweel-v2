@@ -12,12 +12,14 @@ export function PartnerDeliveryFeedback() {
   const lastMessage = useRef("");
 
   useEffect(() => {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      sessionStorage.removeItem(STORAGE_KEY);
-      setFeedback({ kind: "success", message: stored });
-      lastMessage.current = stored;
-    }
+    queueMicrotask(() => {
+      const stored = sessionStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        sessionStorage.removeItem(STORAGE_KEY);
+        setFeedback({ kind: "success", message: stored });
+        lastMessage.current = stored;
+      }
+    });
 
     const scan = () => {
       const heading = Array.from(document.querySelectorAll("h2")).find(

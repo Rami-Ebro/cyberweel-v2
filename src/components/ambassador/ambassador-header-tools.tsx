@@ -160,7 +160,7 @@ export function AmbassadorHeaderTools() {
   const notificationRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setSeenIds(storedSeenIds());
+    queueMicrotask(() => setSeenIds(storedSeenIds()));
 
     const attach = () => {
       const header = document.querySelector("main header");
@@ -216,7 +216,7 @@ export function AmbassadorHeaderTools() {
   }
 
   useEffect(() => {
-    void loadNotifications();
+    queueMicrotask(() => void loadNotifications());
   }, []);
 
   const notifications = useMemo(() => buildNotifications(payload), [payload]);
