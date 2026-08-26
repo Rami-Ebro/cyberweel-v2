@@ -1,0 +1,98 @@
+name: Deep clean repository audit
+
+on:
+  push:
+    branches:
+      - chore/deep-clean-public-env-audit
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Audit env and public assets
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import re
+
+          root = Path('.')
+          text_suffixes = {'.ts','.tsx','.mjs','.js','.cjs','.json','.md','.css','.scss','.html','.txt','.prisma','.yml','.yaml'}
+          ignored_parts = {'.git','node_modules','.next'}
+
+          text_files = []
+          for p in root.rglob('*'):
+              if not p.is_file() or any(part in ignored_parts for part in p.parts):
+                  continue
+              if p.suffix.lower() in text_suffixes or p.name in {'.env.example','.gitignore'}:
+                  try:
+                      text_files.append((p, p.read_text(encoding='utf-8')))
+                  except UnicodeDecodeError:
+                      pass
+
+          env_path = Path('.env.example')
+          env_text = env_path.read_text(encoding='utf-8')
+          env_keys = re.findall(r'(?m)^([A-Z][A-Z0-9_]*)=', env_text)
+          env_refs = set()
+          ref_patterns = [
+              re.compile(r'process\.env\.([A-Z][A-Z0-9_]*)'),
+              re.compile(r'process\.env\[["\']([A-Z][A-Z0-9_]*)["\']\]'),
+              re.compile(r'env\(["\']([A-Z][A-Z0-9_]*)["\']\)'),
+          ]
+          for path, text in text_files:
+              if path == env_path:
+                  continue
+              for pattern in ref_patterns:
+                  env_refs.update(pattern.findall(text))
+
+          print('=== ENV AUDIT ===')
+          for key in env_keys:
+              literal_files = []
+              for path, text in text_files:
+                  if path == env_path:
+                      continue
+                  if key in text:
+                      literal_files.append(str(path))
+              print(f'{key}: referenced={key in env_refs}; literal_files={len(literal_files)}; files={literal_files[:12]}')
+          extra = sorted(env_refs - set(env_keys))
+          print(f'ENV_REFERENCED_NOT_DOCUMENTED={extra}')
+
+          public = Path('public')
+          print('=== PUBLIC EXACT DUPLICATES ===')
+          by_hash = {}
+          public_files = [p for p in public.rglob('*') if p.is_file()]
+          for p in public_files:
+              digest = hashlib.sha256(p.read_bytes()).hexdigest()
+              by_hash.setdefault(digest, []).append(p)
+          for digest, paths in sorted(by_hash.items()):
+              if len(paths) > 1:
+                  print('DUP', digest[:12], [(str(p), p.stat().st_size) for p in paths])
+
+          print('=== PUBLIC REFERENCE AUDIT ===')
+          total_bytes = 0
+          zero_ref_bytes = 0
+          for p in sorted(public_files, key=lambda x: str(x)):
+              rel = p.relative_to(public).as_posix()
+              size = p.stat().st_size
+              total_bytes += size
+              tokens = {f'/{rel}', rel, p.name}
+              refs = set()
+              for path, text in text_files:
+                  if path == p:
+                      continue
+                  if any(tok in text for tok in tokens):
+                      refs.add(str(path))
+              if not refs:
+                  zero_ref_bytes += size
+              print(f'PUBLIC {rel} bytes={size} refs={len(refs)} files={sorted(refs)[:10]}')
+          print(f'PUBLIC_TOTAL_BYTES={total_bytes}')
+          print(f'PUBLIC_ZERO_REFERENCE_BYTES={zero_ref_bytes}')
+          PY
