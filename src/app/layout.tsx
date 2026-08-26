@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Cormorant_Garamond, Noto_Sans_Arabic, Amiri } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { DashboardI18nProvider } from "@/components/dashboard-i18n-provider";
@@ -155,7 +154,6 @@ export default function RootLayout({
         />
         <DashboardI18nProvider>{children}</DashboardI18nProvider>
         <ProjectCreationExperience />
-        <Toaster />
         <Sonner />
         <SpeedInsights />
       </body>
