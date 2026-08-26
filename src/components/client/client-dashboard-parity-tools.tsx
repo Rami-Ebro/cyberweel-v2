@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { LogOut, Menu, X } from "lucide-react";
+import { LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+
+const CLIENT_THEME_KEY = "cyberweel-client-theme";
 
 function textOf(element: Element | null) {
   return (element?.textContent || "").replace(/\s+/g, " ").trim();
@@ -72,6 +74,11 @@ export function ClientDashboardParityTools() {
   const [aside, setAside] = useState<HTMLElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    queueMicrotask(() => setDarkMode(localStorage.getItem(CLIENT_THEME_KEY) === "dark"));
+  }, []);
 
   useEffect(() => {
     const sync = () => {
@@ -94,6 +101,12 @@ export function ClientDashboardParityTools() {
   }, [menuOpen, root]);
 
   useEffect(() => {
+    if (!root) return;
+    root.classList.toggle("dark", darkMode);
+    root.dataset.cwClientTheme = darkMode ? "dark" : "light";
+  }, [darkMode, root]);
+
+  useEffect(() => {
     if (!aside) return;
     const closeAfterNavigation = (event: Event) => {
       if ((event.target as Element | null)?.closest("button,a")) setMenuOpen(false);
@@ -110,6 +123,14 @@ export function ClientDashboardParityTools() {
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [menuOpen]);
+
+  function toggleDarkMode() {
+    setDarkMode((current) => {
+      const next = !current;
+      localStorage.setItem(CLIENT_THEME_KEY, next ? "dark" : "light");
+      return next;
+    });
+  }
 
   async function logout() {
     setLoggingOut(true);
@@ -136,13 +157,24 @@ export function ClientDashboardParityTools() {
           </button>
           <button
             type="button"
+            aria-label="تبديل المظهر"
+            title={darkMode ? "الوضع النهاري" : "الوضع الليلي"}
+            onClick={toggleDarkMode}
+            data-cw-client-theme-button="true"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#D8D2C4] bg-white shadow-sm transition hover:border-[#B89A5A] hover:bg-[#FFFDF8]"
+          >
+            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+          <button
+            type="button"
             onClick={logout}
             disabled={loggingOut}
             data-cw-client-header-logout="true"
-            className="hidden h-11 items-center gap-2 rounded-xl bg-rose-600 px-4 font-black text-white transition hover:bg-rose-700 disabled:opacity-60 sm:inline-flex"
+            aria-label="تسجيل الخروج"
+            className="inline-flex h-11 w-11 items-center justify-center gap-2 rounded-xl bg-rose-600 font-black text-white transition hover:bg-rose-700 disabled:opacity-60 sm:w-auto sm:px-4"
           >
             <LogOut size={18} />
-            {loggingOut ? "جارٍ الخروج" : "تسجيل الخروج"}
+            <span className="hidden sm:inline">{loggingOut ? "جارٍ الخروج" : "تسجيل الخروج"}</span>
           </button>
         </>,
         controls,
@@ -231,8 +263,12 @@ export function ClientDashboardParityTools() {
           min-height: 44px;
         }
 
-        [data-cw-client-header-logout="true"] {
+        [data-cw-client-theme-button="true"] {
           order: 4;
+        }
+
+        [data-cw-client-header-logout="true"] {
+          order: 5;
         }
 
         [data-cw-client-menu-button="true"] {
@@ -258,6 +294,72 @@ export function ClientDashboardParityTools() {
           z-index: 90 !important;
           border-radius: 14px !important;
           box-shadow: 0 24px 60px rgba(17, 24, 39, 0.18) !important;
+        }
+
+        [data-cw-client-root="true"].dark {
+          background: #020617 !important;
+          color: #f8fafc !important;
+        }
+
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] {
+          background: #020617 !important;
+          color: #f8fafc !important;
+        }
+
+        [data-cw-client-root="true"].dark [data-cw-client-header="true"] {
+          border-bottom-color: #1e293b !important;
+          background: rgba(2, 6, 23, 0.92) !important;
+        }
+
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] [class~="bg-white"] {
+          background-color: #0f172a !important;
+        }
+
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] [class~="bg-slate-50"],
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] [class~="bg-slate-100"],
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] [class~="bg-[#F7F3EB]"],
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] [class~="bg-[#FFFDF8]"] {
+          background-color: #111827 !important;
+        }
+
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] [class~="border-slate-100"],
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] [class~="border-slate-200"],
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] [class~="border-[#D8D2C4]"],
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] [class~="border-[#EEE7DA]"] {
+          border-color: #334155 !important;
+        }
+
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] [class~="text-[#111827]"] {
+          color: #f8fafc !important;
+        }
+
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] [class~="text-slate-500"] {
+          color: #94a3b8 !important;
+        }
+
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] [class~="text-slate-600"],
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] [class~="text-slate-700"],
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] [class~="text-slate-800"],
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] [class~="text-slate-900"] {
+          color: #cbd5e1 !important;
+        }
+
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] input,
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] select,
+        [data-cw-client-root="true"].dark [data-cw-client-content="true"] textarea {
+          border-color: #334155 !important;
+          background: #0f172a !important;
+          color: #f8fafc !important;
+          color-scheme: dark;
+        }
+
+        [data-cw-client-root="true"].dark [data-cw-client-notification-button="true"],
+        [data-cw-client-root="true"].dark [data-cw-client-refresh-button="true"],
+        [data-cw-client-root="true"].dark [data-cw-client-language-button="true"],
+        [data-cw-client-root="true"].dark [data-cw-client-theme-button="true"] {
+          border-color: #334155 !important;
+          background: #0f172a !important;
+          color: #f8fafc !important;
         }
 
         @media (min-width: 640px) {
