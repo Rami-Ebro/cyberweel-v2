@@ -10,6 +10,7 @@ import { useViewRouter } from "@/components/site/use-view-router";
 import { useKeyboardNav } from "@/components/site/use-keyboard-nav";
 import { ScrollUtilities } from "@/components/site/scroll-utilities";
 import { ShortcutsHelp } from "@/components/site/shortcuts-help";
+import { SkipToContent } from "@/components/site/skip-to-content";
 import { WhatsAppButton } from "@/components/site/whatsapp-button";
 import { BRAND } from "@/lib/site-data";
 import { FinalHomeView } from "@/components/sections/final-home-view";
@@ -94,12 +95,10 @@ function HomeInner({ initialView }: { initialView: ViewId }) {
             }
           }
         `}</style>
-        <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:text-floral">
-          {t.common.skipToContent}
-        </a>
+        <SkipToContent label={t.common.skipToContent} />
         <ScrollUtilities />
         <SiteHeader />
-        <main id="main" className="flex-1">
+        <main id="main" tabIndex={-1} className="flex-1">
           <Current />
         </main>
         <SiteFooter />
