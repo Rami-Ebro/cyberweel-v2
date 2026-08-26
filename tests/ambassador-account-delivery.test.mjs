@@ -4,11 +4,11 @@ import { accountInvitationCopy } from "../src/lib/account-invitation-copy.ts";
 import { shouldSendAcceptanceInvitation } from "../src/lib/account-invitation-policy.ts";
 import { canUsePasswordAccess } from "../src/lib/password-access.ts";
 
-test("ambassadors can request and consume password-access tokens", () => {
+test("supported account roles can request and consume password-access tokens", () => {
   assert.equal(canUsePasswordAccess("AMBASSADOR"), true);
   assert.equal(canUsePasswordAccess("PARTNER"), true);
   assert.equal(canUsePasswordAccess("CLIENT"), true);
-  assert.equal(canUsePasswordAccess("ADMIN"), false);
+  assert.equal(canUsePasswordAccess("ADMIN"), true);
 });
 
 test("ambassador acceptance copy uses a secure set-password link without a plaintext password", () => {
