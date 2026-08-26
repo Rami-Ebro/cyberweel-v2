@@ -1,4 +1,4 @@
-name: Dead source module audit
+name: Remove and verify dead source modules
 
 on:
   push:
@@ -6,118 +6,90 @@ on:
       - chore/remove-dead-source-modules
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  audit:
+  clean-and-verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
 
-      - name: Build source import graph
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Remove proven dead modules and duplicate toast stack
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
-          ROOT = Path('.').resolve()
-          SRC = ROOT / 'src'
-          EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
-          modules = {p.resolve(): p for p in SRC.rglob('*') if p.is_file() and p.suffix in EXTENSIONS}
-          patterns = [
-              re.compile(r'(?:import|export)\s+(?:[^;]*?\s+from\s+)?["\']([^"\']+)["\']'),
-              re.compile(r'import\(\s*["\']([^"\']+)["\']\s*\)'),
-              re.compile(r'require\(\s*["\']([^"\']+)["\']\s*\)'),
+          dead = [
+            'src/app/admin/login/actions.ts',
+            'src/app/admin/login/login-form.tsx',
+            'src/app/admin/smart-links/logout-button.tsx',
+            'src/components/sections/home-view.tsx',
+            'src/components/sections/how-we-help-areas.tsx',
+            'src/components/sections/how-we-help-delivery.tsx',
+            'src/components/sections/how-we-help-honesty.tsx',
+            'src/components/sections/how-we-help-process.tsx',
+            'src/components/sections/how-we-help-view.tsx',
+            'src/components/sections/transition-section.tsx',
+            'src/components/site/breadcrumb-ld.tsx',
+            'src/components/site/command-palette.tsx',
+            'src/components/site/fade-in.tsx',
+            'src/components/site/section-reading-bar.tsx',
+            'src/components/views/contact-view.tsx',
+            'src/components/views/how-we-help-view.tsx',
+            'src/hooks/use-mobile.ts',
+            'src/components/ui/toast.tsx',
+            'src/components/ui/toaster.tsx',
+            'src/hooks/use-toast.ts',
           ]
+          for name in dead:
+              p=Path(name)
+              if p.exists():
+                  p.unlink()
 
-          def resolve_spec(source, spec):
-              if spec.startswith('@/'):
-                  base = SRC / spec[2:]
-              elif spec.startswith('.'):
-                  base = source.parent / spec
-              else:
-                  return None
-              candidates=[base]
-              if base.suffix == '':
-                  candidates += [Path(str(base)+ext) for ext in EXTENSIONS]
-                  candidates += [base / ('index'+ext) for ext in EXTENSIONS]
-              for c in candidates:
-                  r=c.resolve()
-                  if r in modules:
-                      return r
-              return None
-
-          edges={p:set() for p in modules}
-          incoming={p:set() for p in modules}
-          unresolved=[]
-          for rp,p in modules.items():
-              text=p.read_text(encoding='utf-8')
-              specs=[]
-              for pattern in patterns:
-                  specs += pattern.findall(text)
-              for spec in specs:
-                  if not (spec.startswith('@/') or spec.startswith('.')):
-                      continue
-                  dest=resolve_spec(p,spec)
-                  if dest:
-                      edges[rp].add(dest); incoming[dest].add(rp)
-                  elif not spec.endswith('.css'):
-                      unresolved.append((p.relative_to(ROOT).as_posix(),spec))
-
-          roots=set()
-          next_names={'page.tsx','page.ts','layout.tsx','layout.ts','route.ts','route.tsx','loading.tsx','error.tsx','not-found.tsx','template.tsx','default.tsx'}
-          for rp,p in modules.items():
-              rel=p.relative_to(ROOT).as_posix()
-              if rel == 'src/proxy.ts' or (rel.startswith('src/app/') and p.name in next_names):
-                  roots.add(rp)
-
-          # Tests and scripts can intentionally consume source modules.
-          for base_name in ['tests','scripts']:
-              base=ROOT/base_name
-              if not base.exists(): continue
-              for p in base.rglob('*'):
-                  if not (p.is_file() and p.suffix in EXTENSIONS): continue
-                  text=p.read_text(encoding='utf-8')
-                  specs=[]
-                  for pattern in patterns: specs += pattern.findall(text)
-                  for spec in specs:
-                      if spec.startswith('@/'):
-                          dest=resolve_spec(SRC/'dummy.ts',spec)
-                          if dest: roots.add(dest)
-                      elif '/src/' in spec or spec.startswith('../src/') or spec.startswith('./src/'):
-                          basep=p.parent/spec
-                          for c in [basep]+[Path(str(basep)+ext) for ext in EXTENSIONS]:
-                              if c.resolve() in modules:
-                                  roots.add(c.resolve()); break
-
-          reachable=set(); stack=list(roots)
-          while stack:
-              node=stack.pop()
-              if node in reachable: continue
-              reachable.add(node); stack.extend(edges[node])
-
-          dead=[rp for rp in modules if rp not in reachable]
-          print('=== GRAPH SUMMARY ===')
-          print('modules',len(modules),'roots',len(roots),'reachable',len(reachable),'unreachable',len(dead),'unresolved_non_css',len(unresolved))
-          for x in unresolved: print('UNRESOLVED',x)
-
-          print('=== ALL UNREACHABLE ===')
-          total=0
-          for rp in sorted(dead,key=lambda x:modules[x].as_posix()):
-              p=modules[rp]; total += p.stat().st_size
-              rel=p.relative_to(ROOT).as_posix()
-              parents=sorted(modules[x].relative_to(ROOT).as_posix() for x in incoming[rp])
-              children=sorted(modules[x].relative_to(ROOT).as_posix() for x in edges[rp])
-              print(f'DEAD {rel} bytes={p.stat().st_size} incoming={parents} imports={children}')
-          print('DEAD_TOTAL_BYTES',total)
-
-          print('=== REACHABLE TOAST / MOBILE REFERENCES ===')
-          for rp,p in sorted(modules.items(), key=lambda x:x[1].as_posix()):
-              rel=p.relative_to(ROOT).as_posix()
-              if any(key in rel for key in ['toast','use-mobile','sonner']):
-                  parents=sorted(modules[x].relative_to(ROOT).as_posix() for x in incoming[rp])
-                  print(f'SPECIAL {rel} reachable={rp in reachable} incoming={parents}')
+          layout=Path('src/app/layout.tsx')
+          text=layout.read_text(encoding='utf-8')
+          text=text.replace('import { Toaster } from "@/components/ui/toaster";\n','')
+          text=text.replace('        <Toaster />\n','')
+          layout.write_text(text,encoding='utf-8')
           PY
+
+          npm uninstall @radix-ui/react-toast --package-lock-only --ignore-scripts --no-audit --no-fund
+
+          if grep -R --line-number --fixed-strings '@radix-ui/react-toast' src package.json 2>/dev/null; then
+            echo 'Radix toast reference remains after cleanup.' >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: AI tests
+        run: npm run test:ai
+
+      - name: Ambassador delivery tests
+        run: npm run test:ambassador-delivery
+
+      - name: Commit verified cleanup
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No cleanup changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: remove dead source modules and duplicate toast stack"
+          git push origin HEAD:${{ github.ref_name }}
