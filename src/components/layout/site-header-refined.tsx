@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { ChevronDown, LayoutDashboard, LogIn, LogOut, Menu, Settings } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, type ViewId } from "@/lib/site-data";
+import { PUBLIC_VIEW_PATHS } from "@/lib/public-navigation";
 import { useNav } from "@/components/site/nav-context";
 import { useI18n } from "@/components/site/i18n";
 import { LanguageSwitcher } from "@/components/site/language-switcher";
@@ -65,6 +66,11 @@ export function SiteHeaderRefined() {
   }, []);
 
   const go = (id: ViewId) => { navigate(id); setMobileOpen(false); };
+  const handlePublicLink = (event: MouseEvent<HTMLAnchorElement>, id: ViewId) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    go(id);
+  };
   const navLabel = (id: ViewId) => {
     if (isArabic && id === "how-we-help") return "كيف نساعدك";
     if (isArabic && id === "partner") return "انضم إلينا";
@@ -109,11 +115,11 @@ export function SiteHeaderRefined() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/70 bg-background/90 backdrop-blur-md">
       <div className="cw-container flex h-24 items-center justify-between">
-        <button type="button" onClick={() => go("home")} className="focus-ring rounded-md" aria-label={`CyberWeel — ${t.nav.home}`}><Wordmark isArabic={isArabic} /></button>
+        <a href={PUBLIC_VIEW_PATHS.home} onClick={(event) => handlePublicLink(event, "home")} className="focus-ring rounded-md" aria-label={`CyberWeel — ${t.nav.home}`}><Wordmark isArabic={isArabic} /></a>
         <nav className="hidden items-center gap-1 lg:flex" aria-label={isArabic ? "التنقل الرئيسي" : "Primary navigation"}>
           {HEADER_ITEMS.map((item) => {
             const active = view === item.id;
-            return <button key={item.id} type="button" onClick={() => go(item.id)} className={cn("focus-ring group relative rounded-md px-3 py-2 text-sm font-medium transition-colors", active ? "text-ink" : "text-muted-foreground hover:text-ink")} aria-current={active ? "page" : undefined}>{navLabel(item.id)}<span className={cn("absolute inset-x-3 -bottom-[1px] h-[2px] bg-accent transition-transform duration-300", isArabic ? "origin-right" : "origin-left", active ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100")} aria-hidden /></button>;
+            return <a key={item.id} href={PUBLIC_VIEW_PATHS[item.id]} onClick={(event) => handlePublicLink(event, item.id)} className={cn("focus-ring group relative rounded-md px-3 py-2 text-sm font-medium transition-colors", active ? "text-ink" : "text-muted-foreground hover:text-ink")} aria-current={active ? "page" : undefined}>{navLabel(item.id)}<span className={cn("absolute inset-x-3 -bottom-[1px] h-[2px] bg-accent transition-transform duration-300", isArabic ? "origin-right" : "origin-left", active ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100")} aria-hidden /></a>;
           })}
         </nav>
         <div className="flex items-center gap-2">
@@ -147,11 +153,11 @@ export function SiteHeaderRefined() {
                 {HEADER_ITEMS.map((item) => {
                   const Icon = item.icon;
                   const active = view === item.id;
-                  return <button key={item.id} type="button" onClick={() => go(item.id)} className={cn("focus-ring flex items-center justify-between rounded-md px-4 py-4 text-start text-base transition-colors", active ? "bg-muted text-ink" : "text-muted-foreground hover:bg-muted/60 hover:text-ink")} aria-current={active ? "page" : undefined}><span className="flex items-center gap-3"><Icon className="h-5 w-5 text-accent" /><span className="font-medium">{navLabel(item.id)}</span></span>{active && <span className="h-1.5 w-1.5 rounded-full bg-accent" />}</button>;
+                  return <a key={item.id} href={PUBLIC_VIEW_PATHS[item.id]} onClick={(event) => handlePublicLink(event, item.id)} className={cn("focus-ring flex items-center justify-between rounded-md px-4 py-4 text-start text-base transition-colors", active ? "bg-muted text-ink" : "text-muted-foreground hover:bg-muted/60 hover:text-ink")} aria-current={active ? "page" : undefined}><span className="flex items-center gap-3"><Icon className="h-5 w-5 text-accent" /><span className="font-medium">{navLabel(item.id)}</span></span>{active && <span className="h-1.5 w-1.5 rounded-full bg-accent" />}</a>;
                 })}
               </nav>
               <div className="mt-auto space-y-3 border-t border-border px-6 py-6">
-                <button type="button" onClick={() => go("share-challenge")} className="focus-ring flex w-full items-center justify-center rounded-md border border-border px-5 py-3 text-sm font-semibold text-ink transition-colors hover:bg-muted">{isArabic ? "شاركنا مشكلتك" : "Share your challenge"}</button>
+                <a href={PUBLIC_VIEW_PATHS["share-challenge"]} onClick={(event) => handlePublicLink(event, "share-challenge")} className="focus-ring flex w-full items-center justify-center rounded-md border border-border px-5 py-3 text-sm font-semibold text-ink transition-colors hover:bg-muted">{isArabic ? "شاركنا مشكلتك" : "Share your challenge"}</a>
                 {account ? (
                   <div className="rounded-2xl border border-border bg-white p-2">
                     <div className="flex items-center gap-3 border-b border-border px-3 py-3">
