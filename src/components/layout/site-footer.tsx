@@ -1,9 +1,11 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import { Mail } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ArchMotif } from "@/components/brand/motif";
 import { NAV_ITEMS, BRAND, type ViewId } from "@/lib/site-data";
+import { PUBLIC_VIEW_PATHS } from "@/lib/public-navigation";
 import { useNav } from "@/components/site/nav-context";
 import { useI18n } from "@/components/site/i18n";
 import { SocialLinks } from "@/components/site/social-links";
@@ -45,6 +47,11 @@ export function SiteFooter() {
   const isArabic = dir === "rtl";
 
   const go = (id: ViewId) => navigate(id);
+  const handlePublicLink = (event: MouseEvent<HTMLAnchorElement>, id: ViewId) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    go(id);
+  };
   const shareLabel = isArabic ? "شاركنا مشكلتك" : "Share your challenge";
   const methodology = isArabic ? "وضوح ← قرار ← تقدّم" : "Clarity · Decision · Progress";
   const copyright = isArabic
@@ -93,13 +100,13 @@ export function SiteFooter() {
             <ul className="mt-5 space-y-3">
               {FOOTER_ITEMS.map((item) => (
                 <li key={item.id}>
-                  <button
-                    type="button"
-                    onClick={() => go(item.id)}
+                  <a
+                    href={PUBLIC_VIEW_PATHS[item.id]}
+                    onClick={(event) => handlePublicLink(event, item.id)}
                     className="focus-ring inline-flex items-center gap-2 rounded-md text-sm text-[#D8D2C4]/90 transition-colors hover:text-[#F7F3EB]"
                   >
                     {navLabel(item.id)}
-                  </button>
+                  </a>
                 </li>
               ))}
             </ul>
@@ -132,13 +139,13 @@ export function SiteFooter() {
               <SocialLinks onDark size="sm" />
             </div>
 
-            <button
-              type="button"
-              onClick={() => go("share-challenge")}
+            <a
+              href={PUBLIC_VIEW_PATHS["share-challenge"]}
+              onClick={(event) => handlePublicLink(event, "share-challenge")}
               className="focus-ring mt-6 inline-flex items-center gap-2 rounded-md bg-camel px-5 py-2.5 text-sm font-semibold text-[#111827] transition-colors hover:bg-camel/90"
             >
               {shareLabel}
-            </button>
+            </a>
           </div>
         </div>
 
