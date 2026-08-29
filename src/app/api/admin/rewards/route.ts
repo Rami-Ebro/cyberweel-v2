@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { DEFAULT_AMBASSADOR_REWARD_LEVELS, rewardRateForNewProject, syncStageReward } from "@/lib/ambassador-rewards";
 import { writeAdminAudit } from "@/lib/admin-audit";
 import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security";
+import { verifyPrivatePaymentProofBlob } from "@/lib/payment-proof-blob";
 
 const stageStatuses = new Set<ProjectStageStatus>(["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"]);
 const paymentStatuses = new Set<ProjectStagePaymentStatus>(["PENDING", "PAID", "CANCELLED"]);
@@ -251,6 +252,18 @@ export async function POST(request: NextRequest) {
         }
         if (!validPaymentProofUrl(effectiveAttachmentUrl, reward.id) || !ALLOWED_PAYMENT_PROOF_TYPES.has(effectiveAttachmentType)) {
           return NextResponse.json({ error: "مرفق إثبات الدفع غير صالح" }, { status: 400 });
+        }
+
+        const blobProof = await verifyPrivatePaymentProofBlob({
+          url: effectiveAttachmentUrl,
+          expectedPrefix: `ambassador-rewards/${reward.id}/proof/`,
+          expectedContentType: effectiveAttachmentType,
+        });
+        if (!blobProof.ok) {
+          return NextResponse.json(
+            { error: blobProof.reason === "NOT_CONFIGURED" ? "خدمة التحقق من إثبات الدفع غير مهيأة حاليًا" : "مرفق إثبات الدفع غير موجود أو لا يخص هذه المكافأة" },
+            { status: blobProof.reason === "NOT_CONFIGURED" ? 503 : 400 },
+          );
         }
 
         const previousNote = existingProof?.note || (!reward.adminNotes?.startsWith(PAYMENT_PROOF_PREFIX) ? reward.adminNotes : null);
