@@ -36,7 +36,7 @@ export function ThemeToggle() {
         onClick={toggle}
         aria-label={label}
         title={label}
-        className="focus-ring inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-ink transition-colors hover:bg-muted"
+        className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-md border border-border bg-background text-ink transition-colors hover:bg-muted"
       >
         {dark ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
       </button>

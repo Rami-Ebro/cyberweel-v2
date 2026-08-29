@@ -109,7 +109,7 @@ export function SiteHeaderRefined() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/70 bg-background/90 backdrop-blur-md">
       <div className="cw-container flex h-24 items-center justify-between">
-        <button type="button" onClick={() => go("home")} className="focus-ring rounded-md" aria-label={`CyberWeel — ${t.nav.home}`}><Wordmark isArabic={isArabic} /></button>
+        <button type="button" onClick={() => go("home")} className="focus-ring rounded-md" aria-label={`CyberWeel — ${t.nav.home}`}><span className="sm:hidden"><Logo size={42} /></span><span className="hidden sm:inline-flex"><Wordmark isArabic={isArabic} /></span></button>
         <nav className="hidden items-center gap-1 lg:flex" aria-label={isArabic ? "التنقل الرئيسي" : "Primary navigation"}>
           {HEADER_ITEMS.map((item) => {
             const active = view === item.id;
