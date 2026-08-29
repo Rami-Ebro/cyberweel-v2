@@ -232,16 +232,11 @@ export async function PATCH(request: NextRequest) {
 
   const stageAssignment = await getStagePartnerAssignment(projectId, user.partner!.id);
   if (stageAssignment) {
+    if (progress > 99) return NextResponse.json({ error: "نسبة التقدم اليدوية للإسناد الحديث يجب أن تكون بين 0 و99. عند اكتمال العمل أرسل تسليم المرحلة للمراجعة" }, { status: 400 });
     if (stageAssignment.stageStatus === "NOT_STARTED") return NextResponse.json({ error: "لا يمكن بدء التنفيذ قبل أن تبدأ الإدارة هذه المرحلة" }, { status: 409 });
     if (["COMPLETED", "CANCELLED"].includes(stageAssignment.stageStatus)) return NextResponse.json({ error: "لا يمكن تعديل مرحلة مكتملة أو ملغاة" }, { status: 409 });
     if (stageAssignment.status === "REVIEW") return NextResponse.json({ error: "لديك تسليم بانتظار مراجعة الإدارة. لا يمكن تغيير التقدم حتى يصدر قرار المراجعة" }, { status: 409 });
     if (stageAssignment.status === "COMPLETED" || ["APPROVED", "PAID"].includes(stageAssignment.paymentStatus)) return NextResponse.json({ error: "اعتمدت الإدارة هذا التسليم، لذلك لم يعد تقدم الإسناد قابلًا للتعديل" }, { status: 409 });
-    if (progress === 100) {
-      return NextResponse.json({
-        error: "لا يتم إكمال المرحلة برفع النسبة إلى 100٪ يدويًا. عند اكتمال العمل أرسل «تسليم المرحلة» بملاحظة أو رابط أو ملف ليصل إلى مراجعة الإدارة.",
-      }, { status: 409 });
-    }
-
     const updated = await updateStagePartnerProgress({ assignmentId: projectId, partnerId: user.partner!.id, progress });
     if (!updated) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });
     const submissions = (await submissionsForAssignments([projectId])).get(projectId) || [];
@@ -252,6 +247,9 @@ export async function PATCH(request: NextRequest) {
   if (!project) return NextResponse.json({ error: "المشروع غير موجود" }, { status: 404 });
   if (project.status === "COMPLETED") return NextResponse.json({ error: "لا يمكن تعديل مشروع مكتمل" }, { status: 409 });
 
-  const updated = await db.partnerProject.update({ where: { id: project.id }, data: { progress } });
+  const updated = await db.partnerProject.update({
+    where: { id: project.id },
+    data: progress === 100 ? { progress: 100, status: "COMPLETED" } : { progress },
+  });
   return NextResponse.json({ project: serializeLegacyProject(updated) });
 }
