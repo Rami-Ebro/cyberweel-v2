@@ -45,7 +45,9 @@ function safeText(value: unknown, max = 160) {
 function validProofUrl(value: string, assignmentId: string) {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && url.hostname.endsWith(".blob.vercel-storage.com") && url.pathname.includes(assignmentId);
+    return url.protocol === "https:"
+      && url.hostname.endsWith(".private.blob.vercel-storage.com")
+      && url.pathname.startsWith(`/partner-stage-payments/${assignmentId}/proof/`);
   } catch {
     return false;
   }
@@ -198,27 +200,31 @@ export async function POST(request: NextRequest) {
     const paymentMethod = safeText(body?.paymentMethod, 80);
     const paymentReference = safeText(body?.paymentReference, 160);
     const paidAt = optionalDate(body?.paidAt);
-    const paymentProofUrl = safeText(body?.paymentProofUrl, 700) || null;
-    const paymentProofName = safeText(body?.paymentProofName, 180) || null;
+    const paymentProofUrl = safeText(body?.paymentProofUrl, 700);
+    const paymentProofName = safeText(body?.paymentProofName, 180);
 
     if (!assignmentId) return NextResponse.json({ error: "الإسناد مطلوب" }, { status: 400 });
     if (!paymentMethod) return NextResponse.json({ error: "طريقة الدفع مطلوبة" }, { status: 400 });
     if (!paymentReference) return NextResponse.json({ error: "مرجع عملية الدفع مطلوب" }, { status: 400 });
     if (!paidAt || paidAt === undefined || paidAt.getTime() > Date.now() + 24 * 60 * 60 * 1000) return NextResponse.json({ error: "تاريخ الدفع مطلوب وصحيح" }, { status: 400 });
-    if (paymentProofUrl && !validProofUrl(paymentProofUrl, assignmentId)) return NextResponse.json({ error: "مرفق إثبات الدفع غير صالح" }, { status: 400 });
+    if (!paymentProofUrl || !paymentProofName) return NextResponse.json({ error: "مرفق إثبات الدفع مطلوب قبل تسجيل مستحق الشريك كمدفوع" }, { status: 400 });
+    if (!validProofUrl(paymentProofUrl, assignmentId)) return NextResponse.json({ error: "مرفق إثبات الدفع غير صالح" }, { status: 400 });
 
     const existing = await getStagePartnerAssignment(assignmentId);
     if (!existing) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });
-    if (existing.status !== "COMPLETED" || existing.paymentStatus !== "APPROVED") {
-      return NextResponse.json({ error: "لا يمكن تسجيل الدفع قبل اعتماد تسليم الشريك واستحقاق المبلغ" }, { status: 409 });
+    const repairingLegacyPaid = existing.status === "COMPLETED"
+      && existing.paymentStatus === "PAID"
+      && (!existing.paidAt || !existing.paymentMethod?.trim() || !existing.paymentReference?.trim() || !existing.paymentProofUrl?.trim() || !existing.paymentProofName?.trim());
+    if (existing.status !== "COMPLETED" || (existing.paymentStatus !== "APPROVED" && !repairingLegacyPaid)) {
+      return NextResponse.json({ error: existing.paymentStatus === "PAID" ? "إثبات الدفع مكتمل بالفعل ولا يمكن تسجيل دفعة ثانية" : "لا يمكن تسجيل الدفع قبل اعتماد تسليم الشريك واستحقاق المبلغ" }, { status: 409 });
     }
 
-    const paid = await recordStagePartnerPayment({ assignmentId, paidAt, paymentMethod, paymentReference, paymentProofUrl, paymentProofName });
+    const paid = await recordStagePartnerPayment({ assignmentId, paidAt, paymentMethod, paymentReference, paymentProofUrl, paymentProofName, allowPaidRepair: repairingLegacyPaid });
     if (!paid) return NextResponse.json({ error: "تعذر تسجيل الدفع. حدّث الصفحة وتحقق من حالة المستحق" }, { status: 409 });
 
     await writeAdminAudit(db, {
       actorId: access.userId,
-      action: "STAGE_PARTNER_PAYMENT_RECORDED",
+      action: repairingLegacyPaid ? "STAGE_PARTNER_PAYMENT_EVIDENCE_REPAIRED" : "STAGE_PARTNER_PAYMENT_RECORDED",
       category: "SENSITIVE",
       entityType: "PROJECT_STAGE_PARTNER_ASSIGNMENT",
       entityId: assignmentId,

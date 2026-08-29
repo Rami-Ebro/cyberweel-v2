@@ -24,6 +24,10 @@ export function cleanSubmissionFilename(value: string) {
   return value.replace(/[\r\n"]/g, "").trim().slice(0, 180) || "client-file";
 }
 
+export function clientSubmissionBlobPrefix(clientId: string, submissionId: string) {
+  return `clients/${clientId}/submissions/${submissionId}/`;
+}
+
 function normalizeLink(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -56,6 +60,18 @@ export function isVercelBlobUrl(value: string) {
   try {
     const url = new URL(value);
     return url.protocol === "https:" && url.hostname.endsWith(".blob.vercel-storage.com");
+  } catch {
+    return false;
+  }
+}
+
+export function isExpectedClientSubmissionBlobUrl(value: string, clientId: string, submissionId: string) {
+  try {
+    const url = new URL(value);
+    const expectedPrefix = `/${clientSubmissionBlobPrefix(clientId, submissionId)}`;
+    return url.protocol === "https:"
+      && url.hostname.endsWith(".private.blob.vercel-storage.com")
+      && url.pathname.startsWith(expectedPrefix);
   } catch {
     return false;
   }

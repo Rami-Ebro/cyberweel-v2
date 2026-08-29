@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { DEFAULT_AMBASSADOR_REWARD_LEVELS, rewardRateForNewProject, syncStageReward } from "@/lib/ambassador-rewards";
 import { writeAdminAudit } from "@/lib/admin-audit";
 import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security";
+import { verifyPrivatePaymentProofBlob } from "@/lib/payment-proof-blob";
 
 const stageStatuses = new Set<ProjectStageStatus>(["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"]);
 const paymentStatuses = new Set<ProjectStagePaymentStatus>(["PENDING", "PAID", "CANCELLED"]);
@@ -65,10 +66,12 @@ function paymentProofNotes(proof: PaymentProof) {
   return `${PAYMENT_PROOF_PREFIX}${JSON.stringify(proof)}`;
 }
 
-function validPaymentProofUrl(value: string) {
+function validPaymentProofUrl(value: string, rewardId: string) {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && [".public.blob.vercel-storage.com", ".private.blob.vercel-storage.com"].some((suffix) => url.hostname.endsWith(suffix));
+    return url.protocol === "https:"
+      && url.hostname.endsWith(".private.blob.vercel-storage.com")
+      && url.pathname.startsWith(`/ambassador-rewards/${rewardId}/proof/`);
   } catch {
     return false;
   }
@@ -241,8 +244,26 @@ export async function POST(request: NextRequest) {
         const attachmentUrl = typeof body?.paymentAttachmentUrl === "string" ? body.paymentAttachmentUrl.trim().slice(0, 2000) : "";
         const attachmentName = typeof body?.paymentAttachmentName === "string" ? body.paymentAttachmentName.trim().slice(0, 255) : "";
         const attachmentType = typeof body?.paymentAttachmentType === "string" ? body.paymentAttachmentType.trim().slice(0, 120) : "";
-        if (attachmentUrl && (!validPaymentProofUrl(attachmentUrl) || !attachmentName || !ALLOWED_PAYMENT_PROOF_TYPES.has(attachmentType))) {
+        const effectiveAttachmentUrl = attachmentUrl || existingProof?.attachmentUrl || "";
+        const effectiveAttachmentName = attachmentUrl ? attachmentName : existingProof?.attachmentName || "";
+        const effectiveAttachmentType = attachmentUrl ? attachmentType : existingProof?.attachmentType || "";
+        if (!effectiveAttachmentUrl || !effectiveAttachmentName || !effectiveAttachmentType) {
+          return NextResponse.json({ error: "مرفق إثبات الدفع مطلوب قبل تسجيل المكافأة كمدفوعة" }, { status: 400 });
+        }
+        if (!validPaymentProofUrl(effectiveAttachmentUrl, reward.id) || !ALLOWED_PAYMENT_PROOF_TYPES.has(effectiveAttachmentType)) {
           return NextResponse.json({ error: "مرفق إثبات الدفع غير صالح" }, { status: 400 });
+        }
+
+        const blobProof = await verifyPrivatePaymentProofBlob({
+          url: effectiveAttachmentUrl,
+          expectedPrefix: `ambassador-rewards/${reward.id}/proof/`,
+          expectedContentType: effectiveAttachmentType,
+        });
+        if (!blobProof.ok) {
+          return NextResponse.json(
+            { error: blobProof.reason === "NOT_CONFIGURED" ? "خدمة التحقق من إثبات الدفع غير مهيأة حاليًا" : "مرفق إثبات الدفع غير موجود أو لا يخص هذه المكافأة" },
+            { status: blobProof.reason === "NOT_CONFIGURED" ? 503 : 400 },
+          );
         }
 
         const previousNote = existingProof?.note || (!reward.adminNotes?.startsWith(PAYMENT_PROOF_PREFIX) ? reward.adminNotes : null);
@@ -251,9 +272,9 @@ export async function POST(request: NextRequest) {
           reference: paymentReference,
           paidAt: paymentDate.toISOString(),
           note: notes || previousNote || null,
-          attachmentUrl: attachmentUrl || existingProof?.attachmentUrl || null,
-          attachmentName: attachmentUrl ? attachmentName : existingProof?.attachmentName || null,
-          attachmentType: attachmentUrl ? attachmentType : existingProof?.attachmentType || null,
+          attachmentUrl: effectiveAttachmentUrl,
+          attachmentName: effectiveAttachmentName,
+          attachmentType: effectiveAttachmentType,
         };
         paidAt = paymentDate;
       }

@@ -266,6 +266,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const projectId = typeof body?.projectId === "string" ? body.projectId : "";
       const amount = Number(body?.amount);
       const invoiceType = body?.type === "RETURN" ? "RETURN" : "STANDARD";
+      const requestedStatus = typeof body?.status === "string" ? body.status : "DUE";
+      const allowedCreationStatuses = new Set(["DRAFT", "DUE", "OVERDUE"]);
+      if (!allowedCreationStatuses.has(requestedStatus)) {
+        return NextResponse.json({ error: "لا يمكن إنشاء فاتورة مدفوعة أو ملغاة مباشرة. استخدم صفحة الفواتير ومسار الدفع المخصص." }, { status: 409 });
+      }
       const project = await db.clientProject.findFirst({ where: { id: projectId, clientId }, select: { id: true, title: true, currency: true } });
       if (!project || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: "بيانات الفاتورة غير مكتملة" }, { status: 400 });
 
@@ -285,7 +290,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
             type: invoiceType,
             amount,
             currency: parseCurrency(body.currency || project.currency),
-            status: body.status || "DUE",
+            status: requestedStatus,
             dueAt: body.dueAt ? new Date(body.dueAt) : null,
           },
         });
@@ -295,79 +300,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     if (action === "payment") {
-      const invoiceId = typeof body?.invoiceId === "string" ? body.invoiceId : "";
-      const paidAt = body?.paidAt ? new Date(body.paidAt) : new Date();
-      if (Number.isNaN(paidAt.getTime())) return NextResponse.json({ error: "تاريخ الدفع غير صالح" }, { status: 400 });
-
-      const invoice = await db.clientInvoice.findFirst({
-        where: { id: invoiceId, project: { clientId } },
-        select: { id: true, projectId: true, number: true, amount: true, currency: true, createdAt: true },
-      });
-      if (!invoice) return NextResponse.json({ error: "الفاتورة غير موجودة" }, { status: 400 });
-
-      const admin = await currentAdminAccess(request);
-      const result = await db.$transaction(async (tx) => {
-        const updatedInvoice = await tx.clientInvoice.update({
-          where: { id: invoice.id },
-          data: { status: "PAID", paidAt },
-        });
-
-        const linkedStage = await tx.projectStage.findFirst({
-          where: {
-            projectId: invoice.projectId,
-            amount: invoice.amount,
-            currency: invoice.currency,
-            paymentStatus: "PENDING",
-            status: { not: "CANCELLED" },
-          },
-          orderBy: { createdAt: "asc" },
-          select: { id: true, paymentStatus: true, paidAt: true },
-        });
-
-        let rewardStatus: string | null = null;
-        if (linkedStage) {
-          await tx.projectStage.update({
-            where: { id: linkedStage.id },
-            data: { paymentStatus: "PAID", paidAt: linkedStage.paidAt || paidAt },
-          });
-          const reward = await syncStageReward(tx, linkedStage.id);
-          rewardStatus = reward?.status || null;
-        }
-
-        await tx.clientNotification.create({
-          data: {
-            clientId,
-            title: "تم تسجيل دفعة",
-            body: `${invoice.number} — ${Number(invoice.amount)} ${invoice.currency}`,
-            section: "payments",
-          },
-        });
-
-        await writeAdminAudit(tx, {
-          actorId: admin?.userId,
-          action: "CLIENT_INVOICE_PAYMENT_RECORDED",
-          category: "POSITIVE",
-          entityType: "CLIENT_INVOICE",
-          entityId: invoice.id,
-          entityLabel: invoice.number,
-          after: {
-            amount: invoice.amount.toString(),
-            currency: invoice.currency,
-            paidAt: paidAt.toISOString(),
-            linkedStageId: linkedStage?.id || null,
-            linkedStagePaymentStatus: linkedStage ? "PAID" : null,
-            rewardStatus,
-          },
-        });
-
-        return { updatedInvoice, linkedStageId: linkedStage?.id || null, rewardStatus };
-      });
-
-      return NextResponse.json({
-        invoice: { ...result.updatedInvoice, amount: Number(result.updatedInvoice.amount) },
-        linkedStageId: result.linkedStageId,
-        rewardStatus: result.rewardStatus,
-      });
+      return NextResponse.json(
+        { error: "تسجيل دفع الفاتورة يجب أن يتم من صفحة الفواتير باستخدام مسار الدفع المخصص مع وسيلة الدفع والمرجع والتاريخ." },
+        { status: 409 },
+      );
     }
 
     if (action === "message") {

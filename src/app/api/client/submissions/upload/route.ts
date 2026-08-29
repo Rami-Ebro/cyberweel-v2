@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentClientAccess } from "@/lib/client-access";
 import {
   cleanSubmissionFilename,
+  clientSubmissionBlobPrefix,
+  isExpectedClientSubmissionBlobUrl,
   MAX_SUBMISSION_FILES,
   MAX_SUBMISSION_FILE_SIZE,
   SUBMISSION_ALLOWED_CONTENT_TYPES,
@@ -11,6 +13,10 @@ import {
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
+
+function isPrismaUniqueViolation(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002";
+}
 
 type UploadPayload = {
   clientId: string;
@@ -56,7 +62,8 @@ export async function POST(request: NextRequest) {
           where: { id: payload.submissionId, projectId: payload.projectId, status: "UPLOADING", project: { clientId: client.id } },
           select: { id: true, projectId: true, _count: { select: { files: true } } },
         });
-        if (!submission || submission._count.files >= MAX_SUBMISSION_FILES || !pathname.startsWith(`clients/${client.id}/submissions/${submission.id}/`)) {
+        const expectedPrefix = clientSubmissionBlobPrefix(client.id, payload.submissionId);
+        if (!submission || submission._count.files >= MAX_SUBMISSION_FILES || !pathname.startsWith(expectedPrefix)) {
           throw new Error("الإرسال غير متاح أو بلغ حد الملفات");
         }
 
@@ -75,20 +82,53 @@ export async function POST(request: NextRequest) {
           select: { id: true, projectId: true },
         });
         if (!submission) throw new Error("الإرسال غير موجود");
-        const existing = await db.clientFile.findFirst({ where: { submissionId: submission.id, url: blob.url }, select: { id: true } });
-        if (!existing) {
-          await db.clientFile.create({
-            data: {
-              projectId: submission.projectId,
-              submissionId: submission.id,
-              name: cleanSubmissionFilename(payload.originalName),
-              url: blob.url,
-              kind: "CLIENT_SUBMISSION",
-              size: Math.round(payload.size),
-              storageProvider: "VERCEL_BLOB",
-              source: "CLIENT",
-            },
-          });
+
+        const expectedPrefix = clientSubmissionBlobPrefix(payload.clientId, submission.id);
+        if (!blob.pathname.startsWith(expectedPrefix) || !isExpectedClientSubmissionBlobUrl(blob.url, payload.clientId, submission.id)) {
+          throw new Error("مسار الملف لا يطابق الإرسال الحالي");
+        }
+
+        const existingLinks = await db.clientFile.findMany({
+          where: { url: blob.url },
+          select: { id: true, projectId: true, submissionId: true, kind: true, storageProvider: true, source: true },
+        });
+        const hasCrossLink = existingLinks.some((file) =>
+          file.projectId !== submission.projectId
+          || file.submissionId !== submission.id
+          || file.kind !== "CLIENT_SUBMISSION"
+          || file.storageProvider !== "VERCEL_BLOB"
+          || file.source !== "CLIENT"
+        );
+        if (hasCrossLink) throw new Error("الملف مرتبط بإرسال آخر");
+
+        if (!existingLinks.length) {
+          try {
+            await db.clientFile.create({
+              data: {
+                projectId: submission.projectId,
+                submissionId: submission.id,
+                name: cleanSubmissionFilename(payload.originalName),
+                url: blob.url,
+                kind: "CLIENT_SUBMISSION",
+                size: Math.round(payload.size),
+                storageProvider: "VERCEL_BLOB",
+                source: "CLIENT",
+              },
+            });
+          } catch (error) {
+            if (!isPrismaUniqueViolation(error)) throw error;
+            const concurrent = await db.clientFile.findFirst({
+              where: { url: blob.url },
+              select: { projectId: true, submissionId: true, kind: true, storageProvider: true, source: true },
+            });
+            const sameSubmission = concurrent
+              && concurrent.projectId === submission.projectId
+              && concurrent.submissionId === submission.id
+              && concurrent.kind === "CLIENT_SUBMISSION"
+              && concurrent.storageProvider === "VERCEL_BLOB"
+              && concurrent.source === "CLIENT";
+            if (!sameSubmission) throw new Error("الملف مرتبط بإرسال آخر");
+          }
         }
       },
     });
