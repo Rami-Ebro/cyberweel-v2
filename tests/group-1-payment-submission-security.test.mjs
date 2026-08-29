@@ -60,19 +60,32 @@ test("invoice payment route requires evidence fields, guards duplicate payment, 
   assert.match(source, /writeAdminAudit\(tx/);
 });
 
-test("ambassador and partner PAID routes require reward-specific private payment attachment", async () => {
-  const [rewardRoute, partnerRoute] = await Promise.all([
+test("ambassador and partner PAID paths require private payment attachments", async () => {
+  const [rewardRoute, partnerRoute, partnerAssignments] = await Promise.all([
     repoFile("src/app/api/admin/rewards/route.ts"),
     repoFile("src/app/api/admin/stage-partner-assignments/route.ts"),
+    repoFile("src/lib/stage-partner-assignments.ts"),
   ]);
   assert.match(rewardRoute, /مرفق إثبات الدفع مطلوب قبل تسجيل المكافأة كمدفوعة/);
   assert.match(rewardRoute, /effectiveAttachmentUrl/);
   assert.match(rewardRoute, /private\.blob\.vercel-storage\.com/);
   assert.match(rewardRoute, /ambassador-rewards\/\$\{rewardId\}\/proof\//);
   assert.match(rewardRoute, /validPaymentProofUrl\(effectiveAttachmentUrl, reward\.id\)/);
+  assert.match(rewardRoute, /verifyPrivatePaymentProofBlob/);
   assert.match(partnerRoute, /مرفق إثبات الدفع مطلوب قبل تسجيل مستحق الشريك كمدفوع/);
   assert.match(partnerRoute, /private\.blob\.vercel-storage\.com/);
   assert.match(partnerRoute, /partner-stage-payments\/\$\{assignmentId\}\/proof\//);
+  assert.match(partnerAssignments, /verifyPrivatePaymentProofBlob/);
+  assert.match(partnerAssignments, /partner-stage-payments\/\$\{input\.assignmentId\}\/proof\//);
+});
+
+test("payment proof verifier checks the actual private blob before PAID persistence", async () => {
+  const source = await repoFile("src/lib/payment-proof-blob.ts");
+  assert.match(source, /head\(input\.url/);
+  assert.match(source, /details\.url !== input\.url/);
+  assert.match(source, /details\.pathname\.startsWith\(input\.expectedPrefix\)/);
+  assert.match(source, /PAYMENT_PROOF_CONTENT_TYPES\.has\(contentType\)/);
+  assert.match(source, /BLOB_READ_WRITE_TOKEN/);
 });
 
 test("database migration blocks PAID payment records without complete evidence", async () => {
