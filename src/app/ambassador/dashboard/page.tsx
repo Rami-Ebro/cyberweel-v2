@@ -264,7 +264,7 @@ function DashboardWordmark() {
 
 export default function AmbassadorDashboardPage() {
   const router = useRouter();
-  const { lang } = useDashboardI18n();
+  const { lang, tr } = useDashboardI18n();
   const [data, setData] = useState<DashboardData | null>(null);
   const [activeSection, setActiveSection] = useState<SectionKey>("overview");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -282,6 +282,10 @@ export default function AmbassadorDashboardPage() {
   const [assistantSituation, setAssistantSituation] = useState("");
   const [assistantAnswer, setAssistantAnswer] = useState("");
   const [askingAssistant, setAskingAssistant] = useState(false);
+
+  function localizeMessage(value: string) {
+    return lang === "en" ? tr(value) : value;
+  }
 
   async function loadDashboard() {
     const previewId = new URLSearchParams(window.location.search).get("adminPreview");
@@ -422,7 +426,12 @@ export default function AmbassadorDashboardPage() {
         body: JSON.stringify(Object.fromEntries(form)),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.message || dashboardErrorMessage(payload?.error, "تعذر إضافة الإحالة"));
+      if (!response.ok) {
+        const message = typeof payload?.message === "string"
+          ? payload.message
+          : dashboardErrorMessage(payload?.error, "تعذر إضافة الإحالة");
+        throw new Error(message);
+      }
       setData((current) => current ? {
         ...current,
         referrals: [payload.referral, ...current.referrals],
@@ -493,7 +502,7 @@ export default function AmbassadorDashboardPage() {
   }
 
   if (error && !data) {
-    return <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f5f1e8] p-6"><div className="max-w-lg rounded-3xl bg-white p-8 text-center shadow-xl"><h1 className="text-2xl font-black text-slate-950">تعذر تحميل لوحة السفير</h1><p className="mt-3 text-slate-600">{error}</p><button onClick={() => window.location.reload()} className="mt-6 rounded-xl bg-slate-950 px-5 py-3 font-bold text-white">المحاولة مجددًا</button></div></main>;
+    return <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f5f1e8] p-6"><div className="max-w-lg rounded-3xl bg-white p-8 text-center shadow-xl"><h1 className="text-2xl font-black text-slate-950">تعذر تحميل لوحة السفير</h1><p className="mt-3 text-slate-600">{localizeMessage(error)}</p><button onClick={() => window.location.reload()} className="mt-6 rounded-xl bg-slate-950 px-5 py-3 font-bold text-white">المحاولة مجددًا</button></div></main>;
   }
   if (!data) return <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f5f1e8]"><div className="h-12 w-12 animate-spin rounded-full border-4 border-[#bd9850] border-t-transparent" /></main>;
 
@@ -524,7 +533,7 @@ export default function AmbassadorDashboardPage() {
         </header>
 
         <div className="mx-auto max-w-7xl space-y-7 p-4 sm:p-7 lg:p-10">
-          {(error || (notice && notice !== directReferralSuccess)) && <div className={`rounded-2xl border px-5 py-4 text-sm font-bold ${error ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200" : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"}`}>{error || notice}</div>}
+          {(error || (notice && notice !== directReferralSuccess)) && <div className={`rounded-2xl border px-5 py-4 text-sm font-bold ${error ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200" : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"}`}>{error ? localizeMessage(error) : notice}</div>}
 
           {activeSection === "overview" && <>
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">{[

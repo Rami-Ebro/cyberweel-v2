@@ -9,6 +9,12 @@ import {
 const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 const FREE_TIER_MODEL_ALLOWLIST = new Set([DEFAULT_MODEL]);
 const REQUEST_TIMEOUT_MS = 18_000;
+const HEALTH_TIMEOUT_MS = 4_000;
+
+export type GeminiHealthResult = {
+  status: "ready" | "limited" | "unavailable";
+  code: "OK" | "QUOTA_EXHAUSTED" | "NOT_CONFIGURED" | "TIMEOUT" | "UNAVAILABLE";
+};
 
 const responseSchema = {
   type: "object",
@@ -114,6 +120,47 @@ function configuration() {
     );
   }
   return { apiKey, model };
+}
+
+export async function checkGeminiHealth(): Promise<GeminiHealthResult> {
+  let configured: { apiKey: string; model: string };
+  try {
+    configured = configuration();
+  } catch (error) {
+    return {
+      status: "unavailable",
+      code: error instanceof AiProviderError && error.code === "NOT_CONFIGURED" ? "NOT_CONFIGURED" : "UNAVAILABLE",
+    };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(configured.model)}`,
+      {
+        method: "GET",
+        headers: { "x-goog-api-key": configured.apiKey },
+        signal: controller.signal,
+        cache: "no-store",
+      },
+    );
+
+    if (response.ok) return { status: "ready", code: "OK" };
+    if (response.status === 429) return { status: "limited", code: "QUOTA_EXHAUSTED" };
+    if ([401, 403, 404].includes(response.status)) {
+      return { status: "unavailable", code: "NOT_CONFIGURED" };
+    }
+    return { status: "unavailable", code: "UNAVAILABLE" };
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return { status: "unavailable", code: "TIMEOUT" };
+    }
+    return { status: "unavailable", code: "UNAVAILABLE" };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export class GeminiProvider implements AiProvider {
