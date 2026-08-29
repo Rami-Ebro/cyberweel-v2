@@ -254,6 +254,7 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
           background-color: #111827 !important;
         }
         [data-admin-shell-root="true"].dark > div > section [class~="bg-emerald-50"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-emerald-50/80"],
         [data-admin-shell-root="true"].dark > div > section [class~="bg-emerald-100"] {
           background-color: #052e16 !important;
         }
@@ -268,6 +269,7 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
           background-color: #451a03 !important;
         }
         [data-admin-shell-root="true"].dark > div > section [class~="bg-sky-50"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-sky-50/80"],
         [data-admin-shell-root="true"].dark > div > section [class~="bg-sky-100"] {
           background-color: #082f49 !important;
         }
