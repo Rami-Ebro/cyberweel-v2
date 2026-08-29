@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentClientAccess } from "@/lib/client-access";
 import {
   cleanSubmissionFilename,
+  clientSubmissionBlobPrefix,
+  isExpectedClientSubmissionBlobUrl,
   MAX_SUBMISSION_FILES,
   MAX_SUBMISSION_FILE_SIZE,
   SUBMISSION_ALLOWED_CONTENT_TYPES,
@@ -56,7 +58,8 @@ export async function POST(request: NextRequest) {
           where: { id: payload.submissionId, projectId: payload.projectId, status: "UPLOADING", project: { clientId: client.id } },
           select: { id: true, projectId: true, _count: { select: { files: true } } },
         });
-        if (!submission || submission._count.files >= MAX_SUBMISSION_FILES || !pathname.startsWith(`clients/${client.id}/submissions/${submission.id}/`)) {
+        const expectedPrefix = clientSubmissionBlobPrefix(client.id, payload.submissionId);
+        if (!submission || submission._count.files >= MAX_SUBMISSION_FILES || !pathname.startsWith(expectedPrefix)) {
           throw new Error("الإرسال غير متاح أو بلغ حد الملفات");
         }
 
@@ -75,6 +78,12 @@ export async function POST(request: NextRequest) {
           select: { id: true, projectId: true },
         });
         if (!submission) throw new Error("الإرسال غير موجود");
+
+        const expectedPrefix = clientSubmissionBlobPrefix(payload.clientId, submission.id);
+        if (!blob.pathname.startsWith(expectedPrefix) || !isExpectedClientSubmissionBlobUrl(blob.url, payload.clientId, submission.id)) {
+          throw new Error("مسار الملف لا يطابق الإرسال الحالي");
+        }
+
         const existing = await db.clientFile.findFirst({ where: { submissionId: submission.id, url: blob.url }, select: { id: true } });
         if (!existing) {
           await db.clientFile.create({
