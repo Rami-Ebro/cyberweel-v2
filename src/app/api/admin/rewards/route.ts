@@ -65,10 +65,12 @@ function paymentProofNotes(proof: PaymentProof) {
   return `${PAYMENT_PROOF_PREFIX}${JSON.stringify(proof)}`;
 }
 
-function validPaymentProofUrl(value: string) {
+function validPaymentProofUrl(value: string, rewardId: string) {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && [".public.blob.vercel-storage.com", ".private.blob.vercel-storage.com"].some((suffix) => url.hostname.endsWith(suffix));
+    return url.protocol === "https:"
+      && url.hostname.endsWith(".private.blob.vercel-storage.com")
+      && url.pathname.startsWith(`/ambassador-rewards/${rewardId}/proof/`);
   } catch {
     return false;
   }
@@ -247,7 +249,7 @@ export async function POST(request: NextRequest) {
         if (!effectiveAttachmentUrl || !effectiveAttachmentName || !effectiveAttachmentType) {
           return NextResponse.json({ error: "مرفق إثبات الدفع مطلوب قبل تسجيل المكافأة كمدفوعة" }, { status: 400 });
         }
-        if (!validPaymentProofUrl(effectiveAttachmentUrl) || !ALLOWED_PAYMENT_PROOF_TYPES.has(effectiveAttachmentType)) {
+        if (!validPaymentProofUrl(effectiveAttachmentUrl, reward.id) || !ALLOWED_PAYMENT_PROOF_TYPES.has(effectiveAttachmentType)) {
           return NextResponse.json({ error: "مرفق إثبات الدفع غير صالح" }, { status: 400 });
         }
 
