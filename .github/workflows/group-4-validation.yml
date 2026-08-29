@@ -21,7 +21,9 @@ jobs:
           cache: npm
 
       - name: Apply Group 4 patch
-        run: python scripts/group4_patch.py
+        run: |
+          python scripts/group4_patch.py
+          python scripts/group4_lint_fix.py
 
       - name: Check diff whitespace
         run: git diff --check
@@ -49,8 +51,9 @@ jobs:
         run: |
           rm .github/workflows/group-4-validation.yml
           rm scripts/group4_patch.py
+          rm scripts/group4_lint_fix.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/lib/ai/providers/gemini.ts src/app/api/ai/chat/route.ts src/components/site/ai-assistant.tsx src/components/site/whatsapp-button.tsx src/components/site/scroll-utilities.tsx src/components/site/i18n.tsx src/components/dashboard-i18n-provider.tsx src/app/ambassador/dashboard/page.tsx src/lib/dashboard-i18n.ts tests/group-4-ai-health-ambassador-layering.test.mjs .github/workflows/group-4-validation.yml scripts/group4_patch.py
+          git add src/lib/ai/providers/gemini.ts src/app/api/ai/chat/route.ts src/components/site/ai-assistant.tsx src/components/site/whatsapp-button.tsx src/components/site/scroll-utilities.tsx src/components/site/i18n.tsx src/components/dashboard-i18n-provider.tsx src/app/ambassador/dashboard/page.tsx src/lib/dashboard-i18n.ts tests/group-4-ai-health-ambassador-layering.test.mjs .github/workflows/group-4-validation.yml scripts/group4_patch.py scripts/group4_lint_fix.py
           git commit -m "fix: close group 4 AI health and dashboard UX findings"
           git push origin HEAD:fix/group-4-ai-health-ambassador-layering
