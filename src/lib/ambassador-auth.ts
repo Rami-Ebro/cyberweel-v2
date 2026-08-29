@@ -1,9 +1,10 @@
+import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
 
-export async function currentAmbassador(request: NextRequest) {
-  const session = readPartnerSession(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
+async function ambassadorFromToken(token?: string | null) {
+  const session = readPartnerSession(token);
   if (!session) return null;
 
   const user = await db.user.findUnique({
@@ -36,4 +37,13 @@ export async function currentAmbassador(request: NextRequest) {
   }
 
   return user;
+}
+
+export async function currentAmbassador(request: NextRequest) {
+  return ambassadorFromToken(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
+}
+
+export async function currentAmbassadorFromCookies() {
+  const cookieStore = await cookies();
+  return ambassadorFromToken(cookieStore.get(PARTNER_SESSION_COOKIE)?.value);
 }

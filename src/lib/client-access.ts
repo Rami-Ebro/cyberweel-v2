@@ -1,9 +1,10 @@
+import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
 
-export async function currentClientAccess(request: NextRequest) {
-  const session = readPartnerSession(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
+async function clientAccessFromToken(token?: string | null) {
+  const session = readPartnerSession(token);
   if (!session) return null;
   return db.user.findFirst({
     where: {
@@ -13,4 +14,13 @@ export async function currentClientAccess(request: NextRequest) {
     },
     select: { id: true, name: true, email: true },
   });
+}
+
+export async function currentClientAccess(request: NextRequest) {
+  return clientAccessFromToken(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
+}
+
+export async function currentClientAccessFromCookies() {
+  const cookieStore = await cookies();
+  return clientAccessFromToken(cookieStore.get(PARTNER_SESSION_COOKIE)?.value);
 }

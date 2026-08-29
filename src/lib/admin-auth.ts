@@ -59,6 +59,29 @@ export function verifySessionToken(token: string | undefined): boolean {
   return Number.isFinite(expiresAt) && Date.now() < expiresAt;
 }
 
+export async function hasAdminSession(): Promise<boolean> {
+  const cookieStore = await cookies();
+  if (verifySessionToken(cookieStore.get(ADMIN_SESSION_COOKIE)?.value)) return true;
+
+  const unifiedSession = readPartnerSession(cookieStore.get(PARTNER_SESSION_COOKIE)?.value);
+  if (!unifiedSession) return false;
+
+  const user = await db.user.findUnique({
+    where: { id: unifiedSession.userId },
+    select: {
+      role: true,
+      isActive: true,
+      adminProfile: { select: { isActive: true } },
+    },
+  });
+
+  return Boolean(
+    user?.role === "ADMIN" &&
+      user.isActive &&
+      user.adminProfile?.isActive !== false,
+  );
+}
+
 export async function isOwnerSession(): Promise<boolean> {
   const cookieStore = await cookies();
   if (verifySessionToken(cookieStore.get(ADMIN_SESSION_COOKIE)?.value)) return true;
@@ -114,6 +137,12 @@ export async function hasAdminPermission(permission: string): Promise<boolean> {
 
 export async function requireOwner(): Promise<void> {
   if (!(await isOwnerSession())) {
+    redirect("/login");
+  }
+}
+
+export async function requireAdminSession(): Promise<void> {
+  if (!(await hasAdminSession())) {
     redirect("/login");
   }
 }

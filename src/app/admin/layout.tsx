@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
 import { AdminActionFeedback } from "@/components/admin/admin-action-feedback";
+import { requireAdminSession } from "@/lib/admin-auth";
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
+export default async function AdminLayout({ children }: { children: ReactNode }) {
+  await requireAdminSession();
+
   return (
     <>
       <AdminActionFeedback />
