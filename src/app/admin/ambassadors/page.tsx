@@ -307,13 +307,15 @@ export default function AmbassadorsAdmin() {
   );
 }
 
-function AmbassadorStatusAndLevel({ ambassador }: { ambassador: Ambassador }) {
+function AmbassadorStatusAndLevel({ ambassador, showStatus = true }: { ambassador: Ambassador; showStatus?: boolean }) {
   return (
     <>
-      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${statusStyles[ambassador.status]}`}>
-        {dashboardLabel(ambassador.status, "حالة غير معروفة")}
-      </span>
-      <span className="mt-1 block text-xs text-slate-500">الملف: {ambassador.profileCompletedAt ? "مكتمل" : "غير مكتمل"}</span>
+      {showStatus && (
+        <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${statusStyles[ambassador.status]}`}>
+          {dashboardLabel(ambassador.status, "حالة غير معروفة")}
+        </span>
+      )}
+      <span className={`${showStatus ? "mt-1" : ""} block text-xs text-slate-500`}>الملف: {ambassador.profileCompletedAt ? "مكتمل" : "غير مكتمل"}</span>
       {ambassador.currentLevel ? (
         <span className="mt-1 block font-bold">
           {ambassador.currentLevel.name}
@@ -445,8 +447,8 @@ function AmbassadorMobileCard({
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div className="rounded-xl border border-[#E6E0D4] p-3">
-          <p className="text-xs font-black text-slate-500">الحالة والمستوى</p>
-          <div className="mt-2"><AmbassadorStatusAndLevel ambassador={ambassador} /></div>
+          <p className="text-xs font-black text-slate-500">الملف والمستوى</p>
+          <div className="mt-2"><AmbassadorStatusAndLevel ambassador={ambassador} showStatus={false} /></div>
         </div>
         <div className="rounded-xl border border-[#E6E0D4] p-3">
           <p className="text-xs font-black text-slate-500">آخر نشاط</p>
