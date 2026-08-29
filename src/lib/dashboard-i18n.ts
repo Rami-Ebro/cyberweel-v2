@@ -1396,6 +1396,51 @@ export const dashboardEnglish: Record<string, string> = {
   "دعوة الدخول إلى CyberWeel": "Your CyberWeel Account Invitation",
 };
 
+const partnerApplicationEnglish: Record<string, string> = {
+  "البرمجة والتطوير": "Programming & Development",
+  "التصميم وتجربة المستخدم": "Design & User Experience",
+  "التسويق الرقمي": "Digital Marketing",
+  "تحليل الأعمال": "Business Analysis",
+  "الذكاء الاصطناعي والأتمتة": "AI & Automation",
+  "إدارة المشاريع": "Project Management",
+  "صناعة المحتوى": "Content Creation",
+  "مواقع ومتاجر إلكترونية": "Websites & Online Stores",
+  "تطبيقات": "Applications",
+  "أتمتة وذكاء اصطناعي": "Automation & AI",
+  "تصميم وهوية": "Design & Branding",
+  "تسويق ومحتوى": "Marketing & Content",
+  "دعم تقني": "Technical Support",
+  "تحليل واستشارات": "Analysis & Consulting",
+  "أخرى": "Other",
+  "معلومات العمل": "Work Information",
+  "القدرة والتفرغ": "Capacity & Availability",
+  "نبذة قصيرة": "Short Bio",
+  "معلومات الدفع": "Payment Information",
+  "تقدم التسجيل": "Application Progress",
+  "نوع الشريك": "Partner Type",
+  "فرد مستقل": "Independent Professional",
+  "فريق أو شركة": "Team or Company",
+  "مستشار متخصص": "Specialist Consultant",
+  "مجال العمل": "Work Area",
+  "الخدمات أو المجالات التي تستطيع دعمها": "Services or Areas You Can Support",
+  "اكتب المستوى التعليمي أو الشهادة": "Enter Your Education Level or Qualification",
+  "التخصص (إن وجد)": "Specialization (If Any)",
+  "مبتدئ": "Beginner",
+  "متوسط": "Intermediate",
+  "متقدم": "Advanced",
+  "خبير": "Expert",
+  "عدد سنوات الخبرة": "Years of Experience",
+  "عدد الساعات المتاحة أسبوعياً": "Available Hours per Week",
+  "نبذة قصيرة عنك أو عن خبرتك": "A Short Bio About You or Your Experience",
+  "(اختياري)": "(Optional)",
+  "طرق الدفع المعتمدة": "Available Payment Methods",
+  "اكتب طريقة الدفع الأخرى": "Enter the Other Payment Method",
+  "يرجى إكمال الحقول المطلوبة في هذه المرحلة والتأكد من صحة البيانات.": "Please complete the required fields in this step and verify the information.",
+  "اختر طريقة دفع واحدة على الأقل.": "Choose at least one payment method.",
+  "إرسال الطلب للمراجعة": "Submit for Review",
+  "تعذر إرسال الطلب.": "The application could not be submitted.",
+};
+
 const dashboardPatterns: Array<[RegExp, (...matches: string[]) => string]> = [
   [/^(\d+) غير مقروء$/, (count) => `${count} unread`],
   [/^مرحبًا،\s*(.+)$/, (name) => `Welcome, ${name}`],
@@ -1457,7 +1502,7 @@ export function translateDashboardText(value: string, lang: DashboardLang) {
   const leading = value.match(/^\s*/)?.[0] || "";
   const trailing = value.match(/\s*$/)?.[0] || "";
   const normalized = value.trim();
-  const exact = dashboardEnglish[normalized];
+  const exact = partnerApplicationEnglish[normalized] || dashboardEnglish[normalized];
   if (exact) return `${leading}${exact}${trailing}`;
 
   for (const [pattern, formatter] of dashboardPatterns) {

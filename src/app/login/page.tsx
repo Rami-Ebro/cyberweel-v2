@@ -6,6 +6,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
 import { dashboardErrorMessage } from "@/lib/dashboard-labels";
+import { DashboardLanguageButton } from "@/components/dashboard-i18n-provider";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -56,15 +57,18 @@ export default function LoginPage() {
       </div>
 
       <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-12">
-        <header className="flex items-center justify-between">
+        <header className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/" className="inline-flex items-center gap-3" aria-label="العودة إلى CyberWeel">
             <Logo size={44} />
             <span className="text-lg font-black tracking-tight">CyberWeel</span>
           </Link>
-          <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-[#111827]">
-            العودة إلى الموقع
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <DashboardLanguageButton className="h-10 px-3 shadow-none" />
+            <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-[#111827]">
+              العودة إلى الموقع
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </div>
         </header>
 
         <div className="grid flex-1 items-center gap-12 py-12 lg:grid-cols-[minmax(0,1fr)_460px] lg:py-16">
@@ -127,7 +131,7 @@ export default function LoginPage() {
             {message && <p role="alert" className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">{message}</p>}
 
             <div className="mt-7 border-t border-[#ECE8DF] pt-6 text-center">
-              <p className="text-sm text-slate-500">الوصول متاح للحسابات المقبولة فقط. <Link href="/#/partner" className="font-black text-[#111827] underline decoration-[#B89A5A] decoration-2 underline-offset-4">قدّم طلب تعاون</Link></p>
+              <p className="text-sm text-slate-500">الوصول متاح للحسابات المقبولة فقط. <Link href="/partner" className="font-black text-[#111827] underline decoration-[#B89A5A] decoration-2 underline-offset-4">قدّم طلب تعاون</Link></p>
             </div>
           </section>
         </div>
