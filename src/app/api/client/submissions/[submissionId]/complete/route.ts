@@ -76,8 +76,21 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   try {
     const result = await db.$transaction(async (tx) => {
+      const claimed = await tx.clientSubmission.updateMany({
+        where: { id: submissionId, status: "UPLOADING", project: { clientId: client.id } },
+        data: { status: "PROCESSING" },
+      });
+      if (claimed.count !== 1) {
+        const current = await tx.clientSubmission.findFirst({
+          where: { id: submissionId, project: { clientId: client.id } },
+          include: { project: { select: { id: true, title: true } } },
+        });
+        if (!current) throw new Error("NOT_FOUND");
+        return { submission: current, idempotent: true };
+      }
+
       const submission = await tx.clientSubmission.findFirst({
-        where: { id: submissionId, project: { clientId: client.id } },
+        where: { id: submissionId, status: "PROCESSING", project: { clientId: client.id } },
         include: {
           project: { select: { id: true, title: true } },
           files: {
@@ -96,7 +109,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         },
       });
       if (!submission) throw new Error("NOT_FOUND");
-      if (submission.status !== "UPLOADING") return { submission, idempotent: true };
+      if (submission.files.length > MAX_SUBMISSION_FILES) throw new Error("TOO_MANY_FILES");
 
       const filesByUrl = new Map(submission.files.map((file) => [file.url, file]));
       let inserted = 0;
@@ -116,6 +129,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
             select: { id: true },
           });
           if (duplicateElsewhere) throw new Error("INVALID_BLOB_OWNERSHIP");
+          if (existing.size !== file.actualSize) {
+            await tx.clientFile.update({ where: { id: existing.id }, data: { size: file.actualSize } });
+          }
           continue;
         }
 
@@ -144,7 +160,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
       if (!submission.note && !submission.links.length && submission.files.length + inserted === 0) throw new Error("EMPTY");
 
-      const completed = await tx.clientSubmission.update({ where: { id: submission.id }, data: { status: "RECEIVED" } });
+      const completed = await tx.clientSubmission.update({
+        where: { id: submission.id },
+        data: { status: "RECEIVED" },
+      });
       await tx.adminNotification.create({
         data: {
           title: "مواد جديدة من عميل",
