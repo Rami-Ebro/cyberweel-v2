@@ -60,13 +60,16 @@ test("invoice payment route requires evidence fields, guards duplicate payment, 
   assert.match(source, /writeAdminAudit\(tx/);
 });
 
-test("ambassador and partner PAID routes require payment attachment", async () => {
+test("ambassador and partner PAID routes require reward-specific private payment attachment", async () => {
   const [rewardRoute, partnerRoute] = await Promise.all([
     repoFile("src/app/api/admin/rewards/route.ts"),
     repoFile("src/app/api/admin/stage-partner-assignments/route.ts"),
   ]);
   assert.match(rewardRoute, /مرفق إثبات الدفع مطلوب قبل تسجيل المكافأة كمدفوعة/);
   assert.match(rewardRoute, /effectiveAttachmentUrl/);
+  assert.match(rewardRoute, /private\.blob\.vercel-storage\.com/);
+  assert.match(rewardRoute, /ambassador-rewards\/\$\{rewardId\}\/proof\//);
+  assert.match(rewardRoute, /validPaymentProofUrl\(effectiveAttachmentUrl, reward\.id\)/);
   assert.match(partnerRoute, /مرفق إثبات الدفع مطلوب قبل تسجيل مستحق الشريك كمدفوع/);
   assert.match(partnerRoute, /private\.blob\.vercel-storage\.com/);
   assert.match(partnerRoute, /partner-stage-payments\/\$\{assignmentId\}\/proof\//);
