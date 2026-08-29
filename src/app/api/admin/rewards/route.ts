@@ -241,7 +241,13 @@ export async function POST(request: NextRequest) {
         const attachmentUrl = typeof body?.paymentAttachmentUrl === "string" ? body.paymentAttachmentUrl.trim().slice(0, 2000) : "";
         const attachmentName = typeof body?.paymentAttachmentName === "string" ? body.paymentAttachmentName.trim().slice(0, 255) : "";
         const attachmentType = typeof body?.paymentAttachmentType === "string" ? body.paymentAttachmentType.trim().slice(0, 120) : "";
-        if (attachmentUrl && (!validPaymentProofUrl(attachmentUrl) || !attachmentName || !ALLOWED_PAYMENT_PROOF_TYPES.has(attachmentType))) {
+        const effectiveAttachmentUrl = attachmentUrl || existingProof?.attachmentUrl || "";
+        const effectiveAttachmentName = attachmentUrl ? attachmentName : existingProof?.attachmentName || "";
+        const effectiveAttachmentType = attachmentUrl ? attachmentType : existingProof?.attachmentType || "";
+        if (!effectiveAttachmentUrl || !effectiveAttachmentName || !effectiveAttachmentType) {
+          return NextResponse.json({ error: "مرفق إثبات الدفع مطلوب قبل تسجيل المكافأة كمدفوعة" }, { status: 400 });
+        }
+        if (!validPaymentProofUrl(effectiveAttachmentUrl) || !ALLOWED_PAYMENT_PROOF_TYPES.has(effectiveAttachmentType)) {
           return NextResponse.json({ error: "مرفق إثبات الدفع غير صالح" }, { status: 400 });
         }
 
@@ -251,9 +257,9 @@ export async function POST(request: NextRequest) {
           reference: paymentReference,
           paidAt: paymentDate.toISOString(),
           note: notes || previousNote || null,
-          attachmentUrl: attachmentUrl || existingProof?.attachmentUrl || null,
-          attachmentName: attachmentUrl ? attachmentName : existingProof?.attachmentName || null,
-          attachmentType: attachmentUrl ? attachmentType : existingProof?.attachmentType || null,
+          attachmentUrl: effectiveAttachmentUrl,
+          attachmentName: effectiveAttachmentName,
+          attachmentType: effectiveAttachmentType,
         };
         paidAt = paymentDate;
       }
