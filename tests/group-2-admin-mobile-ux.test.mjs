@@ -27,6 +27,7 @@ assert.match(partner, /max=\{99\}/);
 assert.doesNotMatch(partner, /max=\{100\}/);
 assert.match(partner, /Math\.min\(99/);
 assert.match(partner, /\["COMPLETED", "REVIEW"\]\.includes\(project\.status\)/);
+assert.match(partner, /project\.status === "REVIEW" \? "تم إرسال التسليم وهو الآن بانتظار مراجعة الإدارة\."/);
 assert.match(partnerApi, /progress > 99/);
 assert.doesNotMatch(partnerApi, /progress > 100/);
 

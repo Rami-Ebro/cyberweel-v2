@@ -306,7 +306,7 @@ export default function PartnerDashboardPage() {
                 <p className="text-xs leading-6 text-slate-500 dark:text-slate-400">التقدم اليدوي حتى 99٪ فقط. عند اكتمال العمل استخدم «تسليم المرحلة» لإرسال الملاحظة أو الرابط أو الملف إلى مراجعة الإدارة.</p>
               </div>
             ) : (
-              <p className="text-sm text-slate-500 dark:text-slate-400">تم اعتماد هذا التسليم وحفظه ضمن السجل.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{project.status === "REVIEW" ? "تم إرسال التسليم وهو الآن بانتظار مراجعة الإدارة." : "تم اعتماد هذا التسليم وحفظه ضمن السجل."}</p>
             )}
           </section>
 
