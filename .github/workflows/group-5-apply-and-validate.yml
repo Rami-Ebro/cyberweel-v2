@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   apply-validate-commit:
-    if: github.event.head_commit.message == 'chore: run group 5 cleanup gate'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,8 +18,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
 
       - name: Apply Group 5 fixes
+        shell: bash
         run: |
           python <<'PY'
           from pathlib import Path
@@ -114,8 +115,7 @@ jobs:
               raise SystemExit("legal navigate exact match failure")
           legal.write_text(text.replace(nav_old, nav_new, 1))
 
-          test = Path("tests/group-5-public-mobile-cleanup.test.mjs")
-          test.write_text(r'''import assert from "node:assert/strict";
+          Path("tests/group-5-public-mobile-cleanup.test.mjs").write_text(r'''import assert from "node:assert/strict";
 import fs from "node:fs";
 
 const read = (path) => fs.readFileSync(path, "utf8");
@@ -148,31 +148,25 @@ console.log("Group 5 public mobile/accessibility and clean-route checks passed."
 ''')
           PY
 
-      - name: Diff whitespace
+      - name: Check diff whitespace
         run: git diff --check
-
       - name: Install dependencies
         run: npm ci
-
       - name: Generate Prisma client
         run: npx prisma generate
-
       - name: Lint
         run: npm run lint
-
       - name: Group 5 regression tests
         run: node tests/group-5-public-mobile-cleanup.test.mjs
-
       - name: Existing public routing regression
         run: node tests/group-3-public-routing-i18n.test.mjs
-
       - name: Existing AI tests
         run: npm run test:ai
-
       - name: Existing ambassador delivery tests
-        run: node --test tests/ambassador-account-delivery.test.mjs
+        run: npm run test:ambassador-delivery
 
       - name: Commit validated Group 5 changes and remove gate
+        shell: bash
         run: |
           rm .github/workflows/group-5-apply-and-validate.yml
           git config user.name "github-actions[bot]"
