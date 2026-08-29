@@ -84,8 +84,20 @@ export async function POST(request: NextRequest) {
           throw new Error("مسار الملف لا يطابق الإرسال الحالي");
         }
 
-        const existing = await db.clientFile.findFirst({ where: { submissionId: submission.id, url: blob.url }, select: { id: true } });
-        if (!existing) {
+        const existingLinks = await db.clientFile.findMany({
+          where: { url: blob.url },
+          select: { id: true, projectId: true, submissionId: true, kind: true, storageProvider: true, source: true },
+        });
+        const hasCrossLink = existingLinks.some((file) =>
+          file.projectId !== submission.projectId
+          || file.submissionId !== submission.id
+          || file.kind !== "CLIENT_SUBMISSION"
+          || file.storageProvider !== "VERCEL_BLOB"
+          || file.source !== "CLIENT"
+        );
+        if (hasCrossLink) throw new Error("الملف مرتبط بإرسال آخر");
+
+        if (!existingLinks.length) {
           await db.clientFile.create({
             data: {
               projectId: submission.projectId,
