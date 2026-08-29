@@ -1,0 +1,54 @@
+name: Group 5 final review fix
+
+on:
+  push:
+    branches:
+      - fix/group-5-admin-invoices-dark-mode
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Fix desktop return badge and strengthen regression
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/app/admin/invoices/page.tsx')
+          s = p.read_text()
+          old = 'className="mr-2 inline-block rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700"'
+          new = 'className="mr-2 inline-block rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700 dark:bg-rose-950/40 dark:text-rose-200"'
+          if old not in s:
+            raise SystemExit('desktop return badge pattern missing')
+          p.write_text(s.replace(old, new, 1))
+
+          t = Path('tests/group-5-admin-invoices-dark-mode.test.mjs')
+          x = t.read_text()
+          marker = 'assert.match(page, /dark:bg-rose-950\\/40 dark:text-rose-200/);\n'
+          replacement = marker + 'assert.equal((page.match(/dark:bg-rose-950\\/40 dark:text-rose-200/g) || []).length >= 3, true);\n'
+          if marker not in x:
+            raise SystemExit('test marker missing')
+          t.write_text(x.replace(marker, replacement, 1))
+          PY
+      - run: git diff --check
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run lint
+      - run: node --test tests/group-5-admin-invoices-dark-mode.test.mjs
+      - run: node --test tests/group-2-admin-mobile-ux.test.mjs
+      - name: Commit final reviewed changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/group-5-review-fix.yml
+          git add src/app/admin/invoices/page.tsx tests/group-5-admin-invoices-dark-mode.test.mjs
+          git commit -m "fix: cover desktop return badge in dark mode"
+          git push
