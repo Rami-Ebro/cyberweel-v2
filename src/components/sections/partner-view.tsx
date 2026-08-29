@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { BriefcaseBusiness, Check, Megaphone, X } from "lucide-react";
 import { PageHeader } from "@/components/site/page-header";
@@ -64,6 +64,13 @@ export function PartnerView() {
   const ar = t.dir === "rtl";
   const data = ar ? AR : EN;
   const [active, setActive] = useState<PathId | null>(null);
+
+  useEffect(() => {
+    const requestedPath = new URLSearchParams(window.location.search).get("path");
+    if (requestedPath === "partner" || requestedPath === "ambassador") {
+      queueMicrotask(() => setActive(requestedPath));
+    }
+  }, []);
 
 
 

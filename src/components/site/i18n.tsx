@@ -27,16 +27,18 @@ export function useI18n() {
 const STORAGE_KEY = "cyberweel-lang";
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(() => {
-    if (typeof window === "undefined") return "ar";
+  const [lang, setLangState] = useState<Lang>("ar");
+
+  useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY) as Lang | null;
-      if (stored === "ar" || stored === "en") return stored;
+      if (stored === "ar" || stored === "en") {
+        void Promise.resolve().then(() => setLangState(stored));
+      }
     } catch {
-      // ignore
+      // Keep the deterministic Arabic first render when storage is unavailable.
     }
-    return "ar";
-  });
+  }, []);
 
   const setLang = useCallback((l: Lang) => {
     setLangState(l);

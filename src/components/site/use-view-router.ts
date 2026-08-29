@@ -5,10 +5,17 @@ import { usePathname, useRouter } from "next/navigation";
 import type { ViewId } from "@/lib/site-data";
 import { PUBLIC_PATH_VIEWS, PUBLIC_VIEW_PATHS, publicViewPath } from "@/lib/public-navigation";
 
-function parseLegacyHash(): ViewId | null {
+function legacyHashTarget(): string | null {
   if (typeof window === "undefined") return null;
   const raw = window.location.hash.replace(/^#\/?/, "").trim();
-  return Object.prototype.hasOwnProperty.call(PUBLIC_VIEW_PATHS, raw) ? (raw as ViewId) : null;
+  if (raw === "ambassador") {
+    const params = new URLSearchParams(window.location.search);
+    params.set("path", "ambassador");
+    return `/partner?${params.toString()}`;
+  }
+  return Object.prototype.hasOwnProperty.call(PUBLIC_VIEW_PATHS, raw)
+    ? publicViewPath(raw as ViewId, window.location.search)
+    : null;
 }
 
 function withCurrentQuery(path: string) {
@@ -27,11 +34,13 @@ export function useViewRouter(initialView: ViewId = "home") {
   const view = PUBLIC_PATH_VIEWS[pathname] ?? initialView;
 
   useEffect(() => {
-    const legacyView = parseLegacyHash();
-    if (!legacyView) return;
-
-    router.replace(publicViewPath(legacyView, window.location.search), { scroll: false });
-  }, [router]);
+    const legacyTarget = legacyHashTarget();
+    if (legacyTarget) {
+      router.replace(legacyTarget, { scroll: false });
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [pathname, router]);
 
   const navigate = useCallback(
     (next: ViewId) => {
@@ -43,9 +52,6 @@ export function useViewRouter(initialView: ViewId = "home") {
       }
 
       router.push(target, { scroll: false });
-      window.requestAnimationFrame(() => {
-        window.scrollTo({ top: 0, behavior: "auto" });
-      });
     },
     [router, view],
   );

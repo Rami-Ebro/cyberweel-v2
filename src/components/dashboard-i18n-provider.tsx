@@ -164,7 +164,7 @@ export function DashboardI18nProvider({ children }: { children: ReactNode }) {
     <DashboardI18nContext.Provider value={context}>
       {children}
       {active && pathname.startsWith("/partner/dashboard") ? <PartnerHeaderLanguageButton /> : null}
-      {active && !pathname.startsWith("/admin") && !pathname.startsWith("/client") && !pathname.startsWith("/partner/dashboard") ? (
+      {active && pathname !== "/login" && !pathname.startsWith("/admin") && !pathname.startsWith("/client") && !pathname.startsWith("/partner/dashboard") ? (
         <DashboardLanguageButton className="fixed bottom-5 left-5 z-[100] h-11 shadow-lg" />
       ) : null}
       {active ? <style jsx global>{`

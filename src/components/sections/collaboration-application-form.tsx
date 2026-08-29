@@ -70,7 +70,7 @@ function PartnerWizard({ arabic }: { arabic: boolean }) {
   }
 
   function partnerShareContent() {
-    const url = `${window.location.origin}/#/partner`;
+    const url = `${window.location.origin}/partner?path=partner`;
     const title = arabic ? "كن شريكًا مع CyberWeel" : "Partner with CyberWeel";
     const text = arabic ? "شاركها مع من تجد فيه الكفاءة ليكون شريكًا في شبكة CyberWeel." : "Share this with someone whose skills would make them a strong CyberWeel partner.";
     return { url, title, text };
@@ -164,7 +164,7 @@ function AmbassadorForm({ arabic }: { arabic: boolean }) {
   }
 
   function ambassadorShareContent() {
-    const url = `${window.location.origin}/#/ambassador`;
+    const url = `${window.location.origin}/partner?path=ambassador`;
     const title = arabic ? "كن سفيرًا مع CyberWeel" : "Become a CyberWeel Ambassador";
     const text = arabic ? "شارك صفحة سفير CyberWeel مع شخص ترى أنه يستطيع بناء شبكة علاقات وفرص حقيقية." : "Share the CyberWeel Ambassador page with someone who can build meaningful connections and opportunities.";
     return { url, title, text };
