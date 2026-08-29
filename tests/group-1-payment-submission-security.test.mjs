@@ -177,3 +177,18 @@ test("legacy PAID partner assignments can repair incomplete evidence without a s
   assert.match(component, /needsPaymentEvidenceRepair/);
   assert.match(component, /إكمال إثبات دفعة قديمة/);
 });
+
+
+test("legacy client admin route cannot bypass dedicated invoice payment safeguards", async () => {
+  const [clientRoute, clientEditor] = await Promise.all([
+    repoFile("src/app/api/admin/clients/[clientId]/route.ts"),
+    repoFile("src/components/admin-client-editor.tsx"),
+  ]);
+  assert.match(clientRoute, /allowedCreationStatuses = new Set\(\["DRAFT", "DUE", "OVERDUE"\]\)/);
+  assert.match(clientRoute, /لا يمكن إنشاء فاتورة مدفوعة أو ملغاة مباشرة/);
+  assert.match(clientRoute, /تسجيل دفع الفاتورة يجب أن يتم من صفحة الفواتير باستخدام مسار الدفع المخصص/);
+  assert.doesNotMatch(clientRoute, /CLIENT_INVOICE_PAYMENT_RECORDED/);
+  assert.doesNotMatch(clientRoute, /data: \{ status: "PAID", paidAt \}/);
+  assert.match(clientEditor, /href="\/admin\/invoices"/);
+  assert.doesNotMatch(clientEditor, /name="action" value="payment"/);
+});
