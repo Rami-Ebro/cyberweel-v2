@@ -16,6 +16,7 @@ type DashboardI18nContextValue = {
 
 const DashboardI18nContext = createContext<DashboardI18nContextValue | null>(null);
 const STORAGE_KEY = "cyberweel-lang";
+const LANGUAGE_EVENT = "cyberweel:language-change";
 const translatedText = new WeakMap<Node, { original: string; applied: string }>();
 const translatedAttributes = new WeakMap<Element, Map<string, { original: string; applied: string }>>();
 const attributes = ["placeholder", "aria-label", "title"];
@@ -126,9 +127,20 @@ export function DashboardI18nProvider({ children }: { children: ReactNode }) {
     }
   }, [active]);
 
+  useEffect(() => {
+    if (!active) return;
+    const syncLanguage = (event: Event) => {
+      const next = (event as CustomEvent<{ lang?: DashboardLang }>).detail?.lang;
+      if (next === "ar" || next === "en") setLangState(next);
+    };
+    window.addEventListener(LANGUAGE_EVENT, syncLanguage);
+    return () => window.removeEventListener(LANGUAGE_EVENT, syncLanguage);
+  }, [active]);
+
   const setLang = useCallback((next: DashboardLang) => {
     setLangState(next);
     window.localStorage.setItem(STORAGE_KEY, next);
+    window.dispatchEvent(new CustomEvent(LANGUAGE_EVENT, { detail: { lang: next } }));
   }, []);
 
   const toggleLang = useCallback(() => setLang(lang === "ar" ? "en" : "ar"), [lang, setLang]);
@@ -164,8 +176,8 @@ export function DashboardI18nProvider({ children }: { children: ReactNode }) {
     <DashboardI18nContext.Provider value={context}>
       {children}
       {active && pathname.startsWith("/partner/dashboard") ? <PartnerHeaderLanguageButton /> : null}
-      {active && pathname !== "/login" && !pathname.startsWith("/admin") && !pathname.startsWith("/client") && !pathname.startsWith("/partner/dashboard") ? (
-        <DashboardLanguageButton className="fixed bottom-5 left-5 z-[100] h-11 shadow-lg" />
+      {active && pathname !== "/login" && pathname !== "/partner" && !pathname.startsWith("/admin") && !pathname.startsWith("/client") && !pathname.startsWith("/partner/dashboard") ? (
+        <DashboardLanguageButton className="fixed bottom-5 left-5 z-20 h-11 shadow-lg" />
       ) : null}
       {active ? <style jsx global>{`
         html[data-dashboard-lang="en"] [dir="rtl"] { direction: ltr !important; }

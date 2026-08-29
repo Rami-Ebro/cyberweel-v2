@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { generateAssistantTurn } from "@/lib/ai/gateway";
+import { checkGeminiHealth } from "@/lib/ai/providers/gemini";
 import { AiProviderError, chatMessageSchema } from "@/lib/ai/types";
 import {
   consumeRateLimit,
@@ -22,6 +23,35 @@ const requestSchema = z.object({
     context.addIssue({ code: "custom", message: "Last message must be from the user" });
   }
 });
+
+type HealthPayload = Awaited<ReturnType<typeof checkGeminiHealth>>;
+let healthCache: { expiresAt: number; payload: HealthPayload } | null = null;
+let healthPromise: Promise<HealthPayload> | null = null;
+
+async function readHealth() {
+  const now = Date.now();
+  if (healthCache && healthCache.expiresAt > now) return healthCache.payload;
+  if (!healthPromise) {
+    healthPromise = checkGeminiHealth().finally(() => {
+      healthPromise = null;
+    });
+  }
+  const payload = await healthPromise;
+  healthCache = {
+    payload,
+    expiresAt: now + (payload.status === "ready" ? 60_000 : 20_000),
+  };
+  return payload;
+}
+
+export async function GET(request: NextRequest) {
+  if (!hasTrustedOrigin(request)) return invalidOriginResponse();
+  const health = await readHealth();
+  return NextResponse.json(
+    { ok: health.status === "ready", provider: "gemini", ...health },
+    { headers: { "Cache-Control": "private, max-age=30" } },
+  );
+}
 
 export async function POST(request: NextRequest) {
   if (!hasTrustedOrigin(request)) return invalidOriginResponse();

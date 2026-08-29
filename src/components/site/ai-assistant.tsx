@@ -24,6 +24,8 @@ type UiMessage = {
   welcome?: boolean;
 };
 
+type ServiceStatus = "idle" | "checking" | "ready" | "limited" | "unavailable";
+
 type ChatState = {
   messages: UiMessage[];
   lastTurn: AssistantTurn | null;
@@ -139,6 +141,19 @@ function errorText(code: string, languageCode: string) {
   return (code === "QUOTA_EXHAUSTED" || code === "AI_RATE_LIMITED" ? limited[language] : unavailable[language]) || fallback;
 }
 
+function serviceStatusUi(status: ServiceStatus, arabic: boolean) {
+  if (status === "ready") {
+    return { label: arabic ? "متصل الآن" : "Online", dot: "bg-emerald-400" };
+  }
+  if (status === "limited") {
+    return { label: arabic ? "الخدمة محدودة حاليًا" : "Service limited", dot: "bg-amber-400" };
+  }
+  if (status === "unavailable") {
+    return { label: arabic ? "غير متاح حاليًا" : "Temporarily unavailable", dot: "bg-rose-400" };
+  }
+  return { label: arabic ? "جارٍ التحقق من الخدمة…" : "Checking service…", dot: "bg-slate-400 animate-pulse" };
+}
+
 export function CyberWeelAiAssistant() {
   const { lang } = useI18n();
   const arabicSite = lang === "ar";
@@ -150,12 +165,14 @@ export function CyberWeelAiAssistant() {
   const [leadOpen, setLeadOpen] = useState(false);
   const [leadBusy, setLeadBusy] = useState(false);
   const [leadError, setLeadError] = useState("");
+  const [serviceStatus, setServiceStatus] = useState<ServiceStatus>("idle");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const activeLanguage = chat.lastTurn?.detectedLanguage.primaryCode || (arabicSite ? "ar" : "en");
   const activeDirection = directionFor(activeLanguage);
   const handoffUi = chat.lastTurn?.handoffUi || defaultHandoffUi(arabicSite);
+  const statusUi = serviceStatusUi(serviceStatus, arabicSite);
   const latestNeed = useMemo(
     () => [...chat.messages].reverse().find((message) => message.role === "user")?.content || "",
     [chat.messages],
@@ -196,6 +213,24 @@ export function CyberWeelAiAssistant() {
 
   useEffect(() => {
     if (!open) return;
+    let cancelled = false;
+    void fetch("/api/ai/chat", { method: "GET", headers: { Accept: "application/json" } })
+      .then((response) => response.json().catch(() => null))
+      .then((payload) => {
+        if (cancelled) return;
+        const next = payload?.status;
+        setServiceStatus(next === "ready" || next === "limited" || next === "unavailable" ? next : "unavailable");
+      })
+      .catch(() => {
+        if (!cancelled) setServiceStatus("unavailable");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [chat.messages, busy, leadOpen, open]);
 
@@ -222,6 +257,7 @@ export function CyberWeelAiAssistant() {
         throw new Error(typeof payload.error === "string" ? payload.error : "UNAVAILABLE");
       }
       const turn = payload.turn as AssistantTurn;
+      setServiceStatus("ready");
       const assistantMessage: UiMessage = {
         id: messageId(),
         role: "assistant",
@@ -235,6 +271,8 @@ export function CyberWeelAiAssistant() {
       }));
     } catch (cause) {
       const code = cause instanceof Error ? cause.message : "UNAVAILABLE";
+      if (code === "QUOTA_EXHAUSTED" || code === "AI_RATE_LIMITED") setServiceStatus("limited");
+      else setServiceStatus("unavailable");
       setError(errorText(code, activeLanguage));
     } finally {
       setBusy(false);
@@ -322,13 +360,15 @@ export function CyberWeelAiAssistant() {
       <button
         type="button"
         onClick={() => {
-          setOpen((value) => !value);
+          const nextOpen = !open;
+          if (nextOpen) setServiceStatus("checking");
+          setOpen(nextOpen);
           window.setTimeout(() => inputRef.current?.focus(), 80);
         }}
         aria-label={arabicSite ? "فتح مساعد سايبرويل الذكي" : "Open CyberWeel AI Assistant"}
         aria-expanded={open}
         className={cn(
-          "fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-4 z-[70] grid h-14 w-14 place-items-center rounded-full border border-[#D7BD82] bg-[#111827] text-[#D7BD82] shadow-[0_18px_45px_rgba(17,24,39,0.28)] transition hover:-translate-y-0.5 hover:bg-[#1F2937] sm:right-6",
+          "fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-4 z-40 grid h-14 w-14 place-items-center rounded-full border border-[#D7BD82] bg-[#111827] text-[#D7BD82] shadow-[0_18px_45px_rgba(17,24,39,0.28)] transition hover:-translate-y-0.5 hover:bg-[#1F2937] sm:right-6",
           open && "bg-[#B89A5A] text-[#111827]",
         )}
       >
@@ -340,7 +380,7 @@ export function CyberWeelAiAssistant() {
           role="dialog"
           aria-label="CyberWeel AI Assistant"
           dir={activeDirection}
-          className="fixed inset-x-3 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-[69] flex h-[min(32rem,calc(100dvh_-_7.5rem_-_env(safe-area-inset-bottom)))] max-h-[76dvh] flex-col overflow-hidden rounded-[1.6rem] border border-[#D8D2C4] bg-[#FCFAF6] shadow-[0_28px_80px_rgba(17,24,39,0.28)] sm:inset-x-auto sm:right-6 sm:w-[25rem]"
+          className="fixed inset-x-3 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-40 flex h-[min(32rem,calc(100dvh_-_7.5rem_-_env(safe-area-inset-bottom)))] max-h-[76dvh] flex-col overflow-hidden rounded-[1.6rem] border border-[#D8D2C4] bg-[#FCFAF6] shadow-[0_28px_80px_rgba(17,24,39,0.28)] sm:inset-x-auto sm:right-6 sm:w-[25rem]"
         >
           <header className="flex items-center justify-between gap-3 border-b border-[#E7E0D4] bg-[#111827] px-4 py-3.5 text-white">
             <div className="flex min-w-0 items-center gap-3">
@@ -349,9 +389,9 @@ export function CyberWeelAiAssistant() {
               </span>
               <div className="min-w-0">
                 <h2 className="truncate text-sm font-black">CyberWeel AI Assistant</h2>
-                <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-slate-300" role="status">
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" aria-hidden />
-                  {arabicSite ? "متصل الآن" : "Online"}
+                <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-slate-300" role="status" aria-live="polite">
+                  <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusUi.dot)} aria-hidden />
+                  {statusUi.label}
                 </p>
               </div>
             </div>

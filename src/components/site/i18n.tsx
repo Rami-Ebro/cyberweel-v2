@@ -25,6 +25,7 @@ export function useI18n() {
 }
 
 const STORAGE_KEY = "cyberweel-lang";
+const LANGUAGE_EVENT = "cyberweel:language-change";
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>("ar");
@@ -40,6 +41,15 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  useEffect(() => {
+    const syncLanguage = (event: Event) => {
+      const next = (event as CustomEvent<{ lang?: Lang }>).detail?.lang;
+      if (next === "ar" || next === "en") setLangState(next);
+    };
+    window.addEventListener(LANGUAGE_EVENT, syncLanguage);
+    return () => window.removeEventListener(LANGUAGE_EVENT, syncLanguage);
+  }, []);
+
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
     try {
@@ -47,6 +57,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     }
+    window.dispatchEvent(new CustomEvent(LANGUAGE_EVENT, { detail: { lang: l } }));
   }, []);
 
   const toggleLang = useCallback(() => {

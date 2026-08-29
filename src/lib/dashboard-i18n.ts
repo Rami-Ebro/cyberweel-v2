@@ -1441,6 +1441,26 @@ const partnerApplicationEnglish: Record<string, string> = {
   "تعذر إرسال الطلب.": "The application could not be submitted.",
 };
 
+const ambassadorUiEnglish: Record<string, string> = {
+  "تعذر تحميل لوحة السفير": "Unable to load the ambassador dashboard.",
+  "تعذر تحميل البيانات": "Unable to load the dashboard data.",
+  "تعذر النسخ تلقائيًا. حدّد النص وانسخه يدويًا.": "Automatic copying failed. Select the text and copy it manually.",
+  "تعذرت المشاركة الآن.": "Sharing is unavailable right now.",
+  "المشاركة غير متاحة في هذا المتصفح، لذلك تم نسخ المحتوى.": "Sharing is unavailable in this browser, so the content was copied instead.",
+  "المعاينة الإدارية للقراءة فقط.": "Admin preview is read-only.",
+  "مساعد السفير غير مهيأ بعد. أضف مفتاح Gemini في إعدادات البيئة.": "The ambassador assistant is not configured yet. Add the Gemini key to the environment settings.",
+  "تعذر الوصول إلى مساعد السفير الآن. حاول مجددًا لاحقًا.": "The ambassador assistant is unavailable right now. Please try again later.",
+  "امتنع المساعد عن تقديم رد قد يتضمن سعرًا أو موعدًا غير معتمد. حوّل الحالة إلى الإدارة.": "The assistant withheld a response that could include an unapproved price or timeline. Escalate this case to the admin team.",
+  "تعذر إنشاء الرد": "Unable to generate a response.",
+  "تعذر إضافة الإحالة": "Unable to add the referral.",
+  "أدخل اسم العميل والبريد الإلكتروني ووسيلة تواصل إضافية واحتياجه بشكل صحيح.": "Enter the client name, email address, an additional contact method, and the need correctly.",
+  "لا يمكنك تسجيل بريد حسابك كإحالة عميل.": "You cannot use your own account email as a client referral.",
+  "هذا البريد مسجل بالفعل ضمن إحالاتك. تابع الإحالة الحالية بدل إنشاء نسخة جديدة.": "This email is already in your referrals. Continue with the existing referral instead of creating a duplicate.",
+  "هذا البريد مسجل بالفعل كإحالة في CyberWeel ولا يمكن إنشاء إحالة مكررة.": "This email is already registered as a CyberWeel referral and cannot be duplicated.",
+  "هذا البريد مرتبط بحساب موجود في CyberWeel ولا يمكن تسجيله كإحالة جديدة.": "This email belongs to an existing CyberWeel account and cannot be registered as a new referral.",
+  "تعذر حفظ الملف": "Unable to save the profile.",
+};
+
 const dashboardPatterns: Array<[RegExp, (...matches: string[]) => string]> = [
   [/^(\d+) غير مقروء$/, (count) => `${count} unread`],
   [/^مرحبًا،\s*(.+)$/, (name) => `Welcome, ${name}`],
@@ -1502,7 +1522,7 @@ export function translateDashboardText(value: string, lang: DashboardLang) {
   const leading = value.match(/^\s*/)?.[0] || "";
   const trailing = value.match(/\s*$/)?.[0] || "";
   const normalized = value.trim();
-  const exact = partnerApplicationEnglish[normalized] || dashboardEnglish[normalized];
+  const exact = ambassadorUiEnglish[normalized] || partnerApplicationEnglish[normalized] || dashboardEnglish[normalized];
   if (exact) return `${leading}${exact}${trailing}`;
 
   for (const [pattern, formatter] of dashboardPatterns) {

@@ -264,7 +264,7 @@ function DashboardWordmark() {
 
 export default function AmbassadorDashboardPage() {
   const router = useRouter();
-  const { lang } = useDashboardI18n();
+  const { lang, tr } = useDashboardI18n();
   const [data, setData] = useState<DashboardData | null>(null);
   const [activeSection, setActiveSection] = useState<SectionKey>("overview");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -283,6 +283,10 @@ export default function AmbassadorDashboardPage() {
   const [assistantAnswer, setAssistantAnswer] = useState("");
   const [askingAssistant, setAskingAssistant] = useState(false);
 
+  function localizeMessage(value: string) {
+    return lang === "en" ? tr(value) : value;
+  }
+
   async function loadDashboard() {
     const previewId = new URLSearchParams(window.location.search).get("adminPreview");
     const endpoint = previewId
@@ -295,7 +299,7 @@ export default function AmbassadorDashboardPage() {
         router.replace(payload.redirectTo);
         return;
       }
-      throw new Error(dashboardErrorMessage(payload.error, "تعذر تحميل لوحة السفير"));
+      throw new Error(localizeMessage(dashboardErrorMessage(payload.error, "تعذر تحميل لوحة السفير")));
     }
     setData(payload);
   }
@@ -303,7 +307,7 @@ export default function AmbassadorDashboardPage() {
   useEffect(() => {
     queueMicrotask(() => {
       setDarkMode(localStorage.getItem("cyberweel-ambassador-theme") === "dark");
-      loadDashboard().catch((cause) => setError(cause instanceof Error ? cause.message : "تعذر تحميل البيانات"));
+      loadDashboard().catch((cause) => setError(cause instanceof Error ? cause.message : localizeMessage("تعذر تحميل البيانات")));
     });
   }, []);
 
@@ -353,7 +357,7 @@ export default function AmbassadorDashboardPage() {
       setCopiedContent(key);
       window.setTimeout(() => setCopiedContent((current) => current === key ? null : current), 1800);
     } catch {
-      setError("تعذر النسخ تلقائيًا. حدّد النص وانسخه يدويًا.");
+      setError(localizeMessage("تعذر النسخ تلقائيًا. حدّد النص وانسخه يدويًا."));
     }
   }
 
@@ -367,7 +371,7 @@ export default function AmbassadorDashboardPage() {
       setNotice("المشاركة غير متاحة في هذا المتصفح، لذلك تم نسخ المحتوى.");
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") return;
-      setError("تعذرت المشاركة الآن.");
+      setError(localizeMessage("تعذرت المشاركة الآن."));
     }
   }
 
@@ -394,11 +398,11 @@ export default function AmbassadorDashboardPage() {
           AI_PROVIDER_ERROR: "تعذر الوصول إلى مساعد السفير الآن. حاول مجددًا لاحقًا.",
           AI_GUARDRAIL_FAILED: "امتنع المساعد عن تقديم رد قد يتضمن سعرًا أو موعدًا غير معتمد. حوّل الحالة إلى الإدارة.",
         };
-        throw new Error(messages[payload?.error] || dashboardErrorMessage(payload?.error, "تعذر إنشاء الرد"));
+        throw new Error(localizeMessage(messages[payload?.error] || dashboardErrorMessage(payload?.error, "تعذر إنشاء الرد")));
       }
       setAssistantAnswer(String(payload.answer || ""));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "تعذر إنشاء الرد");
+      setError(cause instanceof Error ? cause.message : localizeMessage("تعذر إنشاء الرد"));
     } finally {
       setAskingAssistant(false);
     }
@@ -422,7 +426,12 @@ export default function AmbassadorDashboardPage() {
         body: JSON.stringify(Object.fromEntries(form)),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.message || dashboardErrorMessage(payload?.error, "تعذر إضافة الإحالة"));
+      if (!response.ok) {
+        const message = typeof payload?.message === "string"
+          ? payload.message
+          : dashboardErrorMessage(payload?.error, "تعذر إضافة الإحالة");
+        throw new Error(localizeMessage(message));
+      }
       setData((current) => current ? {
         ...current,
         referrals: [payload.referral, ...current.referrals],
@@ -435,7 +444,7 @@ export default function AmbassadorDashboardPage() {
       formElement.reset();
       setNotice(directReferralSuccess);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "تعذر إضافة الإحالة");
+      setError(cause instanceof Error ? cause.message : localizeMessage("تعذر إضافة الإحالة"));
     } finally {
       setAddingReferral(false);
     }
@@ -458,7 +467,7 @@ export default function AmbassadorDashboardPage() {
         body: JSON.stringify(form),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(dashboardErrorMessage(payload.error, "تعذر حفظ الملف"));
+      if (!response.ok) throw new Error(localizeMessage(dashboardErrorMessage(payload.error, "تعذر حفظ الملف")));
       setData((current) => current ? {
         ...current,
         ambassador: {
@@ -472,7 +481,7 @@ export default function AmbassadorDashboardPage() {
       } : current);
       setNotice("تم حفظ بيانات التواصل واستلام العمولات.");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "تعذر حفظ الملف");
+      setError(cause instanceof Error ? cause.message : localizeMessage("تعذر حفظ الملف"));
     } finally {
       setSavingProfile(false);
     }

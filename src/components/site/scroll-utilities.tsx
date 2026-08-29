@@ -60,7 +60,7 @@ export function ScrollUtilities() {
             transition={{ duration: 0.25 }}
             aria-label={t.scrollUtilities.backToTop}
             className={cn(
-              "focus-ring fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-4 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-camel/40 bg-ink text-camel shadow-lg transition-colors hover:bg-ink/90 sm:left-6"
+              "focus-ring fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-camel/40 bg-ink text-camel shadow-lg transition-colors hover:bg-ink/90 sm:left-6"
             )}
           >
             <ArrowUp className="h-5 w-5" />
