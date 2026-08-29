@@ -40,13 +40,25 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
   const [refreshing, setRefreshing] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [desktopSidebar, setDesktopSidebar] = useState(false);
 
   useEffect(() => {
     queueMicrotask(() => setDarkMode(localStorage.getItem(ADMIN_THEME_KEY) === "dark"));
   }, []);
 
   useEffect(() => {
-    if (!menuOpen) return;
+    const media = window.matchMedia("(min-width: 1024px)");
+    const sync = () => {
+      setDesktopSidebar(media.matches);
+      if (media.matches) setMenuOpen(false);
+    };
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen || desktopSidebar) return;
     const previousOverflow = document.body.style.overflow;
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setMenuOpen(false); };
     document.body.style.overflow = "hidden";
@@ -55,7 +67,7 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [menuOpen]);
+  }, [menuOpen, desktopSidebar]);
 
   function toggleDarkMode() {
     setDarkMode((current) => {
@@ -89,7 +101,11 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
     >
       <div className="grid min-h-screen lg:grid-cols-[290px_minmax(0,1fr)]">
         {menuOpen && <button type="button" aria-label="إغلاق قائمة الإدارة" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 bg-slate-950/55 lg:hidden" />}
-        <aside className={`fixed inset-y-0 right-0 z-50 flex w-[min(290px,calc(100vw-1rem))] flex-col overflow-y-auto overscroll-contain bg-[#111827] p-5 text-white shadow-2xl transition-transform lg:sticky lg:top-0 lg:h-screen lg:max-h-screen lg:w-auto lg:translate-x-0 lg:shadow-none ${menuOpen ? "translate-x-0" : "translate-x-full"}`}>
+        <aside
+          inert={!desktopSidebar && !menuOpen}
+          aria-hidden={!desktopSidebar && !menuOpen ? true : undefined}
+          className={`fixed inset-y-0 right-0 z-50 flex w-[min(290px,calc(100vw-1rem))] flex-col overflow-y-auto overscroll-contain bg-[#111827] p-5 text-white shadow-2xl transition-transform lg:sticky lg:top-0 lg:h-screen lg:max-h-screen lg:w-auto lg:translate-x-0 lg:shadow-none ${menuOpen ? "translate-x-0" : "translate-x-full"}`}
+        >
           <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/10 pb-5">
             <Link href="/" onClick={() => setMenuOpen(false)} className="flex min-w-0 items-center gap-3">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white"><Logo size={36} /></span>

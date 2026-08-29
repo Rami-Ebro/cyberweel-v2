@@ -146,12 +146,9 @@ export function PartnerDeliveryWorkspace() {
   useEffect(() => {
     if (!mounted) return;
     const syncGuard = () => {
-      document.querySelectorAll<HTMLInputElement>('input[aria-label="نسبة تقدم المشروع"]').forEach((input) => {
+      document.querySelectorAll<HTMLInputElement>('input[data-stage-progress="true"]').forEach((input) => {
         input.max = "99";
         input.title = "التقدم اليدوي يصل إلى 99٪. الإكمال يتم عبر إرسال تسليم المرحلة.";
-      });
-      document.querySelectorAll<HTMLInputElement>('input[type="number"][max="100"]').forEach((input) => {
-        if (input.closest("main")) input.max = "99";
       });
       document.querySelectorAll<HTMLButtonElement>("button").forEach((button) => {
         if (button.textContent?.trim() === "إرسال للمراجعة") {

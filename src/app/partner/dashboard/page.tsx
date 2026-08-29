@@ -30,6 +30,7 @@ type SectionKey = "overview" | "projects" | "dues" | "profile";
 type DuesSummary = { currency: string; total: string; expected: string; due: string; paid: string; outstanding: string };
 type PartnerProject = {
   id: string;
+  projectStageId?: string;
   title: string;
   description: string | null;
   status: string;
@@ -207,8 +208,12 @@ export default function PartnerDashboardPage() {
       return;
     }
     const progress = progressDrafts[project.id];
-    if (!Number.isInteger(progress) || progress < 0 || progress > 99) {
-      setError("نسبة التقدم اليدوية يجب أن تكون بين 0 و99. عند اكتمال العمل أرسل تسليم المرحلة للمراجعة.");
+    const structuredAssignment = Boolean(project.projectStageId);
+    const maxProgress = structuredAssignment ? 99 : 100;
+    if (!Number.isInteger(progress) || progress < 0 || progress > maxProgress) {
+      setError(structuredAssignment
+        ? "نسبة التقدم اليدوية يجب أن تكون بين 0 و99. عند اكتمال العمل أرسل تسليم المرحلة للمراجعة."
+        : "نسبة التقدم يجب أن تكون بين 0 و100.");
       return;
     }
     setSavingProjectId(project.id);
@@ -235,7 +240,7 @@ export default function PartnerDashboardPage() {
           ),
         },
       } : current);
-      setNotice(`تم حفظ تقدم «${project.title}» عند ${progress}٪.`);
+      setNotice(!project.projectStageId && progress === 100 ? `تم إكمال «${project.title}».` : `تم حفظ تقدم «${project.title}» عند ${progress}٪.`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "تعذر حفظ نسبة التقدم");
     } finally {
@@ -259,6 +264,8 @@ export default function PartnerDashboardPage() {
 
   function ProjectCard({ project, editable = true }: { project: PartnerProject; editable?: boolean }) {
     const draft = progressDrafts[project.id] ?? project.progress;
+    const structuredAssignment = Boolean(project.projectStageId);
+    const maxProgress = structuredAssignment ? 99 : 100;
     return (
       <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="border-b border-slate-100 p-5 sm:p-7 dark:border-slate-800">
@@ -293,17 +300,17 @@ export default function PartnerDashboardPage() {
             </div>
             {editable && !["COMPLETED", "REVIEW"].includes(project.status) ? (
               <div className="space-y-4">
-                <input aria-label="نسبة تقدم المشروع" type="range" min={0} max={99} step={1} value={Math.min(99, draft)} onChange={(event) => setProgressDrafts((current) => ({ ...current, [project.id]: Number(event.target.value) }))} className="w-full accent-[#bd9850]" />
+                <input aria-label="نسبة تقدم المشروع" data-stage-progress={structuredAssignment ? "true" : undefined} type="range" min={0} max={maxProgress} step={1} value={Math.min(maxProgress, draft)} onChange={(event) => setProgressDrafts((current) => ({ ...current, [project.id]: Number(event.target.value) }))} className="w-full accent-[#bd9850]" />
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <label className="flex flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
-                    <input type="number" min={0} max={99} value={Math.min(99, draft)} onChange={(event) => setProgressDrafts((current) => ({ ...current, [project.id]: Math.max(0, Math.min(99, Number(event.target.value) || 0)) }))} className="w-full bg-transparent text-left font-bold outline-none dark:text-white" />
+                    <input type="number" data-stage-progress={structuredAssignment ? "true" : undefined} min={0} max={maxProgress} value={Math.min(maxProgress, draft)} onChange={(event) => setProgressDrafts((current) => ({ ...current, [project.id]: Math.max(0, Math.min(maxProgress, Number(event.target.value) || 0)) }))} className="w-full bg-transparent text-left font-bold outline-none dark:text-white" />
                     <span className="font-bold text-slate-500">٪</span>
                   </label>
                   <button type="button" onClick={() => saveProgress(project)} disabled={savingProjectId === project.id || draft === project.progress} className="rounded-xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-[#bd9850] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#bd9850] dark:text-slate-950">
-                    {savingProjectId === project.id ? "جارٍ الحفظ..." : "حفظ نسبة التقدم"}
+                    {savingProjectId === project.id ? "جارٍ الحفظ..." : !structuredAssignment && draft === 100 ? "إكمال المشروع" : "حفظ نسبة التقدم"}
                   </button>
                 </div>
-                <p className="text-xs leading-6 text-slate-500 dark:text-slate-400">التقدم اليدوي حتى 99٪ فقط. عند اكتمال العمل استخدم «تسليم المرحلة» لإرسال الملاحظة أو الرابط أو الملف إلى مراجعة الإدارة.</p>
+                <p className="text-xs leading-6 text-slate-500 dark:text-slate-400">{structuredAssignment ? "التقدم اليدوي حتى 99٪ فقط. عند اكتمال العمل استخدم «تسليم المرحلة» لإرسال الملاحظة أو الرابط أو الملف إلى مراجعة الإدارة." : "يمكن تحديث هذا المشروع حتى 100٪؛ عند 100٪ يُسجل كمكتمل وفق مسار المشاريع القديم."}</p>
               </div>
             ) : (
               <p className="text-sm text-slate-500 dark:text-slate-400">{project.status === "REVIEW" ? "تم إرسال التسليم وهو الآن بانتظار مراجعة الإدارة." : "تم اعتماد هذا التسليم وحفظه ضمن السجل."}</p>
