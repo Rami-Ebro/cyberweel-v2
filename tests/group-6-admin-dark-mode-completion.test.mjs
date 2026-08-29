@@ -5,6 +5,7 @@ import test from "node:test";
 
 const root = process.cwd();
 const shellPath = path.join(root, "src/components/admin/admin-shell.tsx");
+const layoutPath = path.join(root, "src/app/admin/layout.tsx");
 const adminRoot = path.join(root, "src/app/admin");
 
 function read(filePath) {
@@ -28,6 +29,14 @@ function tokensFromAdminFiles(pattern) {
   return [...tokens].sort();
 }
 
+function hasBackgroundMapping(styles, token) {
+  if (styles.includes(`[class~="${token}"]`)) return true;
+  const slash = token.indexOf("/");
+  if (slash === -1) return false;
+  const family = token.slice(0, slash + 1);
+  return styles.includes(`[class^="${family}"]`) && styles.includes(`[class*=" ${family}"]`);
+}
+
 test("admin theme storage failures do not break the visual toggle", () => {
   const shell = read(shellPath);
   assert.match(shell, /try\s*\{\s*setDarkMode\(window\.localStorage\.getItem\(ADMIN_THEME_KEY\) === "dark"\);/s);
@@ -36,11 +45,11 @@ test("admin theme storage failures do not break the visual toggle", () => {
 });
 
 test("admin shell maps every semantic light status background used by admin pages", () => {
-  const shell = read(shellPath);
+  const styles = `${read(shellPath)}\n${read(layoutPath)}`;
   const tokens = tokensFromAdminFiles(/\b(bg-(?:emerald|rose|red|amber|sky|violet|teal)-(?:50|100)(?:\/\d+)?)\b/g);
   assert.ok(tokens.length > 0, "expected semantic status backgrounds in admin pages");
   for (const token of tokens) {
-    assert.ok(shell.includes(`[class~="${token}"]`), `missing dark background mapping for ${token}`);
+    assert.ok(hasBackgroundMapping(styles, token), `missing dark background mapping for ${token}`);
   }
 });
 
@@ -59,6 +68,7 @@ test("admin shell covers shared translucent and warm light surfaces", () => {
     "bg-white/70",
     "bg-[#F3EEE5]",
     "bg-[#F4F1EA]",
+    "bg-[#F3EAD7]",
     "bg-[#FCFAF6]",
     "bg-[#FBF8F2]",
   ]) {
