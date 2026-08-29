@@ -232,7 +232,7 @@ const commissionStatusClass: Record<CommissionStatus, string> = {
   PAID: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200",
 };
 
-const rewardStatus: Record<RewardStatus, string> = { EXPECTED: "متوقعة", EARNED: "متوقعة", PAID: "مدفوعة", CANCELLED: "ملغاة" };
+const rewardStatus: Record<RewardStatus, string> = { EXPECTED: "متوقعة", EARNED: "مستحقة / بانتظار الدفع", PAID: "مدفوعة", CANCELLED: "ملغاة" };
 const rewardStatusClass: Record<RewardStatus, string> = {
   EXPECTED: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200",
   EARNED: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200",
@@ -512,9 +512,9 @@ export default function AmbassadorDashboardPage() {
   return (
     <div dir="rtl" className={darkMode ? "dark min-h-screen bg-slate-950 text-white" : "min-h-screen bg-[#f5f1e8] text-slate-950"}>
       {menuOpen && <button aria-label="إغلاق القائمة" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 bg-slate-950/55 lg:hidden" />}
-      <aside className={`fixed inset-y-0 right-0 z-50 flex w-[310px] flex-col bg-[#101827] p-6 text-white shadow-2xl transition-transform lg:translate-x-0 ${menuOpen ? "translate-x-0" : "translate-x-full"}`}>
+      <aside className={`fixed inset-y-0 right-0 z-50 flex w-[310px] max-w-[calc(100vw-1rem)] flex-col overflow-y-auto overscroll-contain bg-[#101827] p-4 text-white shadow-2xl transition-transform sm:p-6 lg:translate-x-0 ${menuOpen ? "translate-x-0" : "translate-x-full"}`}>
         <div className="flex items-start justify-between gap-3"><DashboardWordmark /><button aria-label="إغلاق القائمة" onClick={() => setMenuOpen(false)} className="rounded-xl p-2 text-white/70 hover:bg-white/10 lg:hidden"><X size={22} /></button></div>
-        <nav className="mt-12 space-y-2">{navigation.map((item) => { const Icon = item.icon; const active = activeSection === item.key; return <button key={item.key} type="button" onClick={() => navigate(item.key)} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-right font-black transition ${active ? "bg-[#bd9850] text-slate-950" : "text-white/70 hover:bg-white/10 hover:text-white"}`}><Icon size={20} />{item.label}</button>; })}</nav>
+        <nav className="mt-8 space-y-2 sm:mt-12">{navigation.map((item) => { const Icon = item.icon; const active = activeSection === item.key; return <button key={item.key} type="button" onClick={() => navigate(item.key)} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-right font-black transition ${active ? "bg-[#bd9850] text-slate-950" : "text-white/70 hover:bg-white/10 hover:text-white"}`}><Icon size={20} />{item.label}</button>; })}</nav>
         <div className="mt-auto space-y-3"><Link href="/" className="flex items-center justify-center gap-2 rounded-2xl bg-[#bd9850] px-4 py-3 font-black text-slate-950"><ArrowLeft size={18} />العودة إلى الموقع</Link><div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-white/65">تحتاج إلى مساعدة؟<br /><Link href="/contact" className="font-black text-[#d5b873]">تواصل معنا</Link></div></div>
       </aside>
 

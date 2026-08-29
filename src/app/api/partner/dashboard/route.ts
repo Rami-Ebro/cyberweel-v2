@@ -228,7 +228,7 @@ export async function PATCH(request: NextRequest) {
   if (!projectId || body?.action !== "progress") return NextResponse.json({ error: "طلب غير صالح" }, { status: 400 });
 
   const progress = Number(body?.progress);
-  if (!Number.isInteger(progress) || progress < 0 || progress > 100) return NextResponse.json({ error: "نسبة التقدم يجب أن تكون بين 0 و100" }, { status: 400 });
+  if (!Number.isInteger(progress) || progress < 0 || progress > 99) return NextResponse.json({ error: "نسبة التقدم اليدوية يجب أن تكون بين 0 و99. عند اكتمال العمل أرسل تسليم المرحلة للمراجعة" }, { status: 400 });
 
   const stageAssignment = await getStagePartnerAssignment(projectId, user.partner!.id);
   if (stageAssignment) {
@@ -236,12 +236,6 @@ export async function PATCH(request: NextRequest) {
     if (["COMPLETED", "CANCELLED"].includes(stageAssignment.stageStatus)) return NextResponse.json({ error: "لا يمكن تعديل مرحلة مكتملة أو ملغاة" }, { status: 409 });
     if (stageAssignment.status === "REVIEW") return NextResponse.json({ error: "لديك تسليم بانتظار مراجعة الإدارة. لا يمكن تغيير التقدم حتى يصدر قرار المراجعة" }, { status: 409 });
     if (stageAssignment.status === "COMPLETED" || ["APPROVED", "PAID"].includes(stageAssignment.paymentStatus)) return NextResponse.json({ error: "اعتمدت الإدارة هذا التسليم، لذلك لم يعد تقدم الإسناد قابلًا للتعديل" }, { status: 409 });
-    if (progress === 100) {
-      return NextResponse.json({
-        error: "لا يتم إكمال المرحلة برفع النسبة إلى 100٪ يدويًا. عند اكتمال العمل أرسل «تسليم المرحلة» بملاحظة أو رابط أو ملف ليصل إلى مراجعة الإدارة.",
-      }, { status: 409 });
-    }
-
     const updated = await updateStagePartnerProgress({ assignmentId: projectId, partnerId: user.partner!.id, progress });
     if (!updated) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });
     const submissions = (await submissionsForAssignments([projectId])).get(projectId) || [];

@@ -81,8 +81,8 @@ const PAYMENT_PROOF_PREFIX = "PAYMENT_PROOF:";
 const MAX_PAYMENT_PROOF_SIZE = 4 * 1024 * 1024;
 const ALLOWED_PAYMENT_PROOF_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "application/pdf"]);
 const statusLabels: Record<RewardStatus, string> = {
-  EXPECTED: "قيد الاستحقاق",
-  EARNED: "بانتظار الدفع",
+  EXPECTED: "متوقعة",
+  EARNED: "مستحقة / بانتظار الدفع",
   PAID: "مدفوعة",
   CANCELLED: "ملغاة",
 };

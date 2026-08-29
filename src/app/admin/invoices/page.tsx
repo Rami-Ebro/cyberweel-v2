@@ -222,28 +222,47 @@ export default function AdminInvoicesPage() {
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="field"><option value="">كل الحالات</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
           </div>
           <div className="mt-5">
-            <table className="w-full table-fixed text-right text-xs xl:text-sm">
-              <thead><tr className="border-b">
-                <th className="w-[16%] p-2.5">الرقم</th>
-                <th className="w-[12%] p-2.5">تاريخ الإصدار</th>
-                <th className="w-[14%] p-2.5">العميل</th>
-                <th className="w-[14%] p-2.5">المشروع</th>
-                <th className="w-[11%] p-2.5">المبلغ</th>
-                <th className="w-[13%] p-2.5">الحالة</th>
-                <th className="w-[10%] p-2.5">الاستحقاق</th>
-                <th className="w-[10%] p-2.5">الدفع</th>
-              </tr></thead>
-              <tbody>{filteredInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100 align-middle">
-                <td dir="ltr" className="p-2.5 text-right font-black"><span className="whitespace-nowrap">{invoice.number}</span>{invoice.type === "RETURN" && <span className="mr-2 inline-block rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700">مرتجع</span>}</td>
-                <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.createdAt} /></td>
-                <td className="p-2.5 truncate" title={invoice.project.client.name || invoice.project.client.email}>{invoice.project.client.name || invoice.project.client.email}</td>
-                <td className="p-2.5 truncate" title={invoice.project.title}>{invoice.project.title}</td>
-                <td className="p-2.5 whitespace-nowrap font-black">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td>
-                <td className="p-2.5"><div className="flex flex-wrap items-center gap-1.5"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 font-black ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{statusLabels[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</span>{invoice.status !== "PAID" && invoice.status !== "CANCELLED" && <button type="button" onClick={() => { setError(""); setMessage(""); setPaymentInvoice(invoice); }} disabled={saving} className="whitespace-nowrap rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-800 disabled:opacity-40">تسجيل مدفوعة</button>}</div></td>
-                <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.dueAt} /></td>
-                <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.paidAt} /></td>
-              </tr>)}</tbody>
-            </table>
+            <div className="hidden overflow-x-auto lg:block">
+              <table className="w-full min-w-[1080px] table-fixed text-right text-xs xl:text-sm">
+                <thead><tr className="border-b">
+                  <th className="w-[16%] p-2.5">الرقم</th>
+                  <th className="w-[12%] p-2.5">تاريخ الإصدار</th>
+                  <th className="w-[14%] p-2.5">العميل</th>
+                  <th className="w-[14%] p-2.5">المشروع</th>
+                  <th className="w-[11%] p-2.5">المبلغ</th>
+                  <th className="w-[13%] p-2.5">الحالة</th>
+                  <th className="w-[10%] p-2.5">الاستحقاق</th>
+                  <th className="w-[10%] p-2.5">الدفع</th>
+                </tr></thead>
+                <tbody>{filteredInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100 align-middle">
+                  <td dir="ltr" className="p-2.5 text-right font-black"><span className="whitespace-nowrap">{invoice.number}</span>{invoice.type === "RETURN" && <span className="mr-2 inline-block rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700">مرتجع</span>}</td>
+                  <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.createdAt} /></td>
+                  <td className="p-2.5 truncate" title={invoice.project.client.name || invoice.project.client.email}>{invoice.project.client.name || invoice.project.client.email}</td>
+                  <td className="p-2.5 truncate" title={invoice.project.title}>{invoice.project.title}</td>
+                  <td className="p-2.5 whitespace-nowrap font-black">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td>
+                  <td className="p-2.5"><div className="flex flex-wrap items-center gap-1.5"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 font-black ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{statusLabels[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</span>{invoice.status !== "PAID" && invoice.status !== "CANCELLED" && <button type="button" onClick={() => { setError(""); setMessage(""); setPaymentInvoice(invoice); }} disabled={saving} className="whitespace-nowrap rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-800 disabled:opacity-40">تسجيل مدفوعة</button>}</div></td>
+                  <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.dueAt} /></td>
+                  <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.paidAt} /></td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+
+            <div className="grid gap-3 lg:hidden">
+              {filteredInvoices.map((invoice) => <article key={invoice.id} className="rounded-2xl border border-[#D8D2C4] bg-[#FFFDF8] p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div><p dir="ltr" className="w-fit font-black">{invoice.number}</p><p className="mt-1 text-xs text-slate-500"><DateText value={invoice.createdAt} /></p></div>
+                  <div className="flex flex-wrap items-center justify-end gap-2">{invoice.type === "RETURN" && <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">مرتجع</span>}<span className={`rounded-full px-2.5 py-1 text-xs font-black ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{statusLabels[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</span></div>
+                </div>
+                <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                  <div><dt className="text-xs font-bold text-slate-500">العميل</dt><dd className="mt-1 break-words font-black">{invoice.project.client.name || invoice.project.client.email}</dd></div>
+                  <div><dt className="text-xs font-bold text-slate-500">المشروع</dt><dd className="mt-1 break-words font-black">{invoice.project.title}</dd></div>
+                  <div><dt className="text-xs font-bold text-slate-500">المبلغ</dt><dd className="mt-1 font-black">{invoice.amount.toLocaleString("ar")} {invoice.currency}</dd></div>
+                  <div><dt className="text-xs font-bold text-slate-500">الاستحقاق</dt><dd className="mt-1 font-bold"><DateText value={invoice.dueAt} /></dd></div>
+                  <div><dt className="text-xs font-bold text-slate-500">الدفع</dt><dd className="mt-1 font-bold"><DateText value={invoice.paidAt} /></dd></div>
+                </dl>
+                {invoice.status !== "PAID" && invoice.status !== "CANCELLED" && <button type="button" onClick={() => { setError(""); setMessage(""); setPaymentInvoice(invoice); }} disabled={saving} className="mt-4 w-full rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 font-black text-emerald-800 disabled:opacity-40">تسجيل مدفوعة</button>}
+              </article>)}
+            </div>
             {!loading && !filteredInvoices.length && <p className="p-8 text-center text-slate-500">لا توجد فواتير مطابقة.</p>}
           </div>
         </section>
@@ -253,7 +272,7 @@ export default function AdminInvoicesPage() {
             className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/55 p-4"
             onMouseDown={(event) => { if (event.currentTarget === event.target && !saving) setPaymentInvoice(null); }}
           >
-            <section role="dialog" aria-modal="true" aria-labelledby="invoice-payment-title" className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
+            <section role="dialog" aria-modal="true" aria-labelledby="invoice-payment-title" className="max-h-[calc(100dvh-2rem)] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 id="invoice-payment-title" className="text-xl font-black">تأكيد تسجيل الفاتورة كمدفوعة</h2>

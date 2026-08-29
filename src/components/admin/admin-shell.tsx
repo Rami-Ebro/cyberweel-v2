@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
 import {
-  BarChart3, BadgeDollarSign, CheckCircle2, FolderKanban, Home, Link2, LogOut,
-  Moon, ReceiptText, RefreshCw, ShieldCheck, Sun, UserCog, UserRound, UsersRound, History,
+  BarChart3, BadgeDollarSign, CheckCircle2, FolderKanban, Home, Link2, LogOut, Menu,
+  Moon, ReceiptText, RefreshCw, ShieldCheck, Sun, UserCog, UserRound, UsersRound, History, X,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { AdminNotificationCenter } from "@/components/admin/admin-notification-center";
@@ -39,10 +39,23 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
   const [darkMode, setDarkMode] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     queueMicrotask(() => setDarkMode(localStorage.getItem(ADMIN_THEME_KEY) === "dark"));
   }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setMenuOpen(false); };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
 
   function toggleDarkMode() {
     setDarkMode((current) => {
@@ -75,11 +88,15 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
       className={darkMode ? "dark min-h-screen bg-slate-950 text-white" : "min-h-screen bg-[#F7F3EB] text-[#111827]"}
     >
       <div className="grid min-h-screen lg:grid-cols-[290px_minmax(0,1fr)]">
-        <aside className="flex flex-col bg-[#111827] p-5 text-white lg:sticky lg:top-0 lg:h-screen lg:max-h-screen lg:overflow-hidden">
-          <Link href="/" className="flex shrink-0 items-center gap-3 border-b border-white/10 pb-5">
-            <span className="grid h-12 w-12 place-items-center rounded-xl bg-white"><Logo size={36} /></span>
-            <span><span className="block font-black">CyberWeel</span><span className="text-xs text-white/50">لوحة الإدارة</span></span>
-          </Link>
+        {menuOpen && <button type="button" aria-label="إغلاق قائمة الإدارة" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 bg-slate-950/55 lg:hidden" />}
+        <aside className={`fixed inset-y-0 right-0 z-50 flex w-[min(290px,calc(100vw-1rem))] flex-col overflow-y-auto overscroll-contain bg-[#111827] p-5 text-white shadow-2xl transition-transform lg:sticky lg:top-0 lg:h-screen lg:max-h-screen lg:w-auto lg:translate-x-0 lg:shadow-none ${menuOpen ? "translate-x-0" : "translate-x-full"}`}>
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/10 pb-5">
+            <Link href="/" onClick={() => setMenuOpen(false)} className="flex min-w-0 items-center gap-3">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white"><Logo size={36} /></span>
+              <span><span className="block font-black">CyberWeel</span><span className="text-xs text-white/50">لوحة الإدارة</span></span>
+            </Link>
+            <button type="button" aria-label="إغلاق قائمة الإدارة" onClick={() => setMenuOpen(false)} className="rounded-xl p-2 text-white/70 hover:bg-white/10 lg:hidden"><X size={22} /></button>
+          </div>
           <nav
             aria-label="القائمة الرئيسية للوحة الإدارة"
             data-admin-nav-scroll
@@ -93,6 +110,7 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
                   key={item.key}
                   href={item.href}
                   aria-current={selected ? "page" : undefined}
+                  onClick={() => setMenuOpen(false)}
                   className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right text-sm font-bold transition ${selected ? "bg-[#B89A5A] text-[#111827]" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
                 >
                   <Icon className="h-5 w-5 shrink-0" />
@@ -102,13 +120,16 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
             })}
           </nav>
           <div className="mt-auto grid shrink-0 gap-2 pt-8 lg:pt-4">
-            <Link href="/" className="flex items-center gap-3 rounded-xl bg-[#B89A5A] px-4 py-3 font-black text-[#111827]"><Home className="h-5 w-5" />العودة إلى الموقع</Link>
+            <Link href="/" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 rounded-xl bg-[#B89A5A] px-4 py-3 font-black text-[#111827]"><Home className="h-5 w-5" />العودة إلى الموقع</Link>
           </div>
         </aside>
         <section className="min-w-0 p-4 sm:p-7 lg:p-10">
           <div className={wide ? "mx-auto max-w-[1500px]" : "mx-auto max-w-6xl"}>
             <header className="sticky top-0 z-30 -mx-4 flex flex-col gap-4 border-b border-[#D8D2C4]/80 bg-[#F7F3EB]/95 px-4 py-4 backdrop-blur sm:-mx-7 sm:flex-row sm:items-start sm:justify-between sm:px-7 lg:-mx-10 lg:px-10 dark:border-slate-800 dark:bg-slate-950/95">
-              <div><p className="text-sm font-bold text-[#9A7D43]">{eyebrow}</p><h1 className="mt-1 text-3xl font-black">{title}</h1>{description && <p className="mt-2 max-w-3xl text-slate-500 dark:text-slate-400">{description}</p>}</div>
+              <div className="flex min-w-0 items-start gap-3">
+                <button type="button" aria-label="فتح قائمة الإدارة" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} className="mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#D8D2C4] bg-white shadow-sm lg:hidden dark:border-slate-700 dark:bg-slate-900"><Menu size={20} /></button>
+                <div className="min-w-0"><p className="text-sm font-bold text-[#9A7D43]">{eyebrow}</p><h1 className="mt-1 break-words text-2xl font-black sm:text-3xl">{title}</h1>{description && <p className="mt-2 max-w-3xl text-slate-500 dark:text-slate-400">{description}</p>}</div>
+              </div>
               <div className="relative flex flex-wrap items-center justify-end gap-2">
                 <AdminNotificationCenter />
                 <button

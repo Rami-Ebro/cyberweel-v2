@@ -207,8 +207,8 @@ export default function PartnerDashboardPage() {
       return;
     }
     const progress = progressDrafts[project.id];
-    if (!Number.isInteger(progress) || progress < 0 || progress > 100) {
-      setError("نسبة التقدم يجب أن تكون بين 0 و100.");
+    if (!Number.isInteger(progress) || progress < 0 || progress > 99) {
+      setError("نسبة التقدم اليدوية يجب أن تكون بين 0 و99. عند اكتمال العمل أرسل تسليم المرحلة للمراجعة.");
       return;
     }
     setSavingProjectId(project.id);
@@ -235,9 +235,7 @@ export default function PartnerDashboardPage() {
           ),
         },
       } : current);
-      setNotice(progress === 100
-        ? `تم إرسال تسليم «${project.title}» إلى الإدارة للمراجعة.`
-        : `تم حفظ تقدم «${project.title}» عند ${progress}٪.`);
+      setNotice(`تم حفظ تقدم «${project.title}» عند ${progress}٪.`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "تعذر حفظ نسبة التقدم");
     } finally {
@@ -293,19 +291,19 @@ export default function PartnerDashboardPage() {
             <div className="mb-4 h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
               <div className="h-full rounded-full bg-[#bd9850] transition-all" style={{ width: `${draft}%` }} />
             </div>
-            {editable && project.status !== "COMPLETED" ? (
+            {editable && !["COMPLETED", "REVIEW"].includes(project.status) ? (
               <div className="space-y-4">
-                <input aria-label="نسبة تقدم المشروع" type="range" min={0} max={100} step={1} value={draft} onChange={(event) => setProgressDrafts((current) => ({ ...current, [project.id]: Number(event.target.value) }))} className="w-full accent-[#bd9850]" />
+                <input aria-label="نسبة تقدم المشروع" type="range" min={0} max={99} step={1} value={Math.min(99, draft)} onChange={(event) => setProgressDrafts((current) => ({ ...current, [project.id]: Number(event.target.value) }))} className="w-full accent-[#bd9850]" />
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <label className="flex flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
-                    <input type="number" min={0} max={100} value={draft} onChange={(event) => setProgressDrafts((current) => ({ ...current, [project.id]: Math.max(0, Math.min(100, Number(event.target.value) || 0)) }))} className="w-full bg-transparent text-left font-bold outline-none dark:text-white" />
+                    <input type="number" min={0} max={99} value={Math.min(99, draft)} onChange={(event) => setProgressDrafts((current) => ({ ...current, [project.id]: Math.max(0, Math.min(99, Number(event.target.value) || 0)) }))} className="w-full bg-transparent text-left font-bold outline-none dark:text-white" />
                     <span className="font-bold text-slate-500">٪</span>
                   </label>
                   <button type="button" onClick={() => saveProgress(project)} disabled={savingProjectId === project.id || draft === project.progress} className="rounded-xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-[#bd9850] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#bd9850] dark:text-slate-950">
-                    {savingProjectId === project.id ? "جارٍ الحفظ..." : draft === 100 ? "إرسال للمراجعة" : "حفظ نسبة التقدم"}
+                    {savingProjectId === project.id ? "جارٍ الحفظ..." : "حفظ نسبة التقدم"}
                   </button>
                 </div>
-                <p className="text-xs leading-6 text-slate-500 dark:text-slate-400">عند 100٪ ينتقل التسليم إلى مراجعة الإدارة، ولا يصبح المستحق قابلًا للدفع قبل اعتمادها.</p>
+                <p className="text-xs leading-6 text-slate-500 dark:text-slate-400">التقدم اليدوي حتى 99٪ فقط. عند اكتمال العمل استخدم «تسليم المرحلة» لإرسال الملاحظة أو الرابط أو الملف إلى مراجعة الإدارة.</p>
               </div>
             ) : (
               <p className="text-sm text-slate-500 dark:text-slate-400">تم اعتماد هذا التسليم وحفظه ضمن السجل.</p>
@@ -364,12 +362,12 @@ export default function PartnerDashboardPage() {
     <div dir="rtl" className={darkMode ? "dark min-h-screen bg-slate-950 text-white" : "min-h-screen bg-[#f5f1e8] text-slate-950"}>
       {menuOpen && <button aria-label="إغلاق القائمة" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 bg-slate-950/55 lg:hidden" />}
 
-      <aside className={`fixed inset-y-0 right-0 z-50 flex w-[310px] flex-col bg-[#101827] p-6 text-white shadow-2xl transition-transform lg:translate-x-0 ${menuOpen ? "translate-x-0" : "translate-x-full"}`}>
+      <aside className={`fixed inset-y-0 right-0 z-50 flex w-[310px] max-w-[calc(100vw-1rem)] flex-col overflow-y-auto overscroll-contain bg-[#101827] p-4 text-white shadow-2xl transition-transform sm:p-6 lg:translate-x-0 ${menuOpen ? "translate-x-0" : "translate-x-full"}`}>
         <div className="flex items-start justify-between gap-3">
           <DashboardWordmark />
           <button aria-label="إغلاق القائمة" onClick={() => setMenuOpen(false)} className="rounded-xl p-2 text-white/70 hover:bg-white/10 lg:hidden"><X size={22} /></button>
         </div>
-        <nav className="mt-12 space-y-2">
+        <nav className="mt-8 space-y-2 sm:mt-12">
           {navigation.map((item) => {
             const Icon = item.icon;
             const active = activeSection === item.key;
