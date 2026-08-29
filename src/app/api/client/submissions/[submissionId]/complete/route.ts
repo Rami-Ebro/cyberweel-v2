@@ -1,4 +1,4 @@
-import { head } from "@vercel/blob";
+import { BlobNotFoundError, head } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { currentClientAccess } from "@/lib/client-access";
 import {
@@ -15,6 +15,10 @@ type RouteContext = { params: Promise<{ submissionId: string }> };
 
 type UploadedFile = { url: string; name: string; size: number };
 type ValidatedFile = UploadedFile & { cleanName: string; actualSize: number };
+
+function isPrismaUniqueViolation(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002";
+}
 
 export async function POST(request: NextRequest, context: RouteContext) {
   const client = await currentClientAccess(request);
@@ -52,7 +56,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         throw new Error("INVALID_BLOB_OWNERSHIP");
       }
 
-      const details = await head(file.url, { token: blobToken });
+      const details = await head(file.url, { token: blobToken, abortSignal: AbortSignal.timeout(8_000) });
       if (
         details.url !== file.url
         || !details.pathname.startsWith(expectedPrefix)
@@ -70,8 +74,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
       });
     }
   } catch (error) {
-    console.error("[client-submission-complete] Blob ownership validation failed", error);
-    return NextResponse.json({ error: "أحد الملفات لا يخص هذا العميل أو هذا الإرسال، أو لم يُرفع عبر المسار المعتمد" }, { status: 400 });
+    const invalidOwnership = error instanceof BlobNotFoundError || (error instanceof Error && error.message === "INVALID_BLOB_OWNERSHIP");
+    if (invalidOwnership) {
+      return NextResponse.json({ error: "أحد الملفات لا يخص هذا العميل أو هذا الإرسال، أو لم يُرفع عبر المسار المعتمد" }, { status: 400 });
+    }
+    console.error("[client-submission-complete] Blob verification service failed", error);
+    return NextResponse.json({ error: "تعذر التحقق من الملفات حاليًا. حاول مرة أخرى لاحقًا" }, { status: 503 });
   }
 
   try {
@@ -142,20 +150,40 @@ export async function POST(request: NextRequest, context: RouteContext) {
         if (linkedElsewhere) throw new Error("INVALID_BLOB_OWNERSHIP");
         if (submission.files.length + inserted + 1 > MAX_SUBMISSION_FILES) throw new Error("TOO_MANY_FILES");
 
-        const created = await tx.clientFile.create({
-          data: {
-            projectId: submission.projectId,
-            submissionId: submission.id,
-            name: file.cleanName,
-            url: file.url,
-            kind: "CLIENT_SUBMISSION",
-            size: file.actualSize,
-            storageProvider: "VERCEL_BLOB",
-            source: "CLIENT",
-          },
-        });
-        filesByUrl.set(file.url, created);
-        inserted += 1;
+        try {
+          const created = await tx.clientFile.create({
+            data: {
+              projectId: submission.projectId,
+              submissionId: submission.id,
+              name: file.cleanName,
+              url: file.url,
+              kind: "CLIENT_SUBMISSION",
+              size: file.actualSize,
+              storageProvider: "VERCEL_BLOB",
+              source: "CLIENT",
+            },
+          });
+          filesByUrl.set(file.url, created);
+          inserted += 1;
+        } catch (error) {
+          if (!isPrismaUniqueViolation(error)) throw error;
+          const concurrent = await tx.clientFile.findFirst({
+            where: { url: file.url },
+            select: { id: true, projectId: true, submissionId: true, name: true, url: true, kind: true, size: true, storageProvider: true, source: true },
+          });
+          const validConcurrent = concurrent
+            && concurrent.projectId === submission.projectId
+            && concurrent.submissionId === submission.id
+            && concurrent.source === "CLIENT"
+            && concurrent.storageProvider === "VERCEL_BLOB"
+            && concurrent.kind === "CLIENT_SUBMISSION"
+            && isExpectedClientSubmissionBlobUrl(concurrent.url, client.id, submission.id);
+          if (!validConcurrent || !concurrent) throw new Error("INVALID_BLOB_OWNERSHIP");
+          if (concurrent.size !== file.actualSize) {
+            await tx.clientFile.update({ where: { id: concurrent.id }, data: { size: file.actualSize } });
+          }
+          filesByUrl.set(file.url, { ...concurrent, size: file.actualSize });
+        }
       }
 
       if (!submission.note && !submission.links.length && submission.files.length + inserted === 0) throw new Error("EMPTY");

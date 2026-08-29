@@ -212,16 +212,19 @@ export async function POST(request: NextRequest) {
 
     const existing = await getStagePartnerAssignment(assignmentId);
     if (!existing) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });
-    if (existing.status !== "COMPLETED" || existing.paymentStatus !== "APPROVED") {
-      return NextResponse.json({ error: "لا يمكن تسجيل الدفع قبل اعتماد تسليم الشريك واستحقاق المبلغ" }, { status: 409 });
+    const repairingLegacyPaid = existing.status === "COMPLETED"
+      && existing.paymentStatus === "PAID"
+      && (!existing.paidAt || !existing.paymentMethod?.trim() || !existing.paymentReference?.trim() || !existing.paymentProofUrl?.trim() || !existing.paymentProofName?.trim());
+    if (existing.status !== "COMPLETED" || (existing.paymentStatus !== "APPROVED" && !repairingLegacyPaid)) {
+      return NextResponse.json({ error: existing.paymentStatus === "PAID" ? "إثبات الدفع مكتمل بالفعل ولا يمكن تسجيل دفعة ثانية" : "لا يمكن تسجيل الدفع قبل اعتماد تسليم الشريك واستحقاق المبلغ" }, { status: 409 });
     }
 
-    const paid = await recordStagePartnerPayment({ assignmentId, paidAt, paymentMethod, paymentReference, paymentProofUrl, paymentProofName });
+    const paid = await recordStagePartnerPayment({ assignmentId, paidAt, paymentMethod, paymentReference, paymentProofUrl, paymentProofName, allowPaidRepair: repairingLegacyPaid });
     if (!paid) return NextResponse.json({ error: "تعذر تسجيل الدفع. حدّث الصفحة وتحقق من حالة المستحق" }, { status: 409 });
 
     await writeAdminAudit(db, {
       actorId: access.userId,
-      action: "STAGE_PARTNER_PAYMENT_RECORDED",
+      action: repairingLegacyPaid ? "STAGE_PARTNER_PAYMENT_EVIDENCE_REPAIRED" : "STAGE_PARTNER_PAYMENT_RECORDED",
       category: "SENSITIVE",
       entityType: "PROJECT_STAGE_PARTNER_ASSIGNMENT",
       entityId: assignmentId,

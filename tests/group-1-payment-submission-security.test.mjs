@@ -139,3 +139,41 @@ test("submission completion verifies actual private blob ownership and rejects d
   assert.match(source, /storageProvider === "VERCEL_BLOB"/);
   assert.match(source, /kind === "CLIENT_SUBMISSION"/);
 });
+
+
+test("client submission Blob verification distinguishes ownership errors from service failures", async () => {
+  const source = await repoFile("src/app/api/client/submissions/[submissionId]/complete/route.ts");
+  assert.match(source, /BlobNotFoundError/);
+  assert.match(source, /AbortSignal\.timeout\(8_000\)/);
+  assert.match(source, /Blob verification service failed/);
+  assert.match(source, /status: 503/);
+});
+
+test("client submission Blob URL uniqueness is enforced across callback races", async () => {
+  const [migration, uploadRoute, completeRoute] = await Promise.all([
+    repoFile("prisma/migrations/20260829145500_client_submission_blob_url_uniqueness/migration.sql"),
+    repoFile("src/app/api/client/submissions/upload/route.ts"),
+    repoFile("src/app/api/client/submissions/[submissionId]/complete/route.ts"),
+  ]);
+  assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS "ClientFile_client_submission_blob_url_key"/);
+  assert.match(migration, /WHERE "storageProvider" = 'VERCEL_BLOB'/);
+  assert.match(migration, /CLIENT_SUBMISSION_BLOB_CROSSLINK_EXISTS/);
+  assert.match(uploadRoute, /P2002/);
+  assert.match(uploadRoute, /sameSubmission/);
+  assert.match(completeRoute, /P2002/);
+  assert.match(completeRoute, /validConcurrent/);
+});
+
+test("legacy PAID partner assignments can repair incomplete evidence without a second payment", async () => {
+  const [route, helper, component] = await Promise.all([
+    repoFile("src/app/api/admin/stage-partner-assignments/route.ts"),
+    repoFile("src/lib/stage-partner-assignments.ts"),
+    repoFile("src/components/admin/stage-partner-assignment-manager.tsx"),
+  ]);
+  assert.match(route, /repairingLegacyPaid/);
+  assert.match(route, /STAGE_PARTNER_PAYMENT_EVIDENCE_REPAIRED/);
+  assert.match(route, /إثبات الدفع مكتمل بالفعل ولا يمكن تسجيل دفعة ثانية/);
+  assert.match(helper, /allowPaidRepair/);
+  assert.match(component, /needsPaymentEvidenceRepair/);
+  assert.match(component, /إكمال إثبات دفعة قديمة/);
+});

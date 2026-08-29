@@ -215,6 +215,7 @@ export async function recordStagePartnerPayment(input: {
   paymentReference: string;
   paymentProofUrl?: string | null;
   paymentProofName?: string | null;
+  allowPaidRepair?: boolean;
 }) {
   if (!input.paymentProofUrl || !input.paymentProofName) return null;
   const blobProof = await verifyPrivatePaymentProofBlob({
@@ -235,7 +236,20 @@ export async function recordStagePartnerPayment(input: {
       "updatedAt" = CURRENT_TIMESTAMP
     WHERE "id" = ${input.assignmentId}
       AND "status" = 'COMPLETED'
-      AND "paymentStatus" = 'APPROVED'::"ProjectPaymentStatus"
+      AND (
+        "paymentStatus" = 'APPROVED'::"ProjectPaymentStatus"
+        OR (
+          ${input.allowPaidRepair === true}
+          AND "paymentStatus" = 'PAID'::"ProjectPaymentStatus"
+          AND (
+            "paidAt" IS NULL
+            OR COALESCE(BTRIM("paymentMethod"), '') = ''
+            OR COALESCE(BTRIM("paymentReference"), '') = ''
+            OR COALESCE(BTRIM("paymentProofUrl"), '') = ''
+            OR COALESCE(BTRIM("paymentProofName"), '') = ''
+          )
+        )
+      )
     RETURNING "id"
   `);
   if (!rows.length) return null;

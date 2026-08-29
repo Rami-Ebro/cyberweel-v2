@@ -298,7 +298,10 @@ export function StagePartnerAssignmentManager({ projectId }: { projectId: string
                 const canEdit = canCreateAssignment && assignment.progress === 0 && assignment.status === "ASSIGNED" && assignment.paymentStatus === "PENDING" && !assignment.submissions.length;
                 const latest = assignment.submissions[assignment.submissions.length - 1] || null;
                 const canReview = latest?.status === "SUBMITTED" && assignment.progress === 100 && assignment.status === "REVIEW" && assignment.paymentStatus === "PENDING";
-                const canPay = assignment.status === "COMPLETED" && assignment.paymentStatus === "APPROVED";
+                const needsPaymentEvidenceRepair = assignment.status === "COMPLETED"
+                  && assignment.paymentStatus === "PAID"
+                  && (!assignment.paidAt || !assignment.paymentMethod?.trim() || !assignment.paymentReference?.trim() || !assignment.paymentProofUrl?.trim() || !assignment.paymentProofName?.trim());
+                const canPay = assignment.status === "COMPLETED" && (assignment.paymentStatus === "APPROVED" || needsPaymentEvidenceRepair);
                 return (
                   <article key={assignment.id} className="rounded-xl border border-[#E6E0D4] bg-white p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -333,12 +336,13 @@ export function StagePartnerAssignmentManager({ projectId }: { projectId: string
                     {assignment.status === "REVIEW" && !assignment.submissions.length && <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-900">هذا الإسناد في حالة مراجعة دون نسخة تسليم محفوظة. لا يمكن اعتماده؛ اطلب من الشريك إرسال التسليم من لوحة الشريك.</div>}
 
                     {canPay && <form onSubmit={(event) => void recordPayment(event, assignment)} className="mt-4 grid gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 md:grid-cols-2">
-                      <p className="text-sm font-black text-blue-950 md:col-span-2">تسجيل دفع مستحق الشريك — {assignment.feeAmount} {assignment.feeCurrency}</p>
-                      <label className="grid gap-2 text-sm font-black">طريقة الدفع<input name="paymentMethod" required placeholder="مثال: شام كاش" className="field bg-white font-normal" /></label>
-                      <label className="grid gap-2 text-sm font-black">مرجع عملية الدفع<input name="paymentReference" required className="field bg-white font-normal" /></label>
-                      <label className="grid gap-2 text-sm font-black">تاريخ الدفع<DateInput name="paidAt" required className="field bg-white font-normal" /></label>
+                      <p className="text-sm font-black text-blue-950 md:col-span-2">{needsPaymentEvidenceRepair ? "إكمال إثبات دفعة قديمة" : "تسجيل دفع مستحق الشريك"} — {assignment.feeAmount} {assignment.feeCurrency}</p>
+                      {needsPaymentEvidenceRepair && <p className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-900 md:col-span-2">هذا المستحق مسجل كمدفوع من سجل قديم، لكن إثبات الدفع غير مكتمل. لن تُسجل دفعة جديدة؛ سيتم فقط استكمال بيانات الإثبات.</p>}
+                      <label className="grid gap-2 text-sm font-black">طريقة الدفع<input name="paymentMethod" required defaultValue={needsPaymentEvidenceRepair ? assignment.paymentMethod || "" : undefined} placeholder="مثال: شام كاش" className="field bg-white font-normal" /></label>
+                      <label className="grid gap-2 text-sm font-black">مرجع عملية الدفع<input name="paymentReference" required defaultValue={needsPaymentEvidenceRepair ? assignment.paymentReference || "" : undefined} className="field bg-white font-normal" /></label>
+                      <label className="grid gap-2 text-sm font-black">تاريخ الدفع<DateInput name="paidAt" required defaultValue={needsPaymentEvidenceRepair ? assignment.paidAt?.slice(0, 10) : undefined} className="field bg-white font-normal" /></label>
                       <label className="grid gap-2 text-sm font-black">إثبات الدفع — مطلوب<input name="paymentProof" type="file" required accept="image/png,image/jpeg,image/webp,application/pdf" className="field bg-white font-normal" /></label>
-                      <button disabled={busy === assignment.id} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50 md:col-span-2">{busy === assignment.id ? "جارٍ التسجيل..." : "تسجيل الدفع"}</button>
+                      <button disabled={busy === assignment.id} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50 md:col-span-2">{busy === assignment.id ? "جارٍ التسجيل..." : needsPaymentEvidenceRepair ? "حفظ إثبات الدفع" : "تسجيل الدفع"}</button>
                     </form>}
 
                     {assignment.paymentStatus === "PAID" && <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950"><p className="font-black">تم دفع مستحق الشريك</p><div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 font-bold"><span>الطريقة: {assignment.paymentMethod || "—"}</span><span>المرجع: {assignment.paymentReference || "—"}</span><span>التاريخ: <DateText value={assignment.paidAt} /></span>{assignment.paymentProofUrl && <a href={`/api/partner/stage-assignments/${assignment.id}/payment-proof`} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-emerald-800 underline"><ExternalLink className="h-3.5 w-3.5" />عرض إثبات الدفع</a>}</div></div>}

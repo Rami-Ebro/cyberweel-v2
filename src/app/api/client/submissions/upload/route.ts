@@ -14,6 +14,10 @@ import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 
+function isPrismaUniqueViolation(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002";
+}
+
 type UploadPayload = {
   clientId: string;
   projectId: string;
@@ -98,18 +102,33 @@ export async function POST(request: NextRequest) {
         if (hasCrossLink) throw new Error("الملف مرتبط بإرسال آخر");
 
         if (!existingLinks.length) {
-          await db.clientFile.create({
-            data: {
-              projectId: submission.projectId,
-              submissionId: submission.id,
-              name: cleanSubmissionFilename(payload.originalName),
-              url: blob.url,
-              kind: "CLIENT_SUBMISSION",
-              size: Math.round(payload.size),
-              storageProvider: "VERCEL_BLOB",
-              source: "CLIENT",
-            },
-          });
+          try {
+            await db.clientFile.create({
+              data: {
+                projectId: submission.projectId,
+                submissionId: submission.id,
+                name: cleanSubmissionFilename(payload.originalName),
+                url: blob.url,
+                kind: "CLIENT_SUBMISSION",
+                size: Math.round(payload.size),
+                storageProvider: "VERCEL_BLOB",
+                source: "CLIENT",
+              },
+            });
+          } catch (error) {
+            if (!isPrismaUniqueViolation(error)) throw error;
+            const concurrent = await db.clientFile.findFirst({
+              where: { url: blob.url },
+              select: { projectId: true, submissionId: true, kind: true, storageProvider: true, source: true },
+            });
+            const sameSubmission = concurrent
+              && concurrent.projectId === submission.projectId
+              && concurrent.submissionId === submission.id
+              && concurrent.kind === "CLIENT_SUBMISSION"
+              && concurrent.storageProvider === "VERCEL_BLOB"
+              && concurrent.source === "CLIENT";
+            if (!sameSubmission) throw new Error("الملف مرتبط بإرسال آخر");
+          }
         }
       },
     });
