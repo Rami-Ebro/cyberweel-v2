@@ -110,6 +110,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
             && existing.kind === "CLIENT_SUBMISSION"
             && isExpectedClientSubmissionBlobUrl(existing.url, client.id, submission.id);
           if (!validExisting) throw new Error("INVALID_BLOB_OWNERSHIP");
+
+          const duplicateElsewhere = await tx.clientFile.findFirst({
+            where: { url: file.url, id: { not: existing.id } },
+            select: { id: true },
+          });
+          if (duplicateElsewhere) throw new Error("INVALID_BLOB_OWNERSHIP");
           continue;
         }
 
