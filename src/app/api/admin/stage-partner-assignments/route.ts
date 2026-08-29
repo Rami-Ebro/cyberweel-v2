@@ -45,7 +45,9 @@ function safeText(value: unknown, max = 160) {
 function validProofUrl(value: string, assignmentId: string) {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && url.hostname.endsWith(".blob.vercel-storage.com") && url.pathname.includes(assignmentId);
+    return url.protocol === "https:"
+      && url.hostname.endsWith(".private.blob.vercel-storage.com")
+      && url.pathname.startsWith(`/partner-stage-payments/${assignmentId}/proof/`);
   } catch {
     return false;
   }
@@ -198,14 +200,15 @@ export async function POST(request: NextRequest) {
     const paymentMethod = safeText(body?.paymentMethod, 80);
     const paymentReference = safeText(body?.paymentReference, 160);
     const paidAt = optionalDate(body?.paidAt);
-    const paymentProofUrl = safeText(body?.paymentProofUrl, 700) || null;
-    const paymentProofName = safeText(body?.paymentProofName, 180) || null;
+    const paymentProofUrl = safeText(body?.paymentProofUrl, 700);
+    const paymentProofName = safeText(body?.paymentProofName, 180);
 
     if (!assignmentId) return NextResponse.json({ error: "الإسناد مطلوب" }, { status: 400 });
     if (!paymentMethod) return NextResponse.json({ error: "طريقة الدفع مطلوبة" }, { status: 400 });
     if (!paymentReference) return NextResponse.json({ error: "مرجع عملية الدفع مطلوب" }, { status: 400 });
     if (!paidAt || paidAt === undefined || paidAt.getTime() > Date.now() + 24 * 60 * 60 * 1000) return NextResponse.json({ error: "تاريخ الدفع مطلوب وصحيح" }, { status: 400 });
-    if (paymentProofUrl && !validProofUrl(paymentProofUrl, assignmentId)) return NextResponse.json({ error: "مرفق إثبات الدفع غير صالح" }, { status: 400 });
+    if (!paymentProofUrl || !paymentProofName) return NextResponse.json({ error: "مرفق إثبات الدفع مطلوب قبل تسجيل مستحق الشريك كمدفوع" }, { status: 400 });
+    if (!validProofUrl(paymentProofUrl, assignmentId)) return NextResponse.json({ error: "مرفق إثبات الدفع غير صالح" }, { status: 400 });
 
     const existing = await getStagePartnerAssignment(assignmentId);
     if (!existing) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });
