@@ -299,7 +299,7 @@ export default function AmbassadorDashboardPage() {
         router.replace(payload.redirectTo);
         return;
       }
-      throw new Error(localizeMessage(dashboardErrorMessage(payload.error, "تعذر تحميل لوحة السفير")));
+      throw new Error(dashboardErrorMessage(payload.error, "تعذر تحميل لوحة السفير"));
     }
     setData(payload);
   }
@@ -307,7 +307,7 @@ export default function AmbassadorDashboardPage() {
   useEffect(() => {
     queueMicrotask(() => {
       setDarkMode(localStorage.getItem("cyberweel-ambassador-theme") === "dark");
-      loadDashboard().catch((cause) => setError(cause instanceof Error ? cause.message : localizeMessage("تعذر تحميل البيانات")));
+      loadDashboard().catch((cause) => setError(cause instanceof Error ? cause.message : "تعذر تحميل البيانات"));
     });
   }, []);
 
@@ -357,7 +357,7 @@ export default function AmbassadorDashboardPage() {
       setCopiedContent(key);
       window.setTimeout(() => setCopiedContent((current) => current === key ? null : current), 1800);
     } catch {
-      setError(localizeMessage("تعذر النسخ تلقائيًا. حدّد النص وانسخه يدويًا."));
+      setError("تعذر النسخ تلقائيًا. حدّد النص وانسخه يدويًا.");
     }
   }
 
@@ -371,7 +371,7 @@ export default function AmbassadorDashboardPage() {
       setNotice("المشاركة غير متاحة في هذا المتصفح، لذلك تم نسخ المحتوى.");
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") return;
-      setError(localizeMessage("تعذرت المشاركة الآن."));
+      setError("تعذرت المشاركة الآن.");
     }
   }
 
@@ -398,11 +398,11 @@ export default function AmbassadorDashboardPage() {
           AI_PROVIDER_ERROR: "تعذر الوصول إلى مساعد السفير الآن. حاول مجددًا لاحقًا.",
           AI_GUARDRAIL_FAILED: "امتنع المساعد عن تقديم رد قد يتضمن سعرًا أو موعدًا غير معتمد. حوّل الحالة إلى الإدارة.",
         };
-        throw new Error(localizeMessage(messages[payload?.error] || dashboardErrorMessage(payload?.error, "تعذر إنشاء الرد")));
+        throw new Error(messages[payload?.error] || dashboardErrorMessage(payload?.error, "تعذر إنشاء الرد"));
       }
       setAssistantAnswer(String(payload.answer || ""));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : localizeMessage("تعذر إنشاء الرد"));
+      setError(cause instanceof Error ? cause.message : "تعذر إنشاء الرد");
     } finally {
       setAskingAssistant(false);
     }
@@ -430,7 +430,7 @@ export default function AmbassadorDashboardPage() {
         const message = typeof payload?.message === "string"
           ? payload.message
           : dashboardErrorMessage(payload?.error, "تعذر إضافة الإحالة");
-        throw new Error(localizeMessage(message));
+        throw new Error(message);
       }
       setData((current) => current ? {
         ...current,
@@ -444,7 +444,7 @@ export default function AmbassadorDashboardPage() {
       formElement.reset();
       setNotice(directReferralSuccess);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : localizeMessage("تعذر إضافة الإحالة"));
+      setError(cause instanceof Error ? cause.message : "تعذر إضافة الإحالة");
     } finally {
       setAddingReferral(false);
     }
@@ -467,7 +467,7 @@ export default function AmbassadorDashboardPage() {
         body: JSON.stringify(form),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(localizeMessage(dashboardErrorMessage(payload.error, "تعذر حفظ الملف")));
+      if (!response.ok) throw new Error(dashboardErrorMessage(payload.error, "تعذر حفظ الملف"));
       setData((current) => current ? {
         ...current,
         ambassador: {
@@ -481,7 +481,7 @@ export default function AmbassadorDashboardPage() {
       } : current);
       setNotice("تم حفظ بيانات التواصل واستلام العمولات.");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : localizeMessage("تعذر حفظ الملف"));
+      setError(cause instanceof Error ? cause.message : "تعذر حفظ الملف");
     } finally {
       setSavingProfile(false);
     }
@@ -502,7 +502,7 @@ export default function AmbassadorDashboardPage() {
   }
 
   if (error && !data) {
-    return <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f5f1e8] p-6"><div className="max-w-lg rounded-3xl bg-white p-8 text-center shadow-xl"><h1 className="text-2xl font-black text-slate-950">تعذر تحميل لوحة السفير</h1><p className="mt-3 text-slate-600">{error}</p><button onClick={() => window.location.reload()} className="mt-6 rounded-xl bg-slate-950 px-5 py-3 font-bold text-white">المحاولة مجددًا</button></div></main>;
+    return <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f5f1e8] p-6"><div className="max-w-lg rounded-3xl bg-white p-8 text-center shadow-xl"><h1 className="text-2xl font-black text-slate-950">تعذر تحميل لوحة السفير</h1><p className="mt-3 text-slate-600">{localizeMessage(error)}</p><button onClick={() => window.location.reload()} className="mt-6 rounded-xl bg-slate-950 px-5 py-3 font-bold text-white">المحاولة مجددًا</button></div></main>;
   }
   if (!data) return <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f5f1e8]"><div className="h-12 w-12 animate-spin rounded-full border-4 border-[#bd9850] border-t-transparent" /></main>;
 
@@ -533,7 +533,7 @@ export default function AmbassadorDashboardPage() {
         </header>
 
         <div className="mx-auto max-w-7xl space-y-7 p-4 sm:p-7 lg:p-10">
-          {(error || (notice && notice !== directReferralSuccess)) && <div className={`rounded-2xl border px-5 py-4 text-sm font-bold ${error ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200" : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"}`}>{error || notice}</div>}
+          {(error || (notice && notice !== directReferralSuccess)) && <div className={`rounded-2xl border px-5 py-4 text-sm font-bold ${error ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200" : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"}`}>{error ? localizeMessage(error) : notice}</div>}
 
           {activeSection === "overview" && <>
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">{[

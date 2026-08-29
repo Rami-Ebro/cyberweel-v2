@@ -139,7 +139,11 @@ export function DashboardI18nProvider({ children }: { children: ReactNode }) {
 
   const setLang = useCallback((next: DashboardLang) => {
     setLangState(next);
-    window.localStorage.setItem(STORAGE_KEY, next);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      // Keep same-tab language synchronization working even when storage is unavailable.
+    }
     window.dispatchEvent(new CustomEvent(LANGUAGE_EVENT, { detail: { lang: next } }));
   }, []);
 

@@ -24,6 +24,8 @@ assert.match(assistant, /type ServiceStatus = "idle" \| "checking" \| "ready" \|
 assert.match(assistant, /fetch\("\/api\/ai\/chat", \{ method: "GET"/);
 assert.match(assistant, /serviceStatusUi/);
 assert.match(assistant, /aria-live="polite"/);
+assert.match(assistant, /current === "checking"/);
+assert.match(assistant, /current === "checking" \? "unavailable" : current/);
 assert.doesNotMatch(assistant, /rounded-full bg-emerald-400" aria-hidden \/>/);
 assert.doesNotMatch(assistant, /z-\[70\]/);
 assert.doesNotMatch(assistant, /z-\[69\]/);
@@ -35,6 +37,7 @@ assert.match(siteI18n, /LANGUAGE_EVENT = "cyberweel:language-change"/);
 assert.match(siteI18n, /window\.dispatchEvent\(new CustomEvent\(LANGUAGE_EVENT/);
 assert.match(dashboardProvider, /LANGUAGE_EVENT = "cyberweel:language-change"/);
 assert.match(dashboardProvider, /pathname !== "\/partner"/);
+assert.match(dashboardProvider, /try \{[\s\S]*localStorage\.setItem\(STORAGE_KEY, next\)[\s\S]*\} catch \{[\s\S]*window\.dispatchEvent\(new CustomEvent\(LANGUAGE_EVENT/);
 assert.match(dashboardProvider, /z-20 h-11 shadow-lg/);
 assert.doesNotMatch(dashboardProvider, /z-\[100\]/);
 
@@ -44,6 +47,9 @@ assert.match(dashboardI18n, /ambassadorUiEnglish\[normalized\]/);
 assert.match(ambassador, /const \{ lang, tr \} = useDashboardI18n\(\)/);
 assert.match(ambassador, /function localizeMessage/);
 assert.match(ambassador, /typeof payload\?\.message === "string"/);
-assert.match(ambassador, /throw new Error\(localizeMessage\(message\)\)/);
+assert.match(ambassador, /throw new Error\(message\)/);
+assert.match(ambassador, /error \? localizeMessage\(error\) : notice/);
+assert.match(ambassador, /\{localizeMessage\(error\)\}<\/p>/);
+assert.doesNotMatch(ambassador, /throw new Error\(localizeMessage/);
 
 console.log("Group 4 AI health, ambassador localization, language sync, and layering checks passed.");

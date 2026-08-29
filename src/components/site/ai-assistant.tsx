@@ -219,10 +219,14 @@ export function CyberWeelAiAssistant() {
       .then((payload) => {
         if (cancelled) return;
         const next = payload?.status;
-        setServiceStatus(next === "ready" || next === "limited" || next === "unavailable" ? next : "unavailable");
+        setServiceStatus((current) => current === "checking"
+          ? (next === "ready" || next === "limited" || next === "unavailable" ? next : "unavailable")
+          : current);
       })
       .catch(() => {
-        if (!cancelled) setServiceStatus("unavailable");
+        if (!cancelled) {
+          setServiceStatus((current) => current === "checking" ? "unavailable" : current);
+        }
       });
     return () => {
       cancelled = true;
