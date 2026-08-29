@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
-import { ChevronDown, ReceiptText, RefreshCw } from "lucide-react";
+import { ChevronDown, ReceiptText, RefreshCw, X } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { DateText } from "@/components/ui/date-text";
 import { DateInput } from "@/components/ui/date-input";
@@ -54,6 +54,7 @@ export default function AdminInvoicesPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
 
   async function load() {
     setLoading(true);
@@ -77,6 +78,15 @@ export default function AdminInvoicesPage() {
   useEffect(() => {
     void Promise.resolve().then(load);
   }, []);
+
+  useEffect(() => {
+    if (!paymentInvoice) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !saving) setPaymentInvoice(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [paymentInvoice, saving]);
 
   const selectedClient = clients.find((client) => client.id === clientId) || null;
   const projects = selectedClient?.clientProjects || [];
@@ -134,7 +144,9 @@ export default function AdminInvoicesPage() {
     }
   }
 
-  async function markPaid(invoice: Invoice) {
+  async function markPaid(event: FormEvent<HTMLFormElement>, invoice: Invoice) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
     setSaving(true);
     setMessage("");
     setError("");
@@ -142,11 +154,18 @@ export default function AdminInvoicesPage() {
       const response = await fetch("/api/admin/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "payment", invoiceId: invoice.id }),
+        body: JSON.stringify({
+          action: "payment",
+          invoiceId: invoice.id,
+          paymentMethod: data.get("paymentMethod"),
+          paymentReference: data.get("paymentReference"),
+          paidAt: data.get("paidAt"),
+        }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(dashboardErrorMessage(payload.error, "تعذر تسجيل الدفع"));
       setMessage(`تم تسجيل الفاتورة ${invoice.number} كمدفوعة وإشعار العميل.`);
+      setPaymentInvoice(null);
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "تعذر تسجيل الدفع");
@@ -220,7 +239,7 @@ export default function AdminInvoicesPage() {
                 <td className="p-2.5 truncate" title={invoice.project.client.name || invoice.project.client.email}>{invoice.project.client.name || invoice.project.client.email}</td>
                 <td className="p-2.5 truncate" title={invoice.project.title}>{invoice.project.title}</td>
                 <td className="p-2.5 whitespace-nowrap font-black">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td>
-                <td className="p-2.5"><div className="flex flex-wrap items-center gap-1.5"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 font-black ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{statusLabels[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</span>{invoice.status !== "PAID" && invoice.status !== "CANCELLED" && <button onClick={() => void markPaid(invoice)} disabled={saving} className="whitespace-nowrap rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-800 disabled:opacity-40">تسجيل مدفوعة</button>}</div></td>
+                <td className="p-2.5"><div className="flex flex-wrap items-center gap-1.5"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 font-black ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{statusLabels[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</span>{invoice.status !== "PAID" && invoice.status !== "CANCELLED" && <button type="button" onClick={() => { setError(""); setMessage(""); setPaymentInvoice(invoice); }} disabled={saving} className="whitespace-nowrap rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-800 disabled:opacity-40">تسجيل مدفوعة</button>}</div></td>
                 <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.dueAt} /></td>
                 <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.paidAt} /></td>
               </tr>)}</tbody>
@@ -228,6 +247,40 @@ export default function AdminInvoicesPage() {
             {!loading && !filteredInvoices.length && <p className="p-8 text-center text-slate-500">لا توجد فواتير مطابقة.</p>}
           </div>
         </section>
+
+        {paymentInvoice && (
+          <div
+            className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/55 p-4"
+            onMouseDown={(event) => { if (event.currentTarget === event.target && !saving) setPaymentInvoice(null); }}
+          >
+            <section role="dialog" aria-modal="true" aria-labelledby="invoice-payment-title" className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 id="invoice-payment-title" className="text-xl font-black">تأكيد تسجيل الفاتورة كمدفوعة</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">هذه العملية تغيّر حالة الفاتورة إلى مدفوعة، وقد تحدّث حالة المرحلة ومكافأة السفير وترسل إشعارًا للعميل. لا يمكن تسجيل دفعة ثانية للفواتير المدفوعة.</p>
+                </div>
+                <button type="button" aria-label="إغلاق" disabled={saving} onClick={() => setPaymentInvoice(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-40"><X className="h-5 w-5" /></button>
+              </div>
+
+              <div className="mt-5 rounded-xl bg-[#F7F3EB] p-4">
+                <p className="font-black" dir="ltr">{paymentInvoice.number}</p>
+                <p className="mt-1 text-sm text-slate-600">{paymentInvoice.project.client.name || paymentInvoice.project.client.email} — {paymentInvoice.project.title}</p>
+                <p className="mt-2 font-black">{paymentInvoice.amount.toLocaleString("ar")} {paymentInvoice.currency}</p>
+              </div>
+
+              <form onSubmit={(event) => void markPaid(event, paymentInvoice)} className="mt-5 grid gap-4 sm:grid-cols-2">
+                <label className="grid gap-2 font-bold">وسيلة الدفع<input name="paymentMethod" required maxLength={120} placeholder="مثال: تحويل بنكي / نقدًا" className="field font-normal" /></label>
+                <label className="grid gap-2 font-bold">مرجع العملية<input name="paymentReference" required maxLength={180} placeholder="رقم الحوالة أو مرجع الدفع" className="field font-normal" /></label>
+                <label className="grid gap-2 font-bold sm:col-span-2">تاريخ الدفع<DateInput name="paidAt" required defaultValue={new Date().toISOString().slice(0, 10)} className="field font-normal" /></label>
+                <div className="flex flex-wrap gap-3 sm:col-span-2">
+                  <button disabled={saving} className="rounded-xl bg-emerald-700 px-5 py-3 font-black text-white disabled:opacity-40">{saving ? "جارٍ تسجيل الدفع…" : "تأكيد وتسجيل مدفوعة"}</button>
+                  <button type="button" disabled={saving} onClick={() => setPaymentInvoice(null)} className="rounded-xl border border-slate-300 bg-white px-5 py-3 font-black disabled:opacity-40">إلغاء</button>
+                </div>
+              </form>
+            </section>
+          </div>
+        )}
+
       <style jsx global>{`.field{width:100%;border-radius:.75rem;border:1px solid #d8d2c4;padding:.75rem 1rem;background:white}`}</style>
     </AdminShell>
   );
