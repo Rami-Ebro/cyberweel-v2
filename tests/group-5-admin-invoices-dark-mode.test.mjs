@@ -5,6 +5,7 @@ const page = fs.readFileSync("src/app/admin/invoices/page.tsx", "utf8");
 
 assert.match(page, /dark:bg-emerald-950\/40 dark:text-emerald-200/);
 assert.match(page, /dark:bg-rose-950\/40 dark:text-rose-200/);
+assert.equal((page.match(/dark:bg-rose-950\/40 dark:text-rose-200/g) || []).length >= 3, true);
 assert.match(page, /dark:bg-emerald-950\/50 dark:text-emerald-200/);
 assert.match(page, /dark:bg-rose-100 text-rose-800|dark:bg-rose-950\/50 dark:text-rose-200/);
 assert.match(page, /dark:bg-slate-900 dark:text-slate-100/);

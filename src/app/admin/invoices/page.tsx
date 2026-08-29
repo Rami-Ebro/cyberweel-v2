@@ -235,7 +235,7 @@ export default function AdminInvoicesPage() {
                   <th className="w-[10%] p-2.5">الدفع</th>
                 </tr></thead>
                 <tbody>{filteredInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100 align-middle">
-                  <td dir="ltr" className="p-2.5 text-right font-black"><span className="whitespace-nowrap">{invoice.number}</span>{invoice.type === "RETURN" && <span className="mr-2 inline-block rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700">مرتجع</span>}</td>
+                  <td dir="ltr" className="p-2.5 text-right font-black"><span className="whitespace-nowrap">{invoice.number}</span>{invoice.type === "RETURN" && <span className="mr-2 inline-block rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700 dark:bg-rose-950/40 dark:text-rose-200">مرتجع</span>}</td>
                   <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.createdAt} /></td>
                   <td className="p-2.5 truncate" title={invoice.project.client.name || invoice.project.client.email}>{invoice.project.client.name || invoice.project.client.email}</td>
                   <td className="p-2.5 truncate" title={invoice.project.title}>{invoice.project.title}</td>
