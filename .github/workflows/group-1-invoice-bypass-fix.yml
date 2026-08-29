@@ -1,0 +1,90 @@
+name: Close legacy invoice payment bypass
+
+on:
+  push:
+    branches:
+      - fix/group-1-payment-submission-security
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply exact invoice bypass fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_one(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one match in {path}, got {count}")
+              p.write_text(text.replace(old, new, 1))
+
+          route = "src/app/api/admin/clients/[clientId]/route.ts"
+          replace_one(
+              route,
+              '''      const invoiceType = body?.type === "RETURN" ? "RETURN" : "STANDARD";\n      const project = await db.clientProject.findFirst({ where: { id: projectId, clientId }, select: { id: true, title: true, currency: true } });\n      if (!project || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: "بيانات الفاتورة غير مكتملة" }, { status: 400 });\n''',
+              '''      const invoiceType = body?.type === "RETURN" ? "RETURN" : "STANDARD";\n      const requestedStatus = typeof body?.status === "string" ? body.status : "DUE";\n      const allowedCreationStatuses = new Set(["DRAFT", "DUE", "OVERDUE"]);\n      if (!allowedCreationStatuses.has(requestedStatus)) {\n        return NextResponse.json({ error: "لا يمكن إنشاء فاتورة مدفوعة أو ملغاة مباشرة. استخدم صفحة الفواتير ومسار الدفع المخصص." }, { status: 409 });\n      }\n      const project = await db.clientProject.findFirst({ where: { id: projectId, clientId }, select: { id: true, title: true, currency: true } });\n      if (!project || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: "بيانات الفاتورة غير مكتملة" }, { status: 400 });\n''',
+          )
+          replace_one(
+              route,
+              '            status: body.status || "DUE",',
+              '            status: requestedStatus,',
+          )
+
+          p = Path(route)
+          text = p.read_text()
+          start = text.index('    if (action === "payment") {')
+          end = text.index('    if (action === "message") {', start)
+          replacement = '''    if (action === "payment") {\n      return NextResponse.json(\n        { error: "تسجيل دفع الفاتورة يجب أن يتم من صفحة الفواتير باستخدام مسار الدفع المخصص مع وسيلة الدفع والمرجع والتاريخ." },\n        { status: 409 },\n      );\n    }\n\n'''
+          text = text[:start] + replacement + text[end:]
+          p.write_text(text)
+
+          editor = "src/components/admin-client-editor.tsx"
+          p = Path(editor)
+          text = p.read_text()
+          old = '''{invoice.status !== "PAID" && <form onSubmit={(event) => void submit(event, "POST", "تم تسجيل الفاتورة كمدفوعة وإشعار العميل")} className="mt-3"><input type="hidden" name="action" value="payment" /><input type="hidden" name="invoiceId" value={invoice.id} /><button disabled={saving} className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800">تسجيلها كمدفوعة</button></form>}'''
+          new = '''{invoice.status !== "PAID" && <Link href="/admin/invoices" className="mt-3 inline-flex rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800">فتح صفحة الفواتير لتسجيل الدفع</Link>}'''
+          if text.count(old) != 1:
+              raise SystemExit(f"Expected legacy payment form once, got {text.count(old)}")
+          p.write_text(text.replace(old, new, 1))
+
+          tests = Path("tests/group-1-payment-submission-security.test.mjs")
+          text = tests.read_text()
+          text += '''\n\ntest("legacy client admin route cannot bypass dedicated invoice payment safeguards", async () => {\n  const [clientRoute, clientEditor] = await Promise.all([\n    repoFile("src/app/api/admin/clients/[clientId]/route.ts"),\n    repoFile("src/components/admin-client-editor.tsx"),\n  ]);\n  assert.match(clientRoute, /allowedCreationStatuses = new Set\\(\\["DRAFT", "DUE", "OVERDUE"\\]\\)/);\n  assert.match(clientRoute, /لا يمكن إنشاء فاتورة مدفوعة أو ملغاة مباشرة/);\n  assert.match(clientRoute, /تسجيل دفع الفاتورة يجب أن يتم من صفحة الفواتير باستخدام مسار الدفع المخصص/);\n  assert.doesNotMatch(clientRoute, /CLIENT_INVOICE_PAYMENT_RECORDED/);\n  assert.doesNotMatch(clientRoute, /data: \\{ status: "PAID", paidAt \\}/);\n  assert.match(clientEditor, /href="\\/admin\\/invoices"/);\n  assert.doesNotMatch(clientEditor, /name="action" value="payment"/);\n});\n'''
+          tests.write_text(text)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Lint
+        run: npm run lint
+      - name: Group 1 regression tests
+        run: node --experimental-strip-types --test tests/group-1-payment-submission-security.test.mjs
+      - name: Existing AI tests
+        run: npm run test:ai
+      - name: Existing ambassador delivery tests
+        run: npm run test:ambassador-delivery
+      - name: Remove temporary workflow and commit fixes
+        if: success()
+        run: |
+          rm .github/workflows/group-1-invoice-bypass-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: force invoice payments through hardened route"
+          git push origin HEAD:fix/group-1-payment-submission-security
