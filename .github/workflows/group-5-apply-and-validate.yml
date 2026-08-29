@@ -1,0 +1,182 @@
+name: Group 5 public mobile cleanup gate
+
+on:
+  push:
+    branches:
+      - fix/group-5-public-mobile-cleanup
+
+permissions:
+  contents: write
+
+jobs:
+  apply-validate-commit:
+    if: github.event.head_commit.message == 'chore: run group 5 cleanup gate'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Apply Group 5 fixes
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected exactly one match, found {count}: {old[:120]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "src/components/layout/site-header-refined.tsx",
+              '<button type="button" onClick={() => go("home")} className="focus-ring rounded-md" aria-label={`CyberWeel — ${t.nav.home}`}><Wordmark isArabic={isArabic} /></button>',
+              '<button type="button" onClick={() => go("home")} className="focus-ring rounded-md" aria-label={`CyberWeel — ${t.nav.home}`}><span className="sm:hidden"><Logo size={42} /></span><span className="hidden sm:inline-flex"><Wordmark isArabic={isArabic} /></span></button>',
+          )
+
+          replace_once(
+              "src/components/site/language-switcher.tsx",
+              '"focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-camel/40 hover:bg-muted hover:text-ink",',
+              '"focus-ring inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-camel/40 hover:bg-muted hover:text-ink",',
+          )
+
+          replace_once(
+              "src/components/site/theme-toggle.tsx",
+              'className="focus-ring inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-ink transition-colors hover:bg-muted"',
+              'className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-md border border-border bg-background text-ink transition-colors hover:bg-muted"',
+          )
+
+          sheet = Path("src/components/ui/sheet.tsx")
+          text = sheet.read_text()
+          old_right = '"data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm",'
+          new_right = '"data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-dvh w-3/4 overflow-y-auto overscroll-contain border-l sm:max-w-sm",'
+          old_left = '"data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm",'
+          new_left = '"data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-dvh w-3/4 overflow-y-auto overscroll-contain border-r sm:max-w-sm",'
+          for old, new in [(old_right,new_right),(old_left,new_left)]:
+              if text.count(old) != 1:
+                  raise SystemExit(f"sheet side class match failure: {old}")
+              text = text.replace(old,new,1)
+          old_close = '''        <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
+          <XIcon className="size-4" />
+          <span className="sr-only">Close</span>
+        </SheetPrimitive.Close>'''
+          new_close = '''        <SheetPrimitive.Close
+          className={cn(
+            "ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-2 inline-flex h-11 w-11 items-center justify-center rounded-md opacity-80 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none",
+            side === "left" ? "left-2" : "right-2",
+          )}
+        >
+          <XIcon className="size-5" />
+          <span className="sr-only">إغلاق القائمة · Close navigation</span>
+        </SheetPrimitive.Close>'''
+          if text.count(old_close) != 1:
+              raise SystemExit("sheet close button exact match failure")
+          sheet.write_text(text.replace(old_close,new_close,1))
+
+          replace_once(
+              "src/app/partner/register/page.tsx",
+              '  redirect("/#/partner");',
+              '  redirect("/partner");',
+          )
+
+          ref = Path("src/app/ref/[code]/route.ts")
+          text = ref.read_text()
+          old_ref = '''  const destination = new URL("/", request.url);
+  destination.searchParams.set("ref", normalizedCode);
+  destination.hash = "/share-challenge";'''
+          new_ref = '''  const destination = new URL("/share-challenge", request.url);
+  destination.searchParams.set("ref", normalizedCode);'''
+          if text.count(old_ref) != 1:
+              raise SystemExit("ref clean destination exact match failure")
+          ref.write_text(text.replace(old_ref,new_ref,1))
+
+          legal = Path("src/components/site/legal-page-client.tsx")
+          text = legal.read_text()
+          import_old = 'import type { ViewId } from "@/lib/site-data";'
+          import_new = 'import type { ViewId } from "@/lib/site-data";\nimport { publicViewPath } from "@/lib/public-navigation";'
+          if text.count(import_old) != 1:
+              raise SystemExit("legal import exact match failure")
+          text = text.replace(import_old, import_new, 1)
+          nav_old = '''  const navigate = (view: ViewId) => {
+    if (typeof window === "undefined") return;
+    window.location.assign(view === "home" ? "/" : `/#/${view}`);
+  };'''
+          nav_new = '''  const navigate = (view: ViewId) => {
+    if (typeof window === "undefined") return;
+    window.location.assign(publicViewPath(view, window.location.search));
+  };'''
+          if text.count(nav_old) != 1:
+              raise SystemExit("legal navigate exact match failure")
+          legal.write_text(text.replace(nav_old, nav_new, 1))
+
+          test = Path("tests/group-5-public-mobile-cleanup.test.mjs")
+          test.write_text(r'''import assert from "node:assert/strict";
+import fs from "node:fs";
+
+const read = (path) => fs.readFileSync(path, "utf8");
+const header = read("src/components/layout/site-header-refined.tsx");
+const language = read("src/components/site/language-switcher.tsx");
+const theme = read("src/components/site/theme-toggle.tsx");
+const sheet = read("src/components/ui/sheet.tsx");
+const register = read("src/app/partner/register/page.tsx");
+const legal = read("src/components/site/legal-page-client.tsx");
+const referral = read("src/app/ref/[code]/route.ts");
+
+assert.match(header, /sm:hidden"><Logo size=\{42\}/);
+assert.match(header, /hidden sm:inline-flex"><Wordmark/);
+assert.match(language, /h-11 min-w-11/);
+assert.match(theme, /h-11 w-11/);
+assert.match(sheet, /h-dvh w-3\/4 overflow-y-auto overscroll-contain/);
+assert.match(sheet, /inline-flex h-11 w-11 items-center justify-center/);
+assert.match(sheet, /side === "left" \? "left-2" : "right-2"/);
+assert.match(sheet, /إغلاق القائمة · Close navigation/);
+assert.doesNotMatch(sheet, /<span className="sr-only">Close<\/span>/);
+
+assert.match(register, /redirect\("\/partner"\)/);
+assert.doesNotMatch(register, /\/#\/partner/);
+assert.match(legal, /publicViewPath\(view, window\.location\.search\)/);
+assert.doesNotMatch(legal, /`\/#\/\$\{view\}`/);
+assert.match(referral, /new URL\("\/share-challenge", request\.url\)/);
+assert.doesNotMatch(referral, /destination\.hash\s*=/);
+
+console.log("Group 5 public mobile/accessibility and clean-route checks passed.");
+''')
+          PY
+
+      - name: Diff whitespace
+        run: git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Group 5 regression tests
+        run: node tests/group-5-public-mobile-cleanup.test.mjs
+
+      - name: Existing public routing regression
+        run: node tests/group-3-public-routing-i18n.test.mjs
+
+      - name: Existing AI tests
+        run: npm run test:ai
+
+      - name: Existing ambassador delivery tests
+        run: node --test tests/ambassador-account-delivery.test.mjs
+
+      - name: Commit validated Group 5 changes and remove gate
+        run: |
+          rm .github/workflows/group-5-apply-and-validate.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: close public mobile and legacy routing audit gaps"
+          git push origin HEAD:fix/group-5-public-mobile-cleanup
