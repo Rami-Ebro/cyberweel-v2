@@ -18,10 +18,11 @@ test("renders a dedicated ambassador card list below lg", () => {
   assert.ok(source.includes("<AmbassadorMobileCard"));
   assert.ok(source.includes("break-all text-right text-sm"), "mobile contact values must wrap safely");
   assert.ok(source.includes("min-w-0 rounded-2xl"), "mobile card must allow narrow-grid shrinking");
+  assert.ok(source.includes("<AmbassadorStatusAndLevel ambassador={ambassador} showStatus={false} />"), "mobile card should not duplicate its status badge");
 });
 
 test("mobile cards preserve account data and all existing ambassador actions", () => {
-  for (const label of ["التواصل", "الحالة والمستوى", "آخر نشاط", "الإحالات", "المكافآت", "عرض", "تعديل", "تفعيل", "تعليق"]) {
+  for (const label of ["التواصل", "الملف والمستوى", "آخر نشاط", "الإحالات", "المكافآت", "عرض", "تعديل", "تفعيل", "تعليق"]) {
     assert.ok(source.includes(label), `missing mobile/account capability: ${label}`);
   }
   assert.match(source, /const size = compact \? "min-h-8[^\n]+: "min-h-11/);
