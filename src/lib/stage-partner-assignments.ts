@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
+import { verifyPrivatePaymentProofBlob } from "@/lib/payment-proof-blob";
 
 export type StagePartnerAssignmentStatus =
   | "ASSIGNED"
@@ -215,6 +216,13 @@ export async function recordStagePartnerPayment(input: {
   paymentProofUrl?: string | null;
   paymentProofName?: string | null;
 }) {
+  if (!input.paymentProofUrl || !input.paymentProofName) return null;
+  const blobProof = await verifyPrivatePaymentProofBlob({
+    url: input.paymentProofUrl,
+    expectedPrefix: `partner-stage-payments/${input.assignmentId}/proof/`,
+  });
+  if (!blobProof.ok) return null;
+
   const rows = await db.$queryRaw<Array<{ id: string }>>(Prisma.sql`
     UPDATE "ProjectStagePartnerAssignment"
     SET
@@ -222,8 +230,8 @@ export async function recordStagePartnerPayment(input: {
       "paidAt" = ${input.paidAt},
       "paymentMethod" = ${input.paymentMethod},
       "paymentReference" = ${input.paymentReference},
-      "paymentProofUrl" = ${input.paymentProofUrl || null},
-      "paymentProofName" = ${input.paymentProofName || null},
+      "paymentProofUrl" = ${input.paymentProofUrl},
+      "paymentProofName" = ${input.paymentProofName},
       "updatedAt" = CURRENT_TIMESTAMP
     WHERE "id" = ${input.assignmentId}
       AND "status" = 'COMPLETED'
