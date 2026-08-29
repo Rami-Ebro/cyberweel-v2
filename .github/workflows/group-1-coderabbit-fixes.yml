@@ -1,0 +1,168 @@
+name: Apply final Group 1 review fixes
+
+on:
+  push:
+    branches:
+      - fix/group-1-payment-submission-security
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cyberweel
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cyberweel"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cyberweel
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply exact fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_one(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one match in {path}, got {count}")
+              p.write_text(text.replace(old, new, 1))
+
+          complete = "src/app/api/client/submissions/[submissionId]/complete/route.ts"
+          replace_one(
+              complete,
+              'import { head } from "@vercel/blob";',
+              'import { BlobNotFoundError, head } from "@vercel/blob";',
+          )
+          replace_one(
+              complete,
+              'type ValidatedFile = UploadedFile & { cleanName: string; actualSize: number };\n',
+              '''type ValidatedFile = UploadedFile & { cleanName: string; actualSize: number };\n\nfunction isPrismaUniqueViolation(error: unknown) {\n  return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002";\n}\n''',
+          )
+          replace_one(
+              complete,
+              '      const details = await head(file.url, { token: blobToken });',
+              '      const details = await head(file.url, { token: blobToken, abortSignal: AbortSignal.timeout(8_000) });',
+          )
+          replace_one(
+              complete,
+              '''  } catch (error) {\n    console.error("[client-submission-complete] Blob ownership validation failed", error);\n    return NextResponse.json({ error: "أحد الملفات لا يخص هذا العميل أو هذا الإرسال، أو لم يُرفع عبر المسار المعتمد" }, { status: 400 });\n  }\n''',
+              '''  } catch (error) {\n    const invalidOwnership = error instanceof BlobNotFoundError || (error instanceof Error && error.message === "INVALID_BLOB_OWNERSHIP");\n    if (invalidOwnership) {\n      return NextResponse.json({ error: "أحد الملفات لا يخص هذا العميل أو هذا الإرسال، أو لم يُرفع عبر المسار المعتمد" }, { status: 400 });\n    }\n    console.error("[client-submission-complete] Blob verification service failed", error);\n    return NextResponse.json({ error: "تعذر التحقق من الملفات حاليًا. حاول مرة أخرى لاحقًا" }, { status: 503 });\n  }\n''',
+          )
+          replace_one(
+              complete,
+              '''        const created = await tx.clientFile.create({\n          data: {\n            projectId: submission.projectId,\n            submissionId: submission.id,\n            name: file.cleanName,\n            url: file.url,\n            kind: "CLIENT_SUBMISSION",\n            size: file.actualSize,\n            storageProvider: "VERCEL_BLOB",\n            source: "CLIENT",\n          },\n        });\n        filesByUrl.set(file.url, created);\n        inserted += 1;\n''',
+              '''        try {\n          const created = await tx.clientFile.create({\n            data: {\n              projectId: submission.projectId,\n              submissionId: submission.id,\n              name: file.cleanName,\n              url: file.url,\n              kind: "CLIENT_SUBMISSION",\n              size: file.actualSize,\n              storageProvider: "VERCEL_BLOB",\n              source: "CLIENT",\n            },\n          });\n          filesByUrl.set(file.url, created);\n          inserted += 1;\n        } catch (error) {\n          if (!isPrismaUniqueViolation(error)) throw error;\n          const concurrent = await tx.clientFile.findFirst({\n            where: { url: file.url },\n            select: { id: true, projectId: true, submissionId: true, name: true, url: true, kind: true, size: true, storageProvider: true, source: true },\n          });\n          const validConcurrent = concurrent\n            && concurrent.projectId === submission.projectId\n            && concurrent.submissionId === submission.id\n            && concurrent.source === "CLIENT"\n            && concurrent.storageProvider === "VERCEL_BLOB"\n            && concurrent.kind === "CLIENT_SUBMISSION"\n            && isExpectedClientSubmissionBlobUrl(concurrent.url, client.id, submission.id);\n          if (!validConcurrent || !concurrent) throw new Error("INVALID_BLOB_OWNERSHIP");\n          if (concurrent.size !== file.actualSize) {\n            await tx.clientFile.update({ where: { id: concurrent.id }, data: { size: file.actualSize } });\n          }\n          filesByUrl.set(file.url, { ...concurrent, size: file.actualSize });\n        }\n''',
+          )
+
+          upload = "src/app/api/client/submissions/upload/route.ts"
+          replace_one(
+              upload,
+              'type UploadPayload = {\n',
+              '''function isPrismaUniqueViolation(error: unknown) {\n  return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002";\n}\n\ntype UploadPayload = {\n''',
+          )
+          replace_one(
+              upload,
+              '''        if (!existingLinks.length) {\n          await db.clientFile.create({\n            data: {\n              projectId: submission.projectId,\n              submissionId: submission.id,\n              name: cleanSubmissionFilename(payload.originalName),\n              url: blob.url,\n              kind: "CLIENT_SUBMISSION",\n              size: Math.round(payload.size),\n              storageProvider: "VERCEL_BLOB",\n              source: "CLIENT",\n            },\n          });\n        }\n''',
+              '''        if (!existingLinks.length) {\n          try {\n            await db.clientFile.create({\n              data: {\n                projectId: submission.projectId,\n                submissionId: submission.id,\n                name: cleanSubmissionFilename(payload.originalName),\n                url: blob.url,\n                kind: "CLIENT_SUBMISSION",\n                size: Math.round(payload.size),\n                storageProvider: "VERCEL_BLOB",\n                source: "CLIENT",\n              },\n            });\n          } catch (error) {\n            if (!isPrismaUniqueViolation(error)) throw error;\n            const concurrent = await db.clientFile.findFirst({\n              where: { url: blob.url },\n              select: { projectId: true, submissionId: true, kind: true, storageProvider: true, source: true },\n            });\n            const sameSubmission = concurrent\n              && concurrent.projectId === submission.projectId\n              && concurrent.submissionId === submission.id\n              && concurrent.kind === "CLIENT_SUBMISSION"\n              && concurrent.storageProvider === "VERCEL_BLOB"\n              && concurrent.source === "CLIENT";\n            if (!sameSubmission) throw new Error("الملف مرتبط بإرسال آخر");\n          }\n        }\n''',
+          )
+
+          helper = "src/lib/stage-partner-assignments.ts"
+          replace_one(
+              helper,
+              '''  paymentProofUrl?: string | null;\n  paymentProofName?: string | null;\n}) {\n''',
+              '''  paymentProofUrl?: string | null;\n  paymentProofName?: string | null;\n  allowPaidRepair?: boolean;\n}) {\n''',
+          )
+          replace_one(
+              helper,
+              '''    WHERE "id" = ${input.assignmentId}\n      AND "status" = 'COMPLETED'\n      AND "paymentStatus" = 'APPROVED'::"ProjectPaymentStatus"\n    RETURNING "id"\n''',
+              '''    WHERE "id" = ${input.assignmentId}\n      AND "status" = 'COMPLETED'\n      AND (\n        "paymentStatus" = 'APPROVED'::"ProjectPaymentStatus"\n        OR (\n          ${input.allowPaidRepair === true}\n          AND "paymentStatus" = 'PAID'::"ProjectPaymentStatus"\n          AND (\n            "paidAt" IS NULL\n            OR COALESCE(BTRIM("paymentMethod"), '') = ''\n            OR COALESCE(BTRIM("paymentReference"), '') = ''\n            OR COALESCE(BTRIM("paymentProofUrl"), '') = ''\n            OR COALESCE(BTRIM("paymentProofName"), '') = ''\n          )\n        )\n      )\n    RETURNING "id"\n''',
+          )
+
+          route = "src/app/api/admin/stage-partner-assignments/route.ts"
+          replace_one(
+              route,
+              '''    const existing = await getStagePartnerAssignment(assignmentId);\n    if (!existing) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });\n    if (existing.status !== "COMPLETED" || existing.paymentStatus !== "APPROVED") {\n      return NextResponse.json({ error: "لا يمكن تسجيل الدفع قبل اعتماد تسليم الشريك واستحقاق المبلغ" }, { status: 409 });\n    }\n\n    const paid = await recordStagePartnerPayment({ assignmentId, paidAt, paymentMethod, paymentReference, paymentProofUrl, paymentProofName });\n''',
+              '''    const existing = await getStagePartnerAssignment(assignmentId);\n    if (!existing) return NextResponse.json({ error: "الإسناد غير موجود" }, { status: 404 });\n    const repairingLegacyPaid = existing.status === "COMPLETED"\n      && existing.paymentStatus === "PAID"\n      && (!existing.paidAt || !existing.paymentMethod?.trim() || !existing.paymentReference?.trim() || !existing.paymentProofUrl?.trim() || !existing.paymentProofName?.trim());\n    if (existing.status !== "COMPLETED" || (existing.paymentStatus !== "APPROVED" && !repairingLegacyPaid)) {\n      return NextResponse.json({ error: existing.paymentStatus === "PAID" ? "إثبات الدفع مكتمل بالفعل ولا يمكن تسجيل دفعة ثانية" : "لا يمكن تسجيل الدفع قبل اعتماد تسليم الشريك واستحقاق المبلغ" }, { status: 409 });\n    }\n\n    const paid = await recordStagePartnerPayment({ assignmentId, paidAt, paymentMethod, paymentReference, paymentProofUrl, paymentProofName, allowPaidRepair: repairingLegacyPaid });\n''',
+          )
+          replace_one(
+              route,
+              '      action: "STAGE_PARTNER_PAYMENT_RECORDED",',
+              '      action: repairingLegacyPaid ? "STAGE_PARTNER_PAYMENT_EVIDENCE_REPAIRED" : "STAGE_PARTNER_PAYMENT_RECORDED",',
+          )
+
+          component = "src/components/admin/stage-partner-assignment-manager.tsx"
+          replace_one(
+              component,
+              '''                const canReview = latest?.status === "SUBMITTED" && assignment.progress === 100 && assignment.status === "REVIEW" && assignment.paymentStatus === "PENDING";\n                const canPay = assignment.status === "COMPLETED" && assignment.paymentStatus === "APPROVED";\n''',
+              '''                const canReview = latest?.status === "SUBMITTED" && assignment.progress === 100 && assignment.status === "REVIEW" && assignment.paymentStatus === "PENDING";\n                const needsPaymentEvidenceRepair = assignment.status === "COMPLETED"\n                  && assignment.paymentStatus === "PAID"\n                  && (!assignment.paidAt || !assignment.paymentMethod?.trim() || !assignment.paymentReference?.trim() || !assignment.paymentProofUrl?.trim() || !assignment.paymentProofName?.trim());\n                const canPay = assignment.status === "COMPLETED" && (assignment.paymentStatus === "APPROVED" || needsPaymentEvidenceRepair);\n''',
+          )
+          replace_one(
+              component,
+              '''                    {canPay && <form onSubmit={(event) => void recordPayment(event, assignment)} className="mt-4 grid gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 md:grid-cols-2">\n                      <p className="text-sm font-black text-blue-950 md:col-span-2">تسجيل دفع مستحق الشريك — {assignment.feeAmount} {assignment.feeCurrency}</p>\n                      <label className="grid gap-2 text-sm font-black">طريقة الدفع<input name="paymentMethod" required placeholder="مثال: شام كاش" className="field bg-white font-normal" /></label>\n                      <label className="grid gap-2 text-sm font-black">مرجع عملية الدفع<input name="paymentReference" required className="field bg-white font-normal" /></label>\n                      <label className="grid gap-2 text-sm font-black">تاريخ الدفع<DateInput name="paidAt" required className="field bg-white font-normal" /></label>\n                      <label className="grid gap-2 text-sm font-black">إثبات الدفع — مطلوب<input name="paymentProof" type="file" required accept="image/png,image/jpeg,image/webp,application/pdf" className="field bg-white font-normal" /></label>\n                      <button disabled={busy === assignment.id} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50 md:col-span-2">{busy === assignment.id ? "جارٍ التسجيل..." : "تسجيل الدفع"}</button>\n                    </form>}\n''',
+              '''                    {canPay && <form onSubmit={(event) => void recordPayment(event, assignment)} className="mt-4 grid gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 md:grid-cols-2">\n                      <p className="text-sm font-black text-blue-950 md:col-span-2">{needsPaymentEvidenceRepair ? "إكمال إثبات دفعة قديمة" : "تسجيل دفع مستحق الشريك"} — {assignment.feeAmount} {assignment.feeCurrency}</p>\n                      {needsPaymentEvidenceRepair && <p className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-900 md:col-span-2">هذا المستحق مسجل كمدفوع من سجل قديم، لكن إثبات الدفع غير مكتمل. لن تُسجل دفعة جديدة؛ سيتم فقط استكمال بيانات الإثبات.</p>}\n                      <label className="grid gap-2 text-sm font-black">طريقة الدفع<input name="paymentMethod" required defaultValue={needsPaymentEvidenceRepair ? assignment.paymentMethod || "" : undefined} placeholder="مثال: شام كاش" className="field bg-white font-normal" /></label>\n                      <label className="grid gap-2 text-sm font-black">مرجع عملية الدفع<input name="paymentReference" required defaultValue={needsPaymentEvidenceRepair ? assignment.paymentReference || "" : undefined} className="field bg-white font-normal" /></label>\n                      <label className="grid gap-2 text-sm font-black">تاريخ الدفع<DateInput name="paidAt" required defaultValue={needsPaymentEvidenceRepair ? assignment.paidAt?.slice(0, 10) : undefined} className="field bg-white font-normal" /></label>\n                      <label className="grid gap-2 text-sm font-black">إثبات الدفع — مطلوب<input name="paymentProof" type="file" required accept="image/png,image/jpeg,image/webp,application/pdf" className="field bg-white font-normal" /></label>\n                      <button disabled={busy === assignment.id} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50 md:col-span-2">{busy === assignment.id ? "جارٍ التسجيل..." : needsPaymentEvidenceRepair ? "حفظ إثبات الدفع" : "تسجيل الدفع"}</button>\n                    </form>}\n''',
+          )
+
+          migration = Path("prisma/migrations/20260829145500_client_submission_blob_url_uniqueness/migration.sql")
+          migration.parent.mkdir(parents=True, exist_ok=True)
+          migration.write_text('''-- Prevent the upload callback and completion endpoint from linking the same client-submission Blob twice.\n-- Scope is intentionally limited to client submission Blobs so other ClientFile URL reuse is unaffected.\n\nDO $$\nBEGIN\n  IF EXISTS (\n    SELECT 1\n    FROM (\n      SELECT "url"\n      FROM "ClientFile"\n      WHERE "storageProvider" = 'VERCEL_BLOB'\n        AND "source" = 'CLIENT'\n        AND "kind" = 'CLIENT_SUBMISSION'\n      GROUP BY "url"\n      HAVING COUNT(DISTINCT ("projectId", "submissionId")) > 1\n    ) AS conflicts\n  ) THEN\n    RAISE EXCEPTION 'CLIENT_SUBMISSION_BLOB_CROSSLINK_EXISTS';\n  END IF;\nEND;\n$$;\n\n-- Same-owner duplicates are safe to collapse. Preserve the largest verified/stored size on the kept row.\nWITH grouped AS (\n  SELECT "url", MIN("id") AS keep_id, MAX("size") AS max_size\n  FROM "ClientFile"\n  WHERE "storageProvider" = 'VERCEL_BLOB'\n    AND "source" = 'CLIENT'\n    AND "kind" = 'CLIENT_SUBMISSION'\n  GROUP BY "url"\n  HAVING COUNT(*) > 1\n)\nUPDATE "ClientFile" AS kept\nSET "size" = grouped.max_size\nFROM grouped\nWHERE kept."id" = grouped.keep_id\n  AND grouped.max_size IS NOT NULL\n  AND kept."size" IS DISTINCT FROM grouped.max_size;\n\nWITH grouped AS (\n  SELECT "url", MIN("id") AS keep_id\n  FROM "ClientFile"\n  WHERE "storageProvider" = 'VERCEL_BLOB'\n    AND "source" = 'CLIENT'\n    AND "kind" = 'CLIENT_SUBMISSION'\n  GROUP BY "url"\n  HAVING COUNT(*) > 1\n)\nDELETE FROM "ClientFile" AS duplicate\nUSING grouped\nWHERE duplicate."url" = grouped."url"\n  AND duplicate."id" <> grouped.keep_id\n  AND duplicate."storageProvider" = 'VERCEL_BLOB'\n  AND duplicate."source" = 'CLIENT'\n  AND duplicate."kind" = 'CLIENT_SUBMISSION';\n\nCREATE UNIQUE INDEX IF NOT EXISTS "ClientFile_client_submission_blob_url_key"\nON "ClientFile" ("url")\nWHERE "storageProvider" = 'VERCEL_BLOB'\n  AND "source" = 'CLIENT'\n  AND "kind" = 'CLIENT_SUBMISSION';\n''')
+
+          tests = Path("tests/group-1-payment-submission-security.test.mjs")
+          text = tests.read_text()
+          text += '''\n\ntest("client submission Blob verification distinguishes ownership errors from service failures", async () => {\n  const source = await repoFile("src/app/api/client/submissions/[submissionId]/complete/route.ts");\n  assert.match(source, /BlobNotFoundError/);\n  assert.match(source, /AbortSignal\\.timeout\\(8_000\\)/);\n  assert.match(source, /Blob verification service failed/);\n  assert.match(source, /status: 503/);\n});\n\ntest("client submission Blob URL uniqueness is enforced across callback races", async () => {\n  const [migration, uploadRoute, completeRoute] = await Promise.all([\n    repoFile("prisma/migrations/20260829145500_client_submission_blob_url_uniqueness/migration.sql"),\n    repoFile("src/app/api/client/submissions/upload/route.ts"),\n    repoFile("src/app/api/client/submissions/[submissionId]/complete/route.ts"),\n  ]);\n  assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS "ClientFile_client_submission_blob_url_key"/);\n  assert.match(migration, /WHERE "storageProvider" = 'VERCEL_BLOB'/);\n  assert.match(migration, /CLIENT_SUBMISSION_BLOB_CROSSLINK_EXISTS/);\n  assert.match(uploadRoute, /P2002/);\n  assert.match(uploadRoute, /sameSubmission/);\n  assert.match(completeRoute, /P2002/);\n  assert.match(completeRoute, /validConcurrent/);\n});\n\ntest("legacy PAID partner assignments can repair incomplete evidence without a second payment", async () => {\n  const [route, helper, component] = await Promise.all([\n    repoFile("src/app/api/admin/stage-partner-assignments/route.ts"),\n    repoFile("src/lib/stage-partner-assignments.ts"),\n    repoFile("src/components/admin/stage-partner-assignment-manager.tsx"),\n  ]);\n  assert.match(route, /repairingLegacyPaid/);\n  assert.match(route, /STAGE_PARTNER_PAYMENT_EVIDENCE_REPAIRED/);\n  assert.match(route, /إثبات الدفع مكتمل بالفعل ولا يمكن تسجيل دفعة ثانية/);\n  assert.match(helper, /allowPaidRepair/);\n  assert.match(component, /needsPaymentEvidenceRepair/);\n  assert.match(component, /إكمال إثبات دفعة قديمة/);\n});\n'''
+          tests.write_text(text)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Lint
+        run: npm run lint
+      - name: Group 1 regression tests
+        run: node --experimental-strip-types --test tests/group-1-payment-submission-security.test.mjs
+      - name: Existing AI tests
+        run: npm run test:ai
+      - name: Existing ambassador delivery tests
+        run: npm run test:ambassador-delivery
+      - name: Validate migrations on PostgreSQL 17
+        run: |
+          npx prisma db push --skip-generate
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/migrations/20260829122000_require_payment_evidence/migration.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO \"User\" (id,email,role,\"createdAt\",\"updatedAt\") VALUES ('u-review','review@example.test','CLIENT',now(),now()); INSERT INTO \"ClientProject\" (id,\"clientId\",title,currency,status,progress,\"createdAt\",\"updatedAt\") VALUES ('p-review','u-review','Review','USD','PLANNING',0,now(),now()); INSERT INTO \"ClientSubmission\" (id,\"projectId\",status,\"createdAt\",\"updatedAt\") VALUES ('s-review','p-review','UPLOADING',now(),now()); INSERT INTO \"ClientFile\" (id,\"projectId\",\"submissionId\",name,url,kind,size,\"storageProvider\",source,\"createdAt\") VALUES ('f-review-1','p-review','s-review','a.pdf','https://store.private.blob.vercel-storage.com/clients/u-review/submissions/s-review/a.pdf','CLIENT_SUBMISSION',10,'VERCEL_BLOB','CLIENT',now()), ('f-review-2','p-review','s-review','a.pdf','https://store.private.blob.vercel-storage.com/clients/u-review/submissions/s-review/a.pdf','CLIENT_SUBMISSION',20,'VERCEL_BLOB','CLIENT',now());"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/migrations/20260829145500_client_submission_blob_url_uniqueness/migration.sql
+          test "$(psql "$DATABASE_URL" -Atc "SELECT COUNT(*) FROM \"ClientFile\" WHERE url='https://store.private.blob.vercel-storage.com/clients/u-review/submissions/s-review/a.pdf'")" = "1"
+          test "$(psql "$DATABASE_URL" -Atc "SELECT size FROM \"ClientFile\" WHERE url='https://store.private.blob.vercel-storage.com/clients/u-review/submissions/s-review/a.pdf'")" = "20"
+          if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO \"ClientFile\" (id,\"projectId\",\"submissionId\",name,url,kind,size,\"storageProvider\",source,\"createdAt\") VALUES ('f-review-3','p-review','s-review','a.pdf','https://store.private.blob.vercel-storage.com/clients/u-review/submissions/s-review/a.pdf','CLIENT_SUBMISSION',20,'VERCEL_BLOB','CLIENT',now());"; then
+            echo "Expected partial unique index to reject duplicate URL" >&2
+            exit 1
+          fi
+      - name: Remove temporary workflow and commit fixes
+        if: success()
+        run: |
+          rm .github/workflows/group-1-coderabbit-fixes.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: close final group 1 review findings"
+          git push origin HEAD:fix/group-1-payment-submission-security
