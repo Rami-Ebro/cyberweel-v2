@@ -271,7 +271,7 @@ export default function AdminInvoicesPage() {
               <form onSubmit={(event) => void markPaid(event, paymentInvoice)} className="mt-5 grid gap-4 sm:grid-cols-2">
                 <label className="grid gap-2 font-bold">وسيلة الدفع<input name="paymentMethod" required maxLength={120} placeholder="مثال: تحويل بنكي / نقدًا" className="field font-normal" /></label>
                 <label className="grid gap-2 font-bold">مرجع العملية<input name="paymentReference" required maxLength={180} placeholder="رقم الحوالة أو مرجع الدفع" className="field font-normal" /></label>
-                <label className="grid gap-2 font-bold sm:col-span-2">تاريخ الدفع<DateInput name="paidAt" required defaultValue={new Date().toISOString().slice(0, 10)} className="field font-normal" /></label>
+                <label className="grid gap-2 font-bold sm:col-span-2">تاريخ الدفع<DateInput name="paidAt" required className="field font-normal" /></label>
                 <div className="flex flex-wrap gap-3 sm:col-span-2">
                   <button disabled={saving} className="rounded-xl bg-emerald-700 px-5 py-3 font-black text-white disabled:opacity-40">{saving ? "جارٍ تسجيل الدفع…" : "تأكيد وتسجيل مدفوعة"}</button>
                   <button type="button" disabled={saving} onClick={() => setPaymentInvoice(null)} className="rounded-xl border border-slate-300 bg-white px-5 py-3 font-black disabled:opacity-40">إلغاء</button>
