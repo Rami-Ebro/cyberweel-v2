@@ -43,7 +43,13 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
   const [desktopSidebar, setDesktopSidebar] = useState(false);
 
   useEffect(() => {
-    queueMicrotask(() => setDarkMode(localStorage.getItem(ADMIN_THEME_KEY) === "dark"));
+    queueMicrotask(() => {
+      try {
+        setDarkMode(window.localStorage.getItem(ADMIN_THEME_KEY) === "dark");
+      } catch {
+        setDarkMode(false);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -72,7 +78,11 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
   function toggleDarkMode() {
     setDarkMode((current) => {
       const next = !current;
-      localStorage.setItem(ADMIN_THEME_KEY, next ? "dark" : "light");
+      try {
+        window.localStorage.setItem(ADMIN_THEME_KEY, next ? "dark" : "light");
+      } catch {
+        // The visual toggle must keep working even when browser storage is unavailable.
+      }
       return next;
     });
   }
@@ -226,23 +236,92 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
         [data-admin-shell-root="true"].dark > div > section {
           background: #020617;
         }
-        [data-admin-shell-root="true"].dark > div > section [class~="bg-white"] {
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-white"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-white/95"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-white/80"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-white/70"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-white/60"] {
           background-color: #0f172a !important;
         }
         [data-admin-shell-root="true"].dark > div > section [class~="bg-slate-50"],
         [data-admin-shell-root="true"].dark > div > section [class~="bg-slate-100"],
         [data-admin-shell-root="true"].dark > div > section [class~="bg-[#F7F3EB]"],
-        [data-admin-shell-root="true"].dark > div > section [class~="bg-[#FFFDF8]"] {
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-[#FFFDF8]"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-[#F3EEE5]"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-[#F4F1EA]"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-[#FCFAF6]"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-[#FBF8F2]"] {
           background-color: #111827 !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-emerald-50"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-emerald-100"] {
+          background-color: #052e16 !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-rose-50"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-rose-100"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-red-50"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-red-100"] {
+          background-color: #4c0519 !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-amber-50"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-amber-100"] {
+          background-color: #451a03 !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-sky-50"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-sky-100"] {
+          background-color: #082f49 !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-violet-50"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-violet-100"] {
+          background-color: #2e1065 !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-teal-50"],
+        [data-admin-shell-root="true"].dark > div > section [class~="bg-teal-100"] {
+          background-color: #042f2e !important;
         }
         [data-admin-shell-root="true"].dark > div > section [class~="border-slate-100"],
         [data-admin-shell-root="true"].dark > div > section [class~="border-slate-200"],
         [data-admin-shell-root="true"].dark > div > section [class~="border-[#D8D2C4]"],
+        [data-admin-shell-root="true"].dark > div > section [class~="border-[#E5DED0]"],
+        [data-admin-shell-root="true"].dark > div > section [class~="border-[#E6E0D4]"],
+        [data-admin-shell-root="true"].dark > div > section [class~="border-[#E8E1D5]"],
+        [data-admin-shell-root="true"].dark > div > section [class~="border-[#E2DACB]"],
         [data-admin-shell-root="true"].dark > div > section [class~="border-[#EEE7DA]"] {
           border-color: #334155 !important;
         }
+        [data-admin-shell-root="true"].dark > div > section [class~="border-emerald-200"],
+        [data-admin-shell-root="true"].dark > div > section [class~="border-emerald-300"] {
+          border-color: #047857 !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="border-rose-200"],
+        [data-admin-shell-root="true"].dark > div > section [class~="border-rose-300"],
+        [data-admin-shell-root="true"].dark > div > section [class~="border-red-200"],
+        [data-admin-shell-root="true"].dark > div > section [class~="border-red-300"] {
+          border-color: #be123c !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="border-amber-200"],
+        [data-admin-shell-root="true"].dark > div > section [class~="border-amber-300"] {
+          border-color: #b45309 !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="border-sky-200"],
+        [data-admin-shell-root="true"].dark > div > section [class~="border-sky-300"] {
+          border-color: #0369a1 !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="border-violet-200"],
+        [data-admin-shell-root="true"].dark > div > section [class~="border-violet-300"] {
+          border-color: #6d28d9 !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="border-teal-200"],
+        [data-admin-shell-root="true"].dark > div > section [class~="border-teal-300"] {
+          border-color: #0f766e !important;
+        }
         [data-admin-shell-root="true"].dark > div > section [class~="text-[#111827]"] {
           color: #f8fafc !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="text-[#6F5A32]"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-[#7A6335]"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-[#7B5D26]"] {
+          color: #d6bc83 !important;
         }
         [data-admin-shell-root="true"].dark > div > section [class~="text-slate-500"] {
           color: #94a3b8 !important;
@@ -253,6 +332,64 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
         [data-admin-shell-root="true"].dark > div > section [class~="text-slate-900"] {
           color: #cbd5e1 !important;
         }
+        [data-admin-shell-root="true"].dark > div > section [class~="text-emerald-700"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-emerald-800"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-emerald-900"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-emerald-950"] {
+          color: #a7f3d0 !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="text-rose-700"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-rose-800"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-rose-900"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-rose-950"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-red-700"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-red-800"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-red-900"] {
+          color: #fecdd3 !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="text-amber-700"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-amber-800"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-amber-900"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-amber-950"] {
+          color: #fde68a !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="text-sky-700"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-sky-800"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-sky-900"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-sky-950"] {
+          color: #bae6fd !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="text-violet-700"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-violet-800"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-violet-900"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-violet-950"] {
+          color: #ddd6fe !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="text-teal-700"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-teal-800"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-teal-900"],
+        [data-admin-shell-root="true"].dark > div > section [class~="text-teal-950"] {
+          color: #99f6e4 !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="ring-emerald-200"] { --tw-ring-color: #047857 !important; }
+        [data-admin-shell-root="true"].dark > div > section [class~="ring-rose-200"] { --tw-ring-color: #be123c !important; }
+        [data-admin-shell-root="true"].dark > div > section [class~="ring-amber-200"] { --tw-ring-color: #b45309 !important; }
+        [data-admin-shell-root="true"].dark > div > section [class~="ring-sky-200"] { --tw-ring-color: #0369a1 !important; }
+        [data-admin-shell-root="true"].dark > div > section [class~="ring-violet-200"] { --tw-ring-color: #6d28d9 !important; }
+        [data-admin-shell-root="true"].dark > div > section [class~="ring-teal-200"] { --tw-ring-color: #0f766e !important; }
+        [data-admin-shell-root="true"].dark > div > section [class~="hover:bg-[#FBF8F2]"]:hover,
+        [data-admin-shell-root="true"].dark > div > section [class~="hover:bg-[#FCFAF6]"]:hover,
+        [data-admin-shell-root="true"].dark > div > section [class~="hover:bg-[#F7F3EB]"]:hover,
+        [data-admin-shell-root="true"].dark > div > section [class~="hover:bg-white"]:hover {
+          background-color: #1e293b !important;
+        }
+        [data-admin-shell-root="true"].dark > div > section [class~="hover:bg-emerald-100"]:hover { background-color: #064e3b !important; }
+        [data-admin-shell-root="true"].dark > div > section [class~="hover:bg-rose-100"]:hover,
+        [data-admin-shell-root="true"].dark > div > section [class~="hover:bg-red-100"]:hover { background-color: #881337 !important; }
+        [data-admin-shell-root="true"].dark > div > section [class~="hover:bg-amber-100"]:hover { background-color: #78350f !important; }
+        [data-admin-shell-root="true"].dark > div > section [class~="hover:bg-sky-100"]:hover { background-color: #0c4a6e !important; }
+        [data-admin-shell-root="true"].dark > div > section [class~="hover:bg-violet-100"]:hover { background-color: #4c1d95 !important; }
+        [data-admin-shell-root="true"].dark > div > section [class~="hover:bg-teal-100"]:hover { background-color: #134e4a !important; }
         [data-admin-shell-root="true"].dark > div > section input,
         [data-admin-shell-root="true"].dark > div > section select,
         [data-admin-shell-root="true"].dark > div > section textarea {
