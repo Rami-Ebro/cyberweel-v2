@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ClientInvoiceStatus } from "@prisma/client";
-import { canAdmin } from "@/lib/admin-permissions";
+import { currentAdminAccess } from "@/lib/admin-permissions";
+import { writeAdminAudit } from "@/lib/admin-audit";
 import { db } from "@/lib/db";
 import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security";
 import { clientAccessWhere } from "@/lib/user-identity";
@@ -13,13 +14,23 @@ const invoiceStatuses = new Set<ClientInvoiceStatus>([
   "CANCELLED",
 ]);
 
+async function requireInvoicesAdmin(request: NextRequest) {
+  const access = await currentAdminAccess(request);
+  if (!access || !(access.isOwner || access.permissions.includes("invoices"))) return null;
+  return access;
+}
+
 function parseCurrency(value: unknown) {
   const currency = typeof value === "string" ? value.trim().toUpperCase() : "";
   return /^[A-Z]{3}$/.test(currency) ? currency : "USD";
 }
 
+function safeText(value: unknown, max: number) {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
 export async function GET(request: NextRequest) {
-  if (!(await canAdmin(request, "invoices"))) {
+  if (!(await requireInvoicesAdmin(request))) {
     return NextResponse.json({ error: "لا تملك صلاحية إدارة الفواتير" }, { status: 403 });
   }
 
@@ -74,7 +85,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   if (!hasTrustedOrigin(request)) return invalidOriginResponse();
-  if (!(await canAdmin(request, "invoices"))) {
+  const access = await requireInvoicesAdmin(request);
+  if (!access) {
     return NextResponse.json({ error: "لا تملك صلاحية إدارة الفواتير" }, { status: 403 });
   }
 
@@ -154,29 +166,54 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "payment") {
-      const invoiceId = typeof body?.invoiceId === "string" ? body.invoiceId : "";
-      const paidAt = body?.paidAt ? new Date(body.paidAt) : new Date();
+      const invoiceId = safeText(body?.invoiceId, 160);
+      const paymentMethod = safeText(body?.paymentMethod, 120);
+      const paymentReference = safeText(body?.paymentReference, 180);
+      const paidAt = body?.paidAt ? new Date(String(body.paidAt)) : null;
+
+      if (!invoiceId || !paymentMethod || !paymentReference || !paidAt || Number.isNaN(paidAt.getTime())) {
+        return NextResponse.json({ error: "وسيلة الدفع ومرجع العملية وتاريخ الدفع مطلوبة" }, { status: 400 });
+      }
+      if (paidAt.getTime() > Date.now() + 5 * 60 * 1000) {
+        return NextResponse.json({ error: "تاريخ الدفع لا يمكن أن يكون في المستقبل" }, { status: 400 });
+      }
+
       const invoice = await db.clientInvoice.findUnique({
         where: { id: invoiceId },
         select: {
           id: true,
           number: true,
           type: true,
+          status: true,
+          paidAt: true,
           amount: true,
           currency: true,
           projectId: true,
           project: { select: { clientId: true } },
         },
       });
-      if (!invoice || Number.isNaN(paidAt.getTime())) {
+      if (!invoice) {
         return NextResponse.json({ error: "الفاتورة غير موجودة" }, { status: 404 });
+      }
+      if (invoice.status === "PAID") {
+        return NextResponse.json({ error: "الفاتورة مدفوعة مسبقًا ولا يمكن تسجيل دفعة ثانية" }, { status: 409 });
+      }
+      if (invoice.status === "CANCELLED") {
+        return NextResponse.json({ error: "لا يمكن تسجيل دفع لفاتورة ملغاة" }, { status: 409 });
       }
 
       const result = await db.$transaction(async (tx) => {
-        const updated = await tx.clientInvoice.update({
-          where: { id: invoice.id },
+        const claimed = await tx.clientInvoice.updateMany({
+          where: {
+            id: invoice.id,
+            status: { in: ["DRAFT", "DUE", "OVERDUE"] },
+          },
           data: { status: "PAID", paidAt },
         });
+        if (claimed.count !== 1) throw new Error("INVOICE_ALREADY_PAID");
+
+        const updated = await tx.clientInvoice.findUnique({ where: { id: invoice.id } });
+        if (!updated) throw new Error("INVOICE_NOT_FOUND");
 
         let stageId: string | null = null;
         if (invoice.type === "STANDARD") {
@@ -213,6 +250,28 @@ export async function POST(request: NextRequest) {
           },
         });
 
+        await writeAdminAudit(tx, {
+          actorId: access.userId,
+          action: "CLIENT_INVOICE_PAID",
+          category: "SENSITIVE",
+          entityType: "CLIENT_INVOICE",
+          entityId: invoice.id,
+          entityLabel: invoice.number,
+          before: {
+            status: invoice.status,
+            paidAt: invoice.paidAt?.toISOString() || null,
+          },
+          after: {
+            status: "PAID",
+            paidAt: paidAt.toISOString(),
+            paymentMethod,
+            paymentReference,
+            amount: invoice.amount.toString(),
+            currency: invoice.currency,
+            stageId,
+          },
+        });
+
         return { updated, stageId };
       });
 
@@ -225,6 +284,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: "الإجراء غير معروف" }, { status: 400 });
   } catch (error) {
+    if (error instanceof Error && error.message === "INVOICE_ALREADY_PAID") {
+      return NextResponse.json({ error: "الفاتورة مدفوعة مسبقًا ولا يمكن تسجيل دفعة ثانية" }, { status: 409 });
+    }
     console.error("[admin-invoices] Failed to save invoice operation", error);
     return NextResponse.json({ error: "تعذر حفظ عملية الفوترة" }, { status: 409 });
   }
