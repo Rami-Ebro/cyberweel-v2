@@ -1,0 +1,228 @@
+name: Group 2 admin mobile UX validation
+
+on:
+  push:
+    branches:
+      - fix/group-2-admin-mobile-ux
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/group-2-admin-mobile-ux
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Apply Group 2 fixes
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f"pattern not found in {path}: {old[:120]!r}")
+              text = text.replace(old, new, 1)
+              p.write_text(text)
+
+          # 1) Reward status wording — admin + ambassador.
+          replace_once(
+              "src/app/admin/rewards/page.tsx",
+              '  EXPECTED: "قيد الاستحقاق",\n  EARNED: "بانتظار الدفع",',
+              '  EXPECTED: "متوقعة",\n  EARNED: "مستحقة / بانتظار الدفع",',
+          )
+          replace_once(
+              "src/app/ambassador/dashboard/page.tsx",
+              'const rewardStatus: Record<RewardStatus, string> = { EXPECTED: "متوقعة", EARNED: "متوقعة", PAID: "مدفوعة", CANCELLED: "ملغاة" };',
+              'const rewardStatus: Record<RewardStatus, string> = { EXPECTED: "متوقعة", EARNED: "مستحقة / بانتظار الدفع", PAID: "مدفوعة", CANCELLED: "ملغاة" };',
+          )
+
+          # 2) Admin shell becomes a real mobile drawer; desktop sidebar stays sticky.
+          replace_once(
+              "src/components/admin/admin-shell.tsx",
+              '  BarChart3, BadgeDollarSign, CheckCircle2, FolderKanban, Home, Link2, LogOut,\n  Moon, ReceiptText, RefreshCw, ShieldCheck, Sun, UserCog, UserRound, UsersRound, History,',
+              '  BarChart3, BadgeDollarSign, CheckCircle2, FolderKanban, Home, Link2, LogOut, Menu,\n  Moon, ReceiptText, RefreshCw, ShieldCheck, Sun, UserCog, UserRound, UsersRound, History, X,',
+          )
+          replace_once(
+              "src/components/admin/admin-shell.tsx",
+              '  const [loggingOut, setLoggingOut] = useState(false);',
+              '  const [loggingOut, setLoggingOut] = useState(false);\n  const [menuOpen, setMenuOpen] = useState(false);',
+          )
+          replace_once(
+              "src/components/admin/admin-shell.tsx",
+              '  useEffect(() => {\n    queueMicrotask(() => setDarkMode(localStorage.getItem(ADMIN_THEME_KEY) === "dark"));\n  }, []);',
+              '''  useEffect(() => {\n    queueMicrotask(() => setDarkMode(localStorage.getItem(ADMIN_THEME_KEY) === "dark"));\n  }, []);\n\n  useEffect(() => {\n    if (!menuOpen) return;\n    const previousOverflow = document.body.style.overflow;\n    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setMenuOpen(false); };\n    document.body.style.overflow = "hidden";\n    window.addEventListener("keydown", onKeyDown);\n    return () => {\n      document.body.style.overflow = previousOverflow;\n      window.removeEventListener("keydown", onKeyDown);\n    };\n  }, [menuOpen]);''',
+          )
+          replace_once(
+              "src/components/admin/admin-shell.tsx",
+              '      <div className="grid min-h-screen lg:grid-cols-[290px_minmax(0,1fr)]">\n        <aside className="flex flex-col bg-[#111827] p-5 text-white lg:sticky lg:top-0 lg:h-screen lg:max-h-screen lg:overflow-hidden">\n          <Link href="/" className="flex shrink-0 items-center gap-3 border-b border-white/10 pb-5">\n            <span className="grid h-12 w-12 place-items-center rounded-xl bg-white"><Logo size={36} /></span>\n            <span><span className="block font-black">CyberWeel</span><span className="text-xs text-white/50">لوحة الإدارة</span></span>\n          </Link>',
+              '''      <div className="grid min-h-screen lg:grid-cols-[290px_minmax(0,1fr)]">\n        {menuOpen && <button type="button" aria-label="إغلاق قائمة الإدارة" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 bg-slate-950/55 lg:hidden" />}\n        <aside className={`fixed inset-y-0 right-0 z-50 flex w-[min(290px,calc(100vw-1rem))] flex-col overflow-y-auto overscroll-contain bg-[#111827] p-5 text-white shadow-2xl transition-transform lg:sticky lg:top-0 lg:h-screen lg:max-h-screen lg:w-auto lg:translate-x-0 lg:shadow-none ${menuOpen ? "translate-x-0" : "translate-x-full"}`}>\n          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/10 pb-5">\n            <Link href="/" onClick={() => setMenuOpen(false)} className="flex min-w-0 items-center gap-3">\n              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white"><Logo size={36} /></span>\n              <span><span className="block font-black">CyberWeel</span><span className="text-xs text-white/50">لوحة الإدارة</span></span>\n            </Link>\n            <button type="button" aria-label="إغلاق قائمة الإدارة" onClick={() => setMenuOpen(false)} className="rounded-xl p-2 text-white/70 hover:bg-white/10 lg:hidden"><X size={22} /></button>\n          </div>''',
+          )
+          replace_once(
+              "src/components/admin/admin-shell.tsx",
+              '                  aria-current={selected ? "page" : undefined}\n                  className=',
+              '                  aria-current={selected ? "page" : undefined}\n                  onClick={() => setMenuOpen(false)}\n                  className=',
+          )
+          replace_once(
+              "src/components/admin/admin-shell.tsx",
+              '<Link href="/" className="flex items-center gap-3 rounded-xl bg-[#B89A5A] px-4 py-3 font-black text-[#111827]"><Home className="h-5 w-5" />العودة إلى الموقع</Link>',
+              '<Link href="/" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 rounded-xl bg-[#B89A5A] px-4 py-3 font-black text-[#111827]"><Home className="h-5 w-5" />العودة إلى الموقع</Link>',
+          )
+          replace_once(
+              "src/components/admin/admin-shell.tsx",
+              '              <div><p className="text-sm font-bold text-[#9A7D43]">{eyebrow}</p><h1 className="mt-1 text-3xl font-black">{title}</h1>{description && <p className="mt-2 max-w-3xl text-slate-500 dark:text-slate-400">{description}</p>}</div>',
+              '''              <div className="flex min-w-0 items-start gap-3">\n                <button type="button" aria-label="فتح قائمة الإدارة" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} className="mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#D8D2C4] bg-white shadow-sm lg:hidden dark:border-slate-700 dark:bg-slate-900"><Menu size={20} /></button>\n                <div className="min-w-0"><p className="text-sm font-bold text-[#9A7D43]">{eyebrow}</p><h1 className="mt-1 break-words text-2xl font-black sm:text-3xl">{title}</h1>{description && <p className="mt-2 max-w-3xl text-slate-500 dark:text-slate-400">{description}</p>}</div>\n              </div>''',
+          )
+
+          # 3) Partner progress is manual only through 99%; 100% belongs to submission/review flow.
+          replace_once(
+              "src/app/partner/dashboard/page.tsx",
+              '    if (!Number.isInteger(progress) || progress < 0 || progress > 100) {\n      setError("نسبة التقدم يجب أن تكون بين 0 و100.");',
+              '    if (!Number.isInteger(progress) || progress < 0 || progress > 99) {\n      setError("نسبة التقدم اليدوية يجب أن تكون بين 0 و99. عند اكتمال العمل أرسل تسليم المرحلة للمراجعة.");',
+          )
+          replace_once(
+              "src/app/partner/dashboard/page.tsx",
+              '      setNotice(progress === 100\n        ? `تم إرسال تسليم «${project.title}» إلى الإدارة للمراجعة.`\n        : `تم حفظ تقدم «${project.title}» عند ${progress}٪.`);',
+              '      setNotice(`تم حفظ تقدم «${project.title}» عند ${progress}٪.`);',
+          )
+          replace_once(
+              "src/app/partner/dashboard/page.tsx",
+              '{editable && project.status !== "COMPLETED" ? (',
+              '{editable && !["COMPLETED", "REVIEW"].includes(project.status) ? (',
+          )
+          replace_once(
+              "src/app/partner/dashboard/page.tsx",
+              '                <input aria-label="نسبة تقدم المشروع" type="range" min={0} max={100} step={1} value={draft} onChange={(event) => setProgressDrafts((current) => ({ ...current, [project.id]: Number(event.target.value) }))} className="w-full accent-[#bd9850]" />',
+              '                <input aria-label="نسبة تقدم المشروع" type="range" min={0} max={99} step={1} value={Math.min(99, draft)} onChange={(event) => setProgressDrafts((current) => ({ ...current, [project.id]: Number(event.target.value) }))} className="w-full accent-[#bd9850]" />',
+          )
+          replace_once(
+              "src/app/partner/dashboard/page.tsx",
+              '                    <input type="number" min={0} max={100} value={draft} onChange={(event) => setProgressDrafts((current) => ({ ...current, [project.id]: Math.max(0, Math.min(100, Number(event.target.value) || 0)) }))} className="w-full bg-transparent text-left font-bold outline-none dark:text-white" />',
+              '                    <input type="number" min={0} max={99} value={Math.min(99, draft)} onChange={(event) => setProgressDrafts((current) => ({ ...current, [project.id]: Math.max(0, Math.min(99, Number(event.target.value) || 0)) }))} className="w-full bg-transparent text-left font-bold outline-none dark:text-white" />',
+          )
+          replace_once(
+              "src/app/partner/dashboard/page.tsx",
+              '{savingProjectId === project.id ? "جارٍ الحفظ..." : draft === 100 ? "إرسال للمراجعة" : "حفظ نسبة التقدم"}',
+              '{savingProjectId === project.id ? "جارٍ الحفظ..." : "حفظ نسبة التقدم"}',
+          )
+          replace_once(
+              "src/app/partner/dashboard/page.tsx",
+              '<p className="text-xs leading-6 text-slate-500 dark:text-slate-400">عند 100٪ ينتقل التسليم إلى مراجعة الإدارة، ولا يصبح المستحق قابلًا للدفع قبل اعتمادها.</p>',
+              '<p className="text-xs leading-6 text-slate-500 dark:text-slate-400">التقدم اليدوي حتى 99٪ فقط. عند اكتمال العمل استخدم «تسليم المرحلة» لإرسال الملاحظة أو الرابط أو الملف إلى مراجعة الإدارة.</p>',
+          )
+          replace_once(
+              "src/app/api/partner/dashboard/route.ts",
+              '  if (!Number.isInteger(progress) || progress < 0 || progress > 100) return NextResponse.json({ error: "نسبة التقدم يجب أن تكون بين 0 و100" }, { status: 400 });',
+              '  if (!Number.isInteger(progress) || progress < 0 || progress > 99) return NextResponse.json({ error: "نسبة التقدم اليدوية يجب أن تكون بين 0 و99. عند اكتمال العمل أرسل تسليم المرحلة للمراجعة" }, { status: 400 });',
+          )
+          replace_once(
+              "src/app/api/partner/dashboard/route.ts",
+              '''    if (progress === 100) {\n      return NextResponse.json({\n        error: "لا يتم إكمال المرحلة برفع النسبة إلى 100٪ يدويًا. عند اكتمال العمل أرسل «تسليم المرحلة» بملاحظة أو رابط أو ملف ليصل إلى مراجعة الإدارة.",\n      }, { status: 409 });\n    }\n\n''',
+              '',
+          )
+
+          # 4) Partner and ambassador mobile drawers remain usable in short landscape viewports.
+          for path in ["src/app/partner/dashboard/page.tsx", "src/app/ambassador/dashboard/page.tsx"]:
+              replace_once(
+                  path,
+                  'fixed inset-y-0 right-0 z-50 flex w-[310px] flex-col bg-[#101827] p-6 text-white shadow-2xl transition-transform lg:translate-x-0',
+                  'fixed inset-y-0 right-0 z-50 flex w-[310px] max-w-[calc(100vw-1rem)] flex-col overflow-y-auto overscroll-contain bg-[#101827] p-4 text-white shadow-2xl transition-transform sm:p-6 lg:translate-x-0',
+              )
+              replace_once(path, 'className="mt-12 space-y-2"', 'className="mt-8 space-y-2 sm:mt-12"')
+
+          # 5) Invoice list gets mobile cards; desktop retains the full table. Payment dialog scrolls in short viewports.
+          invoice_path = Path("src/app/admin/invoices/page.tsx")
+          invoice_text = invoice_path.read_text()
+          old_table = '''          <div className="mt-5">\n            <table className="w-full table-fixed text-right text-xs xl:text-sm">\n              <thead><tr className="border-b">\n                <th className="w-[16%] p-2.5">الرقم</th>\n                <th className="w-[12%] p-2.5">تاريخ الإصدار</th>\n                <th className="w-[14%] p-2.5">العميل</th>\n                <th className="w-[14%] p-2.5">المشروع</th>\n                <th className="w-[11%] p-2.5">المبلغ</th>\n                <th className="w-[13%] p-2.5">الحالة</th>\n                <th className="w-[10%] p-2.5">الاستحقاق</th>\n                <th className="w-[10%] p-2.5">الدفع</th>\n              </tr></thead>\n              <tbody>{filteredInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100 align-middle">\n                <td dir="ltr" className="p-2.5 text-right font-black"><span className="whitespace-nowrap">{invoice.number}</span>{invoice.type === "RETURN" && <span className="mr-2 inline-block rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700">مرتجع</span>}</td>\n                <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.createdAt} /></td>\n                <td className="p-2.5 truncate" title={invoice.project.client.name || invoice.project.client.email}>{invoice.project.client.name || invoice.project.client.email}</td>\n                <td className="p-2.5 truncate" title={invoice.project.title}>{invoice.project.title}</td>\n                <td className="p-2.5 whitespace-nowrap font-black">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td>\n                <td className="p-2.5"><div className="flex flex-wrap items-center gap-1.5"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 font-black ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{statusLabels[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</span>{invoice.status !== "PAID" && invoice.status !== "CANCELLED" && <button type="button" onClick={() => { setError(""); setMessage(""); setPaymentInvoice(invoice); }} disabled={saving} className="whitespace-nowrap rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-800 disabled:opacity-40">تسجيل مدفوعة</button>}</div></td>\n                <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.dueAt} /></td>\n                <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.paidAt} /></td>\n              </tr>)}</tbody>\n            </table>\n            {!loading && !filteredInvoices.length && <p className="p-8 text-center text-slate-500">لا توجد فواتير مطابقة.</p>}\n          </div>'''
+          new_table = '''          <div className="mt-5">\n            <div className="hidden overflow-x-auto lg:block">\n              <table className="w-full min-w-[1080px] table-fixed text-right text-xs xl:text-sm">\n                <thead><tr className="border-b">\n                  <th className="w-[16%] p-2.5">الرقم</th>\n                  <th className="w-[12%] p-2.5">تاريخ الإصدار</th>\n                  <th className="w-[14%] p-2.5">العميل</th>\n                  <th className="w-[14%] p-2.5">المشروع</th>\n                  <th className="w-[11%] p-2.5">المبلغ</th>\n                  <th className="w-[13%] p-2.5">الحالة</th>\n                  <th className="w-[10%] p-2.5">الاستحقاق</th>\n                  <th className="w-[10%] p-2.5">الدفع</th>\n                </tr></thead>\n                <tbody>{filteredInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100 align-middle">\n                  <td dir="ltr" className="p-2.5 text-right font-black"><span className="whitespace-nowrap">{invoice.number}</span>{invoice.type === "RETURN" && <span className="mr-2 inline-block rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700">مرتجع</span>}</td>\n                  <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.createdAt} /></td>\n                  <td className="p-2.5 truncate" title={invoice.project.client.name || invoice.project.client.email}>{invoice.project.client.name || invoice.project.client.email}</td>\n                  <td className="p-2.5 truncate" title={invoice.project.title}>{invoice.project.title}</td>\n                  <td className="p-2.5 whitespace-nowrap font-black">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td>\n                  <td className="p-2.5"><div className="flex flex-wrap items-center gap-1.5"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 font-black ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{statusLabels[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</span>{invoice.status !== "PAID" && invoice.status !== "CANCELLED" && <button type="button" onClick={() => { setError(""); setMessage(""); setPaymentInvoice(invoice); }} disabled={saving} className="whitespace-nowrap rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-800 disabled:opacity-40">تسجيل مدفوعة</button>}</div></td>\n                  <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.dueAt} /></td>\n                  <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.paidAt} /></td>\n                </tr>)}</tbody>\n              </table>\n            </div>\n\n            <div className="grid gap-3 lg:hidden">\n              {filteredInvoices.map((invoice) => <article key={invoice.id} className="rounded-2xl border border-[#D8D2C4] bg-[#FFFDF8] p-4">\n                <div className="flex flex-wrap items-start justify-between gap-3">\n                  <div><p dir="ltr" className="w-fit font-black">{invoice.number}</p><p className="mt-1 text-xs text-slate-500"><DateText value={invoice.createdAt} /></p></div>\n                  <div className="flex flex-wrap items-center justify-end gap-2">{invoice.type === "RETURN" && <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">مرتجع</span>}<span className={`rounded-full px-2.5 py-1 text-xs font-black ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{statusLabels[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</span></div>\n                </div>\n                <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">\n                  <div><dt className="text-xs font-bold text-slate-500">العميل</dt><dd className="mt-1 break-words font-black">{invoice.project.client.name || invoice.project.client.email}</dd></div>\n                  <div><dt className="text-xs font-bold text-slate-500">المشروع</dt><dd className="mt-1 break-words font-black">{invoice.project.title}</dd></div>\n                  <div><dt className="text-xs font-bold text-slate-500">المبلغ</dt><dd className="mt-1 font-black">{invoice.amount.toLocaleString("ar")} {invoice.currency}</dd></div>\n                  <div><dt className="text-xs font-bold text-slate-500">الاستحقاق</dt><dd className="mt-1 font-bold"><DateText value={invoice.dueAt} /></dd></div>\n                  <div><dt className="text-xs font-bold text-slate-500">الدفع</dt><dd className="mt-1 font-bold"><DateText value={invoice.paidAt} /></dd></div>\n                </dl>\n                {invoice.status !== "PAID" && invoice.status !== "CANCELLED" && <button type="button" onClick={() => { setError(""); setMessage(""); setPaymentInvoice(invoice); }} disabled={saving} className="mt-4 w-full rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 font-black text-emerald-800 disabled:opacity-40">تسجيل مدفوعة</button>}\n              </article>)}\n            </div>\n            {!loading && !filteredInvoices.length && <p className="p-8 text-center text-slate-500">لا توجد فواتير مطابقة.</p>}\n          </div>'''
+          if old_table not in invoice_text:
+              raise SystemExit("invoice table block not found")
+          invoice_text = invoice_text.replace(old_table, new_table, 1)
+          invoice_text = invoice_text.replace(
+              'className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl"',
+              'className="max-h-[calc(100dvh-2rem)] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6"',
+              1,
+          )
+          invoice_path.write_text(invoice_text)
+
+          # Regression checks for this group.
+          Path("tests/group-2-admin-mobile-ux.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import fs from "node:fs";
+
+          const read = (path) => fs.readFileSync(path, "utf8");
+          const adminRewards = read("src/app/admin/rewards/page.tsx");
+          const ambassador = read("src/app/ambassador/dashboard/page.tsx");
+          const adminShell = read("src/components/admin/admin-shell.tsx");
+          const invoices = read("src/app/admin/invoices/page.tsx");
+          const partner = read("src/app/partner/dashboard/page.tsx");
+          const partnerApi = read("src/app/api/partner/dashboard/route.ts");
+
+          assert.match(adminRewards, /EXPECTED: "متوقعة"/);
+          assert.match(adminRewards, /EARNED: "مستحقة \/ بانتظار الدفع"/);
+          assert.match(ambassador, /EARNED: "مستحقة \/ بانتظار الدفع"/);
+
+          assert.match(adminShell, /const \[menuOpen, setMenuOpen\] = useState\(false\)/);
+          assert.match(adminShell, /aria-label="فتح قائمة الإدارة"/);
+          assert.match(adminShell, /fixed inset-y-0 right-0 z-50/);
+          assert.match(adminShell, /overflow-y-auto overscroll-contain/);
+          assert.match(adminShell, /lg:sticky/);
+
+          assert.match(invoices, /className="grid gap-3 lg:hidden"/);
+          assert.match(invoices, /className="hidden overflow-x-auto lg:block"/);
+          assert.match(invoices, /max-h-\[calc\(100dvh-2rem\)\]/);
+
+          assert.match(partner, /max=\{99\}/);
+          assert.doesNotMatch(partner, /max=\{100\}/);
+          assert.match(partner, /Math\.min\(99/);
+          assert.match(partner, /\["COMPLETED", "REVIEW"\]\.includes\(project\.status\)/);
+          assert.match(partnerApi, /progress > 99/);
+          assert.doesNotMatch(partnerApi, /progress > 100/);
+
+          for (const content of [partner, ambassador]) {
+            assert.match(content, /max-w-\[calc\(100vw-1rem\)\]/);
+            assert.match(content, /overflow-y-auto overscroll-contain/);
+          }
+
+          console.log("Group 2 admin/mobile UX regression checks passed.");
+          ''')
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Group 2 regression tests
+        run: node tests/group-2-admin-mobile-ux.test.mjs
+
+      - name: Existing AI tests
+        run: npm run test:ai
+
+      - name: Existing ambassador delivery tests
+        run: npm run test:ambassador-delivery
+
+      - name: Commit validated fixes and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name "Rami-Ebro"
+          git config user.email "ahr17h@gmail.com"
+          git rm .github/workflows/group-2-admin-mobile-ux.yml
+          git add src tests/group-2-admin-mobile-ux.test.mjs
+          git commit -m "fix: complete group 2 admin mobile UX"
+          git push origin HEAD:fix/group-2-admin-mobile-ux
