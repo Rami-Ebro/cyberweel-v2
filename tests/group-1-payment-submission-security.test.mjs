@@ -87,12 +87,24 @@ test("database migration blocks PAID payment records without complete evidence",
   }
 });
 
-test("submission completion verifies actual private blob ownership before linking", async () => {
+test("submission upload callback rejects cross-linked blob URLs", async () => {
+  const source = await repoFile("src/app/api/client/submissions/upload/route.ts");
+  assert.match(source, /existingLinks/);
+  assert.match(source, /hasCrossLink/);
+  assert.match(source, /file\.submissionId !== submission\.id/);
+  assert.match(source, /file\.projectId !== submission\.projectId/);
+  assert.match(source, /file\.storageProvider !== "VERCEL_BLOB"/);
+  assert.match(source, /file\.source !== "CLIENT"/);
+});
+
+test("submission completion verifies actual private blob ownership and rejects duplicate links", async () => {
   const source = await repoFile("src/app/api/client/submissions/[submissionId]/complete/route.ts");
   assert.match(source, /head\(file\.url/);
   assert.match(source, /isExpectedClientSubmissionBlobUrl\(file\.url, client\.id, initialSubmission\.id\)/);
   assert.match(source, /details\.pathname\.startsWith\(expectedPrefix\)/);
   assert.match(source, /linkedElsewhere/);
+  assert.match(source, /duplicateElsewhere/);
+  assert.match(source, /id: \{ not: existing\.id \}/);
   assert.match(source, /source === "CLIENT"/);
   assert.match(source, /storageProvider === "VERCEL_BLOB"/);
   assert.match(source, /kind === "CLIENT_SUBMISSION"/);
