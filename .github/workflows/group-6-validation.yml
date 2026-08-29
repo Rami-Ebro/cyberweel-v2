@@ -1,0 +1,37 @@
+name: Group 6 validation
+
+on:
+  push:
+    branches:
+      - fix/group-6-admin-dark-mode-completion
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Group 6 regression first
+        run: node --test tests/group-6-admin-dark-mode-completion.test.mjs
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Lint
+        run: npm run lint
+      - name: Group 5 regression
+        run: node --test tests/group-5-admin-invoices-dark-mode.test.mjs
+      - name: Group 6 regression
+        run: node --test tests/group-6-admin-dark-mode-completion.test.mjs
+      - name: AI regression
+        run: npm run test:ai
+      - name: Ambassador delivery regression
+        run: npm run test:ambassador-delivery
