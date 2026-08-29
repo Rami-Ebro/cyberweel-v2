@@ -57,7 +57,7 @@ export default function LoginPage() {
       </div>
 
       <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-12">
-        <header className="flex items-center justify-between">
+        <header className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/" className="inline-flex items-center gap-3" aria-label="العودة إلى CyberWeel">
             <Logo size={44} />
             <span className="text-lg font-black tracking-tight">CyberWeel</span>

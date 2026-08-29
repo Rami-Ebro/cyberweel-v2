@@ -15,6 +15,7 @@ assert.match(router, /params\.set\("path", "ambassador"\)/);
 assert.match(router, /window\.scrollTo\(\{ top: 0, behavior: "auto" \}\)/);
 assert.match(router, /\[pathname, router\]/);
 assert.doesNotMatch(router, /window\.requestAnimationFrame/);
+assert.match(router, /params\.delete\("path"\)/);
 
 assert.match(publicI18n, /useState<Lang>\("ar"\)/);
 assert.match(publicI18n, /Promise\.resolve\(\)\.then\(\(\) => setLangState\(stored\)\)/);
@@ -27,6 +28,7 @@ assert.match(dashboardI18n, /partnerApplicationEnglish\[normalized\] \|\| dashbo
 
 assert.match(dashboardProvider, /pathname !== "\/login"/);
 assert.match(login, /DashboardLanguageButton/);
+assert.match(login, /flex flex-wrap items-center justify-between gap-3/);
 assert.match(login, /href="\/partner"/);
 assert.doesNotMatch(login, /\/#\/partner/);
 

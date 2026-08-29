@@ -20,7 +20,10 @@ function legacyHashTarget(): string | null {
 
 function withCurrentQuery(path: string) {
   if (typeof window === "undefined") return path;
-  return `${path}${window.location.search}`;
+  const params = new URLSearchParams(window.location.search);
+  params.delete("path");
+  const query = params.toString();
+  return query ? `${path}?${query}` : path;
 }
 
 /**
