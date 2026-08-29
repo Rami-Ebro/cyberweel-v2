@@ -215,11 +215,11 @@ export async function GET(request: NextRequest) {
           ) VALUES ('PAID', now(), 'bank', 'TEST-REF', 'https://proof.invalid/test.pdf', 'test.pdf');
         `);
 
-        const rewardRows = await tx.$queryRawUnsafe<Array<{ count: bigint }>>(
-          `SELECT count(*)::bigint AS count FROM "_group1_reward_guard_test" WHERE "status" = 'PAID';`,
+        const rewardRows = await tx.$queryRawUnsafe<Array<{ count: number }>>(
+          `SELECT count(*)::int AS count FROM "_group1_reward_guard_test" WHERE "status" = 'PAID';`,
         );
-        const partnerRows = await tx.$queryRawUnsafe<Array<{ count: bigint }>>(
-          `SELECT count(*)::bigint AS count FROM "_group1_partner_guard_test" WHERE "paymentStatus" = 'PAID';`,
+        const partnerRows = await tx.$queryRawUnsafe<Array<{ count: number }>>(
+          `SELECT count(*)::int AS count FROM "_group1_partner_guard_test" WHERE "paymentStatus" = 'PAID';`,
         );
         const triggers = await tx.$queryRawUnsafe<Array<{ trigger_name: string; table_name: string }>>(`
           SELECT t.tgname AS trigger_name, c.relname AS table_name
@@ -231,8 +231,8 @@ export async function GET(request: NextRequest) {
         `);
 
         return {
-          rewardPositiveRows: Number(rewardRows[0]?.count ?? 0n),
-          partnerPositiveRows: Number(partnerRows[0]?.count ?? 0n),
+          rewardPositiveRows: rewardRows[0]?.count ?? 0,
+          partnerPositiveRows: partnerRows[0]?.count ?? 0,
           triggers,
         };
       },
