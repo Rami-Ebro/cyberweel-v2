@@ -32,6 +32,6 @@ jobs:
       - name: Group 7 mobile regression
         run: node --test tests/group-7-admin-ambassadors-mobile-ux.test.mjs
       - name: Group 6 dark mode regression
-        run: node --test tests/group-6-admin-dark-mode.test.mjs
+        run: node --test tests/group-6-admin-dark-mode-completion.test.mjs
       - name: Group 3 public routing regression
         run: node --test tests/group-3-public-routing-i18n.test.mjs
