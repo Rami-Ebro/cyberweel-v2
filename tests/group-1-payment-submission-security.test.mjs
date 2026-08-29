@@ -60,6 +60,12 @@ test("invoice payment route requires evidence fields, guards duplicate payment, 
   assert.match(source, /writeAdminAudit\(tx/);
 });
 
+test("invoice payment date uses the shared local DateInput default", async () => {
+  const source = await repoFile("src/app/admin/invoices/page.tsx");
+  assert.match(source, /<DateInput name="paidAt" required className="field font-normal" \/>/);
+  assert.doesNotMatch(source, /name="paidAt"[^>]*new Date\(\)\.toISOString/);
+});
+
 test("ambassador and partner PAID paths require private payment attachments", async () => {
   const [rewardRoute, partnerRoute, partnerAssignments] = await Promise.all([
     repoFile("src/app/api/admin/rewards/route.ts"),
@@ -108,6 +114,17 @@ test("submission upload callback rejects cross-linked blob URLs", async () => {
   assert.match(source, /file\.projectId !== submission\.projectId/);
   assert.match(source, /file\.storageProvider !== "VERCEL_BLOB"/);
   assert.match(source, /file\.source !== "CLIENT"/);
+});
+
+test("submission completion claims UPLOADING atomically and reconciles verified file size", async () => {
+  const source = await repoFile("src/app/api/client/submissions/[submissionId]/complete/route.ts");
+  assert.match(source, /clientSubmission\.updateMany/);
+  assert.match(source, /status: "UPLOADING"/);
+  assert.match(source, /data: \{ status: "PROCESSING" \}/);
+  assert.match(source, /claimed\.count !== 1/);
+  assert.match(source, /where: \{ id: submissionId, status: "PROCESSING"/);
+  assert.match(source, /existing\.size !== file\.actualSize/);
+  assert.match(source, /data: \{ size: file\.actualSize \}/);
 });
 
 test("submission completion verifies actual private blob ownership and rejects duplicate links", async () => {
