@@ -211,7 +211,9 @@ export function StagePartnerAssignmentManager({ projectId }: { projectId: string
     const paymentReference = String(form.get("paymentReference") || "").trim();
     const paidAt = String(form.get("paidAt") || "").trim();
     const proof = form.get("paymentProof");
-    if (!paymentMethod || !paymentReference || !paidAt) return setMessage("لتسجيل الدفع: أدخل طريقة الدفع والمرجع وتاريخ الدفع. المرفق اختياري.");
+    if (!paymentMethod || !paymentReference || !paidAt || !(proof instanceof File) || proof.size <= 0) {
+      return setMessage("لتسجيل الدفع: طريقة الدفع والمرجع والتاريخ ومرفق إثبات الدفع كلها مطلوبة.");
+    }
 
     setBusy(assignment.id);
     setMessage("");
@@ -335,7 +337,7 @@ export function StagePartnerAssignmentManager({ projectId }: { projectId: string
                       <label className="grid gap-2 text-sm font-black">طريقة الدفع<input name="paymentMethod" required placeholder="مثال: شام كاش" className="field bg-white font-normal" /></label>
                       <label className="grid gap-2 text-sm font-black">مرجع عملية الدفع<input name="paymentReference" required className="field bg-white font-normal" /></label>
                       <label className="grid gap-2 text-sm font-black">تاريخ الدفع<DateInput name="paidAt" required className="field bg-white font-normal" /></label>
-                      <label className="grid gap-2 text-sm font-black">إثبات الدفع — اختياري<input name="paymentProof" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" className="field bg-white font-normal" /></label>
+                      <label className="grid gap-2 text-sm font-black">إثبات الدفع — مطلوب<input name="paymentProof" type="file" required accept="image/png,image/jpeg,image/webp,application/pdf" className="field bg-white font-normal" /></label>
                       <button disabled={busy === assignment.id} className="rounded-xl bg-[#111827] px-5 py-3 font-black text-white disabled:opacity-50 md:col-span-2">{busy === assignment.id ? "جارٍ التسجيل..." : "تسجيل الدفع"}</button>
                     </form>}
 
