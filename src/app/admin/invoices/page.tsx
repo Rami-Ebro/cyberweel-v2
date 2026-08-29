@@ -176,13 +176,13 @@ export default function AdminInvoicesPage() {
 
   return (
     <AdminShell active="invoices" title="إدارة الفواتير" description="الفواتير والمرتجعات والدفعات مرتبطة بالمشاريع والعملاء." actions={
-            <button onClick={() => void load()} disabled={loading} className="flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold">
+            <button onClick={() => void load()} disabled={loading} className="flex items-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> تحديث
             </button>
     }>
 
-        {message && <p className="mt-5 rounded-xl bg-emerald-50 p-4 font-bold text-emerald-800">{message}</p>}
-        {error && <p className="mt-5 rounded-xl bg-rose-50 p-4 font-bold text-rose-800">{error}</p>}
+        {message && <p className="mt-5 rounded-xl bg-emerald-50 p-4 font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">{message}</p>}
+        {error && <p className="mt-5 rounded-xl bg-rose-50 p-4 font-bold text-rose-800 dark:bg-rose-950/40 dark:text-rose-200">{error}</p>}
 
         <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[["كل الفواتير", totals.all], ["مستحقة أو متأخرة", totals.due], ["مدفوعة", totals.paid], ["مرتجعات", totals.returns]].map(([label, value]) => (
@@ -235,12 +235,12 @@ export default function AdminInvoicesPage() {
                   <th className="w-[10%] p-2.5">الدفع</th>
                 </tr></thead>
                 <tbody>{filteredInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100 align-middle">
-                  <td dir="ltr" className="p-2.5 text-right font-black"><span className="whitespace-nowrap">{invoice.number}</span>{invoice.type === "RETURN" && <span className="mr-2 inline-block rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700">مرتجع</span>}</td>
+                  <td dir="ltr" className="p-2.5 text-right font-black"><span className="whitespace-nowrap">{invoice.number}</span>{invoice.type === "RETURN" && <span className="mr-2 inline-block rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700 dark:bg-rose-950/40 dark:text-rose-200">مرتجع</span>}</td>
                   <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.createdAt} /></td>
                   <td className="p-2.5 truncate" title={invoice.project.client.name || invoice.project.client.email}>{invoice.project.client.name || invoice.project.client.email}</td>
                   <td className="p-2.5 truncate" title={invoice.project.title}>{invoice.project.title}</td>
                   <td className="p-2.5 whitespace-nowrap font-black">{invoice.amount.toLocaleString("ar")} {invoice.currency}</td>
-                  <td className="p-2.5"><div className="flex flex-wrap items-center gap-1.5"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 font-black ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{statusLabels[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</span>{invoice.status !== "PAID" && invoice.status !== "CANCELLED" && <button type="button" onClick={() => { setError(""); setMessage(""); setPaymentInvoice(invoice); }} disabled={saving} className="whitespace-nowrap rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-800 disabled:opacity-40">تسجيل مدفوعة</button>}</div></td>
+                  <td className="p-2.5"><div className="flex flex-wrap items-center gap-1.5"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 font-black ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200" : "bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200"}`}>{statusLabels[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</span>{invoice.status !== "PAID" && invoice.status !== "CANCELLED" && <button type="button" onClick={() => { setError(""); setMessage(""); setPaymentInvoice(invoice); }} disabled={saving} className="whitespace-nowrap rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-800 disabled:opacity-40 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">تسجيل مدفوعة</button>}</div></td>
                   <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.dueAt} /></td>
                   <td className="p-2.5 whitespace-nowrap"><DateText value={invoice.paidAt} /></td>
                 </tr>)}</tbody>
@@ -251,7 +251,7 @@ export default function AdminInvoicesPage() {
               {filteredInvoices.map((invoice) => <article key={invoice.id} className="rounded-2xl border border-[#D8D2C4] bg-[#FFFDF8] p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div><p dir="ltr" className="w-fit font-black">{invoice.number}</p><p className="mt-1 text-xs text-slate-500"><DateText value={invoice.createdAt} /></p></div>
-                  <div className="flex flex-wrap items-center justify-end gap-2">{invoice.type === "RETURN" && <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">مرتجع</span>}<span className={`rounded-full px-2.5 py-1 text-xs font-black ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{statusLabels[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</span></div>
+                  <div className="flex flex-wrap items-center justify-end gap-2">{invoice.type === "RETURN" && <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700 dark:bg-rose-950/40 dark:text-rose-200">مرتجع</span>}<span className={`rounded-full px-2.5 py-1 text-xs font-black ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200" : "bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200"}`}>{statusLabels[invoice.status] || dashboardLabel(invoice.status, "حالة غير معروفة")}</span></div>
                 </div>
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                   <div><dt className="text-xs font-bold text-slate-500">العميل</dt><dd className="mt-1 break-words font-black">{invoice.project.client.name || invoice.project.client.email}</dd></div>
@@ -260,7 +260,7 @@ export default function AdminInvoicesPage() {
                   <div><dt className="text-xs font-bold text-slate-500">الاستحقاق</dt><dd className="mt-1 font-bold"><DateText value={invoice.dueAt} /></dd></div>
                   <div><dt className="text-xs font-bold text-slate-500">الدفع</dt><dd className="mt-1 font-bold"><DateText value={invoice.paidAt} /></dd></div>
                 </dl>
-                {invoice.status !== "PAID" && invoice.status !== "CANCELLED" && <button type="button" onClick={() => { setError(""); setMessage(""); setPaymentInvoice(invoice); }} disabled={saving} className="mt-4 w-full rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 font-black text-emerald-800 disabled:opacity-40">تسجيل مدفوعة</button>}
+                {invoice.status !== "PAID" && invoice.status !== "CANCELLED" && <button type="button" onClick={() => { setError(""); setMessage(""); setPaymentInvoice(invoice); }} disabled={saving} className="mt-4 w-full rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 font-black text-emerald-800 disabled:opacity-40 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">تسجيل مدفوعة</button>}
               </article>)}
             </div>
             {!loading && !filteredInvoices.length && <p className="p-8 text-center text-slate-500">لا توجد فواتير مطابقة.</p>}
@@ -272,18 +272,18 @@ export default function AdminInvoicesPage() {
             className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/55 p-4"
             onMouseDown={(event) => { if (event.currentTarget === event.target && !saving) setPaymentInvoice(null); }}
           >
-            <section role="dialog" aria-modal="true" aria-labelledby="invoice-payment-title" className="max-h-[calc(100dvh-2rem)] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
+            <section role="dialog" aria-modal="true" aria-labelledby="invoice-payment-title" className="max-h-[calc(100dvh-2rem)] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6 dark:bg-slate-900 dark:text-slate-100">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 id="invoice-payment-title" className="text-xl font-black">تأكيد تسجيل الفاتورة كمدفوعة</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">هذه العملية تغيّر حالة الفاتورة إلى مدفوعة، وقد تحدّث حالة المرحلة ومكافأة السفير وترسل إشعارًا للعميل. لا يمكن تسجيل دفعة ثانية للفواتير المدفوعة.</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">هذه العملية تغيّر حالة الفاتورة إلى مدفوعة، وقد تحدّث حالة المرحلة ومكافأة السفير وترسل إشعارًا للعميل. لا يمكن تسجيل دفعة ثانية للفواتير المدفوعة.</p>
                 </div>
-                <button type="button" aria-label="إغلاق" disabled={saving} onClick={() => setPaymentInvoice(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-40"><X className="h-5 w-5" /></button>
+                <button type="button" aria-label="إغلاق" disabled={saving} onClick={() => setPaymentInvoice(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"><X className="h-5 w-5" /></button>
               </div>
 
-              <div className="mt-5 rounded-xl bg-[#F7F3EB] p-4">
+              <div className="mt-5 rounded-xl bg-[#F7F3EB] p-4 dark:bg-slate-800">
                 <p className="font-black" dir="ltr">{paymentInvoice.number}</p>
-                <p className="mt-1 text-sm text-slate-600">{paymentInvoice.project.client.name || paymentInvoice.project.client.email} — {paymentInvoice.project.title}</p>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{paymentInvoice.project.client.name || paymentInvoice.project.client.email} — {paymentInvoice.project.title}</p>
                 <p className="mt-2 font-black">{paymentInvoice.amount.toLocaleString("ar")} {paymentInvoice.currency}</p>
               </div>
 
@@ -293,14 +293,14 @@ export default function AdminInvoicesPage() {
                 <label className="grid gap-2 font-bold sm:col-span-2">تاريخ الدفع<DateInput name="paidAt" required className="field font-normal" /></label>
                 <div className="flex flex-wrap gap-3 sm:col-span-2">
                   <button disabled={saving} className="rounded-xl bg-emerald-700 px-5 py-3 font-black text-white disabled:opacity-40">{saving ? "جارٍ تسجيل الدفع…" : "تأكيد وتسجيل مدفوعة"}</button>
-                  <button type="button" disabled={saving} onClick={() => setPaymentInvoice(null)} className="rounded-xl border border-slate-300 bg-white px-5 py-3 font-black disabled:opacity-40">إلغاء</button>
+                  <button type="button" disabled={saving} onClick={() => setPaymentInvoice(null)} className="rounded-xl border border-slate-300 bg-white px-5 py-3 font-black disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">إلغاء</button>
                 </div>
               </form>
             </section>
           </div>
         )}
 
-      <style jsx global>{`.field{width:100%;border-radius:.75rem;border:1px solid #d8d2c4;padding:.75rem 1rem;background:white}`}</style>
+      <style jsx global>{`.field{width:100%;border-radius:.75rem;border:1px solid #d8d2c4;padding:.75rem 1rem;background:white}[data-admin-shell-root="true"].dark .field{border-color:#334155;background:#0f172a;color:#f8fafc;color-scheme:dark}[data-admin-shell-root="true"].dark .field::placeholder{color:#94a3b8}[data-admin-shell-root="true"].dark select.field option{background:#0f172a;color:#f8fafc}`}</style>
     </AdminShell>
   );
 }
