@@ -1,0 +1,74 @@
+name: Group 2 review state copy validation
+
+on:
+  push:
+    branches:
+      - fix/group-2-admin-mobile-ux
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/group-2-admin-mobile-ux
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Fix review-state copy and regression assertion
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('src/app/partner/dashboard/page.tsx')
+          text = p.read_text()
+          old = '<p className="text-sm text-slate-500 dark:text-slate-400">تم اعتماد هذا التسليم وحفظه ضمن السجل.</p>'
+          new = '<p className="text-sm text-slate-500 dark:text-slate-400">{project.status === "REVIEW" ? "تم إرسال التسليم وهو الآن بانتظار مراجعة الإدارة." : "تم اعتماد هذا التسليم وحفظه ضمن السجل."}</p>'
+          if old not in text:
+              raise SystemExit('review fallback copy not found')
+          p.write_text(text.replace(old, new, 1))
+
+          t = Path('tests/group-2-admin-mobile-ux.test.mjs')
+          tests = t.read_text()
+          needle = 'assert.match(partner, /\\["COMPLETED", "REVIEW"\\]\\.includes\\(project\\.status\\)/);'
+          addition = needle + '\nassert.match(partner, /project\\.status === "REVIEW" \\? "تم إرسال التسليم وهو الآن بانتظار مراجعة الإدارة\\."/);'
+          if needle not in tests:
+              raise SystemExit('group2 assertion anchor not found')
+          t.write_text(tests.replace(needle, addition, 1))
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Group 2 regression tests
+        run: node tests/group-2-admin-mobile-ux.test.mjs
+
+      - name: Existing AI tests
+        run: npm run test:ai
+
+      - name: Existing ambassador delivery tests
+        run: npm run test:ambassador-delivery
+
+      - name: Commit fix and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name "Rami-Ebro"
+          git config user.email "ahr17h@gmail.com"
+          git rm .github/workflows/group-2-review-copy-fix.yml
+          git add src/app/partner/dashboard/page.tsx tests/group-2-admin-mobile-ux.test.mjs
+          git commit -m "fix: clarify partner review state"
+          git push origin HEAD:fix/group-2-admin-mobile-ux
