@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "prisma generate && node scripts/group9-preview-live-test.mjs && node scripts/prepare-production-db.mjs && next build",
+    "build": "node scripts/prepare-production-db.mjs && prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
     "test:ai": "node --experimental-strip-types --test tests/ai-assistant.test.mjs",
