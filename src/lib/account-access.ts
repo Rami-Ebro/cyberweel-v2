@@ -18,7 +18,9 @@ export const accountAccessSelect = {
   adminProfile: { select: { isActive: true } },
 } as const;
 
-export function hasUnifiedAccountAccess(user: AccountAccessSnapshot | null | undefined) {
+export function hasUnifiedAccountAccess(
+  user: AccountAccessSnapshot | null | undefined,
+): user is AccountAccessSnapshot {
   if (!user?.isActive) return false;
   if (user.role === "ADMIN" && user.adminProfile && !user.adminProfile.isActive) return false;
 
