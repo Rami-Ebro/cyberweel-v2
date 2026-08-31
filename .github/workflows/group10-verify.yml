@@ -34,3 +34,5 @@ jobs:
       - run: ./node_modules/.bin/tsc --noEmit --incremental false
       - run: ./node_modules/.bin/next build
       - run: git diff --check 98efeca772b8380d55748c13932977c054cbab94...HEAD
+
+# rerun after Group 10 regression-test alignment
