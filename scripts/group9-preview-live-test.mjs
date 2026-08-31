@@ -60,6 +60,7 @@ function load(path, dependencies = {}, extraGlobals = {}) {
     Buffer,
     File,
     FormData,
+    process,
     require: (name) => {
       if (name === "next/server") return { NextRequest, NextResponse };
       if (name === "@prisma/client") return { Prisma };
