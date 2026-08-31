@@ -282,7 +282,7 @@ export async function POST(request: NextRequest) {
   }
 
   const saved = await upsertStagePartnerAssignment({ projectStageId, partnerId, tasks, deliverables, feeAmount, feeCurrency, dueAt });
-  if (!saved) return NextResponse.json({ error: "تعذر حفظ إسناد المرحلة" }, { status: 500 });
+  if (!saved) return NextResponse.json({ error: "تغيرت حالة الإسناد ولم يعد قابلًا للتعديل. حدّث الصفحة وتحقق من حالته" }, { status: 409 });
 
   await writeAdminAudit(db, {
     actorId: access.userId,
