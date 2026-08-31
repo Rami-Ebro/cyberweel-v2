@@ -52,8 +52,6 @@ test("Group 10 removes the duplicate partners shell and uses the canonical Admin
 
 test("Group 10 keeps the account section reachable while team remains owner-only", () => {
   const shell = read("src/components/admin/admin-shell.tsx");
-  assert.match(shell, /key: "account"[^
-]+href: "\/admin\/partners\?section=account"/);
-  assert.match(shell, /key: "team"[^
-]+ownerOnly: true/);
+  assert.ok(shell.includes('{ key: "account", label: "حساب الإدارة", href: "/admin/partners?section=account", icon: UserCog }'));
+  assert.ok(shell.includes('{ key: "team", label: "إدارة الفريق والصلاحيات", href: "/admin/team", icon: ShieldCheck, ownerOnly: true }'));
 });
