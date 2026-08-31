@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { accountAccessSelect, hasUnifiedAccountAccess } from "@/lib/account-access";
 import { db } from "@/lib/db";
 import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
 
@@ -11,30 +12,10 @@ export default async function AccountLayout({ children }: { children: ReactNode 
 
   const user = await db.user.findUnique({
     where: { id: session.userId },
-    select: {
-      role: true,
-      clientEnabled: true,
-      isActive: true,
-      partner: { select: { status: true } },
-      ambassador: { select: { status: true } },
-      adminProfile: { select: { isActive: true } },
-    },
+    select: accountAccessSelect,
   });
 
-  const hasAccountAccess = Boolean(
-    user?.isActive &&
-      !(user.role === "ADMIN" && user.adminProfile && !user.adminProfile.isActive) &&
-      (
-        user.role === "ADMIN" ||
-        user.adminProfile?.isActive ||
-        user.role === "CLIENT" ||
-        user.clientEnabled ||
-        user.partner?.status === "ACTIVE" ||
-        user.ambassador?.status === "ACTIVE"
-      ),
-  );
-
-  if (!hasAccountAccess) redirect("/login?next=/account/settings");
+  if (!hasUnifiedAccountAccess(user)) redirect("/login?next=/account/settings");
 
   return children;
 }
