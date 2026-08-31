@@ -13,6 +13,7 @@ const [
   clientLayout,
   ambassadorAuth,
   ambassadorLayout,
+  accountAccess,
   accountLayout,
   partnerLayout,
   dashboardEntry,
@@ -23,6 +24,7 @@ const [
   source("src/app/client/layout.tsx"),
   source("src/lib/ambassador-auth.ts"),
   source("src/app/ambassador/dashboard/layout.tsx"),
+  source("src/lib/account-access.ts"),
   source("src/app/account/layout.tsx"),
   source("src/app/partner/dashboard/layout.tsx"),
   source("src/app/dashboard/page.tsx"),
@@ -61,11 +63,12 @@ test("ambassador dashboard is server guarded without breaking admin preview", ()
 test("account settings are rejected before the client shell for missing, inactive, or capability-less sessions", () => {
   assert.ok(accountLayout.includes("readPartnerSession"));
   assert.ok(accountLayout.includes('redirect("/login?next=/account/settings")'));
-  assert.ok(accountLayout.includes("user?.isActive"));
-  assert.ok(accountLayout.includes('user.role === "CLIENT"'));
-  assert.ok(accountLayout.includes("user.clientEnabled"));
-  assert.ok(accountLayout.includes('user.partner?.status === "ACTIVE"'));
-  assert.ok(accountLayout.includes('user.ambassador?.status === "ACTIVE"'));
+  assert.ok(accountLayout.includes("hasUnifiedAccountAccess(user)"));
+  assert.ok(accountAccess.includes("if (!user?.isActive) return false"));
+  assert.ok(accountAccess.includes('user.role === "CLIENT"'));
+  assert.ok(accountAccess.includes("user.clientEnabled"));
+  assert.ok(accountAccess.includes('user.partner?.status === "ACTIVE"'));
+  assert.ok(accountAccess.includes('user.ambassador?.status === "ACTIVE"'));
 });
 
 test("existing partner dashboard and dashboard entry server guards remain intact", () => {

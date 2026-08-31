@@ -1,8 +1,10 @@
-import { db } from "@/lib/db";
+import { MAX_ACCOUNT_PASSWORD_LENGTH, requireCurrentPasswordForSensitiveAccountChange } from "@/lib/account-security";
 import { currentAdminAccess } from "@/lib/admin-permissions";
-import { hashPassword, PARTNER_SESSION_COOKIE, readPartnerSession, verifyPassword } from "@/lib/partner-auth";
-import { NextRequest, NextResponse } from "next/server";
 import { AdminUserProfileError, validatedAdminUserProfile } from "@/lib/admin-user-profile";
+import { db } from "@/lib/db";
+import { hashPassword, normalizeEmail, normalizePhone, PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
+import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security";
+import { NextRequest, NextResponse } from "next/server";
 
 async function currentAdmin(request: NextRequest) {
   const session = readPartnerSession(request.cookies.get(PARTNER_SESSION_COOKIE)?.value);
@@ -38,22 +40,39 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  if (!hasTrustedOrigin(request)) return invalidOriginResponse();
+
   const [admin, access] = await Promise.all([currentAdmin(request), currentAdminAccess(request)]);
   if (!admin || !access) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
 
   const body = await request.json().catch(() => null);
   const currentPassword = typeof body?.currentPassword === "string" ? body.currentPassword : "";
   const newPassword = typeof body?.newPassword === "string" ? body.newPassword : "";
+  const requestedEmail = typeof body?.email === "string" ? normalizeEmail(body.email) : admin.email;
+  const requestedPhone = typeof body?.phone === "string" ? normalizePhone(body.phone) || null : admin.phone;
 
-  if (newPassword) {
-    if (newPassword.length < 8) return NextResponse.json({ error: "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل" }, { status: 400 });
-    if (!admin.passwordHash || !verifyPassword(currentPassword, admin.passwordHash)) {
-      return NextResponse.json({ error: "كلمة المرور الحالية غير صحيحة" }, { status: 400 });
-    }
+  if (newPassword && (newPassword.length < 8 || newPassword.length > MAX_ACCOUNT_PASSWORD_LENGTH)) {
+    return NextResponse.json({ error: "كلمة المرور الجديدة يجب أن تكون بين 8 و256 حرفًا" }, { status: 400 });
+  }
+
+  const identityChanged = requestedEmail !== admin.email || requestedPhone !== admin.phone;
+  if (identityChanged || newPassword) {
+    const reauthResponse = await requireCurrentPasswordForSensitiveAccountChange({
+      request,
+      userId: admin.id,
+      passwordHash: admin.passwordHash,
+      currentPassword,
+    });
+    if (reauthResponse) return reauthResponse;
   }
 
   try {
-    const profile = await validatedAdminUserProfile({ userId: admin.id, name: body?.name ?? admin.name, email: body?.email ?? admin.email, phone: body?.phone ?? admin.phone });
+    const profile = await validatedAdminUserProfile({
+      userId: admin.id,
+      name: body?.name ?? admin.name,
+      email: requestedEmail,
+      phone: requestedPhone,
+    });
     const updated = await db.user.update({
       where: { id: admin.id },
       data: {
