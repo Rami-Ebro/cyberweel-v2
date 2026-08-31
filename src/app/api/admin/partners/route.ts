@@ -12,6 +12,7 @@ import type { ClientProjectStatus } from "@prisma/client";
 import { AdminUserProfileError, validatedAdminUserProfile } from "@/lib/admin-user-profile";
 import { writeAdminAudit } from "@/lib/admin-audit";
 import { syncStageReward } from "@/lib/ambassador-rewards";
+import { legacyPartnerPaymentError } from "@/lib/legacy-partner-payment-policy";
 
 function normalizeProjectLink(value: string) {
   const trimmed = value.trim();
@@ -499,6 +500,8 @@ export async function PATCH(request: NextRequest) {
     if (!(await canAdmin(request, "partners"))) {
       return NextResponse.json({ error: "لا تملك صلاحية إدارة الشركاء" }, { status: 403 });
     }
+    const paymentError = legacyPartnerPaymentError(body);
+    if (paymentError) return NextResponse.json({ error: paymentError, code: "LEGACY_PARTNER_PAYMENT_DISABLED" }, { status: 409 });
     const projectId = textValue(body?.projectId, 100);
     if (!projectId) return NextResponse.json({ error: "اختر المشروع أولًا" }, { status: 400 });
     const [partner, project, existing] = await Promise.all([
@@ -522,6 +525,8 @@ export async function PATCH(request: NextRequest) {
         status: project.status === "PLANNING" ? "ASSIGNED" : project.status,
         progress: project.progress,
         feeCurrency: project.currency,
+        paymentStatus: "PENDING",
+        paidAt: null,
         dueAt: project.dueAt,
       } }); await writeAdminAudit(tx, { actorId: access?.userId, action: "PARTNER_PROJECT_ASSIGNED", category: "POSITIVE", entityType: "PARTNER", entityId: id, entityLabel: project.title, after: { projectId: project.id, assignmentId: created.id } }); return created; });
     return NextResponse.json({ assignment }, { status: 201 });
@@ -552,6 +557,8 @@ export async function PATCH(request: NextRequest) {
     if (!access || !(access.isOwner || access.permissions.includes("projects"))) {
       return NextResponse.json({ error: "لا تملك صلاحية إدارة المشاريع" }, { status: 403 });
     }
+    const paymentError = legacyPartnerPaymentError(body);
+    if (paymentError) return NextResponse.json({ error: paymentError, code: "LEGACY_PARTNER_PAYMENT_DISABLED" }, { status: 409 });
 
     const projectId = typeof body?.projectId === "string" ? body.projectId.trim() : id;
     const title = typeof body?.title === "string" ? body.title.trim() : "";
@@ -650,6 +657,8 @@ export async function PATCH(request: NextRequest) {
             status: projectStatus === "PLANNING" ? "ASSIGNED" : projectStatus,
             progress,
             feeCurrency: currency,
+            paymentStatus: "PENDING",
+            paidAt: null,
             dueAt,
           },
         });
@@ -676,6 +685,8 @@ export async function PATCH(request: NextRequest) {
     if (!access || !(access.isOwner || access.permissions.includes("projects"))) {
       return NextResponse.json({ error: "لا تملك صلاحية إدارة المشاريع" }, { status: 403 });
     }
+    const paymentError = legacyPartnerPaymentError(body);
+    if (paymentError) return NextResponse.json({ error: paymentError, code: "LEGACY_PARTNER_PAYMENT_DISABLED" }, { status: 409 });
 
     const clientId = typeof body?.clientId === "string" ? body.clientId.trim() : "";
     const partnerIds = partnerIdsFromBody(body, id);
@@ -711,13 +722,6 @@ export async function PATCH(request: NextRequest) {
     if (!/^[A-Z]{3}$/.test(feeCurrency)) {
       return NextResponse.json({ error: "رمز العملة غير صالح" }, { status: 400 });
     }
-
-    const paymentStatuses = ["PENDING", "APPROVED", "PAID", "CANCELLED"] as const;
-    const paymentStatusValue = typeof body?.paymentStatus === "string" ? body.paymentStatus : "PENDING";
-    if (!paymentStatuses.includes(paymentStatusValue as (typeof paymentStatuses)[number])) {
-      return NextResponse.json({ error: "حالة المستحقات غير صالحة" }, { status: 400 });
-    }
-    const paymentStatus = paymentStatusValue as (typeof paymentStatuses)[number];
 
     const dueAt = body?.dueAt ? new Date(body.dueAt) : null;
     if (dueAt && Number.isNaN(dueAt.getTime())) {
@@ -781,8 +785,8 @@ export async function PATCH(request: NextRequest) {
               progress,
               feeAmount,
               feeCurrency,
-              paymentStatus,
-              paidAt: paymentStatus === "PAID" ? new Date() : null,
+              paymentStatus: "PENDING",
+              paidAt: null,
               dueAt,
             },
           }),

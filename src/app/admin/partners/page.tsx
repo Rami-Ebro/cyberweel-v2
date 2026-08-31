@@ -380,7 +380,6 @@ export default function AdminPartnersPage() {
         progress: Number(form.get("progress") || 0),
         feeAmount: form.get("feeAmount"),
         feeCurrency: form.get("feeCurrency"),
-        paymentStatus: form.get("paymentStatus"),
         dueAt: form.get("dueAt") || null,
       }),
     });
@@ -927,13 +926,7 @@ export default function AdminPartnersPage() {
                     <DateInput name="dueAt" className="field" />
                   </Field>
                   <Field label="حالة المستحق">
-                    <select name="paymentStatus" defaultValue="PENDING" className="field">
-                      {Object.entries(paymentLabel).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
+                    <p className="field text-sm">بانتظار الاستحقاق. يُسجل الدفع من إسناد المرحلة بعد الاعتماد وإرفاق إثبات الدفع.</p>
                   </Field>
                   <Field label="قيمة المستحق">
                     <input name="feeAmount" type="number" min="0" step="0.01" className="field" />

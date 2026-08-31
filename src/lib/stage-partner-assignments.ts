@@ -186,8 +186,12 @@ export async function upsertStagePartnerAssignment(input: {
       "feeCurrency" = EXCLUDED."feeCurrency",
       "dueAt" = EXCLUDED."dueAt",
       "updatedAt" = CURRENT_TIMESTAMP
+    WHERE "ProjectStagePartnerAssignment"."status" = 'ASSIGNED'
+      AND "ProjectStagePartnerAssignment"."progress" = 0
+      AND "ProjectStagePartnerAssignment"."paymentStatus" = 'PENDING'::"ProjectPaymentStatus"
     RETURNING "id"
   `);
+  if (!rows.length) return null;
   return getStagePartnerAssignment(rows[0]?.id || id);
 }
 
@@ -217,7 +221,11 @@ export async function recordStagePartnerPayment(input: {
   paymentProofName?: string | null;
   allowPaidRepair?: boolean;
 }) {
-  if (!input.paymentProofUrl || !input.paymentProofName) return null;
+  // Keep the persistence boundary safe even when called outside the HTTP handler.
+  if (!input.paymentMethod?.trim() || !input.paymentReference?.trim()
+    || !input.paymentProofUrl?.trim() || !input.paymentProofName?.trim()
+    || !(input.paidAt instanceof Date) || !Number.isFinite(input.paidAt.getTime())
+    || input.paidAt.getTime() > Date.now() + 24 * 60 * 60 * 1000) return null;
   const blobProof = await verifyPrivatePaymentProofBlob({
     url: input.paymentProofUrl,
     expectedPrefix: `partner-stage-payments/${input.assignmentId}/proof/`,

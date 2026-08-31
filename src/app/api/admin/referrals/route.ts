@@ -127,6 +127,14 @@ export async function PATCH(request: NextRequest) {
     include: referralInclude,
   });
   if (!referral) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  // Partner referral commissions have no evidence-backed payment workflow here.
+  // Do not substitute an execution-stage fee for a referral commission.
+  if ((referral.partnerId || referral.source === "PARTNER") && body.commissionStatus === "PAID") {
+    return NextResponse.json({
+      error: "لا يمكن تسجيل عمولة إحالة شريك كمدفوعة من هذا المسار؛ لا يدعم إثبات الدفع المعتمد.",
+      code: "LEGACY_PARTNER_PAYMENT_DISABLED",
+    }, { status: 409 });
+  }
   if (body.status === "CONVERTED" && !referral.convertedClientId) {
     return NextResponse.json({ error: "USE_CLIENT_CONVERSION" }, { status: 409 });
   }
