@@ -4,27 +4,15 @@ import Link from "next/link";
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  BarChart3,
   ArrowLeft,
-  CheckCircle2,
   ChevronDown,
   Eye,
   EyeOff,
-  FolderKanban,
-  Home,
   KeyRound,
-  Link2,
-  LogOut,
   Pencil,
-  RefreshCw,
   ShieldCheck,
-  UserCog,
-  UserRound,
-  UsersRound,
 } from "lucide-react";
-import { Logo } from "@/components/brand/logo";
-import { AdminNotificationCenter } from "@/components/admin/admin-notification-center";
-import { DashboardLanguageButton } from "@/components/dashboard-i18n-provider";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { DateText } from "@/components/ui/date-text";
 import { DateInput } from "@/components/ui/date-input";
 import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
@@ -471,12 +459,6 @@ export default function AdminPartnersPage() {
     setShowNewPassword(false);
   }
 
-  async function logout() {
-    await fetch("/api/partner/logout", { method: "POST" });
-    router.replace("/login");
-    router.refresh();
-  }
-
   const latestReferrals = useMemo(() => referrals.slice(0, 8), [referrals]);
   const pendingApplications = useMemo(
     () => applications.filter((application) => application.status === "PENDING"),
@@ -486,172 +468,24 @@ export default function AdminPartnersPage() {
 
   const canSeeReferrals = admin?.isOwner || admin?.permissions.includes("referrals");
 
-  if (loading && !admin) {
-    return (
-      <main
-        dir="rtl"
-        className="grid min-h-screen place-items-center bg-[#F7F3EB] px-5 text-[#111827]"
-      >
-        <div
-          role="status"
-          aria-live="polite"
-          className="flex max-w-sm flex-col items-center text-center"
-        >
-          <span className="grid h-20 w-20 place-items-center rounded-2xl bg-white shadow-sm">
-            <Logo size={52} />
-          </span>
-          <RefreshCw className="mt-7 h-6 w-6 animate-spin text-[#9A7D43]" />
-          <h1 className="mt-4 text-2xl font-black">جارٍ تجهيز لوحة الإدارة</h1>
-          <p className="mt-2 text-sm font-bold text-slate-500">
-            يتم تحميل الحساب والصلاحيات والبيانات…
-          </p>
-        </div>
-      </main>
-    );
-  }
+  const shellTitle = section === "overview"
+    ? `مرحبًا ${admin?.name || "بك"}`
+    : section === "projects"
+      ? "إدارة المشاريع"
+      : section === "partners"
+        ? "إدارة الشركاء"
+        : "حساب الإدارة";
+  const shellDescription = section === "overview"
+    ? "ملخص تشغيلي موحد للعملاء والمشاريع والإحالات والشركاء والسفراء."
+    : section === "projects"
+      ? "إدارة مشاريع العملاء والإسناد التشغيلي للشركاء."
+      : section === "partners"
+        ? "إدارة طلبات الشركاء وحساباتهم وقدراتهم التشغيلية."
+        : "إدارة بيانات الدخول والملف الإداري.";
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#F7F3EB] text-[#111827]">
-      <div className="grid min-h-screen lg:grid-cols-[290px_1fr]">
-        <aside className="flex flex-col bg-[#111827] p-5 text-white lg:sticky lg:top-0 lg:h-screen">
-          <Link href="/" className="flex items-center gap-3 border-b border-white/10 pb-5">
-            <span className="grid h-12 w-12 place-items-center rounded-xl bg-white">
-              <Logo size={36} />
-            </span>
-            <div>
-              <p className="font-black">CyberWeel</p>
-              <p className="text-xs text-white/50">لوحة الإدارة</p>
-            </div>
-          </Link>
-
-          <nav className="mt-6 grid gap-2">
-            {(admin?.isOwner || admin?.permissions.includes("overview")) && (
-              <button
-                onClick={() => selectSection("overview")}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${
-                  section === "overview"
-                    ? "bg-[#B89A5A] text-[#111827]"
-                    : "text-white/70 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                <BarChart3 className="h-5 w-5" />
-                نظرة عامة
-              </button>
-            )}
-            {(admin?.isOwner || admin?.permissions.includes("clients")) && (
-              <Link href="/admin/clients" className="nav-link">
-                <UserRound className="h-5 w-5" />
-                العملاء
-              </Link>
-            )}
-            {(admin?.isOwner || admin?.permissions.includes("projects")) && (
-              <button
-                onClick={() => selectSection("projects")}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${
-                  section === "projects"
-                    ? "bg-[#B89A5A] text-[#111827]"
-                    : "text-white/70 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                <FolderKanban className="h-5 w-5" />
-                المشاريع
-              </button>
-            )}
-            {(admin?.isOwner || admin?.permissions.includes("invoices")) && (
-              <Link href="/admin/invoices" className="nav-link">
-                <BarChart3 className="h-5 w-5" />
-                الفواتير
-              </Link>
-            )}
-            {canSeeReferrals && (
-              <Link href="/admin/referrals" className="nav-link">
-                <CheckCircle2 className="h-5 w-5" />
-                الإحالات
-              </Link>
-            )}
-            {(admin?.isOwner || admin?.permissions.includes("partners")) && (
-              <button
-                onClick={() => selectSection("partners")}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${
-                  section === "partners"
-                    ? "bg-[#B89A5A] text-[#111827]"
-                    : "text-white/70 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                <UsersRound className="h-5 w-5" />
-                الشركاء
-              </button>
-            )}
-            {(admin?.isOwner || admin?.permissions.includes("ambassadors")) && (
-              <Link href="/admin/ambassadors" className="nav-link">
-                <UsersRound className="h-5 w-5" />
-                السفراء
-              </Link>
-            )}
-            <button
-              onClick={() => selectSection("account")}
-              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-bold transition ${
-                section === "account"
-                  ? "bg-[#B89A5A] text-[#111827]"
-                  : "text-white/70 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              <UserCog className="h-5 w-5" />
-              حساب الإدارة
-            </button>
-            {admin?.isOwner && (
-              <Link href="/admin/team" className="nav-link">
-                <ShieldCheck className="h-5 w-5" />
-                إدارة الفريق والصلاحيات
-              </Link>
-            )}
-            {(admin?.isOwner || admin?.permissions.includes("smart_links")) && (
-              <Link href="/admin/smart-links" className="nav-link">
-                <Link2 className="h-5 w-5" />
-                الروابط الذكية
-              </Link>
-            )}
-          </nav>
-
-          <div className="mt-auto grid gap-2 pt-8">
-            <Link
-              href="/"
-              className="flex items-center gap-3 rounded-xl bg-[#B89A5A] px-4 py-3 font-black text-[#111827]"
-            >
-              <Home className="h-5 w-5" />
-              العودة إلى الموقع
-            </Link>
-            <button
-              onClick={logout}
-              className="flex w-full items-center gap-3 rounded-xl border border-white/10 px-4 py-3 font-bold text-white/70 hover:bg-white/10"
-            >
-              <LogOut className="h-5 w-5" />
-              تسجيل الخروج
-            </button>
-          </div>
-        </aside>
-
-        <section className="p-4 sm:p-7 lg:p-10">
-          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-bold text-[#9A7D43]">مركز التحكم</p>
-              <h1 className="mt-1 text-3xl font-black">مرحبًا {admin?.name || "بك"}</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <AdminNotificationCenter />
-              <DashboardLanguageButton />
-              <button
-                onClick={load}
-                disabled={loading}
-                className="flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-                تحديث البيانات
-              </button>
-            </div>
-          </header>
-
-          {message && (
+    <AdminShell active={section} eyebrow="مركز التحكم" title={shellTitle} description={shellDescription}>
+      {message && (
             <p className="mt-5 rounded-xl border border-[#D8D2C4] bg-white p-4 font-bold shadow-sm">
               {message}
             </p>
@@ -1161,23 +995,7 @@ export default function AdminPartnersPage() {
               </form>
             </details>
           )}
-        </section>
-      </div>
       <style jsx global>{`
-        .nav-link {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          border-radius: 0.75rem;
-          padding: 0.75rem 1rem;
-          font-weight: 700;
-          color: rgb(255 255 255 / 0.7);
-          transition: 150ms;
-        }
-        .nav-link:hover {
-          background: rgb(255 255 255 / 0.1);
-          color: white;
-        }
         .field {
           width: 100%;
           border-radius: 0.75rem;
@@ -1186,7 +1004,7 @@ export default function AdminPartnersPage() {
           background: white;
         }
       `}</style>
-    </main>
+    </AdminShell>
   );
 }
 

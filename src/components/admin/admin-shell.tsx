@@ -10,23 +10,32 @@ import {
 import { Logo } from "@/components/brand/logo";
 import { AdminNotificationCenter } from "@/components/admin/admin-notification-center";
 import { DashboardLanguageButton } from "@/components/dashboard-i18n-provider";
+import { useAdminShellAccess } from "@/components/admin/admin-shell-access";
 
 export type AdminNavKey = "overview" | "clients" | "projects" | "invoices" | "referrals" | "rewards" | "partners" | "ambassadors" | "account" | "team" | "smart-links" | "audit-log";
 
-type AdminNavItem = { key: AdminNavKey; label: string; href: string; icon: typeof BarChart3 };
+type AdminNavItem = {
+  key: AdminNavKey;
+  label: string;
+  href: string;
+  icon: typeof BarChart3;
+  permission?: string;
+  permissionsAny?: string[];
+  ownerOnly?: boolean;
+};
 
 const items: AdminNavItem[] = [
-  { key: "overview", label: "نظرة عامة", href: "/admin/partners?section=overview", icon: BarChart3 },
-  { key: "clients", label: "العملاء", href: "/admin/clients", icon: UserRound },
-  { key: "projects", label: "المشاريع", href: "/admin/partners?section=projects", icon: FolderKanban },
-  { key: "invoices", label: "الفواتير", href: "/admin/invoices", icon: ReceiptText },
-  { key: "referrals", label: "الإحالات", href: "/admin/referrals", icon: CheckCircle2 },
-  { key: "partners", label: "الشركاء", href: "/admin/partners?section=partners", icon: UsersRound },
-  { key: "ambassadors", label: "السفراء", href: "/admin/ambassadors", icon: UsersRound },
+  { key: "overview", label: "نظرة عامة", href: "/admin/partners?section=overview", icon: BarChart3, permission: "overview" },
+  { key: "clients", label: "العملاء", href: "/admin/clients", icon: UserRound, permission: "clients" },
+  { key: "projects", label: "المشاريع", href: "/admin/partners?section=projects", icon: FolderKanban, permission: "projects" },
+  { key: "invoices", label: "الفواتير", href: "/admin/invoices", icon: ReceiptText, permission: "invoices" },
+  { key: "referrals", label: "الإحالات", href: "/admin/referrals", icon: CheckCircle2, permission: "referrals" },
+  { key: "partners", label: "الشركاء", href: "/admin/partners?section=partners", icon: UsersRound, permission: "partners" },
+  { key: "ambassadors", label: "السفراء", href: "/admin/ambassadors", icon: UsersRound, permissionsAny: ["ambassadors", "rewards"] },
   { key: "account", label: "حساب الإدارة", href: "/admin/partners?section=account", icon: UserCog },
-  { key: "team", label: "إدارة الفريق والصلاحيات", href: "/admin/team", icon: ShieldCheck },
-  { key: "audit-log", label: "سجل النشاطات", href: "/admin/audit-log", icon: History },
-  { key: "smart-links", label: "الروابط الذكية", href: "/admin/smart-links", icon: Link2 },
+  { key: "team", label: "إدارة الفريق والصلاحيات", href: "/admin/team", icon: ShieldCheck, ownerOnly: true },
+  { key: "audit-log", label: "سجل النشاطات", href: "/admin/audit-log", icon: History, permission: "audit_log" },
+  { key: "smart-links", label: "الروابط الذكية", href: "/admin/smart-links", icon: Link2, permission: "smart_links" },
 ];
 
 const ADMIN_THEME_KEY = "cyberweel-admin-theme";
@@ -35,7 +44,16 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
   active: AdminNavKey; eyebrow?: string; title: string; description?: string; actions?: ReactNode; children: ReactNode; wide?: boolean;
 }) {
   const router = useRouter();
+  const { isOwner, permissions } = useAdminShellAccess();
+  const hasPermission = (permission: string) => isOwner || permissions.includes(permission);
+  const canManageAmbassadors = hasPermission("ambassadors");
+  const canManageRewards = hasPermission("rewards");
   const ambassadorSectionActive = active === "ambassadors" || active === "rewards";
+  const visibleItems = items.filter((item) => {
+    if (item.ownerOnly) return isOwner;
+    if (item.permissionsAny) return item.permissionsAny.some(hasPermission);
+    return !item.permission || hasPermission(item.permission);
+  });
   const [darkMode, setDarkMode] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -128,13 +146,16 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
             data-admin-nav-scroll
             className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:min-h-0 lg:flex-1 lg:grid-cols-1 lg:overflow-y-auto lg:overscroll-contain lg:pe-2"
           >
-            {items.map((item) => {
+            {visibleItems.map((item) => {
               const Icon = item.icon;
               const selected = item.key === "ambassadors" ? ambassadorSectionActive : item.key === active;
+              const href = item.key === "ambassadors" && !canManageAmbassadors && canManageRewards
+                ? "/admin/rewards"
+                : item.href;
               return (
                 <Link
                   key={item.key}
-                  href={item.href}
+                  href={href}
                   aria-current={selected ? "page" : undefined}
                   onClick={() => setMenuOpen(false)}
                   className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right text-sm font-bold transition ${selected ? "bg-[#B89A5A] text-[#111827]" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
@@ -192,24 +213,28 @@ export function AdminShell({ active, eyebrow = "مركز التحكم", title, d
               </div>
             </header>
 
-            {ambassadorSectionActive && (
+            {ambassadorSectionActive && (canManageAmbassadors || canManageRewards) && (
               <nav aria-label="مركز السفراء" className="mt-6 inline-flex flex-wrap gap-2 rounded-2xl border border-[#D8D2C4] bg-white p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                <Link
-                  href="/admin/ambassadors"
-                  aria-current={active === "ambassadors" ? "page" : undefined}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black transition ${active === "ambassadors" ? "bg-[#111827] text-white dark:bg-[#B89A5A] dark:text-[#111827]" : "text-slate-600 hover:bg-[#F7F3EB] dark:text-slate-300 dark:hover:bg-slate-800"}`}
-                >
-                  <UserRound className="h-4 w-4" />
-                  إدارة السفراء
-                </Link>
-                <Link
-                  href="/admin/rewards"
-                  aria-current={active === "rewards" ? "page" : undefined}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black transition ${active === "rewards" ? "bg-[#111827] text-white dark:bg-[#B89A5A] dark:text-[#111827]" : "text-slate-600 hover:bg-[#F7F3EB] dark:text-slate-300 dark:hover:bg-slate-800"}`}
-                >
-                  <BadgeDollarSign className="h-4 w-4" />
-                  مكافآت السفراء
-                </Link>
+                {canManageAmbassadors && (
+                  <Link
+                    href="/admin/ambassadors"
+                    aria-current={active === "ambassadors" ? "page" : undefined}
+                    className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black transition ${active === "ambassadors" ? "bg-[#111827] text-white dark:bg-[#B89A5A] dark:text-[#111827]" : "text-slate-600 hover:bg-[#F7F3EB] dark:text-slate-300 dark:hover:bg-slate-800"}`}
+                  >
+                    <UserRound className="h-4 w-4" />
+                    إدارة السفراء
+                  </Link>
+                )}
+                {canManageRewards && (
+                  <Link
+                    href="/admin/rewards"
+                    aria-current={active === "rewards" ? "page" : undefined}
+                    className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black transition ${active === "rewards" ? "bg-[#111827] text-white dark:bg-[#B89A5A] dark:text-[#111827]" : "text-slate-600 hover:bg-[#F7F3EB] dark:text-slate-300 dark:hover:bg-slate-800"}`}
+                  >
+                    <BadgeDollarSign className="h-4 w-4" />
+                    مكافآت السفراء
+                  </Link>
+                )}
               </nav>
             )}
 

@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
 import { AdminActionFeedback } from "@/components/admin/admin-action-feedback";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { AdminShellAccessProvider } from "@/components/admin/admin-shell-access";
+import { requireAdminShellAccess } from "@/lib/admin-auth";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  await requireAdminSession();
+  const access = await requireAdminShellAccess();
 
   return (
-    <>
+    <AdminShellAccessProvider access={access}>
       <AdminActionFeedback />
       {children}
       <style>{`
@@ -44,6 +45,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         [data-admin-shell-root="true"].dark > div > section [class^="bg-teal-100/"],
         [data-admin-shell-root="true"].dark > div > section [class*=" bg-teal-100/"] { background-color: #042f2e !important; }
       `}</style>
-    </>
+    </AdminShellAccessProvider>
   );
 }
