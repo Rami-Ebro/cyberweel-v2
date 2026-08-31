@@ -29,5 +29,8 @@ export async function requireCurrentPasswordForSensitiveAccountChange(input: {
     return rateLimitResponse(limit, "محاولات تحقق كثيرة. حاول مجددًا لاحقًا.");
   }
 
-  return NextResponse.json({ error: "كلمة المرور الحالية غير صحيحة" }, { status: 400 });
+  return NextResponse.json(
+    { error: "أدخل كلمة المرور الحالية الصحيحة لتغيير البريد أو الهاتف أو كلمة المرور." },
+    { status: 400 },
+  );
 }
