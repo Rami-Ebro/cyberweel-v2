@@ -134,8 +134,8 @@ partner = replaceOnce(partner, '<aside className={`fixed inset-y-0 right-0', '<a
 partner = replaceOnce(partner, '<button aria-label="فتح القائمة" onClick={() => setMenuOpen(true)}', '<button type="button" aria-label="فتح القائمة" aria-expanded={menuOpen} aria-controls="partner-dashboard-menu" onClick={() => setMenuOpen(true)}', "partner menu trigger accessibility");
 partner = replaceOnce(
   partner,
-  '<div className="mt-auto space-y-3"><Link href="/" className="flex items-center justify-center gap-2 rounded-2xl bg-[#bd9850] px-4 py-3 font-black text-slate-950"><ArrowLeft size={18} />العودة إلى الموقع</Link><div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-white/65">',
-  '<div className="mt-auto space-y-3"><Link href="/" className="flex items-center justify-center gap-2 rounded-2xl bg-[#bd9850] px-4 py-3 font-black text-slate-950"><ArrowLeft size={18} />العودة إلى الموقع</Link><button type="button" onClick={logout} disabled={loggingOut} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/15 px-4 py-3 font-black text-white/80 transition hover:bg-white/10 disabled:opacity-60 sm:hidden"><LogOut size={18} />{data?.isAdminPreview ? "العودة للإدارة" : loggingOut ? "جارٍ الخروج" : "تسجيل الخروج"}</button><div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-white/65">',
+  '<Link href="/" className="flex items-center justify-center gap-2 rounded-2xl bg-[#bd9850] px-4 py-3 font-black text-slate-950"><ArrowLeft size={18} />العودة إلى الموقع</Link>',
+  '<Link href="/" className="flex items-center justify-center gap-2 rounded-2xl bg-[#bd9850] px-4 py-3 font-black text-slate-950"><ArrowLeft size={18} />العودة إلى الموقع</Link><button type="button" onClick={logout} disabled={loggingOut} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/15 px-4 py-3 font-black text-white/80 transition hover:bg-white/10 disabled:opacity-60 sm:hidden"><LogOut size={18} />{data?.isAdminPreview ? "العودة للإدارة" : loggingOut ? "جارٍ الخروج" : "تسجيل الخروج"}</button>',
   "partner mobile logout",
 );
 partner = replaceOnce(partner, '<div className="overflow-x-auto"><table className="w-full min-w-[980px] text-right">', '<div role="region" aria-label="جدول مستحقات المشاريع" tabIndex={0} className="overflow-x-auto focus:outline-none focus:ring-2 focus:ring-[#B89A5A] focus:ring-inset"><table className="w-full min-w-[980px] text-right">', "partner table accessible scroll");
@@ -156,8 +156,8 @@ ambassador = replaceOnce(ambassador, '<aside className={`fixed inset-y-0 right-0
 ambassador = replaceOnce(ambassador, '<button aria-label="فتح القائمة" onClick={() => setMenuOpen(true)}', '<button type="button" aria-label="فتح القائمة" aria-expanded={menuOpen} aria-controls="ambassador-dashboard-menu" onClick={() => setMenuOpen(true)}', "ambassador menu trigger accessibility");
 ambassador = replaceOnce(
   ambassador,
-  '<div className="mt-auto space-y-3"><Link href="/" className="flex items-center justify-center gap-2 rounded-2xl bg-[#bd9850] px-4 py-3 font-black text-slate-950"><ArrowLeft size={18} />العودة إلى الموقع</Link><div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-white/65">',
-  '<div className="mt-auto space-y-3"><Link href="/" className="flex items-center justify-center gap-2 rounded-2xl bg-[#bd9850] px-4 py-3 font-black text-slate-950"><ArrowLeft size={18} />العودة إلى الموقع</Link><button type="button" onClick={logout} disabled={loggingOut} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/15 px-4 py-3 font-black text-white/80 transition hover:bg-white/10 disabled:opacity-60 sm:hidden"><LogOut size={18} />{data?.isAdminPreview ? "العودة للإدارة" : loggingOut ? "جارٍ الخروج" : "تسجيل الخروج"}</button><div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-white/65">',
+  '<Link href="/" className="flex items-center justify-center gap-2 rounded-2xl bg-[#bd9850] px-4 py-3 font-black text-slate-950"><ArrowLeft size={18} />العودة إلى الموقع</Link>',
+  '<Link href="/" className="flex items-center justify-center gap-2 rounded-2xl bg-[#bd9850] px-4 py-3 font-black text-slate-950"><ArrowLeft size={18} />العودة إلى الموقع</Link><button type="button" onClick={logout} disabled={loggingOut} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/15 px-4 py-3 font-black text-white/80 transition hover:bg-white/10 disabled:opacity-60 sm:hidden"><LogOut size={18} />{data?.isAdminPreview ? "العودة للإدارة" : loggingOut ? "جارٍ الخروج" : "تسجيل الخروج"}</button>',
   "ambassador mobile logout",
 );
 ambassador = replaceOnce(ambassador, '<div className="overflow-x-auto"><table className="w-full min-w-[1080px] text-right">', '<div role="region" aria-label="جدول إحالات السفير" tabIndex={0} className="overflow-x-auto focus:outline-none focus:ring-2 focus:ring-[#B89A5A] focus:ring-inset"><table className="w-full min-w-[1080px] text-right">', "ambassador referrals accessible scroll");
@@ -222,7 +222,7 @@ test("Group 11 mobile drawers are inert while hidden, announce state, lock scrol
     assert.match(source, /aria-hidden=\\{!desktopSidebar && !menuOpen \\? true : undefined\\}/, path);
     assert.match(source, new RegExp(\`aria-controls="\${id}"\`), path);
     assert.match(source, /aria-expanded=\\{menuOpen\\}/, path);
-    assert.match(source, /sm:hidden[^\"]*"?><LogOut|sm:hidden[^\n]*<LogOut/, path);
+    assert.match(source, /sm:hidden[^\n]*<LogOut/, path);
   }
 });
 
