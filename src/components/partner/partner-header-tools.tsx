@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, Bell, CheckCircle2, CheckCheck, RefreshCw } from "lucide-react";
+import { readLocalStorage, writeLocalStorage } from "@/lib/browser-storage";
 
 type PartnerProject = {
   id: string;
@@ -105,7 +106,7 @@ function displayDate(value: string) {
 
 function storedSeenIds() {
   try {
-    const value = JSON.parse(localStorage.getItem(SEEN_IDS_KEY) || "[]");
+    const value = JSON.parse(readLocalStorage(SEEN_IDS_KEY) || "[]");
     return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
   } catch {
     return [];
@@ -204,15 +205,15 @@ export function PartnerHeaderTools() {
   const notifications = useMemo(() => buildNotifications(projects), [projects]);
 
   useEffect(() => {
-    if (!notifications.length || localStorage.getItem(SEEN_IDS_KEY)) return;
-    const legacySeenAt = Date.parse(localStorage.getItem(LEGACY_SEEN_KEY) || "") || 0;
+    if (!notifications.length || readLocalStorage(SEEN_IDS_KEY)) return;
+    const legacySeenAt = Date.parse(readLocalStorage(LEGACY_SEEN_KEY) || "") || 0;
     if (!legacySeenAt) return;
     const migrated = notifications
       .filter((item) => Date.parse(item.timestamp) <= legacySeenAt)
       .map((item) => item.id);
     queueMicrotask(() => {
       setSeenIds(migrated);
-      localStorage.setItem(SEEN_IDS_KEY, JSON.stringify(migrated));
+      writeLocalStorage(SEEN_IDS_KEY, JSON.stringify(migrated));
     });
   }, [notifications]);
 
@@ -221,7 +222,7 @@ export function PartnerHeaderTools() {
   function rememberSeen(ids: string[]) {
     const next = Array.from(new Set([...seenIds, ...ids])).slice(-100);
     setSeenIds(next);
-    localStorage.setItem(SEEN_IDS_KEY, JSON.stringify(next));
+    writeLocalStorage(SEEN_IDS_KEY, JSON.stringify(next));
   }
 
   function toggleNotifications() {
