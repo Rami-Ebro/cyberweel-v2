@@ -8,6 +8,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
+import { ADMIN_PERMISSIONS } from "@/lib/admin-permissions";
 
 export const ADMIN_SESSION_COOKIE = "cw_admin_session";
 
@@ -80,6 +81,53 @@ export async function hasAdminSession(): Promise<boolean> {
       user.isActive &&
       user.adminProfile?.isActive !== false,
   );
+}
+
+export type AdminShellAccess = {
+  isOwner: boolean;
+  permissions: string[];
+};
+
+export async function getAdminShellAccess(): Promise<AdminShellAccess | null> {
+  const cookieStore = await cookies();
+
+  // The legacy signed admin cookie represents the historical owner session.
+  if (verifySessionToken(cookieStore.get(ADMIN_SESSION_COOKIE)?.value)) {
+    return { isOwner: true, permissions: [...ADMIN_PERMISSIONS] };
+  }
+
+  const unifiedSession = readPartnerSession(cookieStore.get(PARTNER_SESSION_COOKIE)?.value);
+  if (!unifiedSession) return null;
+
+  const user = await db.user.findUnique({
+    where: { id: unifiedSession.userId },
+    select: {
+      role: true,
+      isActive: true,
+      adminProfile: {
+        select: { isOwner: true, isActive: true, permissions: true },
+      },
+    },
+  });
+
+  if (!user || user.role !== "ADMIN" || !user.isActive) return null;
+  if (user.adminProfile?.isActive === false) return null;
+  if (!user.adminProfile) return { isOwner: false, permissions: [] };
+
+  return {
+    isOwner: user.adminProfile.isOwner,
+    permissions: user.adminProfile.isOwner
+      ? [...ADMIN_PERMISSIONS]
+      : user.adminProfile.permissions.filter((permission) =>
+          ADMIN_PERMISSIONS.includes(permission as (typeof ADMIN_PERMISSIONS)[number]),
+        ),
+  };
+}
+
+export async function requireAdminShellAccess(): Promise<AdminShellAccess> {
+  const access = await getAdminShellAccess();
+  if (!access) redirect("/login");
+  return access;
 }
 
 export async function isOwnerSession(): Promise<boolean> {

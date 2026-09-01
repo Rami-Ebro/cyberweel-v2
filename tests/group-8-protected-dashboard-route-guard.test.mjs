@@ -31,13 +31,15 @@ const [
 ]);
 
 test("admin layout requires a real server-side admin session before rendering", () => {
-  assert.ok(adminLayout.includes("await requireAdminSession();"));
-  assert.ok(adminAuth.includes("export async function hasAdminSession"));
+  assert.ok(adminLayout.includes("const access = await requireAdminShellAccess();"));
+  assert.ok(adminLayout.includes("<AdminShellAccessProvider access={access}>"));
+  assert.ok(adminAuth.includes("export async function requireAdminShellAccess"));
+  assert.ok(adminAuth.includes("export async function getAdminShellAccess"));
   assert.ok(adminAuth.includes("verifySessionToken(cookieStore.get(ADMIN_SESSION_COOKIE)?.value)"), "legacy owner session must remain supported");
   assert.ok(adminAuth.includes("readPartnerSession(cookieStore.get(PARTNER_SESSION_COOKIE)?.value)"), "unified account session must remain supported");
-  assert.ok(adminAuth.includes('user?.role === "ADMIN"'));
-  assert.ok(adminAuth.includes("user.isActive"));
-  assert.ok(adminAuth.includes("user.adminProfile?.isActive !== false"));
+  assert.ok(adminAuth.includes('user.role !== "ADMIN"'));
+  assert.ok(adminAuth.includes("!user.isActive"));
+  assert.ok(adminAuth.includes("user.adminProfile?.isActive === false"));
   assert.ok(adminAuth.includes('redirect("/login")'));
 });
 
