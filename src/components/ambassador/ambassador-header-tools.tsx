@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, Bell, CheckCircle2, CheckCheck, RefreshCw } from "lucide-react";
+import { readLocalStorage, writeLocalStorage } from "@/lib/browser-storage";
 
 type AmbassadorSection = "overview" | "tools" | "referrals" | "rewards" | "profile";
 
@@ -122,7 +123,7 @@ function buildNotifications(payload: DashboardPayload) {
 
 function storedSeenIds() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(SEEN_IDS_KEY) || "[]");
+    const parsed = JSON.parse(readLocalStorage(SEEN_IDS_KEY) || "[]");
     return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
   } catch {
     return [];
@@ -225,7 +226,7 @@ export function AmbassadorHeaderTools() {
   function rememberSeen(ids: string[]) {
     const next = Array.from(new Set([...seenIds, ...ids])).slice(-100);
     setSeenIds(next);
-    localStorage.setItem(SEEN_IDS_KEY, JSON.stringify(next));
+    writeLocalStorage(SEEN_IDS_KEY, JSON.stringify(next));
   }
 
   function openSection(section: AmbassadorSection) {

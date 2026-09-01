@@ -25,6 +25,8 @@ import {
 import { Logo } from "@/components/brand/logo";
 import { DateText } from "@/components/ui/date-text";
 import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
+import { useDashboardMobileDrawer } from "@/components/dashboard-mobile-drawer";
+import { readLocalStorage, writeLocalStorage } from "@/lib/browser-storage";
 
 type SectionKey = "overview" | "projects" | "dues" | "profile";
 type DuesSummary = { currency: string; total: string; expected: string; due: string; paid: string; outstanding: string };
@@ -149,6 +151,7 @@ export default function PartnerDashboardPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const { desktopSidebar } = useDashboardMobileDrawer(menuOpen, setMenuOpen);
   const [activeSection, setActiveSection] = useState<SectionKey>("overview");
   const [darkMode, setDarkMode] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -156,7 +159,7 @@ export default function PartnerDashboardPage() {
   const [progressDrafts, setProgressDrafts] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    queueMicrotask(() => setDarkMode(localStorage.getItem("cyberweel-partner-theme") === "dark"));
+    queueMicrotask(() => setDarkMode(readLocalStorage("cyberweel-partner-theme") === "dark"));
     const previewId = new URLSearchParams(window.location.search).get("adminPreview");
     const endpoint = previewId
       ? `/api/partner/dashboard?adminPreview=${encodeURIComponent(previewId)}`
@@ -197,7 +200,7 @@ export default function PartnerDashboardPage() {
   function toggleDarkMode() {
     setDarkMode((current) => {
       const next = !current;
-      localStorage.setItem("cyberweel-partner-theme", next ? "dark" : "light");
+      writeLocalStorage("cyberweel-partner-theme", next ? "dark" : "light");
       return next;
     });
   }
@@ -367,12 +370,12 @@ export default function PartnerDashboardPage() {
 
   return (
     <div dir="rtl" className={darkMode ? "dark min-h-screen bg-slate-950 text-white" : "min-h-screen bg-[#f5f1e8] text-slate-950"}>
-      {menuOpen && <button aria-label="إغلاق القائمة" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 bg-slate-950/55 lg:hidden" />}
+      {menuOpen && <button type="button" aria-label="إغلاق القائمة" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 bg-slate-950/55 lg:hidden" />}
 
-      <aside className={`fixed inset-y-0 right-0 z-50 flex w-[310px] max-w-[calc(100vw-1rem)] flex-col overflow-y-auto overscroll-contain bg-[#101827] p-4 text-white shadow-2xl transition-transform sm:p-6 lg:translate-x-0 ${menuOpen ? "translate-x-0" : "translate-x-full"}`}>
+      <aside id="partner-dashboard-menu" inert={!desktopSidebar && !menuOpen} aria-hidden={!desktopSidebar && !menuOpen ? true : undefined} aria-label="قائمة لوحة الشريك" className={`fixed inset-y-0 right-0 z-50 flex w-[310px] max-w-[calc(100vw-1rem)] flex-col overflow-y-auto overscroll-contain bg-[#101827] p-4 text-white shadow-2xl transition-transform sm:p-6 lg:translate-x-0 ${menuOpen ? "translate-x-0" : "translate-x-full"}`}>
         <div className="flex items-start justify-between gap-3">
           <DashboardWordmark />
-          <button aria-label="إغلاق القائمة" onClick={() => setMenuOpen(false)} className="rounded-xl p-2 text-white/70 hover:bg-white/10 lg:hidden"><X size={22} /></button>
+          <button type="button" aria-label="إغلاق القائمة" onClick={() => setMenuOpen(false)} className="rounded-xl p-2 text-white/70 hover:bg-white/10 lg:hidden"><X size={22} /></button>
         </div>
         <nav className="mt-8 space-y-2 sm:mt-12">
           {navigation.map((item) => {
@@ -382,7 +385,7 @@ export default function PartnerDashboardPage() {
           })}
         </nav>
         <div className="mt-auto space-y-3">
-          <Link href="/" className="flex items-center justify-center gap-2 rounded-2xl bg-[#bd9850] px-4 py-3 font-black text-slate-950"><ArrowLeft size={18} />العودة إلى الموقع</Link>
+          <Link href="/" className="flex items-center justify-center gap-2 rounded-2xl bg-[#bd9850] px-4 py-3 font-black text-slate-950"><ArrowLeft size={18} />العودة إلى الموقع</Link><button type="button" onClick={logout} disabled={loggingOut} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/15 px-4 py-3 font-black text-white/80 transition hover:bg-white/10 disabled:opacity-60 sm:hidden"><LogOut size={18} />{data?.isAdminPreview ? "العودة للإدارة" : loggingOut ? "جارٍ الخروج" : "تسجيل الخروج"}</button>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-white/65">تحتاج إلى مساعدة؟<br /><Link href="/contact" className="font-black text-[#d5b873]">تواصل معنا</Link></div>
         </div>
       </aside>
@@ -391,7 +394,7 @@ export default function PartnerDashboardPage() {
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-[#f5f1e8]/90 px-4 py-4 backdrop-blur sm:px-7 lg:px-10 dark:border-slate-800 dark:bg-slate-950/90">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <button aria-label="فتح القائمة" onClick={() => setMenuOpen(true)} className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm lg:hidden dark:border-slate-700 dark:bg-slate-900"><Menu size={21} /></button>
+              <button type="button" aria-label="فتح القائمة" aria-expanded={menuOpen} aria-controls="partner-dashboard-menu" onClick={() => setMenuOpen(true)} className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm lg:hidden dark:border-slate-700 dark:bg-slate-900"><Menu size={21} /></button>
               <div><p className="text-xs font-black tracking-[0.14em] text-[#9f7d3d]">{data.isAdminPreview ? "معاينة الإدارة · للقراءة فقط" : "لوحة شريك التنفيذ"}</p><h1 className="mt-1 text-lg font-black sm:text-2xl">مرحبًا، {data.partner.name}</h1></div>
             </div>
             <div className="flex items-center gap-2">
@@ -438,7 +441,7 @@ export default function PartnerDashboardPage() {
             <div><p className="text-sm font-black text-[#9f7d3d]">متوقع · مستحق · مدفوع</p><h2 className="mt-1 text-3xl font-black">مستحقات المشاريع</h2><p className="mt-2 text-slate-600 dark:text-slate-300">المبلغ يبقى متوقعًا أثناء التنفيذ، ويصبح مستحقًا فقط بعد اعتماد الإدارة للتسليم.</p></div>
             <div className="grid gap-4">{data.stats.duesByCurrency.map((item) => <div key={item.currency} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"><p className="font-bold text-slate-500">{item.currency}</p><div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4"><div><span className="text-xs text-slate-500">الإجمالي</span><strong className="mt-1 block text-xl">{money(item.total, item.currency)}</strong></div><div><span className="text-xs text-slate-500">متوقع</span><strong className="mt-1 block text-xl">{money(item.expected, item.currency)}</strong></div><div><span className="text-xs text-slate-500">مستحق للدفع</span><strong className="mt-1 block text-xl">{money(item.due, item.currency)}</strong></div><div><span className="text-xs text-slate-500">مدفوع</span><strong className="mt-1 block text-xl">{money(item.paid, item.currency)}</strong></div></div></div>)}</div>
             <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-              <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-right"><thead className="bg-slate-50 text-sm text-slate-500 dark:bg-slate-800/70 dark:text-slate-300"><tr><th className="px-5 py-4">المشروع / المرحلة</th><th className="px-5 py-4">المبلغ</th><th className="px-5 py-4">الحالة</th><th className="px-5 py-4">تاريخ الدفع</th><th className="px-5 py-4">تفاصيل الدفع</th></tr></thead><tbody>{data.projects.map((project) => <tr key={project.id} className="border-t border-slate-100 dark:border-slate-800"><td className="px-5 py-4 font-black">{project.title}<p className="mt-1 text-xs font-normal text-slate-500">{project.description}</p></td><td className="px-5 py-4 font-bold">{project.feeAmount ? money(project.feeAmount, project.feeCurrency) : "غير محدد"}</td><td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${paymentStatusClass[project.paymentStatus]}`}>{paymentStatus[project.paymentStatus]}</span></td><td className="px-5 py-4 text-sm text-slate-500"><DateText value={project.paidAt} /></td><td className="px-5 py-4 text-sm"><div className="grid gap-1"><span>{project.paymentMethod || "—"}</span>{project.paymentReference && <span className="text-xs text-slate-500">مرجع: {project.paymentReference}</span>}{project.paymentProofAvailable && project.paymentProofPath && <a href={project.paymentProofPath} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 font-bold text-[#9f7d3d] underline"><ExternalLink size={14} />إثبات الدفع</a>}</div></td></tr>)}</tbody></table></div>
+              <div role="region" aria-label="جدول مستحقات المشاريع" tabIndex={0} className="overflow-x-auto focus:outline-none focus:ring-2 focus:ring-[#B89A5A] focus:ring-inset"><table className="w-full min-w-[980px] text-right"><thead className="bg-slate-50 text-sm text-slate-500 dark:bg-slate-800/70 dark:text-slate-300"><tr><th className="px-5 py-4">المشروع / المرحلة</th><th className="px-5 py-4">المبلغ</th><th className="px-5 py-4">الحالة</th><th className="px-5 py-4">تاريخ الدفع</th><th className="px-5 py-4">تفاصيل الدفع</th></tr></thead><tbody>{data.projects.map((project) => <tr key={project.id} className="border-t border-slate-100 dark:border-slate-800"><td className="px-5 py-4 font-black">{project.title}<p className="mt-1 text-xs font-normal text-slate-500">{project.description}</p></td><td className="px-5 py-4 font-bold">{project.feeAmount ? money(project.feeAmount, project.feeCurrency) : "غير محدد"}</td><td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${paymentStatusClass[project.paymentStatus]}`}>{paymentStatus[project.paymentStatus]}</span></td><td className="px-5 py-4 text-sm text-slate-500"><DateText value={project.paidAt} /></td><td className="px-5 py-4 text-sm"><div className="grid gap-1"><span>{project.paymentMethod || "—"}</span>{project.paymentReference && <span className="text-xs text-slate-500">مرجع: {project.paymentReference}</span>}{project.paymentProofAvailable && project.paymentProofPath && <a href={project.paymentProofPath} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 font-bold text-[#9f7d3d] underline"><ExternalLink size={14} />إثبات الدفع</a>}</div></td></tr>)}</tbody></table></div>
             </div>
           </section>}
 

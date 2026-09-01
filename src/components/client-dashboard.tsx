@@ -252,12 +252,12 @@ export function ClientDashboard({
             <div><p className="text-sm font-bold text-[#9A7D43]">مساحة العميل</p><h1 className="mt-1 text-3xl font-black">مرحبًا {client?.name || "بك"}</h1></div>
             <div className="flex flex-wrap gap-3">
               <div ref={notificationsRef} className="relative">
-                <button onClick={() => setNotificationsOpen((value) => !value)} className="relative flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
+                <button type="button" aria-expanded={notificationsOpen} aria-haspopup="dialog" aria-controls="client-notifications-popover" onClick={() => setNotificationsOpen((value) => !value)} className="relative flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
                   <Bell className="h-5 w-5" />الإشعارات
                   {!!stats?.unreadNotifications && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{stats.unreadNotifications}</span>}
                 </button>
                 {notificationsOpen && (
-                  <div className="absolute left-0 top-full z-20 mt-3 w-[min(92vw,28rem)] rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl">
+                  <div id="client-notifications-popover" role="dialog" aria-label="إشعارات العميل" className="absolute left-0 top-full z-20 mt-3 w-[min(92vw,28rem)] rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl">
                     <div className="flex items-center justify-between px-2 py-2"><strong>الإشعارات</strong><span className="text-xs text-slate-500">{stats?.unreadNotifications || 0} غير مقروء</span></div>
                     <div className="max-h-96 space-y-2 overflow-y-auto">
                       {notifications.map((notification) => (
@@ -362,8 +362,8 @@ export function ClientDashboard({
 
           {!loading && section === "invoices" && <section className="mt-7">
             <div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black">الفواتير</h2>{isAdminMirror && <EditSectionButton onClick={() => onManage?.("invoices")} />}</div>
-            <div className="mt-5 rounded-2xl border border-[#D8D2C4] bg-white shadow-sm">
-              <table className="w-full table-fixed text-right text-xs xl:text-sm">
+            <div role="region" aria-label="جدول فواتير العميل" tabIndex={0} className="mt-5 overflow-x-auto rounded-2xl border border-[#D8D2C4] bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#B89A5A] focus:ring-inset">
+              <table className="w-full min-w-[900px] table-fixed text-right text-xs xl:text-sm">
                 <thead><tr className="border-b">
                   <th className="w-[18%] p-3">رقم الفاتورة</th>
                   <th className="w-[14%] p-3">تاريخ الإصدار</th>

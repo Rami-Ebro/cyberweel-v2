@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { type DashboardLang, translateDashboardText } from "@/lib/dashboard-i18n";
+import { readLocalStorage, writeLocalStorage } from "@/lib/browser-storage";
 
 type DashboardI18nContextValue = {
   lang: DashboardLang;
@@ -121,7 +122,7 @@ export function DashboardI18nProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!active) return;
-    const stored = window.localStorage.getItem(STORAGE_KEY);
+    const stored = readLocalStorage(STORAGE_KEY);
     if (stored === "ar" || stored === "en") {
       void Promise.resolve().then(() => setLangState(stored));
     }
@@ -139,11 +140,7 @@ export function DashboardI18nProvider({ children }: { children: ReactNode }) {
 
   const setLang = useCallback((next: DashboardLang) => {
     setLangState(next);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      // Keep same-tab language synchronization working even when storage is unavailable.
-    }
+    writeLocalStorage(STORAGE_KEY, next);
     window.dispatchEvent(new CustomEvent(LANGUAGE_EVENT, { detail: { lang: next } }));
   }, []);
 

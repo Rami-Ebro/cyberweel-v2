@@ -8,6 +8,7 @@ const assistant = read("src/components/site/ai-assistant.tsx");
 const siteI18n = read("src/components/site/i18n.tsx");
 const dashboardProvider = read("src/components/dashboard-i18n-provider.tsx");
 const dashboardI18n = read("src/lib/dashboard-i18n.ts");
+const dashboardStorage = read("src/lib/browser-storage.ts");
 const ambassador = read("src/app/ambassador/dashboard/page.tsx");
 const whatsapp = read("src/components/site/whatsapp-button.tsx");
 const scroll = read("src/components/site/scroll-utilities.tsx");
@@ -37,7 +38,8 @@ assert.match(siteI18n, /LANGUAGE_EVENT = "cyberweel:language-change"/);
 assert.match(siteI18n, /window\.dispatchEvent\(new CustomEvent\(LANGUAGE_EVENT/);
 assert.match(dashboardProvider, /LANGUAGE_EVENT = "cyberweel:language-change"/);
 assert.match(dashboardProvider, /pathname !== "\/partner"/);
-assert.match(dashboardProvider, /try \{[\s\S]*localStorage\.setItem\(STORAGE_KEY, next\)[\s\S]*\} catch \{[\s\S]*window\.dispatchEvent\(new CustomEvent\(LANGUAGE_EVENT/);
+assert.match(dashboardProvider, /writeLocalStorage\(STORAGE_KEY, next\);[\s\S]*window\.dispatchEvent\(new CustomEvent\(LANGUAGE_EVENT/);
+assert.match(dashboardStorage, /try \{[\s\S]*window\.localStorage\.setItem\(key, value\);[\s\S]*return true;[\s\S]*\} catch \{[\s\S]*return false;/);
 assert.match(dashboardProvider, /z-20 h-11 shadow-lg/);
 assert.doesNotMatch(dashboardProvider, /z-\[100\]/);
 
