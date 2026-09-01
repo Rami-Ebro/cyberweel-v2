@@ -51,8 +51,7 @@ test("Group 11 mobile drawers are inert while hidden, announce state, lock scrol
     assert.match(source, /aria-hidden=\{!desktopSidebar && !menuOpen \? true : undefined\}/, path);
     assert.match(source, new RegExp(`aria-controls="${id}"`), path);
     assert.match(source, /aria-expanded=\{menuOpen\}/, path);
-    assert.match(source, /sm:hidden[^
-]*<LogOut/, path);
+    assert.match(source, /sm:hidden[^\r\n]*<LogOut/, path);
   }
 });
 
