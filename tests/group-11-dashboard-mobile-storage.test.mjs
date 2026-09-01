@@ -59,6 +59,8 @@ test("Group 11 dashboard tables remain readable and keyboard-scrollable on narro
   const client = read("src/components/client-dashboard.tsx");
   assert.match(client, /aria-label="جدول فواتير العميل"[^>]*tabIndex=\{0\}[^>]*overflow-x-auto/);
   assert.match(client, /min-w-\[900px\]/);
+  assert.match(client, /aria-controls="client-notifications-popover"/);
+  assert.match(client, /id="client-notifications-popover" role="dialog" aria-label="إشعارات العميل"/);
 
   const partner = read("src/app/partner/dashboard/page.tsx");
   assert.match(partner, /aria-label="جدول مستحقات المشاريع"[^>]*tabIndex=\{0\}/);
