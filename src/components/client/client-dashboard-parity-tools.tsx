@@ -427,6 +427,14 @@ export function ClientDashboardParityTools() {
         }
 
         @media (max-width: 639px) {
+          [data-cw-client-notifications="true"] > [role="dialog"] {
+            position: fixed !important;
+            inset-inline: 1rem !important;
+            top: 8.75rem !important;
+            width: auto !important;
+            max-width: none !important;
+          }
+
           [data-cw-client-header="true"] {
             flex-direction: column !important;
             align-items: stretch !important;

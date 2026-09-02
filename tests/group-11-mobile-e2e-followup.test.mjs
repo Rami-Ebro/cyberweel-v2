@@ -19,6 +19,9 @@ test("client mobile drawer exposes stable accessibility state", () => {
   assert.match(client, /aside\.inert = hidden/);
   assert.match(client, /aria-controls="client-dashboard-menu"/);
   assert.match(client, /aria-expanded=\{menuOpen\}/);
+  assert.match(client, /\[data-cw-client-notifications="true"\] > \[role="dialog"\]/);
+  assert.match(client, /inset-inline: 1rem !important/);
+  assert.match(client, /position: fixed !important/);
 });
 
 test("partner delivery feedback never accesses sessionStorage directly", () => {
