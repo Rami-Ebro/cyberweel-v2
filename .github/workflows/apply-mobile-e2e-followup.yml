@@ -1,0 +1,122 @@
+name: Apply mobile E2E follow-up
+
+on:
+  push:
+    branches:
+      - fix/mobile-e2e-storage-drawer-followup
+    paths:
+      - .github/workflows/apply-mobile-e2e-followup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply deterministic follow-up patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected exactly one marker, found {count}: {old[:80]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          storage = Path("src/lib/browser-storage.ts")
+          storage_text = storage.read_text()
+          session_helpers = '''\nexport function readSessionStorage(key: string): string | null {\n  if (typeof window === "undefined") return null;\n  try {\n    return window.sessionStorage.getItem(key);\n  } catch {\n    return null;\n  }\n}\n\nexport function writeSessionStorage(key: string, value: string): boolean {\n  if (typeof window === "undefined") return false;\n  try {\n    window.sessionStorage.setItem(key, value);\n    return true;\n  } catch {\n    return false;\n  }\n}\n\nexport function removeSessionStorage(key: string): boolean {\n  if (typeof window === "undefined") return false;\n  try {\n    window.sessionStorage.removeItem(key);\n    return true;\n  } catch {\n    return false;\n  }\n}\n'''
+          if "export function readSessionStorage" in storage_text:
+              raise SystemExit("session storage helpers already present unexpectedly")
+          storage.write_text(storage_text.rstrip() + "\n" + session_helpers)
+
+          feedback = "src/components/partner/partner-delivery-feedback.tsx"
+          replace_once(
+              feedback,
+              'import { useEffect, useRef, useState } from "react";\n',
+              'import { useEffect, useRef, useState } from "react";\nimport { readSessionStorage, removeSessionStorage, writeSessionStorage } from "@/lib/browser-storage";\n',
+          )
+          replace_once(
+              feedback,
+              '      const stored = sessionStorage.getItem(STORAGE_KEY);\n      if (stored) {\n        sessionStorage.removeItem(STORAGE_KEY);\n',
+              '      const stored = readSessionStorage(STORAGE_KEY);\n      if (stored) {\n        removeSessionStorage(STORAGE_KEY);\n',
+          )
+          replace_once(
+              feedback,
+              '      if (kind === "success") sessionStorage.setItem(STORAGE_KEY, message);\n',
+              '      if (kind === "success") writeSessionStorage(STORAGE_KEY, message);\n',
+          )
+
+          client = "src/components/client/client-dashboard-parity-tools.tsx"
+          replace_once(
+              client,
+              'import { useRouter } from "next/navigation";\n',
+              'import { useRouter } from "next/navigation";\nimport { useDashboardMobileDrawer } from "@/components/dashboard-mobile-drawer";\nimport { readLocalStorage, writeLocalStorage } from "@/lib/browser-storage";\n',
+          )
+          replace_once(
+              client,
+              '  const [menuOpen, setMenuOpen] = useState(false);\n  const [loggingOut, setLoggingOut] = useState(false);\n',
+              '  const [menuOpen, setMenuOpen] = useState(false);\n  const { desktopSidebar } = useDashboardMobileDrawer(menuOpen, setMenuOpen);\n  const [loggingOut, setLoggingOut] = useState(false);\n',
+          )
+          replace_once(
+              client,
+              '    queueMicrotask(() => setDarkMode(localStorage.getItem(CLIENT_THEME_KEY) === "dark"));\n',
+              '    queueMicrotask(() => setDarkMode(readLocalStorage(CLIENT_THEME_KEY) === "dark"));\n',
+          )
+          replace_once(
+              client,
+              '''  useEffect(() => {\n    if (!menuOpen) return;\n    const closeOnEscape = (event: KeyboardEvent) => {\n      if (event.key === "Escape") setMenuOpen(false);\n    };\n    document.addEventListener("keydown", closeOnEscape);\n    return () => document.removeEventListener("keydown", closeOnEscape);\n  }, [menuOpen]);\n\n''',
+              '''  useEffect(() => {\n    if (!aside) return;\n    aside.id = "client-dashboard-menu";\n    const hidden = !desktopSidebar && !menuOpen;\n    aside.inert = hidden;\n    aside.setAttribute("aria-hidden", hidden ? "true" : "false");\n    return () => {\n      aside.inert = false;\n      aside.removeAttribute("aria-hidden");\n      if (aside.id === "client-dashboard-menu") aside.removeAttribute("id");\n    };\n  }, [aside, desktopSidebar, menuOpen]);\n\n''',
+          )
+          replace_once(
+              client,
+              '      localStorage.setItem(CLIENT_THEME_KEY, next ? "dark" : "light");\n',
+              '      writeLocalStorage(CLIENT_THEME_KEY, next ? "dark" : "light");\n',
+          )
+          replace_once(
+              client,
+              '            aria-label="فتح القائمة"\n            onClick={() => setMenuOpen(true)}\n',
+              '            aria-label="فتح القائمة"\n            aria-controls="client-dashboard-menu"\n            aria-expanded={menuOpen}\n            onClick={() => setMenuOpen(true)}\n',
+          )
+
+          test = Path("tests/mobile-e2e-storage-drawer-followup.test.mjs")
+          test.write_text('''import assert from "node:assert/strict";\nimport fs from "node:fs";\nimport test from "node:test";\n\nconst read = (path) => fs.readFileSync(path, "utf8");\n\ntest("client parity tools use safe storage and expose an accessible mobile drawer", () => {\n  const source = read("src/components/client/client-dashboard-parity-tools.tsx");\n  assert.match(source, /readLocalStorage\(CLIENT_THEME_KEY\)/);\n  assert.match(source, /writeLocalStorage\(CLIENT_THEME_KEY/);\n  assert.doesNotMatch(source, /\blocalStorage\./);\n  assert.match(source, /aria-controls="client-dashboard-menu"/);\n  assert.match(source, /aria-expanded=\{menuOpen\}/);\n  assert.match(source, /aside\.id = "client-dashboard-menu"/);\n  assert.match(source, /aside\.inert = hidden/);\n  assert.match(source, /aria-hidden/);\n  assert.match(source, /useDashboardMobileDrawer\(menuOpen, setMenuOpen\)/);\n});\n\ntest("partner delivery feedback survives blocked session storage", () => {\n  const source = read("src/components/partner/partner-delivery-feedback.tsx");\n  assert.match(source, /readSessionStorage\(STORAGE_KEY\)/);\n  assert.match(source, /removeSessionStorage\(STORAGE_KEY\)/);\n  assert.match(source, /writeSessionStorage\(STORAGE_KEY, message\)/);\n  assert.doesNotMatch(source, /\bsessionStorage\./);\n});\n\ntest("browser storage helpers fail closed for both local and session storage", () => {\n  const source = read("src/lib/browser-storage.ts");\n  for (const name of ["readLocalStorage", "writeLocalStorage", "readSessionStorage", "writeSessionStorage", "removeSessionStorage"]) {\n    assert.match(source, new RegExp(`export function ${name}\\\\(`));\n  }\n  assert.ok((source.match(/catch \{/g) || []).length >= 5);\n});\n''')
+          PY
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Generate Prisma client
+        run: ./node_modules/.bin/prisma generate
+
+      - name: Run targeted regression tests
+        run: node --test tests/mobile-e2e-storage-drawer-followup.test.mjs tests/group-11-dashboard-mobile-storage.test.mjs
+
+      - name: Lint changed application files
+        run: ./node_modules/.bin/eslint src/components/client/client-dashboard-parity-tools.tsx src/components/partner/partner-delivery-feedback.tsx src/lib/browser-storage.ts
+
+      - name: TypeScript check
+        run: ./node_modules/.bin/tsc --noEmit --incremental false
+
+      - name: Remove temporary workflow and commit reviewed patch
+        run: |
+          rm .github/workflows/apply-mobile-e2e-followup.yml
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/client/client-dashboard-parity-tools.tsx src/components/partner/partner-delivery-feedback.tsx src/lib/browser-storage.ts tests/mobile-e2e-storage-drawer-followup.test.mjs .github/workflows/apply-mobile-e2e-followup.yml
+          git commit -m "fix: close mobile E2E storage and client drawer gaps"
+          git push origin HEAD:fix/mobile-e2e-storage-drawer-followup
