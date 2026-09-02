@@ -17,6 +17,14 @@ test("client parity tools use safe storage and expose an accessible mobile drawe
   assert.ok(source.includes("useDashboardMobileDrawer(menuOpen, setMenuOpen)"));
 });
 
+test("client notification popover is viewport-bound on mobile", () => {
+  const source = read("src/components/client-dashboard.tsx");
+  assert.ok(source.includes('ref={notificationsRef} className="static sm:relative"'));
+  assert.ok(source.includes('absolute inset-x-0 top-full'));
+  assert.ok(source.includes('sm:inset-x-auto sm:right-0'));
+  assert.ok(!source.includes('absolute left-0 top-full z-20'));
+});
+
 test("partner delivery feedback survives blocked session storage", () => {
   const source = read("src/components/partner/partner-delivery-feedback.tsx");
   assert.ok(source.includes("readSessionStorage(STORAGE_KEY)"));
