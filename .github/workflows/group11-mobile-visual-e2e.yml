@@ -33,7 +33,7 @@ jobs:
       ADMIN_SESSION_SECRET: group11-mobile-e2e-admin-secret-123456789012345
       RATE_LIMIT_SECRET: group11-mobile-e2e-rate-secret-123456789012345678
       PARTNER_ADMIN_KEY: group11-mobile-e2e-admin-key
-      E2E_BASE_URL: http://127.0.0.1:3000
+      E2E_BASE_URL: http://localhost:3000
 
     steps:
       - uses: actions/checkout@v4
@@ -71,7 +71,7 @@ jobs:
           ./node_modules/.bin/next start -H 127.0.0.1 -p 3000 > /tmp/cyberweel-mobile-e2e-server.log 2>&1 &
           echo $! > /tmp/cyberweel-mobile-e2e-server.pid
           for attempt in $(seq 1 60); do
-            if curl --fail --silent --show-error http://127.0.0.1:3000/login > /dev/null; then
+            if curl --fail --silent --show-error http://localhost:3000/login > /dev/null; then
               echo "CyberWeel E2E server is ready"
               exit 0
             fi
