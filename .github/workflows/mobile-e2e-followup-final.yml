@@ -1,9 +1,9 @@
-name: Mobile E2E follow-up final
+name: Mobile E2E visual-bound final
 
 on:
   push:
     branches:
-      - test/mobile-e2e-followup-final-20260902
+      - test/mobile-e2e-visual-bound-final-20260902
 
 permissions:
   contents: read
@@ -40,6 +40,33 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Sync exact reviewed follow-up files
+        run: |
+          git checkout origin/fix/mobile-e2e-storage-drawer-followup -- src/components/client-dashboard.tsx tests/mobile-e2e-storage-drawer-followup.test.mjs
+          test "$(git hash-object src/components/client-dashboard.tsx)" = "a65e95158c50f7798916df5fcbac3c0b88ef32b9"
+          test "$(git hash-object tests/mobile-e2e-storage-drawer-followup.test.mjs)" = "1bac55b6225d833e1bfe54bf6fbce922c28d10dc"
+
+      - name: Add viewport geometry assertion to E2E harness
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("scripts/e2e-mobile-visual.mjs")
+          source = path.read_text()
+          old = '''  requireCondition((await notificationTrigger.getAttribute("aria-expanded")) === "true", `client-${width}: notification trigger not expanded`);
+          assertNoRootOverflow(await pageMetrics(page), `client-${width}-notifications-open`);
+          '''
+          new = '''  requireCondition((await notificationTrigger.getAttribute("aria-expanded")) === "true", `client-${width}: notification trigger not expanded`);
+          const dialogBox = await dialog.boundingBox();
+          requireCondition(dialogBox !== null, `client-${width}: notification dialog has no geometry`);
+          requireCondition(dialogBox.x >= -1, `client-${width}: notification dialog escapes left viewport edge (${dialogBox.x}px)`);
+          requireCondition(dialogBox.x + dialogBox.width <= width + 1, `client-${width}: notification dialog escapes right viewport edge (${dialogBox.x + dialogBox.width}px > ${width}px)`);
+          assertNoRootOverflow(await pageMetrics(page), `client-${width}-notifications-open`);
+          '''
+          if source.count(old) != 1:
+              raise SystemExit("notification assertion marker not found exactly once")
+          path.write_text(source.replace(old, new, 1))
+          PY
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -51,7 +78,7 @@ jobs:
       - name: Generate Prisma client
         run: ./node_modules/.bin/prisma generate
 
-      - name: Run full regression suite against application tree
+      - name: Run full regression suite against exact application tree
         run: |
           mv scripts/e2e-mobile-seed.mjs /tmp/e2e-mobile-seed.mjs
           trap 'mv /tmp/e2e-mobile-seed.mjs scripts/e2e-mobile-seed.mjs' EXIT
@@ -108,7 +135,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mobile-e2e-followup-final-artifacts
+          name: mobile-e2e-visual-bound-final-artifacts
           path: artifacts/mobile-e2e/
           if-no-files-found: warn
           retention-days: 7
