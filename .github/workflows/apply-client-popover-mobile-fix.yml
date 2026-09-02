@@ -1,0 +1,70 @@
+name: Apply client notification mobile containment fix
+
+on:
+  push:
+    branches:
+      - fix/mobile-e2e-storage-drawer-followup
+    paths:
+      - .github/workflows/apply-client-popover-mobile-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply deterministic popover containment patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/client-dashboard.tsx')
+          text = p.read_text()
+          old_wrapper = '<div ref={notificationsRef} className="relative">'
+          new_wrapper = '<div ref={notificationsRef} className="static sm:relative">'
+          if text.count(old_wrapper) != 1:
+              raise SystemExit(f'wrapper marker count={text.count(old_wrapper)}')
+          text = text.replace(old_wrapper, new_wrapper, 1)
+
+          old_dialog = 'className="absolute left-0 top-full z-20 mt-3 w-[min(92vw,28rem)] rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl"'
+          new_dialog = 'className="absolute inset-x-0 top-full z-20 mt-3 w-auto rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl sm:inset-x-auto sm:right-0 sm:w-[min(92vw,28rem)]"'
+          if text.count(old_dialog) != 1:
+              raise SystemExit(f'dialog marker count={text.count(old_dialog)}')
+          text = text.replace(old_dialog, new_dialog, 1)
+          p.write_text(text)
+
+          test = Path('tests/mobile-e2e-storage-drawer-followup.test.mjs')
+          source = test.read_text()
+          marker = 'test("partner delivery feedback survives blocked session storage", () => {'
+          addition = '''test("client notification popover is viewport-bound on mobile", () => {\n  const source = read("src/components/client-dashboard.tsx");\n  assert.ok(source.includes('ref={notificationsRef} className="static sm:relative"'));\n  assert.ok(source.includes('absolute inset-x-0 top-full'));\n  assert.ok(source.includes('sm:inset-x-auto sm:right-0'));\n  assert.ok(!source.includes('absolute left-0 top-full z-20'));\n});\n\n'''
+          if source.count(marker) != 1:
+              raise SystemExit('test insertion marker mismatch')
+          test.write_text(source.replace(marker, addition + marker, 1))
+          PY
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Generate Prisma client
+        run: ./node_modules/.bin/prisma generate
+      - name: Run targeted regression tests
+        run: node --test tests/mobile-e2e-storage-drawer-followup.test.mjs tests/group-11-dashboard-mobile-storage.test.mjs
+      - name: Lint changed application files
+        run: ./node_modules/.bin/eslint src/components/client-dashboard.tsx src/components/client/client-dashboard-parity-tools.tsx src/components/partner/partner-delivery-feedback.tsx src/lib/browser-storage.ts
+      - name: TypeScript check
+        run: ./node_modules/.bin/tsc --noEmit --incremental false
+      - name: Remove temporary workflow and commit fix
+        run: |
+          rm .github/workflows/apply-client-popover-mobile-fix.yml
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/client-dashboard.tsx tests/mobile-e2e-storage-drawer-followup.test.mjs .github/workflows/apply-client-popover-mobile-fix.yml
+          git commit -m "fix: contain client notifications on mobile"
+          git push origin HEAD:fix/mobile-e2e-storage-drawer-followup
