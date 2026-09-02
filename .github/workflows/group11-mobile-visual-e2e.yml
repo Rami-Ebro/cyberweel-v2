@@ -53,6 +53,19 @@ jobs:
           git diff --check
           git status --short
 
+      - name: Strengthen notification viewport assertion for E2E
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'scripts/e2e-mobile-visual.mjs';
+          let source = fs.readFileSync(path, 'utf8');
+          const before = '  assertNoRootOverflow(await pageMetrics(page), `client-${width}-notifications-open`);\n  await page.screenshot({ path: path.join(ARTIFACT_DIR, `client-${width}-notifications.png`), fullPage: true });';
+          const after = '  assertNoRootOverflow(await pageMetrics(page), `client-${width}-notifications-open`);\n  const dialogBox = await dialog.boundingBox();\n  const viewportWidth = await page.evaluate(() => window.innerWidth);\n  requireCondition(Boolean(dialogBox), `client-${width}: notification dialog has no bounding box`);\n  requireCondition(dialogBox.x >= -1, `client-${width}: notification dialog starts outside viewport (${dialogBox.x}px)`);\n  requireCondition(dialogBox.x + dialogBox.width <= viewportWidth + 1, `client-${width}: notification dialog ends outside viewport (${dialogBox.x + dialogBox.width}px > ${viewportWidth}px)`);\n  await page.screenshot({ path: path.join(ARTIFACT_DIR, `client-${width}-notifications.png`), fullPage: true });';
+          if (!source.includes(before)) throw new Error('notification assertion marker not found');
+          source = source.replace(before, after);
+          fs.writeFileSync(path, source);
+          NODE
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
