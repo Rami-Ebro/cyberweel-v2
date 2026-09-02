@@ -51,8 +51,11 @@ jobs:
       - name: Generate Prisma client
         run: ./node_modules/.bin/prisma generate
 
-      - name: Run full regression suite
-        run: node --test tests/*.test.mjs
+      - name: Run full regression suite against application tree
+        run: |
+          mv scripts/e2e-mobile-seed.mjs /tmp/e2e-mobile-seed.mjs
+          trap 'mv /tmp/e2e-mobile-seed.mjs scripts/e2e-mobile-seed.mjs' EXIT
+          node --test tests/*.test.mjs
 
       - name: Lint full repository
         run: npm run lint
