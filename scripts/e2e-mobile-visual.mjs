@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 import fs from "node:fs/promises";
 import path from "node:path";
 
-const BASE_URL = process.env.E2E_BASE_URL || "http://127.0.0.1:3000";
+const BASE_URL = process.env.E2E_BASE_URL || "http://localhost:3000";
 const PASSWORD = "CwMobileE2E!2026-Safe";
 const ARTIFACT_DIR = path.resolve("artifacts/mobile-e2e");
 const widths = [320, 375, 390, 430];
@@ -19,6 +19,13 @@ function requireCondition(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function isLocalHarnessNoise(value) {
+  if (/favicon|Failed to load resource.*404/i.test(value)) return true;
+  if (/_vercel\/speed-insights\/script\.js/i.test(value)) return true;
+  if (BASE_URL.startsWith("http://localhost") && /ERR_SSL_PROTOCOL_ERROR/i.test(value)) return true;
+  return false;
+}
+
 async function pageMetrics(page) {
   return page.evaluate(() => ({
     innerWidth: window.innerWidth,
@@ -30,10 +37,7 @@ async function pageMetrics(page) {
 
 function assertNoRootOverflow(metrics, label) {
   const widest = Math.max(metrics.htmlScrollWidth, metrics.bodyScrollWidth);
-  requireCondition(
-    widest <= metrics.innerWidth + 2,
-    `${label}: root horizontal overflow (${widest}px > ${metrics.innerWidth}px)`,
-  );
+  requireCondition(widest <= metrics.innerWidth + 2, `${label}: root horizontal overflow (${widest}px > ${metrics.innerWidth}px)`);
 }
 
 async function localizedScrollInfo(locator, label) {
@@ -83,20 +87,59 @@ async function checkAdmin(page, width) {
   requireCondition((await page.evaluate(() => document.body.style.overflow)) !== "hidden", `owner-${width}: body scroll lock was not restored`);
 }
 
-async function checkClient(page, width) {
-  const trigger = page.locator('[aria-controls="client-notifications-popover"]');
-  await trigger.waitFor({ state: "visible" });
-  requireCondition((await trigger.getAttribute("aria-haspopup")) === "dialog", `client-${width}: notification trigger semantics mismatch`);
+async function openClientDrawer(page, width) {
+  const sidebar = page.locator('[data-cw-client-aside="true"]');
+  const trigger = page.locator('[data-cw-client-menu-button="true"]');
+  await sidebar.waitFor({ state: "attached", timeout: 10_000 });
+  await trigger.waitFor({ state: "visible", timeout: 10_000 });
+
+  requireCondition((await sidebar.getAttribute("id")) === "client-dashboard-menu", `client-${width}: mobile sidebar missing stable id`);
+  requireCondition((await trigger.getAttribute("aria-controls")) === "client-dashboard-menu", `client-${width}: menu trigger missing aria-controls`);
+  requireCondition((await trigger.getAttribute("aria-expanded")) === "false", `client-${width}: closed menu trigger is unexpectedly expanded`);
+  requireCondition((await sidebar.getAttribute("aria-hidden")) === "true", `client-${width}: closed sidebar missing aria-hidden`);
+  requireCondition(await sidebar.evaluate((element) => element.inert === true), `client-${width}: closed sidebar is not inert`);
+
   await trigger.click();
+  await page.waitForTimeout(150);
+  requireCondition((await trigger.getAttribute("aria-expanded")) === "true", `client-${width}: menu trigger did not expand`);
+  requireCondition((await sidebar.getAttribute("aria-hidden")) === "false", `client-${width}: open sidebar still aria-hidden`);
+  requireCondition(await sidebar.evaluate((element) => element.inert === false), `client-${width}: open sidebar remains inert`);
+  requireCondition((await page.evaluate(() => document.body.style.overflow)) === "hidden", `client-${width}: body scroll not locked`);
+  assertNoRootOverflow(await pageMetrics(page), `client-${width}-menu-open`);
+  return { sidebar, trigger };
+}
+
+async function closeClientDrawerWithEscape(page, width, sidebar, trigger) {
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  requireCondition((await trigger.getAttribute("aria-expanded")) === "false", `client-${width}: Escape did not close menu`);
+  requireCondition((await sidebar.getAttribute("aria-hidden")) === "true", `client-${width}: closed sidebar did not restore aria-hidden`);
+  requireCondition(await sidebar.evaluate((element) => element.inert === true), `client-${width}: closed sidebar did not become inert`);
+  requireCondition((await page.evaluate(() => document.body.style.overflow)) !== "hidden", `client-${width}: body scroll lock was not restored`);
+}
+
+async function checkClient(page, width) {
+  const notificationTrigger = page.locator('[aria-controls="client-notifications-popover"]');
+  await notificationTrigger.waitFor({ state: "visible" });
+  requireCondition((await notificationTrigger.getAttribute("aria-haspopup")) === "dialog", `client-${width}: notification trigger semantics mismatch`);
+  await notificationTrigger.click();
   const dialog = page.locator('#client-notifications-popover[role="dialog"]');
   await dialog.waitFor({ state: "visible" });
-  requireCondition((await trigger.getAttribute("aria-expanded")) === "true", `client-${width}: notification trigger not expanded`);
+  requireCondition((await notificationTrigger.getAttribute("aria-expanded")) === "true", `client-${width}: notification trigger not expanded`);
   assertNoRootOverflow(await pageMetrics(page), `client-${width}-notifications-open`);
   await page.screenshot({ path: path.join(ARTIFACT_DIR, `client-${width}-notifications.png`), fullPage: true });
   await page.keyboard.press("Escape");
   await dialog.waitFor({ state: "hidden" });
 
-  await page.locator("aside button").filter({ hasText: "الفواتير" }).first().click();
+  let drawer = await openClientDrawer(page, width);
+  await page.screenshot({ path: path.join(ARTIFACT_DIR, `client-${width}-menu.png`), fullPage: true });
+  await closeClientDrawerWithEscape(page, width, drawer.sidebar, drawer.trigger);
+
+  drawer = await openClientDrawer(page, width);
+  await drawer.sidebar.locator("nav button").filter({ hasText: "الفواتير" }).click();
+  await page.waitForTimeout(150);
+  requireCondition((await page.evaluate(() => document.body.style.overflow)) !== "hidden", `client-${width}: navigation left body scroll locked`);
+
   const invoiceRegion = page.locator('[role="region"][aria-label="جدول فواتير العميل"]');
   const scroll = await localizedScrollInfo(invoiceRegion, `client-${width}-invoice-table`);
   assertNoRootOverflow(await pageMetrics(page), `client-${width}-invoices`);
@@ -166,6 +209,10 @@ async function checkAmbassador(page, width) {
   return { referralScroll, rewardScroll };
 }
 
+function relevantConsoleErrors(values) {
+  return values.filter((value) => !isLocalHarnessNoise(value));
+}
+
 const browser = await chromium.launch({ headless: true });
 const report = [];
 
@@ -193,8 +240,8 @@ try {
         if (role.key === "ambassador") row.checks = await checkAmbassador(page, width);
 
         requireCondition(pageErrors.length === 0, `${role.key}-${width}: page errors: ${pageErrors.join(" | ")}`);
-        const relevantConsoleErrors = consoleErrors.filter((value) => !/favicon|Failed to load resource.*404/i.test(value));
-        requireCondition(relevantConsoleErrors.length === 0, `${role.key}-${width}: console errors: ${relevantConsoleErrors.join(" | ")}`);
+        const consoleFailures = relevantConsoleErrors(consoleErrors);
+        requireCondition(consoleFailures.length === 0, `${role.key}-${width}: console errors: ${consoleFailures.join(" | ")}`);
       } catch (error) {
         row.status = "FAIL";
         row.error = error instanceof Error ? error.message : String(error);
@@ -215,10 +262,23 @@ try {
       Storage.prototype.removeItem = blocked;
     });
     const page = await context.newPage();
-    const row = { role: role.key, width: 320, storageBlocked: true, status: "PASS" };
+    const consoleErrors = [];
+    const pageErrors = [];
+    page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+    const row = { role: role.key, width: 320, storageBlocked: true, status: "PASS", consoleErrors, pageErrors };
     try {
       await login(page, role);
       assertNoRootOverflow(await pageMetrics(page), `${role.key}-320-storage-blocked`);
+      if (role.key === "client") {
+        const themeButton = page.locator('[data-cw-client-theme-button="true"]');
+        await themeButton.waitFor({ state: "visible", timeout: 10_000 });
+        await themeButton.click();
+        await page.waitForTimeout(100);
+      }
+      requireCondition(pageErrors.length === 0, `${role.key}-320-storage-blocked: page errors: ${pageErrors.join(" | ")}`);
+      const consoleFailures = relevantConsoleErrors(consoleErrors);
+      requireCondition(consoleFailures.length === 0, `${role.key}-320-storage-blocked: console errors: ${consoleFailures.join(" | ")}`);
       await page.screenshot({ path: path.join(ARTIFACT_DIR, `${role.key}-320-storage-blocked.png`), fullPage: true });
     } catch (error) {
       row.status = "FAIL";
