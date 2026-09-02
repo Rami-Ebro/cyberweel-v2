@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { readSessionStorage, removeSessionStorage, writeSessionStorage } from "@/lib/browser-storage";
 
 const STORAGE_KEY = "cyberweel-partner-delivery-feedback";
 
@@ -13,9 +14,9 @@ export function PartnerDeliveryFeedback() {
 
   useEffect(() => {
     queueMicrotask(() => {
-      const stored = sessionStorage.getItem(STORAGE_KEY);
+      const stored = readSessionStorage(STORAGE_KEY);
       if (stored) {
-        sessionStorage.removeItem(STORAGE_KEY);
+        removeSessionStorage(STORAGE_KEY);
         setFeedback({ kind: "success", message: stored });
         lastMessage.current = stored;
       }
@@ -36,7 +37,7 @@ export function PartnerDeliveryFeedback() {
       const kind: Feedback["kind"] = errorNode ? "error" : "success";
       lastMessage.current = message;
       setFeedback({ kind, message });
-      if (kind === "success") sessionStorage.setItem(STORAGE_KEY, message);
+      if (kind === "success") writeSessionStorage(STORAGE_KEY, message);
     };
 
     scan();

@@ -251,13 +251,13 @@ export function ClientDashboard({
           <header className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div><p className="text-sm font-bold text-[#9A7D43]">مساحة العميل</p><h1 className="mt-1 text-3xl font-black">مرحبًا {client?.name || "بك"}</h1></div>
             <div className="flex flex-wrap gap-3">
-              <div ref={notificationsRef} className="relative">
+              <div ref={notificationsRef} className="static sm:relative">
                 <button type="button" aria-expanded={notificationsOpen} aria-haspopup="dialog" aria-controls="client-notifications-popover" onClick={() => setNotificationsOpen((value) => !value)} className="relative flex items-center justify-center gap-2 rounded-xl border border-[#D8D2C4] bg-white px-4 py-3 font-bold shadow-sm">
                   <Bell className="h-5 w-5" />الإشعارات
                   {!!stats?.unreadNotifications && <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">{stats.unreadNotifications}</span>}
                 </button>
                 {notificationsOpen && (
-                  <div id="client-notifications-popover" role="dialog" aria-label="إشعارات العميل" className="absolute left-0 top-full z-20 mt-3 w-[min(92vw,28rem)] rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl">
+                  <div id="client-notifications-popover" role="dialog" aria-label="إشعارات العميل" className="absolute inset-x-0 top-full z-20 mt-3 w-auto rounded-2xl border border-[#D8D2C4] bg-white p-3 shadow-xl sm:inset-x-auto sm:right-0 sm:w-[min(92vw,28rem)]">
                     <div className="flex items-center justify-between px-2 py-2"><strong>الإشعارات</strong><span className="text-xs text-slate-500">{stats?.unreadNotifications || 0} غير مقروء</span></div>
                     <div className="max-h-96 space-y-2 overflow-y-auto">
                       {notifications.map((notification) => (
