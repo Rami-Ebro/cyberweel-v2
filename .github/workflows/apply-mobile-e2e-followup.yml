@@ -33,15 +33,44 @@ jobs:
               text = p.read_text()
               count = text.count(old)
               if count != 1:
-                  raise SystemExit(f"{path}: expected exactly one marker, found {count}: {old[:80]!r}")
+                  raise SystemExit(f"{path}: expected exactly one marker, found {count}: {old[:100]!r}")
               p.write_text(text.replace(old, new, 1))
 
           storage = Path("src/lib/browser-storage.ts")
           storage_text = storage.read_text()
-          session_helpers = '''\nexport function readSessionStorage(key: string): string | null {\n  if (typeof window === "undefined") return null;\n  try {\n    return window.sessionStorage.getItem(key);\n  } catch {\n    return null;\n  }\n}\n\nexport function writeSessionStorage(key: string, value: string): boolean {\n  if (typeof window === "undefined") return false;\n  try {\n    window.sessionStorage.setItem(key, value);\n    return true;\n  } catch {\n    return false;\n  }\n}\n\nexport function removeSessionStorage(key: string): boolean {\n  if (typeof window === "undefined") return false;\n  try {\n    window.sessionStorage.removeItem(key);\n    return true;\n  } catch {\n    return false;\n  }\n}\n'''
           if "export function readSessionStorage" in storage_text:
               raise SystemExit("session storage helpers already present unexpectedly")
-          storage.write_text(storage_text.rstrip() + "\n" + session_helpers)
+          storage.write_text(storage_text.rstrip() + '''
+
+export function readSessionStorage(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+export function writeSessionStorage(key: string, value: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    window.sessionStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function removeSessionStorage(key: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    window.sessionStorage.removeItem(key);
+    return true;
+  } catch {
+    return false;
+  }
+}
+''')
 
           feedback = "src/components/partner/partner-delivery-feedback.tsx"
           replace_once(
@@ -78,8 +107,32 @@ jobs:
           )
           replace_once(
               client,
-              '''  useEffect(() => {\n    if (!menuOpen) return;\n    const closeOnEscape = (event: KeyboardEvent) => {\n      if (event.key === "Escape") setMenuOpen(false);\n    };\n    document.addEventListener("keydown", closeOnEscape);\n    return () => document.removeEventListener("keydown", closeOnEscape);\n  }, [menuOpen]);\n\n''',
-              '''  useEffect(() => {\n    if (!aside) return;\n    aside.id = "client-dashboard-menu";\n    const hidden = !desktopSidebar && !menuOpen;\n    aside.inert = hidden;\n    aside.setAttribute("aria-hidden", hidden ? "true" : "false");\n    return () => {\n      aside.inert = false;\n      aside.removeAttribute("aria-hidden");\n      if (aside.id === "client-dashboard-menu") aside.removeAttribute("id");\n    };\n  }, [aside, desktopSidebar, menuOpen]);\n\n''',
+              '''  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [menuOpen]);
+
+''',
+              '''  useEffect(() => {
+    if (!aside) return;
+    const drawer = document.querySelector<HTMLElement>('[data-cw-client-aside="true"]');
+    if (!drawer) return;
+    drawer.id = "client-dashboard-menu";
+    const hidden = !desktopSidebar && !menuOpen;
+    drawer.inert = hidden;
+    drawer.setAttribute("aria-hidden", hidden ? "true" : "false");
+    return () => {
+      drawer.inert = false;
+      drawer.removeAttribute("aria-hidden");
+      if (drawer.id === "client-dashboard-menu") drawer.removeAttribute("id");
+    };
+  }, [aside, desktopSidebar, menuOpen]);
+
+''',
           )
           replace_once(
               client,
@@ -92,8 +145,41 @@ jobs:
               '            aria-label="فتح القائمة"\n            aria-controls="client-dashboard-menu"\n            aria-expanded={menuOpen}\n            onClick={() => setMenuOpen(true)}\n',
           )
 
-          test = Path("tests/mobile-e2e-storage-drawer-followup.test.mjs")
-          test.write_text('''import assert from "node:assert/strict";\nimport fs from "node:fs";\nimport test from "node:test";\n\nconst read = (path) => fs.readFileSync(path, "utf8");\n\ntest("client parity tools use safe storage and expose an accessible mobile drawer", () => {\n  const source = read("src/components/client/client-dashboard-parity-tools.tsx");\n  assert.match(source, /readLocalStorage\(CLIENT_THEME_KEY\)/);\n  assert.match(source, /writeLocalStorage\(CLIENT_THEME_KEY/);\n  assert.doesNotMatch(source, /\blocalStorage\./);\n  assert.match(source, /aria-controls="client-dashboard-menu"/);\n  assert.match(source, /aria-expanded=\{menuOpen\}/);\n  assert.match(source, /aside\.id = "client-dashboard-menu"/);\n  assert.match(source, /aside\.inert = hidden/);\n  assert.match(source, /aria-hidden/);\n  assert.match(source, /useDashboardMobileDrawer\(menuOpen, setMenuOpen\)/);\n});\n\ntest("partner delivery feedback survives blocked session storage", () => {\n  const source = read("src/components/partner/partner-delivery-feedback.tsx");\n  assert.match(source, /readSessionStorage\(STORAGE_KEY\)/);\n  assert.match(source, /removeSessionStorage\(STORAGE_KEY\)/);\n  assert.match(source, /writeSessionStorage\(STORAGE_KEY, message\)/);\n  assert.doesNotMatch(source, /\bsessionStorage\./);\n});\n\ntest("browser storage helpers fail closed for both local and session storage", () => {\n  const source = read("src/lib/browser-storage.ts");\n  for (const name of ["readLocalStorage", "writeLocalStorage", "readSessionStorage", "writeSessionStorage", "removeSessionStorage"]) {\n    assert.match(source, new RegExp(`export function ${name}\\\\(`));\n  }\n  assert.ok((source.match(/catch \{/g) || []).length >= 5);\n});\n''')
+          Path("tests/mobile-e2e-storage-drawer-followup.test.mjs").write_text('''import assert from "node:assert/strict";
+import fs from "node:fs";
+import test from "node:test";
+
+const read = (path) => fs.readFileSync(path, "utf8");
+
+test("client parity tools use safe storage and expose an accessible mobile drawer", () => {
+  const source = read("src/components/client/client-dashboard-parity-tools.tsx");
+  assert.ok(source.includes("readLocalStorage(CLIENT_THEME_KEY)"));
+  assert.ok(source.includes("writeLocalStorage(CLIENT_THEME_KEY"));
+  assert.ok(!source.includes("localStorage."));
+  assert.ok(source.includes('aria-controls="client-dashboard-menu"'));
+  assert.ok(source.includes("aria-expanded={menuOpen}"));
+  assert.ok(source.includes('drawer.id = "client-dashboard-menu"'));
+  assert.ok(source.includes("drawer.inert = hidden"));
+  assert.ok(source.includes('drawer.setAttribute("aria-hidden"'));
+  assert.ok(source.includes("useDashboardMobileDrawer(menuOpen, setMenuOpen)"));
+});
+
+test("partner delivery feedback survives blocked session storage", () => {
+  const source = read("src/components/partner/partner-delivery-feedback.tsx");
+  assert.ok(source.includes("readSessionStorage(STORAGE_KEY)"));
+  assert.ok(source.includes("removeSessionStorage(STORAGE_KEY)"));
+  assert.ok(source.includes("writeSessionStorage(STORAGE_KEY, message)"));
+  assert.ok(!source.includes("sessionStorage."));
+});
+
+test("browser storage helpers fail closed for both local and session storage", () => {
+  const source = read("src/lib/browser-storage.ts");
+  for (const name of ["readLocalStorage", "writeLocalStorage", "readSessionStorage", "writeSessionStorage", "removeSessionStorage"]) {
+    assert.ok(source.includes(`export function ${name}(`), `missing ${name}`);
+  }
+  assert.ok((source.match(/catch \{/g) || []).length >= 5);
+});
+''')
           PY
 
       - name: Install dependencies
