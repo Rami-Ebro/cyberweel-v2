@@ -40,6 +40,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Apply exact follow-up application diff for E2E only
+        run: |
+          git fetch origin main fix/mobile-e2e-client-partner-storage
+          git diff origin/main..origin/fix/mobile-e2e-client-partner-storage -- \
+            src/components/client/client-dashboard-parity-tools.tsx \
+            src/components/partner/partner-delivery-feedback.tsx \
+            src/lib/browser-storage.ts \
+            tests/group-11-mobile-e2e-followup.test.mjs > /tmp/mobile-followup.patch
+          git apply --check /tmp/mobile-followup.patch
+          git apply /tmp/mobile-followup.patch
+          git diff --check
+          git status --short
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
