@@ -1,0 +1,99 @@
+name: Group 11 mobile visual E2E
+
+on:
+  push:
+    branches:
+      - test/mobile-e2e-group11
+
+permissions:
+  contents: read
+
+jobs:
+  mobile-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cyberweel_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d cyberweel_e2e"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/cyberweel_e2e
+      AUTH_SECRET: group11-mobile-e2e-auth-secret-12345678901234567890
+      NEXTAUTH_SECRET: group11-mobile-e2e-nextauth-secret-1234567890123456
+      ADMIN_SESSION_SECRET: group11-mobile-e2e-admin-secret-123456789012345
+      RATE_LIMIT_SECRET: group11-mobile-e2e-rate-secret-123456789012345678
+      PARTNER_ADMIN_KEY: group11-mobile-e2e-admin-key
+      E2E_BASE_URL: http://127.0.0.1:3000
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Generate Prisma client
+        run: ./node_modules/.bin/prisma generate
+
+      - name: Install Playwright runner
+        run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.55.0
+
+      - name: Install Chromium and system dependencies
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Apply migrations to isolated PostgreSQL
+        run: ./node_modules/.bin/prisma migrate deploy
+
+      - name: Seed representative isolated dashboard data
+        run: node scripts/e2e-mobile-seed.mjs
+
+      - name: Build exact application tree
+        run: ./node_modules/.bin/next build
+
+      - name: Start application
+        run: |
+          ./node_modules/.bin/next start -H 127.0.0.1 -p 3000 > /tmp/cyberweel-mobile-e2e-server.log 2>&1 &
+          echo $! > /tmp/cyberweel-mobile-e2e-server.pid
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/login > /dev/null; then
+              echo "CyberWeel E2E server is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/cyberweel-mobile-e2e-server.log
+          exit 1
+
+      - name: Run 16 authenticated viewport sessions plus blocked-storage checks
+        run: node scripts/e2e-mobile-visual.mjs
+
+      - name: Preserve server log
+        if: always()
+        run: |
+          mkdir -p artifacts/mobile-e2e
+          cp /tmp/cyberweel-mobile-e2e-server.log artifacts/mobile-e2e/server.log || true
+
+      - name: Upload screenshots and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: group11-mobile-e2e-artifacts
+          path: artifacts/mobile-e2e/
+          if-no-files-found: warn
+          retention-days: 7
