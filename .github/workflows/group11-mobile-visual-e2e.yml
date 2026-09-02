@@ -57,8 +57,8 @@ jobs:
       - name: Install Chromium and system dependencies
         run: ./node_modules/.bin/playwright install --with-deps chromium
 
-      - name: Apply migrations to isolated PostgreSQL
-        run: ./node_modules/.bin/prisma migrate deploy
+      - name: Initialize isolated PostgreSQL from current schema
+        run: ./node_modules/.bin/prisma db push --skip-generate
 
       - name: Seed representative isolated dashboard data
         run: node scripts/e2e-mobile-seed.mjs
