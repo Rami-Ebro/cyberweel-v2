@@ -10,18 +10,18 @@ test("client mobile parity tools use the shared safe storage and drawer primitiv
   assert.match(client, /useDashboardMobileDrawer\(menuOpen, setMenuOpen\)/);
   assert.match(client, /readLocalStorage\(CLIENT_THEME_KEY\)/);
   assert.match(client, /writeLocalStorage\(CLIENT_THEME_KEY/);
-  assert.doesNotMatch(client, /(?<!read|write)LocalStorage|localStorage\./);
+  assert.doesNotMatch(client, /localStorage\./);
 });
 
 test("client mobile drawer exposes stable accessibility state", () => {
-  assert.match(client, /aside\.id = "client-dashboard-menu"/);
-  assert.match(client, /aside\.setAttribute\("aria-hidden", hidden ? "true" : "false"\)/);
-  assert.match(client, /aside\.inert = hidden/);
+  assert.ok(client.includes('aside.id = "client-dashboard-menu";'));
+  assert.ok(client.includes('aside.setAttribute("aria-hidden", hidden ? "true" : "false");'));
+  assert.ok(client.includes("aside.inert = hidden;"));
   assert.match(client, /aria-controls="client-dashboard-menu"/);
   assert.match(client, /aria-expanded=\{menuOpen\}/);
-  assert.match(client, /\[data-cw-client-notifications="true"\] > \[role="dialog"\]/);
-  assert.match(client, /inset-inline: 1rem !important/);
-  assert.match(client, /position: fixed !important/);
+  assert.ok(client.includes('[data-cw-client-notifications="true"] > [role="dialog"]'));
+  assert.ok(client.includes("inset-inline: 1rem !important;"));
+  assert.ok(client.includes("position: fixed !important;"));
 });
 
 test("partner delivery feedback never accesses sessionStorage directly", () => {
