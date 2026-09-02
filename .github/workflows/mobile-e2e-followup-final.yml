@@ -52,19 +52,15 @@ jobs:
           from pathlib import Path
           path = Path("scripts/e2e-mobile-visual.mjs")
           source = path.read_text()
-          old = '''  requireCondition((await notificationTrigger.getAttribute("aria-expanded")) === "true", `client-${width}: notification trigger not expanded`);
-          assertNoRootOverflow(await pageMetrics(page), `client-${width}-notifications-open`);
-          '''
-          new = '''  requireCondition((await notificationTrigger.getAttribute("aria-expanded")) === "true", `client-${width}: notification trigger not expanded`);
-          const dialogBox = await dialog.boundingBox();
+          needle = '  assertNoRootOverflow(await pageMetrics(page), `client-${width}-notifications-open`);'
+          replacement = '''  const dialogBox = await dialog.boundingBox();
           requireCondition(dialogBox !== null, `client-${width}: notification dialog has no geometry`);
           requireCondition(dialogBox.x >= -1, `client-${width}: notification dialog escapes left viewport edge (${dialogBox.x}px)`);
           requireCondition(dialogBox.x + dialogBox.width <= width + 1, `client-${width}: notification dialog escapes right viewport edge (${dialogBox.x + dialogBox.width}px > ${width}px)`);
-          assertNoRootOverflow(await pageMetrics(page), `client-${width}-notifications-open`);
-          '''
-          if source.count(old) != 1:
-              raise SystemExit("notification assertion marker not found exactly once")
-          path.write_text(source.replace(old, new, 1))
+          ''' + needle
+          if source.count(needle) != 1:
+              raise SystemExit(f"notification geometry marker count={source.count(needle)}")
+          path.write_text(source.replace(needle, replacement, 1))
           PY
 
       - uses: actions/setup-node@v4
