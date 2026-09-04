@@ -1,0 +1,4 @@
+Contact: mailto:hello@cyberweel.com
+Expires: 2027-08-01T00:00:00Z
+Preferred-Languages: ar, en
+Canonical: https://www.cyberweel.com/.well-known/security.txt

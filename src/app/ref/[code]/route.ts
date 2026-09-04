@@ -49,9 +49,8 @@ export async function GET(
   const normalizedCode = ambassadorReferralNumber
     ? formatAmbassadorReferralCode(ambassadorReferralNumber)
     : formatPartnerReferralCode(partnerReferralNumber!);
-  const destination = new URL("/", request.url);
+  const destination = new URL("/share-challenge", request.url);
   destination.searchParams.set("ref", normalizedCode);
-  destination.hash = "/share-challenge";
   const response = NextResponse.redirect(destination, 302);
 
   response.cookies.set(REFERRAL_CODE_COOKIE, normalizedCode, referralCookieOptions());
