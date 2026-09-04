@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useDashboardMobileDrawer } from "@/components/dashboard-mobile-drawer";
+import { readLocalStorage, writeLocalStorage } from "@/lib/browser-storage";
 
 const CLIENT_THEME_KEY = "cyberweel-client-theme";
 
@@ -73,11 +75,12 @@ export function ClientDashboardParityTools() {
   const rootRef = useRef<HTMLElement | null>(null);
   const [aside, setAside] = useState<HTMLElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const { desktopSidebar } = useDashboardMobileDrawer(menuOpen, setMenuOpen);
   const [loggingOut, setLoggingOut] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
-    queueMicrotask(() => setDarkMode(localStorage.getItem(CLIENT_THEME_KEY) === "dark"));
+    queueMicrotask(() => setDarkMode(readLocalStorage(CLIENT_THEME_KEY) === "dark"));
   }, []);
 
   useEffect(() => {
@@ -118,18 +121,24 @@ export function ClientDashboardParityTools() {
   }, [aside]);
 
   useEffect(() => {
-    if (!menuOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuOpen(false);
+    if (!aside) return;
+    const drawer = document.querySelector<HTMLElement>('[data-cw-client-aside="true"]');
+    if (!drawer) return;
+    drawer.id = "client-dashboard-menu";
+    const hidden = !desktopSidebar && !menuOpen;
+    drawer.inert = hidden;
+    drawer.setAttribute("aria-hidden", hidden ? "true" : "false");
+    return () => {
+      drawer.inert = false;
+      drawer.removeAttribute("aria-hidden");
+      if (drawer.id === "client-dashboard-menu") drawer.removeAttribute("id");
     };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [menuOpen]);
+  }, [aside, desktopSidebar, menuOpen]);
 
   function toggleDarkMode() {
     setDarkMode((current) => {
       const next = !current;
-      localStorage.setItem(CLIENT_THEME_KEY, next ? "dark" : "light");
+      writeLocalStorage(CLIENT_THEME_KEY, next ? "dark" : "light");
       return next;
     });
   }
@@ -151,6 +160,8 @@ export function ClientDashboardParityTools() {
           <button
             type="button"
             aria-label="فتح القائمة"
+            aria-controls="client-dashboard-menu"
+            aria-expanded={menuOpen}
             onClick={() => setMenuOpen(true)}
             data-cw-client-menu-button="true"
             className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#D8D2C4] bg-white shadow-sm transition hover:border-[#B89A5A] hover:bg-[#FFFDF8] lg:hidden"
