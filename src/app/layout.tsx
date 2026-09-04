@@ -10,6 +10,7 @@ const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
   display: "swap",
+  preload: false,
 });
 
 const cormorant = Cormorant_Garamond({
@@ -17,6 +18,7 @@ const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600"],
   display: "swap",
+  preload: false,
 });
 
 const notoSansArabic = Noto_Sans_Arabic({
