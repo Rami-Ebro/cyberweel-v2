@@ -2,11 +2,18 @@ import type { Metadata } from "next";
 import { HomePageClient } from "@/components/site/home-page-client";
 import { launchCopy } from "@/components/sections/launch-home-copy";
 
+const description =
+  "تساعد CyberWeel الشركات على فهم التحديات الرقمية والتشغيلية، اتخاذ قرارات أوضح، وبناء المواقع والأنظمة والأتمتة والحماية التي تحتاجها المرحلة التالية.";
+
 export const metadata: Metadata = {
+  title: "حلول رقمية عملية للأعمال",
+  description,
   alternates: {
     canonical: "/",
   },
   openGraph: {
+    title: "CyberWeel — حلول رقمية عملية للأعمال",
+    description,
     url: "https://www.cyberweel.com/",
   },
 };

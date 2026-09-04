@@ -6,6 +6,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { I18nProvider, useI18n } from "@/components/site/i18n";
 import { NavContext } from "@/components/site/nav-context";
 import type { ViewId } from "@/lib/site-data";
+import { publicViewPath } from "@/lib/public-navigation";
 
 type LegalBlock = {
   heading: string;
@@ -980,7 +981,7 @@ function LegalPageInner() {
 
   const navigate = (view: ViewId) => {
     if (typeof window === "undefined") return;
-    window.location.assign(view === "home" ? "/" : `/#/${view}`);
+    window.location.assign(publicViewPath(view, window.location.search));
   };
 
   return (
