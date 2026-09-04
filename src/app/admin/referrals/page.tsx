@@ -233,14 +233,19 @@ function ReferralEditor({ referral, busy, collapsed, onCollapse, onExpand, onSav
       const saveResponse = await fetch("/api/admin/referrals", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: referral.id, ...draft }) });
       const saveData = await saveResponse.json();
       if (!saveResponse.ok) throw new Error(errorLabels[saveData.error] || dashboardErrorMessage(saveData.error, "تعذر حفظ بيانات الإحالة قبل التحويل"));
-      let response = await fetch("/api/admin/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, referralId: referral.id, sendInvite: form.get("sendInvite") === "on" }) });
+      let response = await fetch("/api/admin/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, referralId: referral.id, sendInvite: true }) });
       let data = await response.json();
       if (data.error === "PHONE_MATCH_REQUIRES_CONFIRMATION" && window.confirm("رقم الهاتف مستخدم في حساب آخر. هل تريد المتابعة وربط التحويل بالبريد؟")) {
-        response = await fetch("/api/admin/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, referralId: referral.id, sendInvite: form.get("sendInvite") === "on", confirmPhoneDuplicate: true }) });
+        response = await fetch("/api/admin/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, referralId: referral.id, sendInvite: true, confirmPhoneDuplicate: true }) });
         data = await response.json();
       }
       if (!response.ok) throw new Error(dashboardErrorMessage(data.error, "تعذر تحويل الإحالة"));
       setConversionSucceeded(true);
+      if (data.inviteRequested && !data.inviteSent) {
+        setConversionError("تم إنشاء حساب العميل، لكن تعذر إرسال دعوة الدخول تلقائيًا. يمكنك إعادة إرسالها من بطاقة العميل.");
+        window.setTimeout(() => window.location.reload(), 2500);
+        return;
+      }
       window.setTimeout(() => window.location.reload(), 900);
     } catch (cause) {
       setConversionError(cause instanceof Error ? cause.message : "تعذر تحويل الإحالة");
@@ -273,7 +278,7 @@ function ReferralEditor({ referral, busy, collapsed, onCollapse, onExpand, onSav
 
       {referral.notes && <section className="mx-5 mb-5 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4"><SectionTitle icon={MessageSquareText} title="تفاصيل الطلب" subtitle="المعلومات التي قدّمها العميل أو ولّدها مسار المصدر." /><p className="mt-4 whitespace-pre-wrap break-words rounded-xl bg-white p-4 text-sm leading-7 text-slate-700">{referral.notes}</p></section>}
 
-      {!referral.convertedClient && <section className="mx-5 mb-5 rounded-2xl border border-[#D8D2C4] bg-[#FCFAF6] p-4"><div className="flex flex-wrap items-center justify-between gap-4"><label className="flex animate-pulse items-center gap-3 rounded-xl border border-[#B89A5A] bg-[#FFF8E8] px-4 py-3 font-black text-[#7A5E27] shadow-sm"><input form={`convert-${referral.id}`} type="checkbox" name="sendInvite" />إرسال دعوة إلى العميل</label><button form={`convert-${referral.id}`} type="submit" disabled={!canConvert || conversionBusy || conversionSucceeded} className="rounded-xl bg-[#B89A5A] px-6 py-3 font-black text-[#111827] transition hover:bg-[#C6AA69] disabled:cursor-not-allowed disabled:opacity-50">{conversionBusy ? "جارٍ التحويل..." : conversionSucceeded ? "تم التحويل ✓" : "تحويل إلى عميل"}</button></div>{!canConvert && <p className="mt-3 text-xs font-bold text-amber-800">لإتاحة التحويل اختر حالة «مهتم» وقرار «مقبولة».</p>}{conversionError && <p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-800">{conversionError}</p>}</section>}
+      {!referral.convertedClient && <section className="mx-5 mb-5 rounded-2xl border border-[#D8D2C4] bg-[#FCFAF6] p-4"><div className="flex flex-wrap items-center justify-between gap-4"><p className="rounded-xl border border-[#B89A5A] bg-[#FFF8E8] px-4 py-3 text-sm font-black text-[#7A5E27] shadow-sm">سيتم إرسال دعوة الدخول تلقائيًا إلى بريد العميل عند التحويل.</p><button form={`convert-${referral.id}`} type="submit" disabled={!canConvert || conversionBusy || conversionSucceeded} className="rounded-xl bg-[#B89A5A] px-6 py-3 font-black text-[#111827] transition hover:bg-[#C6AA69] disabled:cursor-not-allowed disabled:opacity-50">{conversionBusy ? "جارٍ التحويل..." : conversionSucceeded ? "تم التحويل ✓" : "تحويل إلى عميل"}</button></div>{!canConvert && <p className="mt-3 text-xs font-bold text-amber-800">لإتاحة التحويل اختر حالة «مهتم» وقرار «مقبولة».</p>}{conversionError && <p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-800">{conversionError}</p>}</section>}
 
       <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-[#EEE7DA] px-5 py-4"><div className="flex items-center gap-2 text-xs text-slate-500"><Clock3 className="h-4 w-4" />{referral.updatedBy ? <span>آخر تعديل: {referral.updatedBy.name || referral.updatedBy.email} · <DateText value={referral.updatedAt} withTime /></span> : <span>لم يُسجّل تعديل إداري بعد</span>}</div>{(!canConvert && !referral.convertedClient && hasUnsavedChanges) && <button disabled={busy} onClick={() => void onSave(referral, draft)} className="rounded-xl bg-[#111827] px-6 py-3 font-black text-white transition hover:bg-[#1F2937] disabled:cursor-wait disabled:opacity-50">{busy ? "جارٍ الحفظ..." : "حفظ التغييرات"}</button>}{referral.convertedClient && hasUnsavedChanges && <button disabled={busy} onClick={() => void onSave(referral, draft)} className="rounded-xl bg-[#111827] px-6 py-3 font-black text-white transition hover:bg-[#1F2937] disabled:cursor-wait disabled:opacity-50">{busy ? "جارٍ الحفظ..." : "حفظ التعديلات الإدارية"}</button>}</footer>
     </article>
