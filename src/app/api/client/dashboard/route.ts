@@ -127,6 +127,10 @@ export async function GET(request: NextRequest) {
       const financialSummary = plannedTotal > 0
         ? `إجمالي قيمة المشروع: ${plannedTotal.toFixed(2)} ${project.currency}`
         : project.financialPlan;
+      const stageInvoices = project.invoices
+        .filter((invoice) => invoice.type === "STANDARD")
+        .slice()
+        .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
 
       return {
         id: project.id,
@@ -143,14 +147,14 @@ export async function GET(request: NextRequest) {
         dueAt: project.dueAt,
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
-        projectStages: project.projectStages.map((stage) => ({
+        projectStages: project.projectStages.map((stage, index) => ({
           id: stage.id,
           name: stage.name,
           amount: Number(stage.amount),
           currency: stage.currency,
           status: stage.status,
           paymentStatus: stage.paymentStatus,
-          dueAt: stage.startsAt,
+          dueAt: stageInvoices[index]?.dueAt || null,
           completedAt: stage.completedAt,
           paidAt: stage.paidAt,
           executionProgress: stage.status === "COMPLETED" ? 100 : executionProgress.get(stage.id) || 0,
