@@ -157,6 +157,7 @@ async function ensureAmbassadorForUser(
   userId: string,
   application: { age: number | null },
   notes: string,
+  accountPhone: string | null,
 ) {
   const existing = await tx.ambassador.findUnique({ where: { userId } });
   if (existing) {
@@ -165,6 +166,7 @@ async function ensureAmbassadorForUser(
       data: {
         status: "ACTIVE",
         age: existing.age ?? application.age,
+        phone: existing.phone || accountPhone,
         decisionNotes: notes || existing.decisionNotes,
         decidedAt: new Date(),
       },
@@ -176,6 +178,7 @@ async function ensureAmbassadorForUser(
       userId,
       status: "ACTIVE",
       age: application.age,
+      phone: accountPhone,
       decisionNotes: notes || null,
       decidedAt: new Date(),
     },
@@ -412,6 +415,7 @@ export async function decideCollaborationApplication(
           user.id,
           application,
           notes || application.decisionNotes || "",
+          user.phone,
         );
       }
 
@@ -435,7 +439,7 @@ export async function decideCollaborationApplication(
       const partner = await ensurePartnerForUser(tx, user.id, application, notes);
       partnerId = partner.id;
     } else {
-      const ambassador = await ensureAmbassadorForUser(tx, user.id, application, notes);
+      const ambassador = await ensureAmbassadorForUser(tx, user.id, application, notes, user.phone);
       ambassadorId = ambassador.id;
     }
 

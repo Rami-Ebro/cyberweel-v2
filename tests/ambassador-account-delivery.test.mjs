@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { accountInvitationCopy } from "../src/lib/account-invitation-copy.ts";
 import { shouldSendAcceptanceInvitation } from "../src/lib/account-invitation-policy.ts";
 import { canUsePasswordAccess } from "../src/lib/password-access.ts";
+
+const acceptanceSource = await readFile(new URL("../src/lib/accept-collaboration.ts", import.meta.url), "utf8");
+const profileRouteSource = await readFile(new URL("../src/app/api/profile/route.ts", import.meta.url), "utf8");
 
 test("supported account roles can request and consume password-access tokens", () => {
   assert.equal(canUsePasswordAccess("AMBASSADOR"), true);
@@ -31,4 +35,19 @@ test("an idempotent acceptance does not send another invitation", () => {
   assert.equal(shouldSendAcceptanceInvitation({ idempotent: true, userId: "user-1", email: "ambassador@example.com" }), false);
   assert.equal(shouldSendAcceptanceInvitation({ idempotent: false, userId: "user-1", email: "ambassador@example.com" }), true);
   assert.equal(shouldSendAcceptanceInvitation({ idempotent: false, userId: null, email: "ambassador@example.com" }), false);
+});
+
+test("ambassador acceptance carries the canonical account phone into the ambassador record", () => {
+  assert.match(acceptanceSource, /accountPhone: string \| null/);
+  assert.match(acceptanceSource, /phone: existing\.phone \|\| accountPhone/);
+  assert.match(acceptanceSource, /phone: accountPhone/);
+  assert.match(acceptanceSource, /ensureAmbassadorForUser\(tx, user\.id, application, notes, user\.phone\)/);
+});
+
+test("ambassador profile reuses the account phone and keeps account and ambassador phones synchronized", () => {
+  assert.match(profileRouteSource, /phone: user\.phone \|\| user\.ambassador\?\.phone \|\| null/);
+  assert.match(profileRouteSource, /phoneIdentityCandidates\(phone\)/);
+  assert.match(profileRouteSource, /db\.\$transaction\(\[/);
+  assert.match(profileRouteSource, /db\.user\.update\(\{ where: \{ id: user\.id \}, data: \{ phone \} \}\)/);
+  assert.match(profileRouteSource, /db\.ambassador\.update\(\{/);
 });
