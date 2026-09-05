@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
         internalNotes: true,
         isActive: true,
         clientEnabled: true,
+        passwordHash: true,
         adminProfile: { select: { id: true } },
       },
     }),
@@ -135,7 +136,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "البريد مرتبط بحساب إدارة ولا يمكن تحويله لعميل" }, { status: 409 });
   }
 
-  if (emailOwner && (emailOwner.role === "CLIENT" || emailOwner.clientEnabled) && !referralId) {
+  if (emailOwner && (emailOwner.role === "CLIENT" || emailOwner.clientEnabled)) {
+    if (referralId) {
+      return NextResponse.json(
+        {
+          error: "هذه الإحالة تستخدم بريد عميل مسجل بالفعل. لا يمكن إنشاء إحالة عميل جديدة أو نقل نسبتها إلى سفير آخر.",
+          code: "EXISTING_CLIENT",
+          clientId: emailOwner.id,
+        },
+        { status: 409 },
+      );
+    }
     return NextResponse.json(
       { error: "يوجد عميل مسجل بهذا البريد بالفعل", clientId: emailOwner.id },
       { status: 409 },
@@ -224,7 +235,7 @@ export async function POST(request: NextRequest) {
       return savedClient;
     });
 
-    const shouldSendInvite = sendInvite && !emailOwner;
+    const shouldSendInvite = sendInvite && !emailOwner?.passwordHash;
     const invitation = shouldSendInvite
       ? await sendClientInvitation(client.id, client.email, request.nextUrl.origin)
       : { sent: false, error: undefined, invitationUrl: undefined };
