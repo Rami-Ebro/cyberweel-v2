@@ -7,6 +7,8 @@ import { canUsePasswordAccess } from "../src/lib/password-access.ts";
 
 const acceptanceSource = await readFile(new URL("../src/lib/accept-collaboration.ts", import.meta.url), "utf8");
 const profileRouteSource = await readFile(new URL("../src/app/api/profile/route.ts", import.meta.url), "utf8");
+const ambassadorAdminPageSource = await readFile(new URL("../src/app/admin/ambassadors/page.tsx", import.meta.url), "utf8");
+const ambassadorAdminRouteSource = await readFile(new URL("../src/app/api/admin/ambassadors/route.ts", import.meta.url), "utf8");
 
 test("supported account roles can request and consume password-access tokens", () => {
   assert.equal(canUsePasswordAccess("AMBASSADOR"), true);
@@ -50,4 +52,12 @@ test("ambassador profile reuses the account phone and keeps account and ambassad
   assert.match(profileRouteSource, /db\.\$transaction\(\[/);
   assert.match(profileRouteSource, /db\.user\.update\(\{ where: \{ id: user\.id \}, data: \{ phone \} \}\)/);
   assert.match(profileRouteSource, /db\.ambassador\.update\(\{/);
+});
+
+test("admin accepts ambassadors without entering or transmitting a password", () => {
+  assert.doesNotMatch(ambassadorAdminPageSource, /name="password"/);
+  assert.doesNotMatch(ambassadorAdminPageSource, /كلمة مرور مؤقتة عند القبول/);
+  assert.doesNotMatch(ambassadorAdminPageSource, /body: JSON\.stringify\(\{ entity: "application", id, status, notes, password \}\)/);
+  assert.match(ambassadorAdminRouteSource, /randomBytes\(32\)\.toString\("base64url"\)/);
+  assert.doesNotMatch(ambassadorAdminRouteSource, /body\.password/);
 });
