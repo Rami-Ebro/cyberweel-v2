@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type InvalidEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type InvalidEvent } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, Paperclip, Send, Share2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,9 @@ type MailtoFormProps = {
   trackReferral?: boolean;
 };
 
+type ReferralIdentityStatus = "idle" | "checking" | "clear" | "blocked";
+type ReferralIdentityResult = "clear" | "blocked" | "not-applicable" | "error";
+
 const MAX_FILES = 3;
 const MAX_TOTAL_BYTES = 4 * 1024 * 1024;
 const ACCEPTED_FILES = ".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp";
@@ -39,12 +42,24 @@ export function MailtoForm({
   const [submitting, setSubmitting] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [referralIdentityStatus, setReferralIdentityStatus] = useState<ReferralIdentityStatus>("idle");
+  const [referralIdentityField, setReferralIdentityField] = useState<"email" | "phone" | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const identityCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const identityCheckRequestRef = useRef(0);
   const { t } = useI18n();
   const isArabic = t.dir === "rtl";
 
   const requiredMessage = isArabic ? "يرجى تعبئة هذا الحقل" : "Please complete this field.";
   const emailMessage = isArabic ? "يرجى إدخال بريد إلكتروني صحيح" : "Please enter a valid email address.";
+  const existingClientMessage = isArabic
+    ? "هذا البريد أو رقم الهاتف مرتبط بعميل مسجل مسبقًا، ولا يمكن تسجيله كإحالة جديدة."
+    : "This email or phone number already belongs to a registered client and cannot be submitted as a new referral.";
+
+  useEffect(() => () => {
+    if (identityCheckTimerRef.current) clearTimeout(identityCheckTimerRef.current);
+    identityCheckRequestRef.current += 1;
+  }, []);
 
   const handleInvalid = (event: InvalidEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const target = event.currentTarget;
@@ -58,6 +73,81 @@ export function MailtoForm({
   const clearValidationMessage = (target: HTMLInputElement | HTMLTextAreaElement) => {
     target.setCustomValidity("");
   };
+
+  const referralCode = () => new URLSearchParams(window.location.search).get("ref")?.trim() || "";
+
+  async function fetchReferralIdentity(email: string, phone: string): Promise<ReferralIdentityResult> {
+    try {
+      const response = await fetch("/api/referrals/check-identity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, phone, referralCode: referralCode() }),
+      });
+      const result = (await response.json().catch(() => null)) as
+        | { ok?: boolean; applicable?: boolean; existingClient?: boolean }
+        | null;
+
+      if (!response.ok || !result?.ok) return "error";
+      if (result.applicable !== true) return "not-applicable";
+      return result.existingClient ? "blocked" : "clear";
+    } catch {
+      return "error";
+    }
+  }
+
+  function scheduleReferralIdentityCheck(form: HTMLFormElement | null, fieldName: "email" | "phone") {
+    if (!trackReferral || !form) return;
+
+    const data = new FormData(form);
+    const email = String(data.get("email") ?? "").trim();
+    const phone = String(data.get("phone") ?? "").trim();
+    const emailUsable = !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const phoneUsable = !phone || phone.replace(/\D/g, "").length >= 8;
+
+    if ((!email && !phone) || !emailUsable || !phoneUsable) {
+      if (identityCheckTimerRef.current) clearTimeout(identityCheckTimerRef.current);
+      identityCheckRequestRef.current += 1;
+      setReferralIdentityStatus("idle");
+      setReferralIdentityField(fieldName);
+      return;
+    }
+
+    if (identityCheckTimerRef.current) clearTimeout(identityCheckTimerRef.current);
+    const requestId = ++identityCheckRequestRef.current;
+    setReferralIdentityField(fieldName);
+    setReferralIdentityStatus("checking");
+
+    identityCheckTimerRef.current = setTimeout(() => {
+      void fetchReferralIdentity(email, phone).then((result) => {
+        if (requestId !== identityCheckRequestRef.current) return;
+        if (result === "blocked") setReferralIdentityStatus("blocked");
+        else if (result === "clear") setReferralIdentityStatus("clear");
+        else setReferralIdentityStatus("idle");
+      });
+    }, 500);
+  }
+
+  async function verifyReferralIdentityBeforeSubmit(data: FormData) {
+    if (!trackReferral) return true;
+
+    if (identityCheckTimerRef.current) clearTimeout(identityCheckTimerRef.current);
+    identityCheckRequestRef.current += 1;
+
+    const email = String(data.get("email") ?? "").trim();
+    const phone = String(data.get("phone") ?? "").trim();
+    setReferralIdentityField(email ? "email" : phone ? "phone" : null);
+    setReferralIdentityStatus("checking");
+
+    const result = await fetchReferralIdentity(email, phone);
+    if (result === "blocked") {
+      setReferralIdentityStatus("blocked");
+      toast.error(existingClientMessage);
+      return false;
+    }
+
+    setReferralIdentityStatus(result === "clear" ? "clear" : "idle");
+    return true;
+  }
 
   const handleShare = async () => {
     const shareData = {
@@ -141,8 +231,13 @@ export function MailtoForm({
 
     setSubmitting(true);
     const data = new FormData(form);
-    const requestData = new FormData();
 
+    if (!(await verifyReferralIdentityBeforeSubmit(data))) {
+      setSubmitting(false);
+      return;
+    }
+
+    const requestData = new FormData();
     requestData.set("subject", subject);
     requestData.set("website", String(data.get("website") ?? ""));
     requestData.set(
@@ -185,7 +280,7 @@ export function MailtoForm({
 
           if (organization) details.unshift(`${isArabic ? "المؤسسة" : "Organization"}: ${organization}`);
 
-          const referralCode = new URLSearchParams(window.location.search).get("ref")?.trim() || "";
+          const currentReferralCode = referralCode();
           const referralResponse = await fetch("/api/referrals", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -195,7 +290,7 @@ export function MailtoForm({
               phone: String(data.get("phone") ?? "").trim(),
               company: organization,
               notes: details.join("\n\n"),
-              referralCode,
+              referralCode: currentReferralCode,
             }),
           });
 
@@ -207,7 +302,7 @@ export function MailtoForm({
             throw new Error(referralResult?.error || "REFERRAL_FAILED");
           }
 
-          if (referralCode && referralResult.attributed !== true) {
+          if (currentReferralCode && referralResult.attributed !== true) {
             throw new Error("REFERRAL_NOT_ATTRIBUTED");
           }
         } catch (referralError) {
@@ -220,6 +315,8 @@ export function MailtoForm({
 
       form.reset();
       setSelectedFiles([]);
+      setReferralIdentityStatus("idle");
+      setReferralIdentityField(null);
       setSuccessOpen(true);
     } catch (error) {
       console.error("[mailto-form] Submission failed", error);
@@ -256,17 +353,44 @@ export function MailtoForm({
                 {field.required && <span className="ms-1 text-accent" aria-hidden="true">*</span>}
               </label>
               {field.kind === "text" ? (
-                <input
-                  id={field.name}
-                  name={field.name}
-                  type={field.type ?? "text"}
-                  required={field.required}
-                  placeholder={field.placeholder}
-                  onInvalid={handleInvalid}
-                  onInput={(event) => clearValidationMessage(event.currentTarget)}
-                  aria-required={field.required || undefined}
-                  className="focus-ring h-12 w-full rounded-md border border-border bg-white px-4 text-sm text-ink shadow-sm transition-all duration-200 placeholder:text-muted-foreground/60 focus:border-camel focus:shadow-md focus:shadow-camel/10"
-                />
+                <>
+                  <input
+                    id={field.name}
+                    name={field.name}
+                    type={field.type ?? "text"}
+                    required={field.required}
+                    placeholder={field.placeholder}
+                    onInvalid={handleInvalid}
+                    onInput={(event) => {
+                      clearValidationMessage(event.currentTarget);
+                      if (field.name === "email" || field.name === "phone") {
+                        scheduleReferralIdentityCheck(event.currentTarget.form, field.name);
+                      }
+                    }}
+                    aria-required={field.required || undefined}
+                    aria-invalid={
+                      referralIdentityStatus === "blocked" && referralIdentityField === field.name
+                        ? true
+                        : undefined
+                    }
+                    className={cn(
+                      "focus-ring h-12 w-full rounded-md border bg-white px-4 text-sm text-ink shadow-sm transition-all duration-200 placeholder:text-muted-foreground/60 focus:shadow-md",
+                      referralIdentityStatus === "blocked" && referralIdentityField === field.name
+                        ? "border-rose-400 focus:border-rose-500 focus:shadow-rose-100"
+                        : "border-border focus:border-camel focus:shadow-camel/10",
+                    )}
+                  />
+                  {trackReferral && referralIdentityField === field.name && referralIdentityStatus === "checking" && (
+                    <p className="mt-2 text-xs font-medium text-muted-foreground" aria-live="polite">
+                      {isArabic ? "جارٍ التحقق من بيانات العميل..." : "Checking client details..."}
+                    </p>
+                  )}
+                  {trackReferral && referralIdentityField === field.name && referralIdentityStatus === "blocked" && (
+                    <p className="mt-2 text-xs font-bold leading-5 text-rose-700" role="alert">
+                      {existingClientMessage}
+                    </p>
+                  )}
+                </>
               ) : (
                 <textarea
                   id={field.name}
@@ -356,8 +480,8 @@ export function MailtoForm({
           <p className="text-sm text-muted-foreground">{t.common.noPitches}</p>
           <button
             type="submit"
-            disabled={submitting}
-            aria-busy={submitting}
+            disabled={submitting || referralIdentityStatus === "blocked"}
+            aria-busy={submitting || referralIdentityStatus === "checking"}
             className="focus-ring inline-flex items-center justify-center gap-2 rounded-md bg-ink px-7 py-3.5 text-sm font-medium text-floral transition-colors hover:bg-ink/90 disabled:cursor-wait disabled:opacity-60"
           >
             {submitting
