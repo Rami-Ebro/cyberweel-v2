@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
+// Keep this regression tied to the Vercel Preview path: referral routing must
+// remain identical whether or not an existing referral cookie is present.
 const proxy = fs.readFileSync("src/proxy.ts", "utf8");
 const verifier = fs.readFileSync("src/app/ref/[code]/route.ts", "utf8");
 
