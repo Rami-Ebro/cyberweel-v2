@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { PARTNER_SESSION_COOKIE, readPartnerSession } from "@/lib/partner-auth";
+import { PARTNER_SESSION_COOKIE, normalizePhone, phoneIdentityCandidates, readPartnerSession } from "@/lib/partner-auth";
 import { hasTrustedOrigin, invalidOriginResponse } from "@/lib/request-security";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     where: { id: session.userId },
     select: {
       email: true,
+      phone: true,
       role: true,
       partner: {
         select: {
@@ -68,7 +69,9 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     role,
     accountEmail: user.email,
-    profile: role === "AMBASSADOR" ? user.ambassador : user.partner,
+    profile: role === "AMBASSADOR"
+      ? { ...user.ambassador, phone: user.phone || user.ambassador?.phone || null }
+      : user.partner,
   });
 }
 
@@ -128,7 +131,8 @@ export async function POST(request: NextRequest) {
 
   if (capability === "AMBASSADOR" && user.ambassador) {
     const age = Number(body?.age);
-    const phone = value(body?.phone, 40);
+    const rawPhone = value(body?.phone, 40);
+    const phone = normalizePhone(rawPhone) || rawPhone;
     const country = value(body?.country);
     const contactMethod = value(body?.contactMethod);
     const payoutMethod = value(body?.payoutMethod);
@@ -142,18 +146,33 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "INVALID_SHAM_CASH_ACCOUNT" }, { status: 400 });
       }
     }
-    await db.ambassador.update({
-      where: { id: user.ambassador.id },
-      data: {
-        age,
-        phone,
-        country,
-        contactMethod,
-        payoutMethod,
-        payoutDetails,
-        profileCompletedAt: new Date(),
+
+    const phoneOwner = await db.user.findFirst({
+      where: {
+        id: { not: user.id },
+        phone: { in: phoneIdentityCandidates(phone) },
       },
+      select: { id: true },
     });
+    if (phoneOwner) {
+      return NextResponse.json({ error: "PHONE_EXISTS" }, { status: 409 });
+    }
+
+    await db.$transaction([
+      db.user.update({ where: { id: user.id }, data: { phone } }),
+      db.ambassador.update({
+        where: { id: user.ambassador.id },
+        data: {
+          age,
+          phone,
+          country,
+          contactMethod,
+          payoutMethod,
+          payoutDetails,
+          profileCompletedAt: new Date(),
+        },
+      }),
+    ]);
     return NextResponse.json({ ok: true, redirectTo: "/ambassador/dashboard" });
   }
 
