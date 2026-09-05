@@ -110,7 +110,7 @@ export function AdminNotificationCenter() {
         <div><strong>إشعارات الإدارة</strong><p className="text-xs text-slate-500 dark:text-slate-400">{unread} غير مقروء</p></div>
         <button type="button" onClick={() => void markAllRead()} disabled={!unread} className="text-xs font-bold text-[#9A7D43] disabled:opacity-40">تحديد الكل كمقروء</button>
       </div>
-      <div className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto sm:max-h-96">
+      <div className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain sm:max-h-96">
         {notifications.map((notification) => (
           <button key={notification.id} type="button" onClick={() => void openNotification(notification)} className={`w-full rounded-xl p-3 text-right transition ${notification.readAt ? "bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300" : "bg-amber-50 text-[#111827] dark:bg-amber-950/30 dark:text-amber-100"}`}>
             <div className="flex items-start justify-between gap-3"><strong className="text-sm">{notification.title}</strong>{!notification.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-600" />}</div>
@@ -139,7 +139,7 @@ export function AdminNotificationCenter() {
       {open && (
         <>
           {typeof document !== "undefined" && createPortal(
-            <div ref={mobilePanelRef} className="fixed inset-3 z-[100] flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#D8D2C4] bg-white p-3 text-[#111827] shadow-2xl sm:hidden dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+            <div ref={mobilePanelRef} className="fixed inset-x-3 bottom-3 z-[100] flex max-h-[68dvh] min-h-0 flex-col overflow-hidden rounded-2xl border border-[#D8D2C4] bg-white p-3 text-[#111827] shadow-2xl sm:hidden dark:border-slate-700 dark:bg-slate-900 dark:text-white">
               {panelContent}
             </div>,
             document.body,
