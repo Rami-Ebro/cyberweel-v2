@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import { canAdmin, currentAdminAccess } from "@/lib/admin-permissions";
 import { NextRequest, NextResponse } from "next/server";
@@ -193,6 +194,9 @@ export async function PATCH(request: NextRequest) {
     }
 
     const access = await currentAdminAccess(request);
+    const accountBootstrapPassword = body.status === "ACCEPTED"
+      ? randomBytes(32).toString("base64url")
+      : "";
 
     try {
       const result = await decideCollaborationApplication({
@@ -200,7 +204,7 @@ export async function PATCH(request: NextRequest) {
         type: "AMBASSADOR",
         status: body.status,
         notes,
-        password: typeof body.password === "string" ? body.password : "",
+        password: accountBootstrapPassword,
         decidedById: access?.userId || null,
       });
 
