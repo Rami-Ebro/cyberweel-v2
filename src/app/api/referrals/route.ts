@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { normalizePhone, phoneIdentityCandidates } from "@/lib/partner-auth";
 import { parseAmbassadorReferralCode, parsePartnerReferralCode } from "@/lib/partner-referral";
 import { LEGACY_PARTNER_REFERRAL_COOKIE, REFERRAL_CODE_COOKIE } from "@/lib/referral-tracking";
 import {
@@ -21,7 +22,8 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
-  const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
+  const rawPhone = typeof body?.phone === "string" ? body.phone.trim() : "";
+  const phone = rawPhone ? normalizePhone(rawPhone) || rawPhone : "";
   const company = typeof body?.company === "string" ? body.company.trim() : "";
   const notes = typeof body?.notes === "string" ? body.notes.trim() : "";
   const explicitCode = typeof body?.referralCode === "string" ? body.referralCode.trim() : "";
@@ -46,6 +48,33 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const [emailOwner, phoneOwner] = await Promise.all([
+      email
+        ? db.user.findUnique({
+            where: { email },
+            select: { id: true, role: true, clientEnabled: true },
+          })
+        : null,
+      phone
+        ? db.user.findFirst({
+            where: { phone: { in: phoneIdentityCandidates(phone) } },
+            select: { id: true, role: true, clientEnabled: true },
+          })
+        : null,
+    ]);
+    const existingClient = [emailOwner, phoneOwner].find(
+      (owner) => owner && (owner.role === "CLIENT" || owner.clientEnabled),
+    );
+    if (existingClient) {
+      return NextResponse.json(
+        {
+          error: "هذا البريد أو رقم الهاتف مرتبط بعميل مسجل بالفعل. استخدم حساب العميل الحالي بدل إنشاء إحالة جديدة.",
+          code: "EXISTING_CLIENT",
+        },
+        { status: 409 },
+      );
+    }
+
     const ambassador = ambassadorReferralNumber
       ? await db.ambassador.findFirst({ where: { referralNumber: ambassadorReferralNumber, status: "ACTIVE" }, select: { id: true } })
       : null;
