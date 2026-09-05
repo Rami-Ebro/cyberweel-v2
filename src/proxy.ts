@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normalizeReferralCode } from "@/lib/partner-referral";
-import { REFERRAL_CODE_COOKIE } from "@/lib/referral-tracking";
 
 const STATE_CHANGING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
@@ -24,13 +23,10 @@ export function proxy(request: NextRequest) {
     const referralCode = normalizeReferralCode(request.nextUrl.searchParams.get("ref") || "");
     if (!referralCode) return NextResponse.next();
 
-    // A matching HttpOnly cookie means /ref/[code] has already verified that
-    // this code belongs to an active ambassador or partner. New or changed
-    // codes must pass through that database-backed validation before storage.
-    if (request.cookies.get(REFERRAL_CODE_COOKIE)?.value === referralCode) {
-      return NextResponse.next();
-    }
-
+    // Always pass referral links through the database-backed verifier. This
+    // keeps the destination identical whether or not the browser already has
+    // a referral cookie, and also prevents a stale cookie from bypassing an
+    // ambassador/partner status check.
     return NextResponse.redirect(
       new URL(`/ref/${encodeURIComponent(referralCode)}`, request.url),
       302,
