@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
-import { BadgeCheck, ChevronDown, CircleDollarSign, Clock3, MessageSquareText, UserRound } from "lucide-react";
+import { BadgeCheck, ChevronDown, Clock3, MessageSquareText, SlidersHorizontal, UserRound } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { DateText } from "@/components/ui/date-text";
 import { DateInput } from "@/components/ui/date-input";
@@ -56,13 +56,6 @@ const decisionLabels: Record<ReferralDecision, string> = {
   CONVERTED_TO_CLIENT: "تحولت إلى عميل",
   CANCELLED: "ملغاة",
 };
-const commissionLabels: Record<CommissionStatus, string> = {
-  VERIFYING: "قيد التحقق",
-  ON_HOLD: "معلّقة",
-  NOT_ELIGIBLE: "غير مستحقة",
-  DUE: "مستحقة",
-  PAID: "مدفوعة",
-};
 const sourceLabels: Record<string, string> = {
   DIRECT: "إحالة مباشرة",
   AMBASSADOR: "رابط السفير",
@@ -86,6 +79,8 @@ export default function ReferralAdmin() {
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set());
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [activeFilterCount, setActiveFilterCount] = useState(0);
 
   async function load(query = "") {
     const response = await fetch(`/api/admin/referrals?${query}`, { cache: "no-store" });
@@ -103,8 +98,21 @@ export default function ReferralAdmin() {
     event.preventDefault();
     setError("");
     setMessage("");
-    load(new URLSearchParams(new FormData(event.currentTarget) as never).toString())
+    const params = new URLSearchParams(new FormData(event.currentTarget) as never);
+    setActiveFilterCount([...params.values()].filter((value) => value.trim().length > 0).length);
+    void load(params.toString())
+      .then(() => setFiltersOpen(false))
       .catch((cause) => setError(cause instanceof Error ? cause.message : "تعذر تطبيق الفلاتر"));
+  }
+
+  function resetFilters(form: HTMLFormElement | null) {
+    form?.reset();
+    setError("");
+    setMessage("");
+    setActiveFilterCount(0);
+    void load()
+      .then(() => setFiltersOpen(false))
+      .catch((cause) => setError(cause instanceof Error ? cause.message : "تعذر إعادة ضبط الفلاتر"));
   }
 
   async function saveReferral(referral: Referral, values: ReferralDraft) {
@@ -134,31 +142,52 @@ export default function ReferralAdmin() {
   }
 
   return (
-    <AdminShell active="referrals" title="إدارة الإحالات" description="مسار التواصل وقرار الإدارة واستحقاق العمولة في شاشة واحدة واضحة.">
+    <AdminShell active="referrals" title="إدارة الإحالات" description="مسار التواصل وقرار الإدارة والتحويل إلى عميل في شاشة واحدة واضحة.">
       {message && <p role="status" className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 font-bold text-emerald-800">{message}</p>}
       {error && <p role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 font-bold text-rose-800">{error}</p>}
 
-      <form onSubmit={filter} className="mt-6 grid gap-3 rounded-2xl border border-[#E5DED0] bg-white p-4 shadow-sm md:grid-cols-4">
-        <input name="search" placeholder="بحث بالعميل" className="rounded-xl border border-[#D8D2C4] p-3" />
-        <select name="status" className="rounded-xl border border-[#D8D2C4] p-3">
-          <option value="">كل حالات التواصل</option>
-          {(Object.keys(referralLabels) as ReferralStatus[]).map((status) => <option key={status} value={status}>{referralLabels[status]}</option>)}
-        </select>
-        <select name="ambassadorId" className="rounded-xl border border-[#D8D2C4] p-3">
-          <option value="">كل السفراء</option>
-          {ambassadors.map((ambassador) => <option key={ambassador.id} value={ambassador.id}>{ambassador.user.name || ambassador.user.email}</option>)}
-        </select>
-        <select name="source" className="rounded-xl border border-[#D8D2C4] p-3">
-          <option value="">كل مصادر الإحالة</option>
-          {Object.entries(sourceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-        <input name="contactMethod" placeholder="طريقة التواصل" className="rounded-xl border border-[#D8D2C4] p-3" />
-        <label className="grid gap-1 text-xs font-bold text-slate-500">من تاريخ<DateInput name="from" className="rounded-xl border border-[#D8D2C4] p-3 text-base text-slate-900" /></label>
-        <label className="grid gap-1 text-xs font-bold text-slate-500">إلى تاريخ<DateInput name="to" className="rounded-xl border border-[#D8D2C4] p-3 text-base text-slate-900" /></label>
-        <button className="self-end rounded-xl bg-[#111827] p-3 font-bold text-white transition hover:bg-[#1F2937]">تطبيق الفلاتر</button>
-      </form>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm font-bold text-slate-600">{items.length ? `${items.length} إحالة ظاهرة` : "الإحالات تظهر هنا مباشرة"}</p>
+        <button
+          type="button"
+          aria-expanded={filtersOpen}
+          aria-controls="referral-filters"
+          onClick={() => setFiltersOpen((open) => !open)}
+          className="inline-flex items-center gap-2 rounded-xl border border-[#B89A5A] bg-white px-4 py-3 font-black text-[#7A5E27] shadow-sm transition hover:bg-[#FCFAF6]"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          الفلاتر
+          {activeFilterCount > 0 && <span className="grid min-w-6 place-items-center rounded-full bg-[#111827] px-1.5 py-0.5 text-xs text-white">{activeFilterCount}</span>}
+          <ChevronDown className={`h-4 w-4 transition ${filtersOpen ? "rotate-180" : ""}`} />
+        </button>
+      </div>
 
-      <div className="mt-6 grid gap-5">
+      {filtersOpen && (
+        <form id="referral-filters" onSubmit={filter} className="mt-3 grid gap-3 rounded-2xl border border-[#E5DED0] bg-white p-4 shadow-sm md:grid-cols-4">
+          <input name="search" placeholder="بحث بالعميل" className="rounded-xl border border-[#D8D2C4] p-3" />
+          <select name="status" className="rounded-xl border border-[#D8D2C4] p-3">
+            <option value="">كل حالات التواصل</option>
+            {(Object.keys(referralLabels) as ReferralStatus[]).map((status) => <option key={status} value={status}>{referralLabels[status]}</option>)}
+          </select>
+          <select name="ambassadorId" className="rounded-xl border border-[#D8D2C4] p-3">
+            <option value="">كل السفراء</option>
+            {ambassadors.map((ambassador) => <option key={ambassador.id} value={ambassador.id}>{ambassador.user.name || ambassador.user.email}</option>)}
+          </select>
+          <select name="source" className="rounded-xl border border-[#D8D2C4] p-3">
+            <option value="">كل مصادر الإحالة</option>
+            {Object.entries(sourceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+          <input name="contactMethod" placeholder="طريقة التواصل" className="rounded-xl border border-[#D8D2C4] p-3" />
+          <label className="grid gap-1 text-xs font-bold text-slate-500">من تاريخ<DateInput name="from" className="rounded-xl border border-[#D8D2C4] p-3 text-base text-slate-900" /></label>
+          <label className="grid gap-1 text-xs font-bold text-slate-500">إلى تاريخ<DateInput name="to" className="rounded-xl border border-[#D8D2C4] p-3 text-base text-slate-900" /></label>
+          <div className="flex flex-col gap-2 self-end sm:flex-row md:col-span-4 md:justify-end">
+            <button type="button" onClick={(event) => resetFilters(event.currentTarget.form)} className="rounded-xl border border-[#D8D2C4] bg-white px-5 py-3 font-bold text-slate-700 transition hover:bg-[#F7F3EB]">إعادة الضبط</button>
+            <button className="rounded-xl bg-[#111827] px-5 py-3 font-bold text-white transition hover:bg-[#1F2937]">تطبيق الفلاتر</button>
+          </div>
+        </form>
+      )}
+
+      <div className="mt-5 grid gap-5">
         {items.map((referral) => (
           <ReferralEditor
             key={referral.id}
@@ -208,14 +237,9 @@ function ReferralEditor({ referral, busy, collapsed, onCollapse, onExpand, onSav
   const [draft, setDraft] = useState<ReferralDraft>(initialDraft);
   const hasUnsavedChanges = useMemo(() => JSON.stringify(draft) !== JSON.stringify(initialDraft), [draft, initialDraft]);
   const owner = referral.ambassador?.user || referral.partner?.user;
-  const commissionAllowed = ["ACCEPTED", "CONVERTED_TO_CLIENT"].includes(draft.adminDecision) || draft.status === "CONVERTED";
   const contactLooksLikePhone = useMemo(() => /^[+\d][\d\s().-]{7,}$/.test((referral.contactMethod || "").trim()), [referral.contactMethod]);
   const conversionPhone = referral.phone || (contactLooksLikePhone ? referral.contactMethod || "" : "");
   const canConvert = draft.status === "INTERESTED" && draft.adminDecision === "ACCEPTED" && Boolean(referral.email) && !referral.convertedClient;
-  const estimatedAmount = useMemo(() => {
-    if (draft.commissionType === "PERCENTAGE" && referral.clientProject?.paidAmount && draft.commissionRate) return (referral.clientProject.paidAmount * Number(draft.commissionRate) / 100).toFixed(2);
-    return draft.commissionAmount || null;
-  }, [draft.commissionAmount, draft.commissionRate, draft.commissionType, referral.clientProject?.paidAmount]);
 
   function changeDecision(value: ReferralDecision) {
     setDraft((current) => ({ ...current, adminDecision: value, ...(["REJECTED", "CANCELLED"].includes(value) ? { commissionStatus: "NOT_ELIGIBLE" as const, commissionType: null, commissionAmount: null, commissionRate: null } : {}) }));
@@ -269,11 +293,9 @@ function ReferralEditor({ referral, busy, collapsed, onCollapse, onExpand, onSav
 
       {referral.convertedClient ? <section className="m-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><h3 className="font-black text-emerald-900">بيانات العميل</h3><p className="mt-2 text-sm text-emerald-800">تم التحويل وربط الإحالة بالعميل {referral.convertedClient.name || referral.convertedClient.email}.</p></section> : <form id={`convert-${referral.id}`} onSubmit={convertToClient} className="m-5 grid gap-3 rounded-2xl border border-[#D8D2C4] bg-[#FCFAF6] p-4 md:grid-cols-2"><div className="md:col-span-2"><h3 className="font-black">بيانات العميل</h3><p className="mt-1 text-sm text-slate-600">البيانات من الإحالة مباشرة. راجعها وعدّلها فقط إذا لزم الأمر.</p></div><label className="grid gap-1 text-sm font-bold">الاسم<input name="name" required defaultValue={referral.name || ""} className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal" /></label><label className="grid gap-1 text-sm font-bold">البريد<input name="email" type="email" required defaultValue={referral.email || ""} className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal" /></label><label className="grid gap-1 text-sm font-bold">الهاتف<input name="phone" defaultValue={conversionPhone} className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal" /></label><label className="grid gap-1 text-sm font-bold">الشركة<input name="company" defaultValue={referral.company || ""} className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal" /></label>{!contactLooksLikePhone && referral.contactMethod && <div className="md:col-span-2 rounded-xl border border-[#E5DED0] bg-white p-3 text-sm"><span className="font-bold">وسيلة التواصل الأصلية: </span><span>{referral.contactMethod}</span></div>}<label className="grid gap-1 text-sm font-bold">اللغة<select name="preferredLanguage" defaultValue="ar" className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal"><option value="ar">العربية</option><option value="en">English</option></select></label><label className="grid gap-1 text-sm font-bold">ملاحظات العميل / الاحتياج<textarea name="internalNotes" defaultValue={referral.notes || ""} className="rounded-xl border border-[#D8D2C4] bg-white p-3 font-normal" /></label></form>}
 
-      <div className="grid gap-5 p-5 pt-0 xl:grid-cols-3">
+      <div className="grid gap-5 p-5 pt-0 xl:grid-cols-2">
         <section className="rounded-2xl border border-sky-100 bg-sky-50/40 p-4"><SectionTitle icon={MessageSquareText} title="حالة التواصل" subtitle="ما المرحلة الحالية مع العميل؟" /><label className="mt-4 grid gap-2 text-sm font-bold">حالة الإحالة<select disabled={Boolean(referral.convertedClient)} value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value as ReferralStatus }))} className="rounded-xl border border-sky-200 bg-white p-3 font-normal disabled:opacity-60">{(Object.keys(referralLabels) as ReferralStatus[]).filter((status) => status !== "CONVERTED" || Boolean(referral.convertedClient)).map((status) => <option key={status} value={status}>{referralLabels[status]}</option>)}</select></label>{referral.sourcePath && <p className="mt-4 text-xs leading-6 text-slate-500">مسار المصدر: <span dir="ltr">{referral.sourcePath}</span></p>}</section>
         <section className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4"><SectionTitle icon={BadgeCheck} title="قرار الإدارة" subtitle="قرار مستقل عن مسار التواصل." /><label className="mt-4 grid gap-2 text-sm font-bold">القرار<select value={draft.adminDecision} onChange={(event) => changeDecision(event.target.value as ReferralDecision)} className="rounded-xl border border-amber-200 bg-white p-3 font-normal">{(Object.keys(decisionLabels) as ReferralDecision[]).filter((decision) => decision !== "CONVERTED_TO_CLIENT" || Boolean(referral.convertedClient)).map((decision) => <option key={decision} value={decision}>{decisionLabels[decision]}</option>)}</select></label><label className="mt-3 grid gap-2 text-sm font-bold">ملاحظات الإدارة<textarea value={draft.adminNotes} onChange={(event) => setDraft((current) => ({ ...current, adminNotes: event.target.value }))} rows={4} placeholder="تفاصيل التواصل أو سبب القرار عند الحاجة" className="resize-y rounded-xl border border-amber-200 bg-white p-3 font-normal" /></label></section>
-        <section className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4"><SectionTitle icon={CircleDollarSign} title="بيانات العمولة" subtitle="تُستحق بعد تحقق الشرط المالي." />{!commissionAllowed ? <p className="mt-4 rounded-xl bg-white p-4 text-sm leading-6 text-slate-600">اعتمد الإحالة أولًا أو حوّلها إلى عميل قبل إدخال العمولة.</p> : <div className="mt-4 grid gap-3"><label className="grid gap-2 text-sm font-bold">نوع العمولة<select value={draft.commissionType || ""} onChange={(event) => setDraft((current) => ({ ...current, commissionType: (event.target.value || null) as CommissionType | null, commissionAmount: null, commissionRate: null }))} className="rounded-xl border border-emerald-200 bg-white p-3 font-normal"><option value="">دون عمولة محددة</option><option value="FIXED">مبلغ ثابت</option><option value="PERCENTAGE">نسبة مئوية</option></select></label>{draft.commissionType === "FIXED" && <label className="grid gap-2 text-sm font-bold">مبلغ العمولة<input type="number" min="0" step="0.01" value={draft.commissionAmount || ""} onChange={(event) => setDraft((current) => ({ ...current, commissionAmount: event.target.value || null }))} className="rounded-xl border border-emerald-200 bg-white p-3 font-normal" /></label>}{draft.commissionType === "PERCENTAGE" && <><label className="grid gap-2 text-sm font-bold">نسبة العمولة<input type="number" min="0.01" max="100" step="0.01" value={draft.commissionRate || ""} onChange={(event) => setDraft((current) => ({ ...current, commissionRate: event.target.value || null }))} className="rounded-xl border border-emerald-200 bg-white p-3 font-normal" /></label><p className="rounded-xl bg-white p-3 text-xs leading-6 text-slate-600">قيمة الدفعات المعتمدة: <strong>{referral.clientProject?.paidAmount.toFixed(2) || "0.00"} {referral.clientProject?.currency || draft.commissionCurrency}</strong><br />العمولة المحسوبة: <strong>{estimatedAmount || "0.00"} {referral.clientProject?.currency || draft.commissionCurrency}</strong></p></>}{estimatedAmount && <label className="grid gap-2 text-sm font-bold">العملة<select value={draft.commissionCurrency} onChange={(event) => setDraft((current) => ({ ...current, commissionCurrency: event.target.value }))} className="rounded-xl border border-emerald-200 bg-white p-3 font-normal">{[referral.clientProject?.currency, "USD", "EUR", "SYP", "TRY"].filter((value, index, all): value is string => Boolean(value) && all.indexOf(value) === index).map((currency) => <option key={currency}>{currency}</option>)}</select></label>}<label className="grid gap-2 text-sm font-bold">حالة العمولة<select value={draft.commissionStatus} onChange={(event) => setDraft((current) => ({ ...current, commissionStatus: event.target.value as CommissionStatus }))} className="rounded-xl border border-emerald-200 bg-white p-3 font-normal">{(Object.keys(commissionLabels) as CommissionStatus[]).map((status) => <option key={status} value={status} disabled={(status === "PAID" && Boolean(referral.partner || referral.source === "PARTNER")) || ((status === "DUE" || status === "PAID") && !referral.clientProject?.hasPaidInvoice)}>{commissionLabels[status]}</option>)}</select></label>{!referral.clientProject?.hasPaidInvoice && <p className="text-xs leading-5 text-amber-800">لا يمكن جعل العمولة مستحقة قبل تسجيل دفعة عميل مرتبطة بالمشروع.</p>}</div>}</section>
-        {(referral.partner || referral.source === "PARTNER") && <p className="text-xs leading-6 text-amber-800">تسجيل دفع عمولات إحالات الشركاء معطل هنا لعدم وجود مسار إثبات دفع معتمد. لا تُعد دفعة العميل إثباتًا لدفع عمولة الشريك.</p>}
       </div>
 
       {referral.notes && <section className="mx-5 mb-5 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4"><SectionTitle icon={MessageSquareText} title="تفاصيل الطلب" subtitle="المعلومات التي قدّمها العميل أو ولّدها مسار المصدر." /><p className="mt-4 whitespace-pre-wrap break-words rounded-xl bg-white p-4 text-sm leading-7 text-slate-700">{referral.notes}</p></section>}

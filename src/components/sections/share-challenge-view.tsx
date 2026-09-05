@@ -60,6 +60,16 @@ export function ShareChallengeView() {
                 : "Describe your current situation, what is getting in the way, and what you hope to achieve. We will help you bring the picture into focus and identify the most useful next step."}
             </p>
             <div className="mt-8">
+              <div className="mb-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-7 text-sky-950">
+                <p className="font-bold">
+                  {isArabic ? "المرفقات اختيارية — أرسل فقط ما يساعدنا على فهم الحالة" : "Attachments are optional — send only what helps us understand the situation"}
+                </p>
+                <p className="mt-1 text-sky-900/80">
+                  {isArabic
+                    ? "يمكنك إرفاق صورة للمشكلة، ملف أو نموذج تستخدمه حاليًا، تقرير، جدول، أو مستند يوضح المطلوب. لا ترسل كلمات مرور أو مفاتيح دخول أو بيانات شديدة الحساسية."
+                    : "You can attach a screenshot, an existing file or template, a report, spreadsheet, or document that explains the need. Do not send passwords, access keys, or highly sensitive information."}
+                </p>
+              </div>
               <MailtoForm
                 to={BRAND.email}
                 subject={`${isArabic ? "مشروع أو تحدٍ جديد" : "New Project or Challenge"} — CyberWeel`}
