@@ -2,6 +2,7 @@
 
 import { Bell } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type AdminNotification = {
   id: string;
@@ -18,6 +19,8 @@ export function AdminNotificationCenter() {
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
   const centerRef = useRef<HTMLDivElement>(null);
+  const mobilePanelRef = useRef<HTMLDivElement>(null);
+  const desktopPanelRef = useRef<HTMLDivElement>(null);
 
   async function loadNotifications() {
     const response = await fetch("/api/admin/notifications", { cache: "no-store" });
@@ -37,17 +40,27 @@ export function AdminNotificationCenter() {
   useEffect(() => {
     if (!open) return;
 
+    const targetIsInside = (target: Node) =>
+      centerRef.current?.contains(target)
+      || mobilePanelRef.current?.contains(target)
+      || desktopPanelRef.current?.contains(target);
+
     function closeOutside(event: PointerEvent) {
-      if (centerRef.current && !centerRef.current.contains(event.target as Node)) setOpen(false);
+      if (!targetIsInside(event.target as Node)) setOpen(false);
     }
 
     function closeWithEscape(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);
     }
 
+    const isMobile = window.matchMedia("(max-width: 639px)").matches;
+    const previousOverflow = document.body.style.overflow;
+    if (isMobile) document.body.style.overflow = "hidden";
+
     document.addEventListener("pointerdown", closeOutside);
     document.addEventListener("keydown", closeWithEscape);
     return () => {
+      document.body.style.overflow = previousOverflow;
       document.removeEventListener("pointerdown", closeOutside);
       document.removeEventListener("keydown", closeWithEscape);
     };
@@ -91,6 +104,25 @@ export function AdminNotificationCenter() {
     });
   }
 
+  const panelContent = (
+    <>
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#EEE7DA] px-2 pb-3 dark:border-slate-800">
+        <div><strong>إشعارات الإدارة</strong><p className="text-xs text-slate-500 dark:text-slate-400">{unread} غير مقروء</p></div>
+        <button type="button" onClick={() => void markAllRead()} disabled={!unread} className="text-xs font-bold text-[#9A7D43] disabled:opacity-40">تحديد الكل كمقروء</button>
+      </div>
+      <div className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto sm:max-h-96">
+        {notifications.map((notification) => (
+          <button key={notification.id} type="button" onClick={() => void openNotification(notification)} className={`w-full rounded-xl p-3 text-right transition ${notification.readAt ? "bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300" : "bg-amber-50 text-[#111827] dark:bg-amber-950/30 dark:text-amber-100"}`}>
+            <div className="flex items-start justify-between gap-3"><strong className="text-sm">{notification.title}</strong>{!notification.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-600" />}</div>
+            {notification.body && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{notification.body}</p>}
+            <p className="mt-2 text-[11px] font-black text-[#9A7D43]">فتح التفاصيل ←</p>
+          </button>
+        ))}
+        {!notifications.length && <p className="p-5 text-center text-sm text-slate-500 dark:text-slate-400">لا توجد إشعارات بعد.</p>}
+      </div>
+    </>
+  );
+
   return (
     <div ref={centerRef} className="relative">
       <button
@@ -105,22 +137,17 @@ export function AdminNotificationCenter() {
         {unread > 0 && <span className="absolute -right-1.5 -top-1.5 grid min-h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-black text-white">{unread > 99 ? "99+" : unread}</span>}
       </button>
       {open && (
-        <div className="fixed inset-x-3 bottom-3 z-50 max-h-[calc(100dvh-1.5rem)] overflow-hidden rounded-2xl border border-[#D8D2C4] bg-white p-3 text-[#111827] shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-[calc(100%+10px)] sm:w-[min(92vw,420px)] sm:max-h-none dark:border-slate-700 dark:bg-slate-900 dark:text-white">
-          <div className="flex items-center justify-between gap-3 border-b border-[#EEE7DA] px-2 pb-3 dark:border-slate-800">
-            <div><strong>إشعارات الإدارة</strong><p className="text-xs text-slate-500 dark:text-slate-400">{unread} غير مقروء</p></div>
-            <button type="button" onClick={() => void markAllRead()} disabled={!unread} className="text-xs font-bold text-[#9A7D43] disabled:opacity-40">تحديد الكل كمقروء</button>
+        <>
+          {typeof document !== "undefined" && createPortal(
+            <div ref={mobilePanelRef} className="fixed inset-3 z-[100] flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#D8D2C4] bg-white p-3 text-[#111827] shadow-2xl sm:hidden dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+              {panelContent}
+            </div>,
+            document.body,
+          )}
+          <div ref={desktopPanelRef} className="absolute left-0 top-[calc(100%+10px)] z-50 hidden w-[min(92vw,420px)] flex-col overflow-hidden rounded-2xl border border-[#D8D2C4] bg-white p-3 text-[#111827] shadow-2xl sm:flex dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+            {panelContent}
           </div>
-          <div className="mt-2 max-h-[calc(100dvh-8rem)] space-y-2 overflow-y-auto sm:max-h-96">
-            {notifications.map((notification) => (
-              <button key={notification.id} type="button" onClick={() => void openNotification(notification)} className={`w-full rounded-xl p-3 text-right transition ${notification.readAt ? "bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300" : "bg-amber-50 text-[#111827] dark:bg-amber-950/30 dark:text-amber-100"}`}>
-                <div className="flex items-start justify-between gap-3"><strong className="text-sm">{notification.title}</strong>{!notification.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-600" />}</div>
-                {notification.body && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{notification.body}</p>}
-                <p className="mt-2 text-[11px] font-black text-[#9A7D43]">فتح التفاصيل ←</p>
-              </button>
-            ))}
-            {!notifications.length && <p className="p-5 text-center text-sm text-slate-500 dark:text-slate-400">لا توجد إشعارات بعد.</p>}
-          </div>
-        </div>
+        </>
       )}
     </div>
   );
