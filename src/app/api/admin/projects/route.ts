@@ -159,18 +159,44 @@ export async function POST(request: NextRequest) {
       });
 
       const stageIds: string[] = [];
-      for (const input of parsedStages.stages) {
+      let firstStage: { id: string; name: string; amount: number; currency: string } | null = null;
+      for (const [index, input] of parsedStages.stages.entries()) {
         const stage = await tx.projectStage.create({
           data: {
             projectId: project.id,
             name: input.name,
             amount: input.amount,
             currency: input.currency,
+            position: index + 1,
           },
         });
         stageIds.push(stage.id);
+        if (index === 0) {
+          firstStage = { id: stage.id, name: stage.name, amount: Number(stage.amount), currency: stage.currency };
+        }
         if (rewardSnapshot) await syncStageReward(tx, stage.id);
       }
+
+      if (!firstStage) throw new Error("FIRST_STAGE_MISSING");
+
+      const invoiceYear = project.createdAt.getUTCFullYear();
+      const sequence = await tx.invoiceSequence.upsert({
+        where: { year: invoiceYear },
+        create: { year: invoiceYear, lastNumber: 1 },
+        update: { lastNumber: { increment: 1 } },
+      });
+      const firstInvoiceNumber = `CW-${invoiceYear}-${String(sequence.lastNumber).padStart(4, "0")}`;
+      await tx.clientInvoice.create({
+        data: {
+          projectId: project.id,
+          number: firstInvoiceNumber,
+          type: "STANDARD",
+          amount: firstStage.amount,
+          currency: firstStage.currency,
+          status: "DUE",
+          dueAt: project.createdAt,
+        },
+      });
 
       await tx.clientNotification.create({
         data: {
@@ -178,6 +204,14 @@ export async function POST(request: NextRequest) {
           title: "تمت إضافة مشروع جديد",
           body: title,
           section: "projects",
+        },
+      });
+      await tx.clientNotification.create({
+        data: {
+          clientId,
+          title: "مطالبة دفع للمرحلة الأولى",
+          body: `${title} — ${firstStage.name} — ${firstStage.amount} ${firstStage.currency} — ${firstInvoiceNumber}`,
+          section: "invoices",
         },
       });
 
@@ -188,7 +222,17 @@ export async function POST(request: NextRequest) {
         entityType: "CLIENT_PROJECT",
         entityId: project.id,
         entityLabel: title,
-        after: { clientId, status: "PLANNING", progress: 0, stageCount: stageIds.length, stageIds, referralId: referral?.id || null },
+        after: {
+          clientId,
+          status: "PLANNING",
+          progress: 0,
+          stageCount: stageIds.length,
+          stageIds,
+          referralId: referral?.id || null,
+          firstStageId: firstStage.id,
+          firstInvoiceNumber,
+          firstStagePaymentDueAt: project.createdAt.toISOString(),
+        },
       });
       await writeAdminAudit(tx, {
         actorId: access.userId,
@@ -229,10 +273,15 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      return project;
+      return { project, firstInvoiceNumber };
     });
 
-    return NextResponse.json({ project: result, assignments: [], structuredStagesCreated: parsedStages.stages.length }, { status: 201 });
+    return NextResponse.json({
+      project: result.project,
+      assignments: [],
+      structuredStagesCreated: parsedStages.stages.length,
+      firstInvoiceNumber: result.firstInvoiceNumber,
+    }, { status: 201 });
   } catch (error) {
     console.error("[admin-projects] Canonical project creation failed", error);
     return NextResponse.json({ error: "تعذر إنشاء المشروع كاملًا. لم يتم اعتماد إنشاء جزئي." }, { status: 409 });
