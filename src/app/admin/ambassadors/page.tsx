@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, Fragment, useEffect, useState } from "react";
-import { ChevronDown, Eye, EyeOff, UserRoundCheck } from "lucide-react";
+import { ChevronDown, UserRoundCheck } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { DateText } from "@/components/ui/date-text";
 import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
@@ -125,7 +125,6 @@ export default function AmbassadorsAdmin() {
     id: string,
     status: "ACCEPTED" | "REJECTED",
     notes: string,
-    password: string,
   ) {
     setBusyId(id);
     setError("");
@@ -134,13 +133,12 @@ export default function AmbassadorsAdmin() {
       const response = await fetch("/api/admin/ambassadors", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entity: "application", id, status, notes, password }),
+        body: JSON.stringify({ entity: "application", id, status, notes }),
       });
       const payload = await response.json();
       if (!response.ok) {
         const labels: Record<string, string> = {
           INVALID_DECISION: "ملاحظة القرار مطلوبة.",
-          TEMP_PASSWORD_REQUIRED: "عند القبول أدخل كلمة مرور مؤقتة من 10 أحرف على الأقل.",
           EMAIL_EXISTS: "يوجد حساب بهذا البريد بالفعل.",
           ALREADY_DECIDED: "تم اتخاذ قرار سابق على هذا الطلب.",
         };
@@ -506,13 +504,11 @@ function ApplicationCard({
 }: {
   application: Application;
   busy: boolean;
-  onDecision: (id: string, status: "ACCEPTED" | "REJECTED", notes: string, password: string) => Promise<void>;
+  onDecision: (id: string, status: "ACCEPTED" | "REJECTED", notes: string) => Promise<void>;
 }) {
-  const [showPassword, setShowPassword] = useState(false);
-
   async function submit(formElement: HTMLFormElement, status: "ACCEPTED" | "REJECTED") {
     const form = new FormData(formElement);
-    await onDecision(application.id, status, String(form.get("notes") || "").trim(), String(form.get("password") || ""));
+    await onDecision(application.id, status, String(form.get("notes") || "").trim());
   }
 
   return (
@@ -529,13 +525,7 @@ function ApplicationCard({
         <details className="group mt-4 rounded-xl border border-[#D8D2C4] bg-[#F7F3EB]">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 font-black text-[#9A7D43]">مراجعة الطلب واتخاذ القرار<ChevronDown className="h-5 w-5 shrink-0 transition group-open:rotate-180" /></summary>
           <form onSubmit={(event) => { event.preventDefault(); void submit(event.currentTarget, "ACCEPTED"); }} className="grid gap-3 border-t border-[#D8D2C4] p-4 md:grid-cols-2">
-            <input name="notes" required placeholder="ملاحظة القرار" className="min-w-0 rounded-lg border p-3" />
-            <div className="relative min-w-0">
-              <input name="password" type={showPassword ? "text" : "password"} minLength={10} autoComplete="new-password" placeholder="كلمة مرور مؤقتة عند القبول" className="w-full min-w-0 rounded-lg border p-3 pl-12" />
-              <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 hover:bg-slate-100">
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </button>
-            </div>
+            <input name="notes" required placeholder="ملاحظة القرار" className="min-w-0 rounded-lg border p-3 md:col-span-2" />
             <div className="grid gap-2 sm:grid-cols-2 md:col-span-2">
               <button type="submit" disabled={busy} className="min-h-11 rounded-lg bg-emerald-600 px-4 py-2 font-bold text-white disabled:opacity-40">قبول وإنشاء الحساب</button>
               <button type="button" disabled={busy} onClick={(event) => void submit(event.currentTarget.form!, "REJECTED")} className="min-h-11 rounded-lg bg-rose-600 px-4 py-2 font-bold text-white disabled:opacity-40">رفض</button>
