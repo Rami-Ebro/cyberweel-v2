@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 type AdminNotification = {
@@ -22,20 +22,33 @@ export function AdminNotificationCenter() {
   const mobilePanelRef = useRef<HTMLDivElement>(null);
   const desktopPanelRef = useRef<HTMLDivElement>(null);
 
-  async function loadNotifications() {
+  const loadNotifications = useCallback(async () => {
     const response = await fetch("/api/admin/notifications", { cache: "no-store" });
     if (!response.ok) return;
     const data = await response.json();
     setNotifications(data.notifications || []);
     setUnread(data.unread || 0);
-  }
+  }, []);
 
   useEffect(() => {
     const refresh = () => void loadNotifications();
-    void Promise.resolve().then(loadNotifications);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadNotifications();
+    };
+
+    void loadNotifications();
+    const intervalId = window.setInterval(refreshWhenVisible, 25_000);
     window.addEventListener("admin-notifications-refresh", refresh);
-    return () => window.removeEventListener("admin-notifications-refresh", refresh);
-  }, []);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("admin-notifications-refresh", refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [loadNotifications]);
 
   useEffect(() => {
     if (!open) return;
@@ -86,6 +99,7 @@ export function AdminNotificationCenter() {
       AMBASSADOR_ACCEPTED: "/admin/ambassadors",
       AMBASSADOR_REJECTED: "/admin/ambassadors",
       CLIENT_SUBMISSION: "/admin/clients",
+      REFERRAL_CREATED: "/admin/referrals",
     };
     const target = notification.href?.startsWith("/") && !notification.href.startsWith("//")
       ? notification.href
