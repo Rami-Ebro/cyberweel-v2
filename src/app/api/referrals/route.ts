@@ -104,21 +104,40 @@ export async function POST(request: NextRequest) {
       : email
         ? "البريد الإلكتروني"
         : "الهاتف";
+    const contact = email || phone;
+    const notificationTitle = ambassador
+      ? "إحالة جديدة من سفير"
+      : partner
+        ? "إحالة جديدة من شريك"
+        : "إحالة جديدة";
 
-    const referral = await db.partnerReferral.create({
-      data: {
-        partnerId: partner?.id || null,
-        ambassadorId: ambassador?.id || null,
-        name,
-        email: email || null,
-        phone: phone || null,
-        company: company || null,
-        notes,
-        sourcePath: "/share-challenge",
-        source,
-        contactMethod,
-      },
-      select: { id: true },
+    const referral = await db.$transaction(async (tx) => {
+      const created = await tx.partnerReferral.create({
+        data: {
+          partnerId: partner?.id || null,
+          ambassadorId: ambassador?.id || null,
+          name,
+          email: email || null,
+          phone: phone || null,
+          company: company || null,
+          notes,
+          sourcePath: "/share-challenge",
+          source,
+          contactMethod,
+        },
+        select: { id: true },
+      });
+
+      await tx.adminNotification.create({
+        data: {
+          title: notificationTitle,
+          body: `${name} — ${contact}`,
+          href: "/admin/referrals",
+          kind: "REFERRAL_CREATED",
+        },
+      });
+
+      return created;
     });
 
     return NextResponse.json({ ok: true, attributed, referralId: referral.id }, { status: 201 });
