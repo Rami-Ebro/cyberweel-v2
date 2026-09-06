@@ -8,6 +8,7 @@ import { DateText } from "@/components/ui/date-text";
 type StageStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 type StagePaymentStatus = "PENDING" | "PAID" | "CANCELLED";
 type ProjectStatus = "PLANNING" | "IN_PROGRESS" | "REVIEW" | "COMPLETED" | "ON_HOLD" | "CANCELLED";
+
 type StageInvoice = {
   id: string;
   number: string;
@@ -60,11 +61,13 @@ const stageStatusLabel: Record<StageStatus, string> = {
   COMPLETED: "مكتملة",
   CANCELLED: "ملغاة",
 };
+
 const paymentStatusLabel: Record<StagePaymentStatus, string> = {
   PENDING: "بانتظار الدفع",
   PAID: "مدفوعة",
   CANCELLED: "ملغاة",
 };
+
 const invoiceStatusLabel: Record<string, string> = {
   DRAFT: "مسودة",
   DUE: "مستحقة",
@@ -72,6 +75,7 @@ const invoiceStatusLabel: Record<string, string> = {
   OVERDUE: "متأخرة",
   CANCELLED: "ملغاة",
 };
+
 const projectStatusLabel: Record<ProjectStatus, string> = {
   PLANNING: "التخطيط",
   IN_PROGRESS: "قيد التنفيذ",
@@ -173,6 +177,7 @@ export function ProjectExecutionPlan(props: Props) {
 
       let project = data.projects?.[0];
       let nextStages = (project?.projectStages || []) as Stage[];
+
       if (!nextStages.length) {
         const syncError = planSyncError(props.legacyStages, props.financialPlan);
         if (!syncError) {
@@ -217,7 +222,10 @@ export function ProjectExecutionPlan(props: Props) {
   }
 
   const nextStageNumber = stages.length + 1;
-  const suggestion = useMemo(() => stageSuggestion(props.legacyStages, props.financialPlan, stages.length), [props.legacyStages, props.financialPlan, stages.length]);
+  const suggestion = useMemo(
+    () => stageSuggestion(props.legacyStages, props.financialPlan, stages.length),
+    [props.legacyStages, props.financialPlan, stages.length],
+  );
   const totalPlanned = useMemo(
     () => stages.length ? stages.reduce((sum, stage) => sum + Number(stage.amount || 0), 0) : plannedTotal(props.financialPlan),
     [stages, props.financialPlan],
@@ -226,7 +234,10 @@ export function ProjectExecutionPlan(props: Props) {
     () => stages.length ? stages.length : plannedStageCount(props.legacyStages, props.financialPlan),
     [stages, props.legacyStages, props.financialPlan],
   );
-  const paidAmount = useMemo(() => stages.filter((stage) => stage.paymentStatus === "PAID").reduce((sum, stage) => sum + Number(stage.amount || 0), 0), [stages]);
+  const paidAmount = useMemo(
+    () => stages.filter((stage) => stage.paymentStatus === "PAID").reduce((sum, stage) => sum + Number(stage.amount || 0), 0),
+    [stages],
+  );
   const financialPercent = totalPlanned > 0 ? Math.min(100, Math.round((paidAmount / totalPlanned) * 100)) : 0;
   const completedStages = stages.filter((stage) => stage.status === "COMPLETED").length;
   const automaticProgress = totalPlannedStages > 0 ? Math.min(100, Math.round((completedStages / totalPlannedStages) * 100)) : 0;
@@ -269,11 +280,20 @@ export function ProjectExecutionPlan(props: Props) {
       const response = await fetch("/api/admin/project-stages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", projectId: props.projectId, name: suggestion.name, amount: suggestion.amount, dueAt: null, sendPaymentRequest: firstStage }),
+        body: JSON.stringify({
+          action: "create",
+          projectId: props.projectId,
+          name: suggestion.name,
+          amount: suggestion.amount,
+          dueAt: null,
+          sendPaymentRequest: firstStage,
+        }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) return setMessage(payload.error || "تعذر إنشاء المرحلة");
-      setMessage(firstStage ? `تم إنشاء المرحلة الأولى وإرسال مطالبة الدفع${payload.invoiceNumber ? ` — ${payload.invoiceNumber}` : ""}.` : `تم إنشاء المرحلة ${nextStageNumber} تلقائيًا.`);
+      setMessage(firstStage
+        ? `تم إنشاء المرحلة الأولى وإرسال مطالبة الدفع${payload.invoiceNumber ? ` — ${payload.invoiceNumber}` : ""}.`
+        : `تم إنشاء المرحلة ${nextStageNumber} تلقائيًا.`);
       await loadStages();
       window.dispatchEvent(new Event("admin-projects-refresh"));
     } catch {
@@ -294,7 +314,11 @@ export function ProjectExecutionPlan(props: Props) {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) return setMessage(payload.error || "تعذر بدء المرحلة");
-      setMessage(payload.invoice?.number ? `بدأت المرحلة وصدرت فاتورتها ${payload.invoice.number}.` : "بدأت المرحلة.");
+      setMessage(stage.invoice?.number
+        ? `بدأت المرحلة. الفاتورة ${stage.invoice.number} كانت صادرة مسبقًا.`
+        : payload.invoice?.number
+          ? `بدأت المرحلة وصدرت فاتورتها ${payload.invoice.number}.`
+          : "بدأت المرحلة.");
       await loadStages();
       window.dispatchEvent(new Event("admin-projects-refresh"));
     } catch {
@@ -340,7 +364,15 @@ export function ProjectExecutionPlan(props: Props) {
       const response = await fetch("/api/admin/project-stages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "update", stageId: stage.id, name: data.get("name"), amount: Number(data.get("amount")), status: data.get("status"), dueAt: data.get("dueAt"), approved: data.get("approved") === "on" }),
+        body: JSON.stringify({
+          action: "update",
+          stageId: stage.id,
+          name: data.get("name"),
+          amount: Number(data.get("amount")),
+          status: data.get("status"),
+          dueAt: data.get("dueAt"),
+          approved: data.get("approved") === "on",
+        }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -399,27 +431,66 @@ export function ProjectExecutionPlan(props: Props) {
 
         <section className="grid gap-3">
           {loading && <p className="rounded-xl bg-[#F7F3EB] p-4 text-sm font-bold">جارٍ تحميل المراحل...</p>}
-          {!loading && stages.map((stage, index) => (
-            <article key={stage.id} className="rounded-2xl border border-[#D8D2C4] bg-[#FCFAF6] p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-black text-[#9A7D43]">المرحلة {index + 1}</p><h4 className="mt-1 text-lg font-black">{stage.name}</h4></div><div className="flex flex-wrap gap-2 text-xs font-black"><span className="rounded-full bg-white px-3 py-1.5">{stageStatusLabel[stage.status]}</span><span className="rounded-full bg-white px-3 py-1.5">{paymentStatusLabel[stage.paymentStatus]}</span></div></div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-4"><Fact label="المبلغ" value={`${stage.amount} ${stage.currency}`} /><Fact label="حالة الدفع" value={paymentStatusLabel[stage.paymentStatus]} /><Fact label="الفاتورة" value={stage.invoice ? `${stage.invoice.number} — ${invoiceStatusLabel[stage.invoice.status] || stage.invoice.status}` : "لم تصدر بعد"} /><Fact label="تاريخ الاستحقاق" value={<DateText value={stage.invoice?.dueAt || stage.startsAt} fallback="غير محدد" />} /></div>
-              {!["COMPLETED", "CANCELLED"].includes(stage.status) && (stage.status === "NOT_STARTED" || !stage.invoice) && (
-                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-sm font-bold text-amber-900">عند بدء المرحلة تصدر فاتورتها وتصبح مستحقة، ويمكن التنفيذ قبل الدفع، لكن لا يعتمد التسليم قبل تسجيل الدفع.</p>
-                    <button type="button" onClick={() => void startStage(stage)} disabled={busy === `start-${stage.id}`} className="rounded-xl bg-[#111827] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">{busy === `start-${stage.id}` ? "جارٍ البدء..." : stage.status === "NOT_STARTED" ? "بدء المرحلة وإصدار الفاتورة" : "إصدار فاتورة المرحلة"}</button>
+          {!loading && stages.map((stage, index) => {
+            const isFirstStage = index === 0;
+            const firstStageInvoiceExists = isFirstStage && Boolean(stage.invoice);
+            const firstStagePaid = firstStageInvoiceExists && stage.paymentStatus === "PAID";
+            const canStartFirstStage = firstStagePaid && stage.status === "NOT_STARTED";
+            const showGenericStart = !isFirstStage && !["COMPLETED", "CANCELLED"].includes(stage.status) && (stage.status === "NOT_STARTED" || !stage.invoice);
+
+            return (
+              <article key={stage.id} className="rounded-2xl border border-[#D8D2C4] bg-[#FCFAF6] p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-black text-[#9A7D43]">المرحلة {index + 1}</p><h4 className="mt-1 text-lg font-black">{stage.name}</h4></div><div className="flex flex-wrap gap-2 text-xs font-black"><span className="rounded-full bg-white px-3 py-1.5">{stageStatusLabel[stage.status]}</span><span className="rounded-full bg-white px-3 py-1.5">{paymentStatusLabel[stage.paymentStatus]}</span></div></div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-4"><Fact label="المبلغ" value={`${stage.amount} ${stage.currency}`} /><Fact label="حالة الدفع" value={paymentStatusLabel[stage.paymentStatus]} /><Fact label="الفاتورة" value={stage.invoice ? `${stage.invoice.number} — ${invoiceStatusLabel[stage.invoice.status] || stage.invoice.status}` : "لم تصدر بعد"} /><Fact label="تاريخ الاستحقاق" value={<DateText value={stage.invoice?.dueAt || stage.startsAt} fallback="غير محدد" />} /></div>
+
+                {firstStageInvoiceExists && stage.status === "NOT_STARTED" && !firstStagePaid && (
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-sm font-bold text-amber-900">فاتورة المرحلة الأولى صدرت تلقائيًا عند إنشاء المشروع. بعد تسجيل الدفع يمكنك بدء المرحلة من هنا.</p>
                   </div>
-                </div>
-              )}
-              <details className="group mt-3 rounded-xl border border-[#D8D2C4] bg-white">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-black">تحديث المرحلة<ChevronDown className="h-4 w-4 transition group-open:rotate-180" /></summary>
-                <StageUpdateForm stage={stage} busy={busy === stage.id} onSubmit={(event) => updateStage(event, stage)} />
-              </details>
-            </article>
-          ))}
+                )}
+
+                {canStartFirstStage && (
+                  <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-sm font-bold text-emerald-900">تم تسجيل دفع فاتورة المرحلة الأولى. يمكن بدء التنفيذ الآن.</p>
+                      <button type="button" onClick={() => void startStage(stage)} disabled={busy === `start-${stage.id}`} className="rounded-xl bg-[#111827] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">{busy === `start-${stage.id}` ? "جارٍ البدء..." : "بدء المرحلة"}</button>
+                    </div>
+                  </div>
+                )}
+
+                {isFirstStage && !stage.invoice && stage.status === "NOT_STARTED" && (
+                  <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3">
+                    <p className="text-sm font-bold text-rose-900">فاتورة المرحلة الأولى غير موجودة. عالج الفاتورة قبل بدء التنفيذ حتى لا تتكرر مطالبة الدفع.</p>
+                  </div>
+                )}
+
+                {showGenericStart && (
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-sm font-bold text-amber-900">عند بدء هذه المرحلة تصدر فاتورتها وتصبح مستحقة، ويمكن التنفيذ قبل الدفع، لكن لا يعتمد التسليم قبل تسجيل الدفع.</p>
+                      <button type="button" onClick={() => void startStage(stage)} disabled={busy === `start-${stage.id}`} className="rounded-xl bg-[#111827] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">{busy === `start-${stage.id}` ? "جارٍ البدء..." : stage.invoice ? "بدء المرحلة" : "بدء المرحلة وإصدار الفاتورة"}</button>
+                    </div>
+                  </div>
+                )}
+
+                <details className="group mt-3 rounded-xl border border-[#D8D2C4] bg-white">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-black">تحديث المرحلة<ChevronDown className="h-4 w-4 transition group-open:rotate-180" /></summary>
+                  <StageUpdateForm stage={stage} busy={busy === stage.id} onSubmit={(event) => updateStage(event, stage)} />
+                </details>
+              </article>
+            );
+          })}
         </section>
 
-        {!loading && loaded && suggestion.valid && suggestion.amount !== null && stages.length < totalPlannedStages && <section className="rounded-xl border border-[#D8D2C4] bg-white p-4"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs font-black text-[#9A7D43]">المرحلة {nextStageNumber}</p><h4 className="mt-1 text-lg font-black">{suggestion.name}</h4><p className="mt-1 text-sm font-bold text-slate-500">{suggestion.amount} {props.currency}</p></div><button type="button" onClick={() => void createNextStage()} disabled={busy === "create"} className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white disabled:opacity-50"><Plus className="h-5 w-5" />{busy === "create" ? "جارٍ الإنشاء..." : stages.length ? "+ إنشاء المرحلة التالية" : "إنشاء المرحلة الأولى وإرسال مطالبة الدفع"}</button></div></section>}
+        {!loading && loaded && suggestion.valid && suggestion.amount !== null && stages.length < totalPlannedStages && (
+          <section className="rounded-xl border border-[#D8D2C4] bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div><p className="text-xs font-black text-[#9A7D43]">المرحلة {nextStageNumber}</p><h4 className="mt-1 text-lg font-black">{suggestion.name}</h4><p className="mt-1 text-sm font-bold text-slate-500">{suggestion.amount} {props.currency}</p></div>
+              <button type="button" onClick={() => void createNextStage()} disabled={busy === "create"} className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-5 py-3.5 font-black text-white disabled:opacity-50"><Plus className="h-5 w-5" />{busy === "create" ? "جارٍ الإنشاء..." : stages.length ? "+ إنشاء المرحلة التالية" : "إنشاء المرحلة الأولى وإرسال مطالبة الدفع"}</button>
+            </div>
+          </section>
+        )}
+
         {!loading && loaded && totalPlannedStages === 0 && <p className="rounded-xl bg-[#F7F3EB] p-4 text-sm font-bold text-slate-600">لم تُحدد مراحل المشروع بعد. أضف أسماء المراحل والخطة المالية من نموذج المشروع.</p>}
         {!loading && loaded && totalPlannedStages > stages.length && !suggestion.valid && <p className="rounded-xl bg-rose-50 p-4 text-sm font-bold text-rose-800">بيانات المرحلة التالية غير مكتملة. تأكد أن لكل مرحلة اسمًا ومبلغًا مقابلًا لها في الخطة المالية.</p>}
 
@@ -427,9 +498,7 @@ export function ProjectExecutionPlan(props: Props) {
           <section className={`rounded-2xl border p-4 ${closeReadiness.ready ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h4 className={`text-lg font-black ${closeReadiness.ready ? "text-emerald-900" : "text-amber-900"}`}>
-                  {projectStatus === "COMPLETED" ? "المشروع مغلق ومكتمل" : closeReadiness.ready ? "المشروع جاهز للإغلاق" : "المشروع غير جاهز للإغلاق بعد"}
-                </h4>
+                <h4 className={`text-lg font-black ${closeReadiness.ready ? "text-emerald-900" : "text-amber-900"}`}>{projectStatus === "COMPLETED" ? "المشروع مغلق ومكتمل" : closeReadiness.ready ? "المشروع جاهز للإغلاق" : "المشروع غير جاهز للإغلاق بعد"}</h4>
                 {projectStatus === "COMPLETED" ? (
                   <p className="mt-1 text-sm font-bold text-emerald-800">تم إغلاق المشروع بعد اكتمال جميع المراحل ودفعها واعتمادها، وسداد جميع فواتير المشروع.</p>
                 ) : closeReadiness.ready ? (
@@ -447,15 +516,7 @@ export function ProjectExecutionPlan(props: Props) {
   );
 }
 
-function StageUpdateForm({
-  stage,
-  busy,
-  onSubmit,
-}: {
-  stage: Stage;
-  busy: boolean;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<boolean>;
-}) {
+function StageUpdateForm({ stage, busy, onSubmit }: { stage: Stage; busy: boolean; onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<boolean> }) {
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -494,6 +555,7 @@ function StageUpdateForm({
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className="grid gap-2 text-sm font-black">{label}{children}</label>;
 }
+
 function Fact({ label, value }: { label: string; value: ReactNode }) {
   return <div className="rounded-xl bg-white p-3"><p className="text-xs font-bold text-slate-500">{label}</p><div className="mt-1 font-black">{value}</div></div>;
 }
