@@ -181,11 +181,32 @@ function errorText(code: string, languageCode: string) {
   return (code === "QUOTA_EXHAUSTED" || code === "AI_RATE_LIMITED" ? limited[language] : unavailable[language]) || fallback;
 }
 
+function microphoneAccessErrorText(name: string, arabic: boolean) {
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return arabic
+      ? "لم يُمنح الموقع إذن استخدام الميكروفون. إذا كنت قد اخترت الحظر سابقًا، غيّر إذن الميكروفون من إعدادات الموقع ثم حاول مرة أخرى."
+      : "Microphone access was not granted. If you previously blocked it, allow the microphone in this site's settings and try again.";
+  }
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+    return arabic
+      ? "لم يعثر المتصفح على ميكروفون متاح على هذا الجهاز."
+      : "No available microphone was found on this device.";
+  }
+  if (name === "NotReadableError" || name === "TrackStartError") {
+    return arabic
+      ? "تعذّر فتح الميكروفون. قد يكون مستخدمًا من تطبيق آخر أو محجوبًا من إعدادات النظام."
+      : "The microphone could not be opened. Another app or system setting may be blocking it.";
+  }
+  return arabic
+    ? "تعذّر الوصول إلى الميكروفون. تحقق من إذن المتصفح وإعدادات الجهاز ثم حاول مرة أخرى."
+    : "The microphone could not be accessed. Check browser permission and device settings, then try again.";
+}
+
 function speechErrorText(code: string, arabic: boolean) {
   if (code === "not-allowed" || code === "service-not-allowed") {
     return arabic
-      ? "اسمح للمتصفح باستخدام الميكروفون ثم حاول مرة أخرى."
-      : "Allow microphone access in your browser, then try again.";
+      ? "تم التحقق من إذن الميكروفون، لكن خدمة تحويل الصوت إلى نص لم تبدأ. حاول مرة أخرى أو استخدم Chrome أو Edge محدثًا."
+      : "Microphone permission was verified, but speech-to-text did not start. Try again or use an up-to-date Chrome or Edge browser.";
   }
   if (code === "no-speech") {
     return arabic
@@ -327,7 +348,7 @@ export function CyberWeelAiAssistant() {
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [open]);
 
-  function toggleSpeechInput() {
+  async function toggleSpeechInput() {
     if (!speechSupported || !chat.privacyAccepted || busy) return;
 
     if (listening) {
@@ -342,13 +363,27 @@ export function CyberWeelAiAssistant() {
       return;
     }
 
+    setSpeechError("");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setSpeechError(microphoneAccessErrorText("UNSUPPORTED", arabicSite));
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+    } catch (cause) {
+      const name = cause instanceof DOMException ? cause.name : "UNKNOWN";
+      setSpeechError(microphoneAccessErrorText(name, arabicSite));
+      return;
+    }
+
     const recognition = new SpeechRecognition();
     recognition.lang = activeLanguage;
     recognition.interimResults = true;
     recognition.continuous = true;
     voiceBaseInputRef.current = input.trimEnd();
     voiceFinalTranscriptRef.current = "";
-    setSpeechError("");
 
     recognition.onresult = (event) => {
       let finalTranscript = voiceFinalTranscriptRef.current;
@@ -573,7 +608,7 @@ export function CyberWeelAiAssistant() {
                   <ShieldCheck className="mt-1 h-5 w-5 shrink-0 text-[#9A7D43]" />
                   <div>
                     <h3 className="font-black text-[#111827]">{arabicSite ? "قبل أن نبدأ" : "Before we begin"}</h3>
-                    <p className="mt-2">{arabicSite ? "تُرسل رسائلك إلى Gemini ضمن الخطة المجانية، وقد تستخدم Google المحتوى لتحسين منتجاتها. ننقّح أنماط البريد والهاتف الواضحة ولا نحفظ المحادثة على خادم سايبرويل. عند استخدام الميكروفون قد يعالج متصفحك الصوت لتحويله إلى نص؛ سايبرويل لا يخزن التسجيل الصوتي، ويُرسل النص الناتج فقط عبر مسار المحادثة. لا ترسل كلمات مرور أو بيانات دفع أو معلومات حساسة." : "Your messages are sent to Gemini under its Free Tier, and Google may use the content to improve its products. We redact obvious email and phone patterns and do not store the chat on CyberWeel servers. When you use the microphone, your browser may process audio to turn it into text; CyberWeel does not store the audio recording, and only the resulting text enters the chat flow. Do not send passwords, payment details, or sensitive information."}</p>
+                    <p className="mt-2">{arabicSite ? "تُرسل رسائلك إلى Gemini ضمن الخطة المجانية، وقد تستخدم Google المحتوى لتحسين منتجاتها. ننقّح أنماط البريد والهاتف الواضحة ولا نحفظ المحادثة على خادم سايبرويل. عند استخدام الميكروفون سيطلب المتصفح إذنك عند الحاجة وقد يعالج الصوت لتحويله إلى نص؛ سايبرويل لا يخزن التسجيل الصوتي، ويُرسل النص الناتج فقط عبر مسار المحادثة. لا ترسل كلمات مرور أو بيانات دفع أو معلومات حساسة." : "Your messages are sent to Gemini under its Free Tier, and Google may use the content to improve its products. We redact obvious email and phone patterns and do not store the chat on CyberWeel servers. When you use the microphone, the browser will ask for permission when needed and may process audio to turn it into text; CyberWeel does not store the audio recording, and only the resulting text enters the chat flow. Do not send passwords, payment details, or sensitive information."}</p>
                     <button type="button" onClick={() => setChat((current) => ({ ...current, privacyAccepted: true }))} className="mt-3 rounded-xl bg-[#111827] px-4 py-2.5 text-xs font-black text-white">
                       {arabicSite ? "مفهوم، ابدأ المحادثة" : "Understood, start the conversation"}
                     </button>
