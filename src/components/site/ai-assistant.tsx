@@ -2,6 +2,7 @@
 
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowLeftToLine,
   ArrowRightToLine,
   Bot,
   Loader2,
@@ -83,7 +84,7 @@ function messageId() {
 function defaultHandoffUi(arabic: boolean) {
   return arabic
     ? {
-        cta: "حوّل طلبي إلى الفريق",
+        cta: "أرسل طلبي إلى فريق سايبرويل",
         title: "دع فريق سايبرويل يراجع احتياجك",
         intro: "سنحفظ بيانات التواصل والملخص العربي فقط ضمن نظام الإحالات.",
         nameLabel: "الاسم",
@@ -338,6 +339,17 @@ export function CyberWeelAiAssistant() {
     if (!open) return;
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [chat.messages, busy, leadOpen, open]);
+
+  useEffect(() => {
+    if (!listening) return;
+    const textarea = inputRef.current;
+    if (!textarea) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      textarea.scrollTop = textarea.scrollHeight;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [input, listening]);
 
   useEffect(() => {
     if (!open) return;
@@ -667,9 +679,11 @@ export function CyberWeelAiAssistant() {
                 {handoffUi.successMessage}
               </p>
             ) : chat.lastTurn?.shouldOfferLeadForm && !leadOpen ? (
-              <button type="button" onClick={() => setLeadOpen(true)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#B89A5A] bg-[#F7F3EB] px-4 py-3 text-sm font-black text-[#7C6334] transition hover:bg-[#EFE6D4]">
-                <ArrowRightToLine className="h-4 w-4" />
-                {handoffUi.cta}
+              <button type="button" onClick={() => setLeadOpen(true)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#B89A5A] bg-[#F7F3EB] px-4 py-3 text-sm font-black text-[#7C6334] transition hover:bg-[#EFE6D4]" dir={activeDirection}>
+                {primaryLanguage(activeLanguage) === "ar" ? "أرسل طلبي إلى فريق سايبرويل" : handoffUi.cta}
+                {activeDirection === "rtl"
+                  ? <ArrowLeftToLine className="h-4 w-4" />
+                  : <ArrowRightToLine className="h-4 w-4" />}
               </button>
             ) : null}
 
