@@ -1,6 +1,8 @@
+import { Buffer } from "node:buffer";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { generateAssistantTurn } from "@/lib/ai/gateway";
+import { redactPersonalData } from "@/lib/ai/privacy";
 import { checkGeminiHealth } from "@/lib/ai/providers/gemini";
 import { AiProviderError, chatMessageSchema } from "@/lib/ai/types";
 import {
@@ -12,6 +14,9 @@ import {
 } from "@/lib/request-security";
 
 export const runtime = "nodejs";
+
+const MEMORY_COOKIE = "cw_ai_memory";
+const MAX_MEMORY_CHARACTERS = 1_200;
 
 const requestSchema = z.object({
   messages: z.array(chatMessageSchema).min(1).max(12),
@@ -66,6 +71,41 @@ async function consumeAiChatRateLimit(request: NextRequest): Promise<RateLimitRe
   }
 }
 
+function readConversationMemory(request: NextRequest, messageCount: number) {
+  if (messageCount <= 1) return "";
+
+  const encoded = request.cookies.get(MEMORY_COOKIE)?.value;
+  if (!encoded) return "";
+
+  try {
+    return redactPersonalData(Buffer.from(encoded, "base64url").toString("utf8"))
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
+      .trim()
+      .slice(0, MAX_MEMORY_CHARACTERS);
+  } catch {
+    return "";
+  }
+}
+
+function writeConversationMemory(response: NextResponse, summary: string) {
+  const safeSummary = redactPersonalData(summary)
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
+    .trim()
+    .slice(0, MAX_MEMORY_CHARACTERS);
+
+  if (!safeSummary) {
+    response.cookies.delete(MEMORY_COOKIE);
+    return;
+  }
+
+  response.cookies.set(MEMORY_COOKIE, Buffer.from(safeSummary, "utf8").toString("base64url"), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  });
+}
+
 async function readHealth() {
   const now = Date.now();
   if (healthCache && healthCache.expiresAt > now) return healthCache.payload;
@@ -117,8 +157,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const turn = await generateAssistantTurn(parsed.data.messages);
-    return NextResponse.json({ ok: true, turn, provider: "gemini" });
+    const conversationMemory = readConversationMemory(request, parsed.data.messages.length);
+    const turn = await generateAssistantTurn(parsed.data.messages, conversationMemory);
+    const response = NextResponse.json({ ok: true, turn, provider: "gemini" });
+    writeConversationMemory(response, turn.arabicSummary);
+    return response;
   } catch (error) {
     if (error instanceof AiProviderError) {
       return NextResponse.json({ error: error.code }, { status: error.status });
