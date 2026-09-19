@@ -8,6 +8,7 @@ import {
   hasTrustedOrigin,
   invalidOriginResponse,
   rateLimitResponse,
+  type RateLimitResult,
 } from "@/lib/request-security";
 
 export const runtime = "nodejs";
@@ -29,6 +30,42 @@ type HealthPayload = Awaited<ReturnType<typeof checkGeminiHealth>>;
 let healthCache: { expiresAt: number; payload: HealthPayload } | null = null;
 let healthPromise: Promise<HealthPayload> | null = null;
 
+function isMissingPreviewRateLimitTable(error: unknown) {
+  if (process.env.VERCEL_ENV !== "preview" || typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const candidate = error as {
+    code?: string;
+    meta?: { modelName?: string; table?: string };
+  };
+
+  return candidate.code === "P2021"
+    && candidate.meta?.modelName === "RateLimitBucket";
+}
+
+async function consumeAiChatRateLimit(request: NextRequest): Promise<RateLimitResult> {
+  const options = {
+    action: "ai-chat",
+    limit: 20,
+    windowMs: 60 * 60 * 1000,
+  } as const;
+
+  try {
+    return await consumeRateLimit(request, options);
+  } catch (error) {
+    if (!isMissingPreviewRateLimitTable(error)) throw error;
+
+    console.warn("[ai-chat] preview RateLimitBucket missing; bypassing DB limiter for preview verification only");
+    return {
+      allowed: true,
+      limit: options.limit,
+      remaining: options.limit,
+      retryAfterSeconds: Math.ceil(options.windowMs / 1000),
+    };
+  }
+}
+
 async function readHealth() {
   const now = Date.now();
   if (healthCache && healthCache.expiresAt > now) return healthCache.payload;
@@ -48,6 +85,9 @@ async function readHealth() {
 export async function GET(request: NextRequest) {
   if (!hasTrustedOrigin(request)) return invalidOriginResponse();
   const health = await readHealth();
+  if (process.env.VERCEL_ENV === "preview") {
+    console.info("[ai-chat] preview Gemini health", health);
+  }
   return NextResponse.json(
     { ok: health.status === "ready", provider: "gemini", ...health },
     { headers: { "Cache-Control": "private, max-age=30" } },
@@ -62,11 +102,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "REQUEST_TOO_LARGE" }, { status: 413 });
   }
 
-  const rateLimit = await consumeRateLimit(request, {
-    action: "ai-chat",
-    limit: 20,
-    windowMs: 60 * 60 * 1000,
-  });
+  const rateLimit = await consumeAiChatRateLimit(request);
   if (!rateLimit.allowed) {
     return rateLimitResponse(rateLimit, "AI_RATE_LIMITED");
   }
