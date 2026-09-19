@@ -14,6 +14,7 @@ export const runtime = "nodejs";
 
 const requestSchema = z.object({
   messages: z.array(chatMessageSchema).min(1).max(12),
+  inputMode: z.enum(["text", "voice"]).optional().default("text"),
 }).superRefine((value, context) => {
   const total = value.messages.reduce((sum, message) => sum + message.content.length, 0);
   if (total > 14_000) {
@@ -73,6 +74,10 @@ export async function POST(request: NextRequest) {
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "INVALID_CHAT_REQUEST" }, { status: 400 });
+  }
+
+  if (parsed.data.inputMode === "voice") {
+    console.info("[ai-chat] input_mode=voice");
   }
 
   try {
