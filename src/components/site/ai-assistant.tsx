@@ -2,10 +2,12 @@
 
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowLeftToLine,
   ArrowRightToLine,
   Bot,
   Loader2,
   MessageCircle,
+  Mic,
   RotateCcw,
   Send,
   ShieldCheck,
@@ -25,6 +27,45 @@ type UiMessage = {
 };
 
 type ServiceStatus = "idle" | "checking" | "ready" | "limited" | "unavailable";
+type InputMode = "text" | "voice";
+
+type SpeechRecognitionResultLike = {
+  isFinal: boolean;
+  [index: number]: { transcript: string };
+};
+
+type SpeechRecognitionResultListLike = {
+  length: number;
+  [index: number]: SpeechRecognitionResultLike;
+};
+
+type SpeechRecognitionEventLike = {
+  resultIndex: number;
+  results: SpeechRecognitionResultListLike;
+};
+
+type SpeechRecognitionErrorEventLike = {
+  error: string;
+};
+
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+  onend: (() => void) | null;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+type SpeechEnabledWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
 
 type ChatState = {
   messages: UiMessage[];
@@ -43,7 +84,7 @@ function messageId() {
 function defaultHandoffUi(arabic: boolean) {
   return arabic
     ? {
-        cta: "حوّل طلبي إلى الفريق",
+        cta: "أرسل طلبي إلى فريق سايبرويل",
         title: "دع فريق سايبرويل يراجع احتياجك",
         intro: "سنحفظ بيانات التواصل والملخص العربي فقط ضمن نظام الإحالات.",
         nameLabel: "الاسم",
@@ -141,6 +182,43 @@ function errorText(code: string, languageCode: string) {
   return (code === "QUOTA_EXHAUSTED" || code === "AI_RATE_LIMITED" ? limited[language] : unavailable[language]) || fallback;
 }
 
+function microphoneAccessErrorText(name: string, arabic: boolean) {
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return arabic
+      ? "لم يُمنح الموقع إذن استخدام الميكروفون. إذا كنت قد اخترت الحظر سابقًا، غيّر إذن الميكروفون من إعدادات الموقع ثم حاول مرة أخرى."
+      : "Microphone access was not granted. If you previously blocked it, allow the microphone in this site's settings and try again.";
+  }
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+    return arabic
+      ? "لم يعثر المتصفح على ميكروفون متاح على هذا الجهاز."
+      : "No available microphone was found on this device.";
+  }
+  if (name === "NotReadableError" || name === "TrackStartError") {
+    return arabic
+      ? "تعذّر فتح الميكروفون. قد يكون مستخدمًا من تطبيق آخر أو محجوبًا من إعدادات النظام."
+      : "The microphone could not be opened. Another app or system setting may be blocking it.";
+  }
+  return arabic
+    ? "تعذّر الوصول إلى الميكروفون. تحقق من إذن المتصفح وإعدادات الجهاز ثم حاول مرة أخرى."
+    : "The microphone could not be accessed. Check browser permission and device settings, then try again.";
+}
+
+function speechErrorText(code: string, arabic: boolean) {
+  if (code === "not-allowed" || code === "service-not-allowed") {
+    return arabic
+      ? "تم التحقق من إذن الميكروفون، لكن خدمة تحويل الصوت إلى نص لم تبدأ. حاول مرة أخرى أو استخدم Chrome أو Edge محدثًا."
+      : "Microphone permission was verified, but speech-to-text did not start. Try again or use an up-to-date Chrome or Edge browser.";
+  }
+  if (code === "no-speech") {
+    return arabic
+      ? "لم أسمع كلامًا واضحًا. حاول مرة أخرى."
+      : "No clear speech was detected. Please try again.";
+  }
+  return arabic
+    ? "تعذّر تحويل الصوت إلى نص في هذا المتصفح. يمكنك متابعة الكتابة بشكل طبيعي."
+    : "Voice-to-text could not start in this browser. You can keep typing normally.";
+}
+
 function serviceStatusUi(status: ServiceStatus, arabic: boolean) {
   if (status === "ready") {
     return { label: arabic ? "متصل الآن" : "Online", dot: "bg-emerald-400" };
@@ -166,8 +244,15 @@ export function CyberWeelAiAssistant() {
   const [leadBusy, setLeadBusy] = useState(false);
   const [leadError, setLeadError] = useState("");
   const [serviceStatus, setServiceStatus] = useState<ServiceStatus>("idle");
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [speechError, setSpeechError] = useState("");
+  const [voiceUsedForDraft, setVoiceUsedForDraft] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const voiceBaseInputRef = useRef("");
+  const voiceFinalTranscriptRef = useRef("");
 
   const activeLanguage = chat.lastTurn?.detectedLanguage.primaryCode || (arabicSite ? "ar" : "en");
   const activeDirection = directionFor(activeLanguage);
@@ -196,6 +281,23 @@ export function CyberWeelAiAssistant() {
       // The conversation still works when browser storage is unavailable.
     }
   }, [chat]);
+
+  useEffect(() => {
+    const speechWindow = window as SpeechEnabledWindow;
+    setSpeechSupported(Boolean(speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition));
+
+    return () => {
+      recognitionRef.current?.abort();
+      recognitionRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (open) return;
+    recognitionRef.current?.abort();
+    recognitionRef.current = null;
+    setListening(false);
+  }, [open]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("cyberweel:ai-assistant-state", {
@@ -239,6 +341,17 @@ export function CyberWeelAiAssistant() {
   }, [chat.messages, busy, leadOpen, open]);
 
   useEffect(() => {
+    if (!listening) return;
+    const textarea = inputRef.current;
+    if (!textarea) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      textarea.scrollTop = textarea.scrollHeight;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [input, listening]);
+
+  useEffect(() => {
     if (!open) return;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
@@ -247,14 +360,96 @@ export function CyberWeelAiAssistant() {
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [open]);
 
-  async function requestTurn(messages: Array<{ role: "user" | "assistant"; content: string }>) {
+  async function toggleSpeechInput() {
+    if (!speechSupported || !chat.privacyAccepted || busy) return;
+
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const speechWindow = window as SpeechEnabledWindow;
+    const SpeechRecognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setSpeechSupported(false);
+      return;
+    }
+
+    setSpeechError("");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setSpeechError(microphoneAccessErrorText("UNSUPPORTED", arabicSite));
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+    } catch (cause) {
+      const name = cause instanceof DOMException ? cause.name : "UNKNOWN";
+      setSpeechError(microphoneAccessErrorText(name, arabicSite));
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = activeLanguage;
+    recognition.interimResults = true;
+    recognition.continuous = true;
+    voiceBaseInputRef.current = input.trimEnd();
+    voiceFinalTranscriptRef.current = "";
+
+    recognition.onresult = (event) => {
+      let finalTranscript = voiceFinalTranscriptRef.current;
+      let interimTranscript = "";
+
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcript = result?.[0]?.transcript || "";
+        if (result?.isFinal) finalTranscript = `${finalTranscript}${transcript} `;
+        else interimTranscript += transcript;
+      }
+
+      voiceFinalTranscriptRef.current = finalTranscript;
+      const spokenText = `${finalTranscript}${interimTranscript}`.trim();
+      const baseText = voiceBaseInputRef.current;
+      setInput(`${baseText}${baseText && spokenText ? " " : ""}${spokenText}`.slice(0, 2000));
+      if (spokenText) setVoiceUsedForDraft(true);
+    };
+
+    recognition.onerror = (event) => {
+      if (event.error !== "aborted") {
+        setSpeechError(speechErrorText(event.error, arabicSite));
+      }
+      setListening(false);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+      recognitionRef.current = null;
+      window.setTimeout(() => inputRef.current?.focus(), 0);
+    };
+
+    recognitionRef.current = recognition;
+    setListening(true);
+    try {
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      setListening(false);
+      setSpeechError(speechErrorText("start-failed", arabicSite));
+    }
+  }
+
+  async function requestTurn(
+    messages: Array<{ role: "user" | "assistant"; content: string }>,
+    inputMode: InputMode = "text",
+  ) {
     setBusy(true);
     setError("");
     try {
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages }),
+        body: JSON.stringify({ messages, inputMode }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload.turn) {
@@ -287,6 +482,12 @@ export function CyberWeelAiAssistant() {
     event.preventDefault();
     const content = input.trim().slice(0, 2000);
     if (!content || busy || !chat.privacyAccepted) return;
+    const inputMode: InputMode = voiceUsedForDraft ? "voice" : "text";
+    if (listening) {
+      recognitionRef.current?.abort();
+      recognitionRef.current = null;
+      setListening(false);
+    }
     const userMessage: UiMessage = { id: messageId(), role: "user", content };
     const next = [...apiMessages, { role: "user" as const, content }].slice(-12);
     setChat((current) => ({
@@ -299,10 +500,18 @@ export function CyberWeelAiAssistant() {
       ].slice(-24),
     }));
     setInput("");
-    await requestTurn(next);
+    setVoiceUsedForDraft(false);
+    setSpeechError("");
+    await requestTurn(next, inputMode);
   }
 
   function resetConversation() {
+    recognitionRef.current?.abort();
+    recognitionRef.current = null;
+    setListening(false);
+    setInput("");
+    setVoiceUsedForDraft(false);
+    setSpeechError("");
     const next = {
       messages: [welcomeMessage(arabicSite)],
       lastTurn: null,
@@ -411,7 +620,7 @@ export function CyberWeelAiAssistant() {
                   <ShieldCheck className="mt-1 h-5 w-5 shrink-0 text-[#9A7D43]" />
                   <div>
                     <h3 className="font-black text-[#111827]">{arabicSite ? "قبل أن نبدأ" : "Before we begin"}</h3>
-                    <p className="mt-2">{arabicSite ? "تُرسل رسائلك إلى Gemini ضمن الخطة المجانية، وقد تستخدم Google المحتوى لتحسين منتجاتها. ننقّح أنماط البريد والهاتف الواضحة ولا نحفظ المحادثة على خادم سايبرويل، لكن لا ترسل كلمات مرور أو بيانات دفع أو معلومات حساسة." : "Your messages are sent to Gemini under its Free Tier, and Google may use the content to improve its products. We redact obvious email and phone patterns and do not store the chat on CyberWeel servers, but do not send passwords, payment details, or sensitive information."}</p>
+                    <p className="mt-2">{arabicSite ? "تُرسل رسائلك إلى Gemini ضمن الخطة المجانية، وقد تستخدم Google المحتوى لتحسين منتجاتها. ننقّح أنماط البريد والهاتف الواضحة ولا نحفظ المحادثة على خادم سايبرويل. عند استخدام الميكروفون سيطلب المتصفح إذنك عند الحاجة وقد يعالج الصوت لتحويله إلى نص؛ سايبرويل لا يخزن التسجيل الصوتي، ويُرسل النص الناتج فقط عبر مسار المحادثة. لا ترسل كلمات مرور أو بيانات دفع أو معلومات حساسة." : "Your messages are sent to Gemini under its Free Tier, and Google may use the content to improve its products. We redact obvious email and phone patterns and do not store the chat on CyberWeel servers. When you use the microphone, the browser will ask for permission when needed and may process audio to turn it into text; CyberWeel does not store the audio recording, and only the resulting text enters the chat flow. Do not send passwords, payment details, or sensitive information."}</p>
                     <button type="button" onClick={() => setChat((current) => ({ ...current, privacyAccepted: true }))} className="mt-3 rounded-xl bg-[#111827] px-4 py-2.5 text-xs font-black text-white">
                       {arabicSite ? "مفهوم، ابدأ المحادثة" : "Understood, start the conversation"}
                     </button>
@@ -470,9 +679,11 @@ export function CyberWeelAiAssistant() {
                 {handoffUi.successMessage}
               </p>
             ) : chat.lastTurn?.shouldOfferLeadForm && !leadOpen ? (
-              <button type="button" onClick={() => setLeadOpen(true)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#B89A5A] bg-[#F7F3EB] px-4 py-3 text-sm font-black text-[#7C6334] transition hover:bg-[#EFE6D4]">
-                <ArrowRightToLine className="h-4 w-4" />
-                {handoffUi.cta}
+              <button type="button" onClick={() => setLeadOpen(true)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#B89A5A] bg-[#F7F3EB] px-4 py-3 text-sm font-black text-[#7C6334] transition hover:bg-[#EFE6D4]" dir={activeDirection}>
+                {primaryLanguage(activeLanguage) === "ar" ? "أرسل طلبي إلى فريق سايبرويل" : handoffUi.cta}
+                {activeDirection === "rtl"
+                  ? <ArrowLeftToLine className="h-4 w-4" />
+                  : <ArrowRightToLine className="h-4 w-4" />}
               </button>
             ) : null}
 
@@ -513,6 +724,7 @@ export function CyberWeelAiAssistant() {
                 ref={inputRef}
                 value={input}
                 disabled={!chat.privacyAccepted}
+                readOnly={listening}
                 onChange={(event) => setInput(event.target.value.slice(0, 2000))}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
@@ -526,10 +738,39 @@ export function CyberWeelAiAssistant() {
                 aria-label={arabicSite ? "رسالتك" : "Your message"}
                 className="max-h-28 min-h-11 flex-1 resize-none rounded-xl border border-[#D8D2C4] bg-[#FCFAF6] px-3 py-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-[#B89A5A]"
               />
+              {speechSupported && (
+                <button
+                  type="button"
+                  disabled={busy || !chat.privacyAccepted}
+                  onClick={toggleSpeechInput}
+                  aria-label={listening ? (arabicSite ? "إيقاف الاستماع" : "Stop listening") : (arabicSite ? "استخدام الميكروفون" : "Use microphone")}
+                  aria-pressed={listening}
+                  title={listening ? (arabicSite ? "إيقاف الاستماع" : "Stop listening") : (arabicSite ? "تحدث بدل الكتابة" : "Speak instead of typing")}
+                  className={cn(
+                    "grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-40",
+                    listening
+                      ? "border-rose-300 bg-rose-50 text-rose-700 shadow-[0_0_0_3px_rgba(244,63,94,0.08)]"
+                      : "border-[#D8D2C4] bg-[#FCFAF6] text-[#6B7280] hover:border-[#B89A5A] hover:text-[#7C6334]",
+                  )}
+                >
+                  <Mic className={cn("h-4 w-4", listening && "animate-pulse")} />
+                </button>
+              )}
               <button type="submit" disabled={busy || !input.trim() || !chat.privacyAccepted} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#B89A5A] text-[#111827] transition hover:bg-[#A9894E] disabled:cursor-not-allowed disabled:opacity-40" aria-label={arabicSite ? "إرسال" : "Send"}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </button>
             </div>
+            {listening && (
+              <p className="mt-2 flex items-center justify-center gap-1.5 text-[10px] font-bold text-rose-700" role="status" aria-live="polite" dir={arabicSite ? "rtl" : "ltr"}>
+                <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" aria-hidden />
+                {arabicSite ? "أستمع الآن… سيظهر كلامك كنص. اضغط الميكروفون للإيقاف." : "Listening… your speech will appear as text. Tap the microphone to stop."}
+              </p>
+            )}
+            {speechError && (
+              <p className="mt-2 text-center text-[10px] font-bold text-amber-700" role="alert" dir={arabicSite ? "rtl" : "ltr"}>
+                {speechError}
+              </p>
+            )}
             <p className="mt-2 text-center text-[10px] text-slate-400" dir={arabicSite ? "rtl" : "ltr"}>
               {arabicSite ? "قد يخطئ الذكاء الاصطناعي؛ لا تُعدّ الإجابات عرضًا أو التزامًا من سايبرويل." : "AI can make mistakes. Replies are not a quote or commitment from CyberWeel."}
             </p>
