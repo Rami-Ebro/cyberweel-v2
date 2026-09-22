@@ -170,16 +170,27 @@ function errorText(code: string, languageCode: string) {
     es: "El asistente inteligente no está disponible en este momento. Inténtalo más tarde o contacta al equipo de CyberWeel.",
   };
   const limited: Record<string, string> = {
-    ar: "وصل المساعد إلى حد الاستخدام المجاني حاليًا. لن ننتقل إلى خدمة مدفوعة تلقائيًا؛ حاول لاحقًا أو تواصل مع الفريق.",
-    fr: "La limite gratuite est atteinte. Aucun service payant ne sera activé automatiquement. Réessayez plus tard.",
-    de: "Das kostenlose Nutzungslimit ist erreicht. Es wird kein kostenpflichtiger Dienst automatisch aktiviert.",
-    tr: "Ücretsiz kullanım sınırına ulaşıldı. Ücretli bir hizmet otomatik olarak etkinleştirilmeyecek.",
-    es: "Se alcanzó el límite gratuito. No se activará automáticamente ningún servicio de pago.",
+    ar: "وصلت هذه الجلسة إلى حد الاستخدام المجاني الحالي. يمكنك الانتظار حتى يتجدد الحد، أو إذا رغبت اكتب: «أريد متابعة الموضوع مع فريق سايبرويل» لإكماله مع الفريق.",
+    fr: "Cette session a atteint sa limite d’utilisation gratuite. Vous pouvez attendre le renouvellement de la limite ou demander explicitement à poursuivre avec l’équipe CyberWeel.",
+    de: "Diese Sitzung hat das aktuelle kostenlose Nutzungslimit erreicht. Sie können auf die Erneuerung warten oder ausdrücklich um eine Fortsetzung mit dem CyberWeel-Team bitten.",
+    tr: "Bu oturum mevcut ücretsiz kullanım sınırına ulaştı. Sınırın yenilenmesini bekleyebilir veya CyberWeel ekibiyle devam etmek istediğinizi açıkça belirtebilirsiniz.",
+    es: "Esta sesión alcanzó el límite actual de uso gratuito. Puedes esperar a que se renueve el límite o pedir explícitamente continuar con el equipo de CyberWeel.",
   };
-  const fallback = code === "QUOTA_EXHAUSTED" || code === "AI_RATE_LIMITED"
-    ? "The free usage limit has been reached. No paid service will be enabled automatically. Please try again later."
+  const limitedNoHandoff: Record<string, string> = {
+    ar: "وصلت هذه الجلسة إلى حد الاستخدام المجاني الحالي. يمكنك متابعة المحادثة لاحقًا بعد تجدد الحد.",
+    fr: "Cette session a atteint sa limite d’utilisation gratuite. Vous pourrez reprendre la conversation lorsque la limite sera renouvelée.",
+    de: "Diese Sitzung hat das aktuelle kostenlose Nutzungslimit erreicht. Sie können das Gespräch fortsetzen, sobald das Limit erneuert wurde.",
+    tr: "Bu oturum mevcut ücretsiz kullanım sınırına ulaştı. Sınır yenilendiğinde konuşmaya devam edebilirsiniz.",
+    es: "Esta sesión alcanzó el límite actual de uso gratuito. Podrás continuar la conversación cuando se renueve el límite.",
+  };
+  if (code === "AI_RATE_LIMITED_NO_HANDOFF") {
+    return limitedNoHandoff[language] || "This session has reached its current free-use limit. You can continue after the limit renews.";
+  }
+  const isLimited = code === "QUOTA_EXHAUSTED" || code === "AI_RATE_LIMITED";
+  const fallback = isLimited
+    ? "The current free-use limit has been reached. Please try again later, or explicitly ask to continue with the CyberWeel team."
     : "The AI assistant is temporarily unavailable. Please try again later or contact the CyberWeel team.";
-  return (code === "QUOTA_EXHAUSTED" || code === "AI_RATE_LIMITED" ? limited[language] : unavailable[language]) || fallback;
+  return (isLimited ? limited[language] : unavailable[language]) || fallback;
 }
 
 function microphoneAccessErrorText(name: string, arabic: boolean) {
@@ -240,6 +251,7 @@ export function CyberWeelAiAssistant() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [errorCode, setErrorCode] = useState("");
   const [leadOpen, setLeadOpen] = useState(false);
   const [leadBusy, setLeadBusy] = useState(false);
   const [leadError, setLeadError] = useState("");
@@ -445,6 +457,7 @@ export function CyberWeelAiAssistant() {
   ) {
     setBusy(true);
     setError("");
+    setErrorCode("");
     try {
       const response = await fetch("/api/ai/chat", {
         method: "POST",
@@ -470,8 +483,12 @@ export function CyberWeelAiAssistant() {
       }));
     } catch (cause) {
       const code = cause instanceof Error ? cause.message : "UNAVAILABLE";
-      if (code === "QUOTA_EXHAUSTED" || code === "AI_RATE_LIMITED") setServiceStatus("limited");
-      else setServiceStatus("unavailable");
+      setErrorCode(code);
+      if (code === "QUOTA_EXHAUSTED" || code === "AI_RATE_LIMITED" || code === "AI_RATE_LIMITED_NO_HANDOFF") {
+        setServiceStatus("limited");
+      } else {
+        setServiceStatus("unavailable");
+      }
       setError(errorText(code, activeLanguage));
     } finally {
       setBusy(false);
@@ -520,12 +537,14 @@ export function CyberWeelAiAssistant() {
     };
     setChat(next);
     setError("");
+    setErrorCode("");
     setLeadOpen(false);
     try {
       sessionStorage.removeItem(STORAGE_KEY);
     } catch {
       // no-op
     }
+    void fetch("/api/ai/chat", { method: "DELETE" }).catch(() => undefined);
   }
 
   async function submitLead(event: FormEvent<HTMLFormElement>) {
@@ -567,6 +586,12 @@ export function CyberWeelAiAssistant() {
       setLeadBusy(false);
     }
   }
+
+  const retryAllowed = ![
+    "QUOTA_EXHAUSTED",
+    "AI_RATE_LIMITED",
+    "AI_RATE_LIMITED_NO_HANDOFF",
+  ].includes(errorCode);
 
   return (
     <>
@@ -620,7 +645,7 @@ export function CyberWeelAiAssistant() {
                   <ShieldCheck className="mt-1 h-5 w-5 shrink-0 text-[#9A7D43]" />
                   <div>
                     <h3 className="font-black text-[#111827]">{arabicSite ? "قبل أن نبدأ" : "Before we begin"}</h3>
-                    <p className="mt-2">{arabicSite ? "تُرسل رسائلك إلى Gemini ضمن الخطة المجانية، وقد تستخدم Google المحتوى لتحسين منتجاتها. ننقّح أنماط البريد والهاتف الواضحة ولا نحفظ المحادثة على خادم سايبرويل. عند استخدام الميكروفون سيطلب المتصفح إذنك عند الحاجة وقد يعالج الصوت لتحويله إلى نص؛ سايبرويل لا يخزن التسجيل الصوتي، ويُرسل النص الناتج فقط عبر مسار المحادثة. لا ترسل كلمات مرور أو بيانات دفع أو معلومات حساسة." : "Your messages are sent to Gemini under its Free Tier, and Google may use the content to improve its products. We redact obvious email and phone patterns and do not store the chat on CyberWeel servers. When you use the microphone, the browser will ask for permission when needed and may process audio to turn it into text; CyberWeel does not store the audio recording, and only the resulting text enters the chat flow. Do not send passwords, payment details, or sensitive information."}</p>
+                    <p className="mt-2">{arabicSite ? "تُرسل رسائلك إلى Gemini ضمن الخطة المجانية، وقد تستخدم Google المحتوى لتحسين منتجاتها. ننقّح أنماط البريد والهاتف الواضحة ولا نحفظ المحادثة الكاملة في قاعدة بيانات سايبرويل. نحتفظ أثناء جلسة المتصفح بملخص قصير منقّح للمحافظة على سياق الحوار. عند استخدام الميكروفون سيطلب المتصفح إذنك عند الحاجة وقد يعالج الصوت لتحويله إلى نص؛ سايبرويل لا يخزن التسجيل الصوتي، ويُرسل النص الناتج فقط عبر مسار المحادثة. لا ترسل كلمات مرور أو بيانات دفع أو معلومات حساسة." : "Your messages are sent to Gemini under its Free Tier, and Google may use the content to improve its products. We redact obvious email and phone patterns and do not store the full chat in CyberWeel's database. A short redacted session brief is kept during the browser session to preserve continuity. When you use the microphone, the browser will ask for permission when needed and may process audio to turn it into text; CyberWeel does not store the audio recording, and only the resulting text enters the chat flow. Do not send passwords, payment details, or sensitive information."}</p>
                     <button type="button" onClick={() => setChat((current) => ({ ...current, privacyAccepted: true }))} className="mt-3 rounded-xl bg-[#111827] px-4 py-2.5 text-xs font-black text-white">
                       {arabicSite ? "مفهوم، ابدأ المحادثة" : "Understood, start the conversation"}
                     </button>
@@ -666,7 +691,7 @@ export function CyberWeelAiAssistant() {
             {error && (
               <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
                 <p>{error}</p>
-                {apiMessages.at(-1)?.role === "user" && (
+                {retryAllowed && apiMessages.at(-1)?.role === "user" && (
                   <button type="button" disabled={busy} onClick={() => void requestTurn(apiMessages)} className="mt-2 font-black underline underline-offset-4">
                     {arabicSite ? "إعادة المحاولة" : "Try again"}
                   </button>

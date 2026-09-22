@@ -39,6 +39,16 @@ const responseSchema = {
     suggestedServiceArabic: { type: "string" },
     shouldOfferLeadForm: { type: "boolean" },
     arabicSummary: { type: "string" },
+    consultationSignals: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        sameTopic: { type: "boolean" },
+        substantiveProgress: { type: "boolean" },
+        topicLabelArabic: { type: "string" },
+      },
+      required: ["sameTopic", "substantiveProgress", "topicLabelArabic"],
+    },
     handoffUi: {
       type: "object",
       additionalProperties: false,
@@ -77,6 +87,7 @@ const responseSchema = {
     "suggestedServiceArabic",
     "shouldOfferLeadForm",
     "arabicSummary",
+    "consultationSignals",
     "handoffUi",
   ],
 };
@@ -227,6 +238,12 @@ export class GeminiProvider implements AiProvider {
 
       const parsed = assistantTurnSchema.safeParse(JSON.parse(raw));
       if (!parsed.success) {
+        console.error("Gemini structured response failed validation", {
+          issues: parsed.error.issues.slice(0, 8).map((issue) => ({
+            path: issue.path.join("."),
+            code: issue.code,
+          })),
+        });
         throw new AiProviderError("INVALID_RESPONSE", "Gemini response failed validation");
       }
       return parsed.data;
