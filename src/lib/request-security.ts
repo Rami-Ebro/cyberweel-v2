@@ -54,6 +54,35 @@ export function safeSecretEqual(actual: string | null, expected: string | undefi
   return timingSafeEqual(left, right);
 }
 
+export function signServerValue(value: string) {
+  const payload = Buffer.from(value, "utf8").toString("base64url");
+  const signature = createHmac("sha256", securitySecret())
+    .update(payload)
+    .digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+export function verifyServerValue(token: string | null | undefined) {
+  if (!token) return null;
+  const separator = token.lastIndexOf(".");
+  if (separator <= 0 || separator === token.length - 1) return null;
+
+  const payload = token.slice(0, separator);
+  const suppliedSignature = token.slice(separator + 1);
+  const expectedSignature = createHmac("sha256", securitySecret())
+    .update(payload)
+    .digest("base64url");
+  const left = Buffer.from(suppliedSignature);
+  const right = Buffer.from(expectedSignature);
+  if (left.length !== right.length || !timingSafeEqual(left, right)) return null;
+
+  try {
+    return Buffer.from(payload, "base64url").toString("utf8");
+  } catch {
+    return null;
+  }
+}
+
 export async function consumeRateLimit(
   request: NextRequest,
   options: RateLimitOptions,
