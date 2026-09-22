@@ -12,6 +12,15 @@ export const detectedLanguageSchema = z.object({
   multilingual: z.boolean(),
 });
 
+export const consultationSignalsSchema = z.object({
+  sameTopic: z.boolean(),
+  substantiveProgress: z.boolean(),
+  topicLabelArabic: z.string().trim().max(140).refine(
+    (value) => !value || /[\u0600-\u06FF]/.test(value),
+    "Topic label must be Arabic when present",
+  ),
+});
+
 export const assistantTurnSchema = z.object({
   reply: z.string().trim().min(1).max(2400),
   detectedLanguage: detectedLanguageSchema,
@@ -30,6 +39,7 @@ export const assistantTurnSchema = z.object({
     (value) => /[\u0600-\u06FF]/.test(value),
     "Admin summary must be Arabic",
   ),
+  consultationSignals: consultationSignalsSchema,
   handoffUi: z.object({
     cta: z.string().trim().min(1).max(80),
     title: z.string().trim().min(1).max(120),
