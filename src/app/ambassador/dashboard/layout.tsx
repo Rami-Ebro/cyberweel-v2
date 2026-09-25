@@ -4,7 +4,7 @@ import styles from "./current-level.module.css";
 import { RewardViewPolish } from "./reward-view-polish";
 import { DashboardVisualPolish } from "@/components/dashboard-visual-polish";
 import { AmbassadorHeaderTools } from "@/components/ambassador/ambassador-header-tools";
-import { AmbassadorActionCenterEntry } from "@/components/ambassador/action-center-entry";
+import { AmbassadorToolsWorkspace } from "@/components/ambassador/ambassador-tools-workspace";
 import { currentAmbassadorFromCookies } from "@/lib/ambassador-auth";
 import { hasAdminPermission } from "@/lib/admin-auth";
 
@@ -24,7 +24,7 @@ export default async function AmbassadorDashboardLayout({ children }: { children
       <RewardViewPolish />
       <DashboardVisualPolish mode="ambassador" />
       <AmbassadorHeaderTools />
-      <AmbassadorActionCenterEntry />
+      <AmbassadorToolsWorkspace />
     </div>
   );
 }
