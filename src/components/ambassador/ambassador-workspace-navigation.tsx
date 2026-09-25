@@ -18,7 +18,8 @@ function dashboardButtons() {
   return Array.from(document.querySelectorAll<HTMLButtonElement>("aside nav button"));
 }
 
-function applyWorkspaceLabels() {
+function applyWorkspaceLabels(homeHref: string) {
+  const nav = document.querySelector<HTMLElement>("aside nav");
   const buttons = dashboardButtons();
   buttons.forEach((button, index) => {
     if (LABELS[index]) {
@@ -27,6 +28,15 @@ function applyWorkspaceLabels() {
     }
   });
   if (buttons[0]) buttons[0].classList.add("hidden");
+
+  if (nav && !nav.querySelector("#ambassador-v2-home-link")) {
+    const home = document.createElement("a");
+    home.id = "ambassador-v2-home-link";
+    home.href = homeHref;
+    home.className = "flex w-full items-center gap-3 rounded-2xl bg-[#bd9850] px-4 py-3.5 text-right font-black text-slate-950 transition";
+    home.innerHTML = '<span aria-hidden="true" class="text-lg">⌂</span><span>الرئيسية</span>';
+    nav.prepend(home);
+  }
 
   document.querySelectorAll<HTMLElement>("main, aside").forEach((root) => {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -63,33 +73,25 @@ export function AmbassadorWorkspaceNavigation({ actionCenter = false }: { action
 
   useEffect(() => {
     const sync = () => {
-      applyWorkspaceLabels();
+      applyWorkspaceLabels(homeHref);
       openHashSection();
     };
     sync();
-    const observer = new MutationObserver(applyWorkspaceLabels);
+    const observer = new MutationObserver(() => applyWorkspaceLabels(homeHref));
     observer.observe(document.body, { childList: true, subtree: true });
     window.addEventListener("hashchange", openHashSection);
     return () => {
       observer.disconnect();
       window.removeEventListener("hashchange", openHashSection);
     };
-  }, []);
+  }, [homeHref]);
 
   return (
-    <>
-      {!actionCenter && (
-        <Link href={homeHref} className="fixed right-5 top-[132px] z-[55] hidden w-[270px] items-center gap-3 rounded-2xl bg-[#B89A5A] px-4 py-3.5 font-black text-[#111827] shadow-sm lg:flex">
-          <Home size={20} />الرئيسية
-        </Link>
-      )}
-
-      <nav aria-label="التنقل السريع للسفير" className="fixed inset-x-2 bottom-2 z-[65] grid grid-cols-4 gap-1 rounded-2xl border border-[#D8D2C4] bg-white/95 p-1.5 shadow-2xl backdrop-blur lg:hidden">
-        <Link href={homeHref} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827] ${actionCenter ? "bg-[#F3EAD7]" : ""}`}><Home size={20} /><span>الرئيسية</span></Link>
-        <a href={dashboardHref("#referrals")} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><UsersRound size={20} /><span>إحالاتي</span></a>
-        <a href={dashboardHref("#new-client")} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><UserPlus size={20} /><span>عميل جديد</span></a>
-        <a href={dashboardHref("#rewards")} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><BadgeDollarSign size={20} /><span>أرباحي</span></a>
-      </nav>
-    </>
+    <nav aria-label="التنقل السريع للسفير" className="fixed inset-x-2 bottom-2 z-[65] grid grid-cols-4 gap-1 rounded-2xl border border-[#D8D2C4] bg-white/95 p-1.5 shadow-2xl backdrop-blur lg:hidden">
+      <Link href={homeHref} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827] ${actionCenter ? "bg-[#F3EAD7]" : ""}`}><Home size={20} /><span>الرئيسية</span></Link>
+      <a href={dashboardHref("#referrals")} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><UsersRound size={20} /><span>إحالاتي</span></a>
+      <a href={dashboardHref("#new-client")} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><UserPlus size={20} /><span>عميل جديد</span></a>
+      <a href={dashboardHref("#rewards")} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><BadgeDollarSign size={20} /><span>أرباحي</span></a>
+    </nav>
   );
 }
