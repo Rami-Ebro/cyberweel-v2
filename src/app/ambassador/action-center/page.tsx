@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, BadgeDollarSign, CheckCircle2, Copy, MessageCircle, Sparkles, Target, UserPlus, UsersRound } from "lucide-react";
 
 type Referral = {
@@ -10,6 +11,7 @@ type Referral = {
   email: string | null;
   phone: string | null;
   status: string;
+  followUpEligible: boolean;
   createdAt: string;
 };
 
@@ -25,14 +27,15 @@ type DashboardData = {
   referrals: Referral[];
 };
 
-const FOLLOW_UP = new Set(["NEW", "CONTACTED", "INTERESTED", "AWAITING_RESPONSE"]);
 
+/** Returns whole elapsed days for an ISO timestamp, clamped at zero. */
 function daysSince(value: string) {
   const time = new Date(value).getTime();
   if (!Number.isFinite(time)) return 0;
   return Math.max(0, Math.floor((Date.now() - time) / 86_400_000));
 }
 
+/** Formats a reward amount without ever combining different currencies. */
 function money(amount: number, currency: string) {
   try {
     return new Intl.NumberFormat("ar", {
@@ -45,17 +48,20 @@ function money(amount: number, currency: string) {
   }
 }
 
-export default function AmbassadorActionCenterPage() {
+/** Renders the data-driven Ambassador Workspace action center. */
+function AmbassadorActionCenterContent() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
-  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState("");
+  const searchParams = useSearchParams();
+  const previewId = searchParams.get("adminPreview");
 
   useEffect(() => {
-    const currentPreviewId = new URLSearchParams(window.location.search).get("adminPreview");
-    setPreviewId(currentPreviewId);
-    const endpoint = currentPreviewId
-      ? `/api/ambassador/dashboard?adminPreview=${encodeURIComponent(currentPreviewId)}`
+    setData(null);
+    setError("");
+    const endpoint = previewId
+      ? `/api/ambassador/dashboard?adminPreview=${encodeURIComponent(previewId)}`
       : "/api/ambassador/dashboard";
 
     fetch(endpoint, { cache: "no-store" })
@@ -74,12 +80,12 @@ export default function AmbassadorActionCenterPage() {
         if (payload) setData(payload);
       })
       .catch((cause) => setError(cause instanceof Error ? cause.message : "تعذر تحميل مركز العمل"));
-  }, []);
+  }, [previewId]);
 
   const followUps = useMemo(() => {
     if (!data) return [];
     return data.referrals
-      .filter((item) => FOLLOW_UP.has(item.status))
+      .filter((item) => item.followUpEligible)
       .sort((a, b) => daysSince(b.createdAt) - daysSince(a.createdAt));
   }, [data]);
 
@@ -96,10 +102,11 @@ export default function AmbassadorActionCenterPage() {
     if (!data) return;
     try {
       await navigator.clipboard.writeText(data.ambassador.referralUrl);
+      setCopyError("");
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
-      setError("تعذر نسخ الرابط تلقائيًا.");
+      setCopyError("تعذر نسخ الرابط تلقائيًا. انسخه يدويًا من الحقل أعلاه.");
     }
   }
 
@@ -145,7 +152,7 @@ export default function AmbassadorActionCenterPage() {
 
           <aside className="space-y-4">
             <div className="rounded-3xl bg-[#111827] p-6 text-white shadow-xl"><Sparkles className="text-[#D8B86A]" /><h2 className="mt-4 text-2xl font-black">خطوتك التالية</h2><p className="mt-3 leading-7 text-white/65">{followUps.length ? "ابدأ بأقدم إحالة تحتاج متابعة، ثم انتقل لجلب فرصة جديدة." : "لا توجد متابعة معلقة. استخدم أدوات السفير لجلب إحالة جديدة."}</p><Link href={dashboardHref} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#B89A5A] px-4 py-3 font-black text-slate-950"><Sparkles size={18} />فتح مساعد السفير</Link></div>
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="font-black">رابطك الشخصي</h2><p dir="ltr" className="mt-3 truncate rounded-xl bg-slate-50 px-3 py-3 text-left text-xs text-slate-600">{data.ambassador.referralUrl}</p><button type="button" onClick={copyReferralLink} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 font-black"><Copy size={18} />{copied ? "تم النسخ" : "نسخ الرابط"}</button></div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="font-black">رابطك الشخصي</h2><p dir="ltr" className="mt-3 truncate rounded-xl bg-slate-50 px-3 py-3 text-left text-xs text-slate-600">{data.ambassador.referralUrl}</p><button type="button" onClick={copyReferralLink} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 font-black"><Copy size={18} />{copied ? "تم النسخ" : "نسخ الرابط"}</button>{copyError && <p className="mt-2 text-sm font-bold text-red-700">{copyError}</p>}</div>
           </aside>
         </section>
 
@@ -156,5 +163,15 @@ export default function AmbassadorActionCenterPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+
+/** Keeps useSearchParams beneath a Suspense boundary for prerender compatibility. */
+export default function AmbassadorActionCenterPage() {
+  return (
+    <Suspense fallback={<main className="grid min-h-screen place-items-center bg-[#F7F3EB]"><div className="h-12 w-12 animate-spin rounded-full border-4 border-[#B89A5A] border-t-transparent" /></main>}>
+      <AmbassadorActionCenterContent />
+    </Suspense>
   );
 }
