@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { BadgeDollarSign, Home, UserPlus, UsersRound } from "lucide-react";
 
 const SECTION_BY_HASH: Record<string, number> = {
@@ -25,8 +26,6 @@ function applyWorkspaceLabels() {
       if (textNodes.length) textNodes[textNodes.length - 1].textContent = LABELS[index];
     }
   });
-
-  // The action center is the real home in V2, so the old overview is intentionally hidden.
   if (buttons[0]) buttons[0].classList.add("hidden");
 
   document.querySelectorAll<HTMLElement>("main, aside").forEach((root) => {
@@ -50,8 +49,14 @@ function openHashSection() {
   }
 }
 
-/** Transitional V2 navigation: task language, thumb-friendly mobile bar, and Action Center as home. */
-export function AmbassadorWorkspaceNavigation() {
+/** Task-based, thumb-friendly navigation for the ambassador workspace. */
+export function AmbassadorWorkspaceNavigation({ actionCenter = false }: { actionCenter?: boolean }) {
+  const searchParams = useSearchParams();
+  const previewId = searchParams.get("adminPreview");
+  const suffix = previewId ? `?adminPreview=${encodeURIComponent(previewId)}` : "";
+  const homeHref = `/ambassador/action-center${suffix}`;
+  const dashboardHref = (hash: string) => `/ambassador/dashboard${suffix}${hash}`;
+
   useEffect(() => {
     const sync = () => {
       applyWorkspaceLabels();
@@ -69,19 +74,17 @@ export function AmbassadorWorkspaceNavigation() {
 
   return (
     <>
-      <Link
-        href="/ambassador/action-center"
-        className="fixed right-5 top-[132px] z-[55] hidden w-[270px] items-center gap-3 rounded-2xl bg-[#B89A5A] px-4 py-3.5 font-black text-[#111827] shadow-sm lg:flex"
-      >
-        <Home size={20} />
-        الرئيسية
-      </Link>
+      {!actionCenter && (
+        <Link href={homeHref} className="fixed right-5 top-[132px] z-[55] hidden w-[270px] items-center gap-3 rounded-2xl bg-[#B89A5A] px-4 py-3.5 font-black text-[#111827] shadow-sm lg:flex">
+          <Home size={20} />الرئيسية
+        </Link>
+      )}
 
       <nav aria-label="التنقل السريع للسفير" className="fixed inset-x-2 bottom-2 z-[65] grid grid-cols-4 gap-1 rounded-2xl border border-[#D8D2C4] bg-white/95 p-1.5 shadow-2xl backdrop-blur lg:hidden">
-        <Link href="/ambassador/action-center" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><Home size={20} /><span>الرئيسية</span></Link>
-        <a href="/ambassador/dashboard#referrals" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><UsersRound size={20} /><span>إحالاتي</span></a>
-        <a href="/ambassador/dashboard#new-client" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><UserPlus size={20} /><span>عميل جديد</span></a>
-        <a href="/ambassador/dashboard#rewards" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><BadgeDollarSign size={20} /><span>أرباحي</span></a>
+        <Link href={homeHref} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827] ${actionCenter ? "bg-[#F3EAD7]" : ""}`}><Home size={20} /><span>الرئيسية</span></Link>
+        <a href={dashboardHref("#referrals")} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><UsersRound size={20} /><span>إحالاتي</span></a>
+        <a href={dashboardHref("#new-client")} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><UserPlus size={20} /><span>عميل جديد</span></a>
+        <a href={dashboardHref("#rewards")} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><BadgeDollarSign size={20} /><span>أرباحي</span></a>
       </nav>
     </>
   );
