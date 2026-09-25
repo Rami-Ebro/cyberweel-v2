@@ -18,7 +18,7 @@ function dashboardButtons() {
   return Array.from(document.querySelectorAll<HTMLButtonElement>("aside nav button"));
 }
 
-function applyWorkspaceLabels(homeHref: string) {
+function applyWorkspaceLabels(homeHref: string, newClientHref: string) {
   const nav = document.querySelector<HTMLElement>("aside nav");
   const buttons = dashboardButtons();
   buttons.forEach((button, index) => {
@@ -51,6 +51,10 @@ function applyWorkspaceLabels(homeHref: string) {
       node.nodeValue = value;
     });
   });
+
+  document.querySelectorAll<HTMLAnchorElement>("main a").forEach((anchor) => {
+    if ((anchor.textContent || "").includes("كل الأدوات")) anchor.href = newClientHref;
+  });
 }
 
 function openHashSection() {
@@ -70,27 +74,33 @@ export function AmbassadorWorkspaceNavigation({ actionCenter = false }: { action
   const suffix = previewId ? `?adminPreview=${encodeURIComponent(previewId)}` : "";
   const homeHref = `/ambassador/action-center${suffix}`;
   const dashboardHref = (hash: string) => `/ambassador/dashboard${suffix}${hash}`;
+  const newClientHref = dashboardHref("#new-client");
 
   useEffect(() => {
+    if (!actionCenter && !window.location.hash) {
+      window.location.replace(homeHref);
+      return;
+    }
+
     const sync = () => {
-      applyWorkspaceLabels(homeHref);
+      applyWorkspaceLabels(homeHref, newClientHref);
       openHashSection();
     };
     sync();
-    const observer = new MutationObserver(() => applyWorkspaceLabels(homeHref));
+    const observer = new MutationObserver(() => applyWorkspaceLabels(homeHref, newClientHref));
     observer.observe(document.body, { childList: true, subtree: true });
     window.addEventListener("hashchange", openHashSection);
     return () => {
       observer.disconnect();
       window.removeEventListener("hashchange", openHashSection);
     };
-  }, [homeHref]);
+  }, [actionCenter, homeHref, newClientHref]);
 
   return (
     <nav aria-label="التنقل السريع للسفير" className="fixed inset-x-2 bottom-2 z-[65] grid grid-cols-4 gap-1 rounded-2xl border border-[#D8D2C4] bg-white/95 p-1.5 shadow-2xl backdrop-blur lg:hidden">
       <Link href={homeHref} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827] ${actionCenter ? "bg-[#F3EAD7]" : ""}`}><Home size={20} /><span>الرئيسية</span></Link>
       <a href={dashboardHref("#referrals")} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><UsersRound size={20} /><span>إحالاتي</span></a>
-      <a href={dashboardHref("#new-client")} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><UserPlus size={20} /><span>عميل جديد</span></a>
+      <a href={newClientHref} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><UserPlus size={20} /><span>عميل جديد</span></a>
       <a href={dashboardHref("#rewards")} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-black text-[#111827]"><BadgeDollarSign size={20} /><span>أرباحي</span></a>
     </nav>
   );
