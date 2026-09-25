@@ -58,13 +58,12 @@ function AmbassadorActionCenterContent() {
   const previewId = searchParams.get("adminPreview");
 
   useEffect(() => {
-    setData(null);
-    setError("");
+    const controller = new AbortController();
     const endpoint = previewId
       ? `/api/ambassador/dashboard?adminPreview=${encodeURIComponent(previewId)}`
       : "/api/ambassador/dashboard";
 
-    fetch(endpoint, { cache: "no-store" })
+    fetch(endpoint, { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
         const payload = await response.json();
         if (!response.ok) {
@@ -77,9 +76,17 @@ function AmbassadorActionCenterContent() {
         return payload as DashboardData;
       })
       .then((payload) => {
-        if (payload) setData(payload);
+        if (payload) {
+          setError("");
+          setData(payload);
+        }
       })
-      .catch((cause) => setError(cause instanceof Error ? cause.message : "تعذر تحميل مركز العمل"));
+      .catch((cause) => {
+        if (cause instanceof DOMException && cause.name === "AbortError") return;
+        setError(cause instanceof Error ? cause.message : "تعذر تحميل مركز العمل");
+      });
+
+    return () => controller.abort();
   }, [previewId]);
 
   const followUps = useMemo(() => {
@@ -98,6 +105,7 @@ function AmbassadorActionCenterContent() {
     ? `/ambassador/dashboard?adminPreview=${encodeURIComponent(previewId)}`
     : "/ambassador/dashboard";
 
+  /** Copies the personal referral URL without turning clipboard failure into a fatal page error. */
   async function copyReferralLink() {
     if (!data) return;
     try {
