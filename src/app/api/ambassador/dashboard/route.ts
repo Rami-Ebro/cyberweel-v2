@@ -203,7 +203,10 @@ export async function GET(request: NextRequest) {
         : rawReferral.status === "INTERESTED"
           ? "قيد التفاوض"
           : rawReferral.status;
-    return { ...referral, status: displayStatus };
+    const followUpEligible =
+      ["NEW", "CONTACTED", "INTERESTED", "AWAITING_RESPONSE"].includes(rawReferral.status) &&
+      !["REJECTED", "CANCELLED"].includes(rawReferral.adminDecision || "");
+    return { ...referral, status: displayStatus, followUpEligible };
   });
   const summaries = new Map<string, {
     currency: string;
