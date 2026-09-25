@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { redirect } from "next/navigation";
 import styles from "./current-level.module.css";
 import { RewardViewPolish } from "./reward-view-polish";
@@ -24,7 +24,7 @@ export default async function AmbassadorDashboardLayout({ children }: { children
       <RewardViewPolish />
       <DashboardVisualPolish mode="ambassador" />
       <AmbassadorHeaderTools />
-      <AmbassadorWorkspaceNavigation />
+      <Suspense fallback={null}><AmbassadorWorkspaceNavigation /></Suspense>
     </div>
   );
 }
