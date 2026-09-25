@@ -33,8 +33,12 @@ function applyWorkspaceLabels() {
     const nodes: Text[] = [];
     while (walker.nextNode()) nodes.push(walker.currentNode as Text);
     nodes.forEach((node) => {
-      if (node.nodeValue?.includes("Gemini")) node.nodeValue = node.nodeValue.replaceAll("Gemini", "CyberWeel");
-      if (node.nodeValue?.includes("أدوات السفير")) node.nodeValue = node.nodeValue.replaceAll("أدوات السفير", "جلب عميل جديد");
+      let value = node.nodeValue || "";
+      value = value.replaceAll("Gemini", "CyberWeel");
+      value = value.replaceAll("أدوات السفير", "جلب عميل جديد");
+      value = value.replaceAll("AMBASSADOR WORKSPACE V2", "مساحة سفير CyberWeel");
+      value = value.replaceAll("اللوحة الحالية", "كل الأدوات");
+      node.nodeValue = value;
     });
   });
 }
