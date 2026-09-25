@@ -48,14 +48,12 @@ function money(amount: number, currency: string) {
   }
 }
 
-/** Renders the data-driven Ambassador Workspace action center. */
-function AmbassadorActionCenterContent() {
+/** Renders the data-driven Ambassador Workspace action center for one ambassador context. */
+function AmbassadorActionCenterContent({ previewId }: { previewId: string | null }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState("");
-  const searchParams = useSearchParams();
-  const previewId = searchParams.get("adminPreview");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -175,11 +173,18 @@ function AmbassadorActionCenterContent() {
 }
 
 
+/** Reads the active admin-preview context and remounts data state when it changes. */
+function AmbassadorActionCenterRoute() {
+  const searchParams = useSearchParams();
+  const previewId = searchParams.get("adminPreview");
+  return <AmbassadorActionCenterContent key={previewId || "self"} previewId={previewId} />;
+}
+
 /** Keeps useSearchParams beneath a Suspense boundary for prerender compatibility. */
 export default function AmbassadorActionCenterPage() {
   return (
     <Suspense fallback={<main className="grid min-h-screen place-items-center bg-[#F7F3EB]"><div className="h-12 w-12 animate-spin rounded-full border-4 border-[#B89A5A] border-t-transparent" /></main>}>
-      <AmbassadorActionCenterContent />
+      <AmbassadorActionCenterRoute />
     </Suspense>
   );
 }
