@@ -1442,6 +1442,28 @@ const partnerApplicationEnglish: Record<string, string> = {
 };
 
 const ambassadorUiEnglish: Record<string, string> = {
+  "مساعدك الذكي من سايبرويل": "Your smart assistant from CyberWeel",
+  "معك خطوة بخطوة": "With you, step by step",
+  "احكِ لي عن العميل أو الرسالة اللي بدك تكتبها، وبساعدك بصياغة بسيطة وقريبة من الناس وبنفس لغتك. رابطك بينضاف تلقائيًا لرسالة واتساب؛ والأسعار والمواعيد بتبقى مع الإدارة.": "Tell me about the client or the message you want to write. I’ll help you keep it simple and natural in your language. Your link is included in WhatsApp messages; pricing and timelines stay with the admin team.",
+  "مثال: بدي أشارك رابطي بمجموعة واتساب، بكلام بسيط يفهمه الكل.": "Example: I want to share my link in a WhatsApp group, in simple language everyone understands.",
+  "مساعدك الذكي غير متاح حاليًا. تواصل مع الإدارة أو جرّب لاحقًا.": "Your smart assistant is unavailable right now. Contact the admin team or try again later.",
+  "تعذر الوصول إلى مساعدك الذكي الآن. جرّب مرة ثانية بعد قليل.": "Unable to reach your smart assistant. Please try again shortly.",
+  "مركز الأعمال": "Work Center",
+  "ماذا تحتاج أن تفعل الآن؟": "What do you need to do now?",
+  "ابدأ بالمتابعة، ثم اجلب فرصة جديدة، واستعن بمساعدك الذكي من سايبرويل عندما تحتاج صياغة أو ردًا.": "Start with follow-ups, bring in a new opportunity, and ask your smart assistant from CyberWeel for help writing a message or reply.",
+  "جلب عميل جديد": "Bring in a new client",
+  "المحتوى الجاهز": "Ready-to-share content",
+  "تحتاج متابعة": "Need a follow-up",
+  "ابدأ بها قبل البحث عن إحالات جديدة.": "Start here before looking for new referrals.",
+  "نتائج فعلية من إحالاتك.": "Real results from your referrals.",
+  "مكافآت غير مدفوعة": "Unpaid rewards",
+  "كل عملة معروضة بشكل مستقل.": "Each currency is shown separately.",
+  "أولوية اليوم": "Today’s priority",
+  "ابدأ بهذه الإحالة": "Start with this referral",
+  "جهّز رسالة متابعة": "Draft a follow-up message",
+  "رابطك الشخصي": "Your personal link",
+  "تحديث لوحة السفير": "Refresh ambassador dashboard",
+
   "تعذر تحميل لوحة السفير": "Unable to load the ambassador dashboard.",
   "تعذر تحميل البيانات": "Unable to load the dashboard data.",
   "تعذر النسخ تلقائيًا. حدّد النص وانسخه يدويًا.": "Automatic copying failed. Select the text and copy it manually.",

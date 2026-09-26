@@ -279,7 +279,7 @@ export function AmbassadorHeaderTools() {
         </button>
 
         {open && (
-          <div className="absolute left-0 top-[calc(100%+10px)] z-[80] w-[min(380px,calc(100vw-24px))] overflow-hidden rounded-xl border border-[#D8D2C4] bg-white text-[#111827] shadow-2xl dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+          <div className="fixed inset-x-3 top-auto mt-2 z-[80] sm:absolute sm:inset-x-auto sm:left-0 sm:top-[calc(100%+10px)] sm:mt-0 w-[min(380px,calc(100vw-24px))] overflow-hidden rounded-xl border border-[#D8D2C4] bg-white text-[#111827] shadow-2xl dark:border-slate-700 dark:bg-slate-900 dark:text-white">
             <div className="flex items-center justify-between gap-3 border-b border-[#E6E0D4] px-4 py-3 dark:border-slate-800">
               <div>
                 <p className="font-black">تنبيهات السفير</p>
@@ -332,6 +332,7 @@ export function AmbassadorHeaderTools() {
 
       <button
         type="button"
+        aria-label="تحديث لوحة السفير"
         onClick={refreshDashboard}
         disabled={refreshing}
         style={{ order: 2 }}
