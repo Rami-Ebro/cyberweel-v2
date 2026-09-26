@@ -1,0 +1,21 @@
+@media (max-width: 1023.98px) {
+  #ambassador-dashboard-menu[aria-hidden="true"] {
+    transform: translateX(100%) !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  #ambassador-dashboard-menu:not([aria-hidden="true"]) {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  #ambassador-dashboard-menu {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+}

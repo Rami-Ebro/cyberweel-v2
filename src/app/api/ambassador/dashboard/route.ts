@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { canAdmin } from "@/lib/admin-permissions";
 import { currentAmbassador } from "@/lib/ambassador-auth";
-import { formatAmbassadorReferralCode } from "@/lib/partner-referral";
+import { buildAmbassadorReferralUrl, formatAmbassadorReferralCode } from "@/lib/partner-referral";
 import { DEFAULT_AMBASSADOR_REWARD_LEVELS, utcMonthRange } from "@/lib/ambassador-rewards";
 import {
   consumeRateLimit,
@@ -278,7 +278,7 @@ export async function GET(request: NextRequest) {
       name: user.name || user.email,
       email: user.email,
       code,
-      referralUrl: `${request.nextUrl.origin}/?ref=${code}`,
+      referralUrl: buildAmbassadorReferralUrl(request.nextUrl.origin, user.ambassador!.referralNumber),
       joinedAt: user.ambassador!.createdAt,
       phone: user.ambassador!.phone,
       country: user.ambassador!.country,

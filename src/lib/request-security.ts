@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 
 type RateLimitOptions = {
@@ -102,29 +103,44 @@ export async function consumeRateLimitSubject(
   const expiresAt = new Date(windowStartMs + options.windowMs * 2);
   const hashedSubject = subjectHash(options.subject);
 
-  const bucket = await db.rateLimitBucket.upsert({
-    where: {
-      action_subjectHash_windowStart: {
+  let bucket: { count: number };
+  try {
+    bucket = await db.rateLimitBucket.upsert({
+      where: {
+        action_subjectHash_windowStart: {
+          action: options.action,
+          subjectHash: hashedSubject,
+          windowStart,
+        },
+      },
+      create: {
         action: options.action,
         subjectHash: hashedSubject,
         windowStart,
+        expiresAt,
       },
-    },
-    create: {
-      action: options.action,
-      subjectHash: hashedSubject,
-      windowStart,
-      expiresAt,
-    },
-    update: {
-      count: { increment: 1 },
-      expiresAt,
-    },
-    select: { count: true },
-  });
+      update: {
+        count: { increment: 1 },
+        expiresAt,
+      },
+      select: { count: true },
+    });
+  } catch (error) {
+    const missingPreviewTable =
+      process.env.VERCEL_ENV === "preview" &&
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2021";
+
+    if (!missingPreviewTable) throw error;
+
+    console.warn(
+      "[rate-limit] Preview database is missing RateLimitBucket; bypassing persistence for this preview request.",
+    );
+    bucket = { count: 1 };
+  }
 
   // Keep the table bounded without adding latency to every request.
-  if (Math.random() < 0.01) {
+  if (process.env.VERCEL_ENV !== "preview" && Math.random() < 0.01) {
     void db.rateLimitBucket
       .deleteMany({ where: { expiresAt: { lt: new Date() } } })
       .catch(() => undefined);
