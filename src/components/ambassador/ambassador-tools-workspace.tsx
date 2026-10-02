@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { BadgeDollarSign, CheckCircle2, Copy, Link2, MessageCircle, PlusCircle, Sparkles, Target, UsersRound } from "lucide-react";
+import { BadgeDollarSign, CheckCircle2, MessageCircle, PlusCircle, Sparkles, Target, UsersRound } from "lucide-react";
 
 type Referral = {
   id: string;
@@ -14,8 +14,6 @@ type Referral = {
 };
 
 type DashboardPayload = {
-  ambassador: { id: string; name: string; referralUrl: string };
-  isAdminPreview: boolean;
   stats: {
     followUp: number;
     converted: number;
@@ -42,13 +40,11 @@ export type AmbassadorToolId = "ambassador-new-referral" | "ambassador-assistant
 
 type WorkspaceProps = {
   data: DashboardPayload;
-  copied: boolean;
-  onCopyReferralLink: () => void;
   onOpenTool: (id: AmbassadorToolId) => void;
   onNavigate: (section: "referrals" | "rewards") => void;
 };
 
-export function AmbassadorToolsWorkspace({ data, copied, onCopyReferralLink, onOpenTool, onNavigate }: WorkspaceProps) {
+export function AmbassadorToolsWorkspace({ data, onOpenTool, onNavigate }: WorkspaceProps) {
   const followUps = useMemo(() => {
     if (!data) return [];
     return data.referrals
@@ -109,12 +105,6 @@ export function AmbassadorToolsWorkspace({ data, copied, onCopyReferralLink, onO
           <div className="mt-3 rounded-2xl bg-[#F7F3EB] p-4 dark:bg-slate-800">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><strong>{followUps[0].name || "إحالة دون اسم"}</strong><p className="mt-1 text-xs text-slate-500 [overflow-wrap:anywhere]">{followUps[0].email || followUps[0].phone || "لا توجد وسيلة تواصل"} · منذ {daysSince(followUps[0].createdAt)} يوم</p></div><button type="button" onClick={() => { onOpenTool("ambassador-assistant"); }} className="rounded-xl bg-[#111827] px-4 py-3 text-sm font-black text-white">جهّز رسالة متابعة</button></div>
           </div>
-        </section>
-      )}
-
-      {data && (
-        <section className="rounded-2xl border border-[#D8D2C4] bg-[#FFFDF8] p-4 dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-center gap-3"><Link2 size={18} className="shrink-0 text-[#9f7d3d]" /><div className="min-w-0 flex-1"><p className="text-xs font-bold text-slate-500">رابطك الشخصي</p><p dir="ltr" className="mt-1 truncate text-left text-xs">{data.ambassador.referralUrl}</p></div><button type="button" onClick={onCopyReferralLink} className="min-h-11 shrink-0 rounded-xl bg-[#B89A5A] px-3 py-2 text-xs font-black text-[#111827]"><Copy size={15} className="inline" /> {copied ? "تم" : "نسخ"}</button></div>
         </section>
       )}
     </div>
