@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
     name: string | null;
     company: string | null;
     status: string;
-    contactMethod: string | null;
     updatedAt: string | null;
   } | null = null;
 
@@ -64,7 +63,6 @@ export async function POST(request: NextRequest) {
         name: true,
         company: true,
         status: true,
-        contactMethod: true,
         updatedAt: true,
       },
     });
@@ -77,7 +75,6 @@ export async function POST(request: NextRequest) {
       name: referral.name,
       company: referral.company,
       status: referral.status,
-      contactMethod: referral.contactMethod,
       updatedAt: referral.updatedAt.toISOString(),
     };
   }

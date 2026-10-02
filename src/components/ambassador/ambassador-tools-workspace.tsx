@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { BadgeDollarSign, CheckCircle2, MessageCircle, PlusCircle, Sparkles, Target } from "lucide-react";
+import { filterAndSortFollowUps, getFollowUpPriorityDate, daysSince } from "@/lib/ambassador-followup";
 
 type Referral = {
   id: string;
@@ -24,20 +25,6 @@ type DashboardPayload = {
   referrals: Referral[];
 };
 
-function daysSince(value: string) {
-  const time = new Date(value).getTime();
-  if (!Number.isFinite(time)) return 0;
-  return Math.max(0, Math.floor((Date.now() - time) / 86_400_000));
-}
-
-function getFollowUpPriorityDate(referral: Referral): string {
-  if (referral.updatedAt) {
-    const time = new Date(referral.updatedAt).getTime();
-    if (Number.isFinite(time)) return referral.updatedAt;
-  }
-  return referral.createdAt;
-}
-
 function money(amount: number, currency: string) {
   try {
     return new Intl.NumberFormat("ar", { style: "currency", currency, maximumFractionDigits: 2 }).format(amount);
@@ -58,9 +45,7 @@ type WorkspaceProps = {
 export function AmbassadorToolsWorkspace({ data, onOpenTool, onNavigate, onPrepareFollowUp }: WorkspaceProps) {
   const followUps = useMemo(() => {
     if (!data) return [];
-    return data.referrals
-      .filter((item) => item.followUpEligible ?? ["NEW", "CONTACTED", "INTERESTED", "AWAITING_RESPONSE"].includes(item.status))
-      .sort((a, b) => daysSince(getFollowUpPriorityDate(b)) - daysSince(getFollowUpPriorityDate(a)));
+    return filterAndSortFollowUps(data.referrals);
   }, [data]);
 
   const rewards = data?.stats.rewardsByCurrency.map((item) => ({
