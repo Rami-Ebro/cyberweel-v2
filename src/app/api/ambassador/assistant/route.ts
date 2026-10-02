@@ -14,6 +14,7 @@ import {
   invalidOriginResponse,
   rateLimitResponse,
 } from "@/lib/request-security";
+import { ownedReferralWhere, TRUSTED_REFERRAL_SELECT, toTrustedReferralContext } from "@/lib/ambassador-referral-context";
 
 export async function POST(request: NextRequest) {
   if (!hasTrustedOrigin(request)) return invalidOriginResponse();
@@ -55,28 +56,15 @@ export async function POST(request: NextRequest) {
 
   if (referralId) {
     const referral = await db.partnerReferral.findFirst({
-      where: {
-        id: referralId,
-        ambassadorId: ambassador.id,
-      },
-      select: {
-        name: true,
-        company: true,
-        status: true,
-        updatedAt: true,
-      },
+      where: ownedReferralWhere(referralId, ambassador.id),
+      select: TRUSTED_REFERRAL_SELECT,
     });
 
     if (!referral) {
       return NextResponse.json({ error: "REFERRAL_NOT_FOUND" }, { status: 404 });
     }
 
-    referralContext = {
-      name: referral.name,
-      company: referral.company,
-      status: referral.status,
-      updatedAt: referral.updatedAt.toISOString(),
-    };
+    referralContext = toTrustedReferralContext(referral);
   }
 
   try {

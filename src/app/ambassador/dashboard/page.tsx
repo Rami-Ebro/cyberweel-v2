@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, Fragment, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   BadgeDollarSign,
@@ -678,11 +678,8 @@ export default function AmbassadorDashboardPage() {
             <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"><div role="region" aria-label="جدول إحالات السفير" tabIndex={0} className="overflow-x-auto focus:outline-none focus:ring-2 focus:ring-[#B89A5A] focus:ring-inset"><table className="w-full min-w-[1080px] text-right"><thead className="bg-slate-50 text-sm text-slate-500 dark:bg-slate-800/70 dark:text-slate-300"><tr><th className="px-5 py-4">العميل</th><th className="px-5 py-4">التواصل</th><th className="px-5 py-4">حالة الإحالة</th><th className="px-5 py-4">حالة المكافأة</th><th className="px-5 py-4">المكافأة</th><th className="px-5 py-4">تاريخ الإحالة</th><th className="px-5 py-4">آخر تحديث</th><th className="px-5 py-4">سجل النشاط</th></tr></thead><tbody>{filteredReferrals.map((referral) => {
                 const isExpanded = expandedReferralId === referral.id;
                 return (
-                  <>
-                    <tr
-                      key={referral.id}
-                      className="border-t border-slate-100 dark:border-slate-800"
-                    >
+                  <Fragment key={referral.id}>
+                    <tr className="border-t border-slate-100 dark:border-slate-800">
                       <td className="px-5 py-4 font-black">{referral.name || "دون اسم"}</td>
                       <td className="px-5 py-4 text-sm text-slate-500"><div>{referral.email || referral.phone || "—"}</div>{referral.contactMethod && <div className="mt-1 text-xs">{referral.contactMethod}</div>}</td>
                       <td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${referralStatusClass[referral.status] || referralStatusClass.NEW}`}>{referralStatus[referral.status] || dashboardLabel(referral.status, "حالة غير معروفة")}</span></td>
@@ -704,7 +701,7 @@ export default function AmbassadorDashboardPage() {
                       </td>
                     </tr>
                     {isExpanded && (
-                      <tr key={`timeline-${referral.id}`} id={`timeline-${referral.id}`}>
+                      <tr id={`timeline-${referral.id}`}>
                         <td colSpan={8} className="px-5 py-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
                           <ReferralTimeline
                             referral={{
@@ -719,7 +716,7 @@ export default function AmbassadorDashboardPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}</tbody></table>{!filteredReferrals.length && <div className="p-10 text-center text-slate-500">لا توجد نتائج مطابقة.</div>}</div></div>
           </section>}

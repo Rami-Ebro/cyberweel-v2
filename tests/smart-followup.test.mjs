@@ -85,3 +85,47 @@ test("filterAndSortFollowUps filters out non-eligible statuses", () => {
   assert.equal(sorted.length, 1);
   assert.equal(sorted[0].id, "1");
 });
+
+test("followUpEligible=true overrides non-eligible status (display status)", () => {
+  const referrals = [
+    { id: "1", updatedAt: fiveDaysAgo, createdAt: fifteenDaysAgo, status: "قيد التفاوض", followUpEligible: true },
+    { id: "2", updatedAt: twoDaysAgo, createdAt: tenDaysAgo, status: "تم الاتفاق — بانتظار أول دفعة", followUpEligible: true },
+    { id: "3", updatedAt: tenDaysAgo, createdAt: fifteenDaysAgo, status: "NEW", followUpEligible: false },
+  ];
+
+  const sorted = filterAndSortFollowUps(referrals);
+
+  assert.equal(sorted.length, 2);
+  assert.equal(sorted[0].id, "1"); // older updatedAt (5 days) comes first
+  assert.equal(sorted[1].id, "2"); // 2 days ago
+  // id:3 should be excluded because followUpEligible=false
+});
+
+test("followUpEligible=false excludes even eligible status", () => {
+  const referrals = [
+    { id: "1", updatedAt: fiveDaysAgo, createdAt: fifteenDaysAgo, status: "NEW", followUpEligible: false },
+    { id: "2", updatedAt: twoDaysAgo, createdAt: tenDaysAgo, status: "CONTACTED", followUpEligible: false },
+    { id: "3", updatedAt: tenDaysAgo, createdAt: fifteenDaysAgo, status: "INTERESTED", followUpEligible: true },
+  ];
+
+  const sorted = filterAndSortFollowUps(referrals);
+
+  assert.equal(sorted.length, 1);
+  assert.equal(sorted[0].id, "3"); // only the one with followUpEligible=true
+});
+
+test("filterAndSortFollowUps preserves full referral type (name, email, phone)", () => {
+  const referrals = [
+    { id: "1", updatedAt: fiveDaysAgo, createdAt: fifteenDaysAgo, status: "NEW", followUpEligible: true, name: "أحمد", email: "ahmed@example.com", phone: "+963123456" },
+    { id: "2", updatedAt: twoDaysAgo, createdAt: tenDaysAgo, status: "CONTACTED", followUpEligible: true, name: "محمد", email: "mohamed@example.com", phone: "+963654321" },
+  ];
+
+  const sorted = filterAndSortFollowUps(referrals);
+
+  assert.equal(sorted[0].name, "أحمد");
+  assert.equal(sorted[0].email, "ahmed@example.com");
+  assert.equal(sorted[0].phone, "+963123456");
+  assert.equal(sorted[1].name, "محمد");
+  assert.equal(sorted[1].email, "mohamed@example.com");
+  assert.equal(sorted[1].phone, "+963654321");
+});
