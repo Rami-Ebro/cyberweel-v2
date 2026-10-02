@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { BadgeDollarSign, CheckCircle2, MessageCircle, PlusCircle, Sparkles, Target, UsersRound } from "lucide-react";
+import { BadgeDollarSign, CheckCircle2, MessageCircle, PlusCircle, Sparkles, Target } from "lucide-react";
 
 type Referral = {
   id: string;
@@ -71,11 +71,10 @@ export function AmbassadorToolsWorkspace({ data, onOpenTool, onNavigate }: Works
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4 sm:p-4">
+        <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-3 sm:p-4">
           <button type="button" onClick={() => onOpenTool("ambassador-new-referral")} className="min-h-20 min-w-0 rounded-2xl border border-slate-200 p-3 text-right transition hover:border-[#B89A5A] dark:border-slate-700"><PlusCircle size={20} className="text-[#9f7d3d]" /><strong className="mt-2 block text-sm">جلب عميل جديد</strong></button>
           <button type="button" onClick={() => onOpenTool("ambassador-assistant")} className="min-h-20 min-w-0 rounded-2xl border border-slate-200 p-3 text-right transition hover:border-[#B89A5A] dark:border-slate-700"><Sparkles size={20} className="text-[#9f7d3d]" /><strong className="mt-2 block text-sm">مساعدك الذكي من سايبرويل</strong></button>
           <button type="button" onClick={() => onOpenTool("ambassador-ready-content")} className="min-h-20 min-w-0 rounded-2xl border border-slate-200 p-3 text-right transition hover:border-[#B89A5A] dark:border-slate-700"><MessageCircle size={20} className="text-[#9f7d3d]" /><strong className="mt-2 block text-sm">المحتوى الجاهز</strong></button>
-          <button type="button" onClick={() => onNavigate("referrals")} className="min-h-20 min-w-0 rounded-2xl border border-slate-200 p-3 text-right transition hover:border-[#B89A5A] dark:border-slate-700"><UsersRound size={20} className="text-[#9f7d3d]" /><strong className="mt-2 block text-sm">إحالاتي</strong></button>
         </div>
       </section>
 
