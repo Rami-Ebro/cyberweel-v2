@@ -32,6 +32,12 @@ export function formatAmbassadorReferralCode(referralNumber: number): string {
   return `${AMBASSADOR_REFERRAL_PREFIX}${String(referralNumber).padStart(REFERRAL_DIGITS, "0")}`;
 }
 
+export function buildAmbassadorReferralUrl(origin: string, referralNumber: number): string {
+  const url = new URL("/", origin);
+  url.searchParams.set("ref", formatAmbassadorReferralCode(referralNumber));
+  return url.toString();
+}
+
 export function parseAmbassadorReferralCode(code: string): number | null {
   const normalizedCode = code.trim().toUpperCase();
   const match = /^CWA-(\d{4,})$/.exec(normalizedCode);

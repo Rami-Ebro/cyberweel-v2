@@ -5,6 +5,7 @@ import {
   answerAmbassadorQuestion,
   type AmbassadorAssistantMode,
 } from "@/lib/ambassador-assistant";
+import { buildAmbassadorReferralUrl } from "@/lib/partner-referral";
 import { GeminiServiceError } from "@/lib/ai/gemini";
 import {
   consumeRateLimit,
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
     const answer = await answerAmbassadorQuestion({
       mode: mode as AmbassadorAssistantMode,
       situation,
+      referralUrl: buildAmbassadorReferralUrl(request.nextUrl.origin, ambassador.referralNumber),
     });
     return NextResponse.json({ answer });
   } catch (error) {
