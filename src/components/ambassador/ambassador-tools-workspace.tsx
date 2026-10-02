@@ -11,6 +11,8 @@ type Referral = {
   status: string;
   followUpEligible?: boolean;
   createdAt: string;
+  updatedAt?: string;
+  convertedAt?: string | null;
 };
 
 type DashboardPayload = {
@@ -28,6 +30,14 @@ function daysSince(value: string) {
   return Math.max(0, Math.floor((Date.now() - time) / 86_400_000));
 }
 
+function getFollowUpPriorityDate(referral: Referral): string {
+  if (referral.updatedAt) {
+    const time = new Date(referral.updatedAt).getTime();
+    if (Number.isFinite(time)) return referral.updatedAt;
+  }
+  return referral.createdAt;
+}
+
 function money(amount: number, currency: string) {
   try {
     return new Intl.NumberFormat("ar", { style: "currency", currency, maximumFractionDigits: 2 }).format(amount);
@@ -42,14 +52,15 @@ type WorkspaceProps = {
   data: DashboardPayload;
   onOpenTool: (id: AmbassadorToolId) => void;
   onNavigate: (section: "referrals" | "rewards") => void;
+  onPrepareFollowUp?: (referralId: string) => void;
 };
 
-export function AmbassadorToolsWorkspace({ data, onOpenTool, onNavigate }: WorkspaceProps) {
+export function AmbassadorToolsWorkspace({ data, onOpenTool, onNavigate, onPrepareFollowUp }: WorkspaceProps) {
   const followUps = useMemo(() => {
     if (!data) return [];
     return data.referrals
       .filter((item) => item.followUpEligible ?? ["NEW", "CONTACTED", "INTERESTED", "AWAITING_RESPONSE"].includes(item.status))
-      .sort((a, b) => daysSince(b.createdAt) - daysSince(a.createdAt));
+      .sort((a, b) => daysSince(getFollowUpPriorityDate(b)) - daysSince(getFollowUpPriorityDate(a)));
   }, [data]);
 
   const rewards = data?.stats.rewardsByCurrency.map((item) => ({
@@ -102,7 +113,7 @@ export function AmbassadorToolsWorkspace({ data, onOpenTool, onNavigate }: Works
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-900">
           <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black text-[#9f7d3d]">أولوية اليوم</p><h3 className="mt-1 text-lg font-black">ابدأ بهذه الإحالة</h3></div><button type="button" onClick={() => onNavigate("referrals")} className="text-sm font-black text-[#9f7d3d]">عرض إحالاتي</button></div>
           <div className="mt-3 rounded-2xl bg-[#F7F3EB] p-4 dark:bg-slate-800">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><strong>{followUps[0].name || "إحالة دون اسم"}</strong><p className="mt-1 text-xs text-slate-500 [overflow-wrap:anywhere]">{followUps[0].email || followUps[0].phone || "لا توجد وسيلة تواصل"} · منذ {daysSince(followUps[0].createdAt)} يوم</p></div><button type="button" onClick={() => { onOpenTool("ambassador-assistant"); }} className="rounded-xl bg-[#111827] px-4 py-3 text-sm font-black text-white">جهّز رسالة متابعة</button></div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><strong>{followUps[0].name || "إحالة دون اسم"}</strong><p className="mt-1 text-xs text-slate-500 [overflow-wrap:anywhere]">{followUps[0].email || followUps[0].phone || "لا توجد وسيلة تواصل"} · آخر تحديث منذ {daysSince(getFollowUpPriorityDate(followUps[0]))} يوم</p></div><button type="button" onClick={() => { if (onPrepareFollowUp) onPrepareFollowUp(followUps[0].id); }} className="rounded-xl bg-[#111827] px-4 py-3 text-sm font-black text-white">جهّز رسالة متابعة</button></div>
           </div>
         </section>
       )}

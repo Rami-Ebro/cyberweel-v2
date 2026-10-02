@@ -124,6 +124,8 @@ function plannedProjectAmount(project: ReferralProjectSnapshot) {
 function serializeReferral<T extends {
   commissionAmount: { toString(): string } | null;
   clientProject?: ReferralProjectSnapshot | null;
+  updatedAt?: Date | string;
+  convertedAt?: Date | string | null;
 }>(referral: T) {
   return {
     ...referral,
@@ -135,6 +137,8 @@ function serializeReferral<T extends {
           ambassadorRewardRate: referral.clientProject.ambassadorRewardRate?.toString() ?? null,
         }
       : null,
+    updatedAt: referral.updatedAt ? new Date(referral.updatedAt).toISOString() : undefined,
+    convertedAt: referral.convertedAt ? new Date(referral.convertedAt).toISOString() : null,
   };
 }
 
@@ -150,7 +154,30 @@ export async function GET(request: NextRequest) {
     db.partnerReferral.findMany({
       where: { ambassadorId: user.ambassador!.id },
       orderBy: { createdAt: "desc" },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        company: true,
+        status: true,
+        source: true,
+        sourcePath: true,
+        contactMethod: true,
+        adminDecision: true,
+        adminNotes: true,
+        commissionType: true,
+        commissionAmount: true,
+        commissionRate: true,
+        commissionBaseAmount: true,
+        commissionCurrency: true,
+        commissionStatus: true,
+        updatedById: true,
+        notes: true,
+        convertedClientId: true,
+        convertedAt: true,
+        createdAt: true,
+        updatedAt: true,
         clientProject: {
           select: {
             title: true,

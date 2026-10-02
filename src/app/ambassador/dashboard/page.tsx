@@ -36,6 +36,7 @@ import { dashboardErrorMessage, dashboardLabel } from "@/lib/dashboard-labels";
 import { useDashboardI18n } from "@/components/dashboard-i18n-provider";
 import { useDashboardMobileDrawer } from "@/components/dashboard-mobile-drawer";
 import { AmbassadorToolsWorkspace, type AmbassadorToolId } from "@/components/ambassador/ambassador-tools-workspace";
+import { ReferralTimeline } from "@/components/ambassador/referral-timeline";
 import { readLocalStorage, writeLocalStorage } from "@/lib/browser-storage";
 
 type SectionKey = "overview" | "tools" | "referrals" | "rewards" | "profile";
@@ -54,6 +55,7 @@ type Referral = {
   commissionStatus: CommissionStatus;
   createdAt: string;
   updatedAt: string;
+  convertedAt: string | null;
   clientProject: {
     title: string;
     currency: string;
@@ -286,6 +288,9 @@ export default function AmbassadorDashboardPage() {
   const [assistantSituation, setAssistantSituation] = useState("");
   const [assistantAnswer, setAssistantAnswer] = useState("");
   const [askingAssistant, setAskingAssistant] = useState(false);
+  const [followUpReferralId, setFollowUpReferralId] = useState<string | null>(null);
+  const [followUpReferralName, setFollowUpReferralName] = useState<string | null>(null);
+  const [expandedReferralId, setExpandedReferralId] = useState<string | null>(null);
 
   function localizeMessage(value: string) {
     return lang === "en" ? tr(value) : value;
@@ -344,6 +349,25 @@ export default function AmbassadorDashboardPage() {
       top: window.scrollY + target.getBoundingClientRect().top - headerHeight - 16,
       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
     });
+  }
+
+  function toggleReferralTimeline(referralId: string) {
+    setExpandedReferralId((current) => (current === referralId ? null : referralId));
+  }
+
+  function handlePrepareFollowUp(referralId: string) {
+    const referral = data?.referrals.find((r) => r.id === referralId);
+    if (!referral) return;
+    setFollowUpReferralId(referralId);
+    setFollowUpReferralName(referral.name);
+    setAssistantMode("WHATSAPP_MESSAGE");
+    setAssistantSituation("أريد رسالة متابعة قصيرة ومهنية لهذه الإحالة.");
+    openTool("ambassador-assistant");
+  }
+
+  function clearFollowUpContext() {
+    setFollowUpReferralId(null);
+    setFollowUpReferralName(null);
   }
 
   function openOverviewCard(section: "referrals" | "rewards", filter = "ALL") {
@@ -408,7 +432,7 @@ export default function AmbassadorDashboardPage() {
       const response = await fetch("/api/ambassador/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: assistantMode, situation: assistantSituation }),
+        body: JSON.stringify({ mode: assistantMode, situation: assistantSituation, referralId: followUpReferralId }),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
@@ -416,6 +440,7 @@ export default function AmbassadorDashboardPage() {
           AI_NOT_CONFIGURED: "مساعدك الذكي غير متاح حاليًا. تواصل مع الإدارة أو جرّب لاحقًا.",
           AI_PROVIDER_ERROR: "تعذر الوصول إلى مساعدك الذكي الآن. جرّب مرة ثانية بعد قليل.",
           AI_GUARDRAIL_FAILED: "امتنع المساعد عن تقديم رد قد يتضمن سعرًا أو موعدًا غير معتمد. حوّل الحالة إلى الإدارة.",
+          REFERRAL_NOT_FOUND: "الإحالة المحددة غير موجودة أو لا تخصك.",
         };
         throw new Error(messages[payload?.error] || dashboardErrorMessage(payload?.error, "تعذر إنشاء الرد"));
       }
@@ -583,7 +608,7 @@ export default function AmbassadorDashboardPage() {
           {activeSection === "tools" && <section className="min-w-0 space-y-7">
             <div><p className="text-sm font-black text-[#9f7d3d]">عدة عمل عملية</p><h2 className="mt-1 text-3xl font-black">أدوات السفير</h2><p className="mt-2 max-w-3xl text-slate-600 dark:text-slate-300">شارك CyberWeel، سجّل الإحالات، واحصل على صياغة عملية للحديث مع العميل—من دون صلاحيات إدارية أو وعود غير معتمدة.</p></div>
 
-            <AmbassadorToolsWorkspace data={data} onOpenTool={openTool} onNavigate={navigate} />
+            <AmbassadorToolsWorkspace data={data} onOpenTool={openTool} onNavigate={navigate} onPrepareFollowUp={handlePrepareFollowUp} />
 
             <article className="grid min-w-0 grid-cols-1 rounded-3xl border border-slate-200 bg-white shadow-sm xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] dark:border-slate-700 dark:bg-slate-900">
               <div className="min-w-0 rounded-t-3xl bg-[#101827] p-5 text-white sm:p-8 xl:rounded-e-none xl:rounded-s-3xl">
@@ -614,6 +639,20 @@ export default function AmbassadorDashboardPage() {
             <form id="ambassador-new-referral" tabIndex={-1} onSubmit={addReferral} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-700 dark:bg-slate-900"><div className="flex items-center gap-3"><span className="rounded-2xl bg-[#f3ead7] p-3 text-[#9f7d3d] dark:bg-[#bd9850]/15"><PlusCircle size={23} /></span><div><p className="text-sm font-black text-[#9f7d3d]">إضافة من تواصل مباشر</p><h3 className="text-2xl font-black">إحالة مباشرة</h3><p className="mt-1 text-sm text-slate-500">أرسل بيانات عميل محتمل تواصلت معه خارج رابط الإحالة. البريد الإلكتروني مطلوب لأنه قناة التواصل والتفعيل المعتمدة في CyberWeel.</p></div></div><div className="mt-6 grid gap-4 md:grid-cols-2"><label className="grid min-w-0 gap-2 text-sm font-bold">اسم العميل<input required name="name" maxLength={120} className="w-full min-w-0 rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-base outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid min-w-0 gap-2 text-sm font-bold">البريد الإلكتروني<input required name="email" type="email" maxLength={254} autoComplete="email" className="w-full min-w-0 rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-base outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid min-w-0 gap-2 text-sm font-bold">وسيلة تواصل إضافية<input required name="contactMethod" maxLength={160} placeholder="رقم هاتف، واتساب، حساب تواصل..." className="w-full min-w-0 rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-base outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid min-w-0 gap-2 text-sm font-bold">الشركة — اختياري<input name="company" maxLength={160} className="w-full min-w-0 rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-base outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid min-w-0 gap-2 text-sm font-bold md:col-span-2">ماذا يحتاج العميل؟<textarea required name="needs" maxLength={2000} rows={4} className="w-full min-w-0 rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-base outline-none focus:border-[#bd9850] dark:border-slate-700" /></label><label className="grid min-w-0 gap-2 text-sm font-bold md:col-span-2">ملاحظات — اختياري<textarea name="notes" maxLength={2000} rows={3} className="w-full min-w-0 rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-base outline-none focus:border-[#bd9850] dark:border-slate-700" /></label></div><button disabled={addingReferral} className="mt-5 rounded-xl bg-slate-950 px-6 py-3 font-black text-white disabled:opacity-60 dark:bg-[#bd9850] dark:text-slate-950">{addingReferral ? "جارٍ الإرسال..." : "إرسال الإحالة للإدارة"}</button>{notice === directReferralSuccess && <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">{notice}</div>}</form>
 
             <form id="ambassador-assistant" tabIndex={-1} onSubmit={askAssistant} className="min-w-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-8 dark:border-slate-700 dark:bg-slate-900">
+              {followUpReferralId && followUpReferralName && (
+                <div className="mb-4 flex items-center gap-2 rounded-xl bg-amber-50 p-3 dark:bg-amber-950/40" role="status" aria-live="polite">
+                  <span className="shrink-0 rounded-full bg-amber-100 p-1.5 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200"><Bot size={14} /></span>
+                  <span className="text-sm font-bold text-amber-800 dark:text-amber-200">متابعة إحالة: {followUpReferralName}</span>
+                  <button
+                    type="button"
+                    onClick={clearFollowUpContext}
+                    className="ml-auto rounded-lg p-1.5 text-amber-700 hover:bg-amber-200 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                    aria-label="إلغاء سياق المتابعة"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
               <div className="flex items-center gap-3">
                 <span className="shrink-0 rounded-2xl bg-[#101827] p-3 text-[#d5b873]"><Bot size={23} /></span>
                 <div className="min-w-0"><p className="text-sm font-black text-[#9f7d3d]">معك خطوة بخطوة</p><h3 className="text-xl font-black sm:text-2xl">مساعدك الذكي من سايبرويل</h3></div>

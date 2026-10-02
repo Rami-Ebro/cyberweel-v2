@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
 import { currentAmbassador } from "@/lib/ambassador-auth";
 import {
   ambassadorAssistantModes,
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const mode = typeof body?.mode === "string" ? body.mode : "";
   const situation = typeof body?.situation === "string" ? body.situation.trim() : "";
+  const referralId = typeof body?.referralId === "string" ? body.referralId.trim() : "";
 
   if (
     !ambassadorAssistantModes.includes(mode as AmbassadorAssistantMode) ||
@@ -44,11 +46,48 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "أدخل وصفًا واضحًا واختر نوع المساعدة" }, { status: 400 });
   }
 
+  let referralContext: {
+    name: string | null;
+    company: string | null;
+    status: string;
+    contactMethod: string | null;
+    updatedAt: string | null;
+  } | null = null;
+
+  if (referralId) {
+    const referral = await db.partnerReferral.findFirst({
+      where: {
+        id: referralId,
+        ambassadorId: ambassador.id,
+      },
+      select: {
+        name: true,
+        company: true,
+        status: true,
+        contactMethod: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!referral) {
+      return NextResponse.json({ error: "REFERRAL_NOT_FOUND" }, { status: 404 });
+    }
+
+    referralContext = {
+      name: referral.name,
+      company: referral.company,
+      status: referral.status,
+      contactMethod: referral.contactMethod,
+      updatedAt: referral.updatedAt.toISOString(),
+    };
+  }
+
   try {
     const answer = await answerAmbassadorQuestion({
       mode: mode as AmbassadorAssistantMode,
       situation,
       referralUrl: buildAmbassadorReferralUrl(request.nextUrl.origin, ambassador.referralNumber),
+      referralContext,
     });
     return NextResponse.json({ answer });
   } catch (error) {
