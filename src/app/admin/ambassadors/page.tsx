@@ -141,6 +141,7 @@ export default function AmbassadorsAdmin() {
           INVALID_DECISION: "ملاحظة القرار مطلوبة.",
           EMAIL_EXISTS: "يوجد حساب بهذا البريد بالفعل.",
           ALREADY_DECIDED: "تم اتخاذ قرار سابق على هذا الطلب.",
+          ACCOUNT_INACTIVE: "الحساب مرتبط بالمستخدم لكنه غير نشط. راجع حالته قبل الاستكمال.",
         };
         throw new Error(labels[payload.error] || "تعذر حفظ القرار");
       }
@@ -569,6 +570,16 @@ function ApplicationCard({
         <div className="mt-3 text-sm text-slate-500">
           <p className="font-bold text-slate-700">حالة القرار: {application.status === "ACCEPTED" ? "مقبول — تم إنشاء الحساب" : "مرفوض — لم يُنشأ حساب"}</p>
           {application.decisionNotes && <p className="mt-1 break-words">ملاحظات الإدارة: {application.decisionNotes}</p>}
+          {application.status === "ACCEPTED" && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void onDecision(application.id, "ACCEPTED", application.decisionNotes || "")}
+              className="mt-3 rounded-lg border border-[#D8D2C4] px-3 py-2 font-bold text-[#6F5A32] disabled:opacity-40"
+            >
+              {busy ? "جارٍ فحص الحساب..." : "فحص ربط حساب السفير واستكماله"}
+            </button>
+          )}
         </div>
       )}
     </article>

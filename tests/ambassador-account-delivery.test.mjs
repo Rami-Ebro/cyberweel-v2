@@ -61,3 +61,11 @@ test("admin accepts ambassadors without entering or transmitting a password", ()
   assert.match(ambassadorAdminRouteSource, /randomBytes\(32\)\.toString\("base64url"\)/);
   assert.doesNotMatch(ambassadorAdminRouteSource, /body\.password/);
 });
+
+
+test("accepted ambassador retry repairs missing account links without reactivating an existing ambassador", () => {
+  assert.match(acceptanceSource, /if \(user\?\.ambassador\) \{/);
+  assert.match(acceptanceSource, /const recoveredUser = user \|\| await resolveOrCreateUser\(tx, application, "AMBASSADOR", password\)/);
+  assert.match(acceptanceSource, /if \(!recoveredUser\.isActive\) \{/);
+  assert.match(ambassadorAdminPageSource, /فحص ربط حساب السفير واستكماله/);
+});
