@@ -13,6 +13,7 @@ type Referral = {
   status: string;
   followUpEligible: boolean;
   createdAt: string;
+  updatedAt: string;
 };
 
 type DashboardData = {
@@ -91,10 +92,10 @@ function AmbassadorActionCenterContent({ previewId }: { previewId: string | null
     if (!data) return [];
     return data.referrals
       .filter((item) => item.followUpEligible)
-      .sort((a, b) => daysSince(b.createdAt) - daysSince(a.createdAt));
+      .sort((a, b) => daysSince(b.updatedAt) - daysSince(a.updatedAt));
   }, [data]);
 
-  const stale = followUps.filter((item) => daysSince(item.createdAt) >= 3);
+  const stale = followUps.filter((item) => daysSince(item.updatedAt) >= 3);
   const rewardLabels = data?.stats.rewardsByCurrency.map((item) => {
     const remaining = Number(item.expected || 0) + Number(item.earned || 0);
     return money(Number.isFinite(remaining) ? remaining : 0, item.currency);
@@ -102,6 +103,10 @@ function AmbassadorActionCenterContent({ previewId }: { previewId: string | null
   const dashboardHref = previewId
     ? `/ambassador/dashboard?adminPreview=${encodeURIComponent(previewId)}`
     : "/ambassador/dashboard";
+
+  function destination(section: string, tool?: string) {
+    return `${dashboardHref}${previewId ? "&" : "?"}section=${section}${tool ? `#${tool}` : ""}`;
+  }
 
   /** Copies the personal referral URL without turning clipboard failure into a fatal page error. */
   async function copyReferralLink() {
@@ -144,12 +149,12 @@ function AmbassadorActionCenterContent({ previewId }: { previewId: string | null
 
         <section className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="text-sm font-black text-[#9f7d3d]">أولوية اليوم</p><h2 className="mt-1 text-2xl font-black">من يحتاج منك خطوة الآن؟</h2></div><span className="text-sm font-bold text-slate-500">{stale.length ? `${stale.length} متابعة متأخرة` : "لا توجد متابعة متأخرة"}</span></div>
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="text-sm font-black text-[#9f7d3d]">أولوية اليوم</p><h2 className="mt-1 text-2xl font-black">من يحتاج منك خطوة الآن؟</h2></div><span className="text-sm font-bold text-slate-500">{stale.length ? `${stale.length} إحالة بلا تحديث منذ 3 أيام` : "كل الإحالات حُدّثت مؤخرًا"}</span></div>
             <div className="mt-5 space-y-3">
               {followUps.slice(0, 5).map((referral) => (
                 <article key={referral.id} className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200 p-5 sm:flex-row sm:items-center">
-                  <div><h3 className="font-black">{referral.name || "إحالة دون اسم"}</h3><p className="mt-1 text-sm text-slate-500">{referral.email || referral.phone || "لا توجد وسيلة تواصل"} · منذ {daysSince(referral.createdAt)} يوم</p></div>
-                  <Link href={dashboardHref} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white"><MessageCircle size={17} />متابعة الإحالة</Link>
+                  <div><h3 className="font-black">{referral.name || "إحالة دون اسم"}</h3><p className="mt-1 text-sm text-slate-500">{referral.email || referral.phone || "لا توجد وسيلة تواصل"} · آخر تحديث منذ {daysSince(referral.updatedAt)} يوم</p></div>
+                  <Link href={`${destination("referrals")}&referral=${encodeURIComponent(referral.id)}`} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white"><MessageCircle size={17} />متابعة الإحالة</Link>
                 </article>
               ))}
               {!followUps.length && <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center"><CheckCircle2 className="mx-auto text-emerald-600" /><h3 className="mt-3 font-black">لا توجد إحالات معلّقة الآن</h3><p className="mt-2 text-sm text-slate-500">وقت ممتاز للبحث عن فرصة جديدة بدل مطاردة عميل غير موجود 😄</p></div>}
@@ -157,15 +162,15 @@ function AmbassadorActionCenterContent({ previewId }: { previewId: string | null
           </div>
 
           <aside className="space-y-4">
-            <div className="rounded-3xl bg-[#111827] p-6 text-white shadow-xl"><Sparkles className="text-[#D8B86A]" /><h2 className="mt-4 text-2xl font-black">خطوتك التالية</h2><p className="mt-3 leading-7 text-white/65">{followUps.length ? "ابدأ بأقدم إحالة تحتاج متابعة، ثم انتقل لجلب فرصة جديدة." : "لا توجد متابعة معلقة. استخدم أدوات السفير لجلب إحالة جديدة."}</p><Link href={dashboardHref} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#B89A5A] px-4 py-3 font-black text-slate-950"><Sparkles size={18} />فتح مساعد السفير</Link></div>
+            <div className="rounded-3xl bg-[#111827] p-6 text-white shadow-xl"><Sparkles className="text-[#D8B86A]" /><h2 className="mt-4 text-2xl font-black">خطوتك التالية</h2><p className="mt-3 leading-7 text-white/65">{followUps.length ? "ابدأ بأقدم إحالة تحتاج متابعة، ثم انتقل لجلب فرصة جديدة." : "لا توجد متابعة معلقة. استخدم أدوات السفير لجلب إحالة جديدة."}</p><Link href={destination("tools", "ambassador-assistant")} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#B89A5A] px-4 py-3 font-black text-slate-950"><Sparkles size={18} />فتح مساعد السفير</Link></div>
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="font-black">رابطك الشخصي</h2><p dir="ltr" className="mt-3 truncate rounded-xl bg-slate-50 px-3 py-3 text-left text-xs text-slate-600">{data.ambassador.referralUrl}</p><button type="button" onClick={copyReferralLink} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 font-black"><Copy size={18} />{copied ? "تم النسخ" : "نسخ الرابط"}</button>{copyError && <p className="mt-2 text-sm font-bold text-red-700">{copyError}</p>}</div>
           </aside>
         </section>
 
         <section className="grid gap-4 sm:grid-cols-3">
-          <Link href={dashboardHref} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5"><UserPlus className="text-[#9f7d3d]" /><h3 className="mt-4 text-lg font-black">أضف إحالة</h3><p className="mt-2 text-sm text-slate-500">سجّل عميلًا محتملًا مباشرة.</p></Link>
-          <Link href={dashboardHref} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5"><Sparkles className="text-[#9f7d3d]" /><h3 className="mt-4 text-lg font-black">جهّز رسالة</h3><p className="mt-2 text-sm text-slate-500">استخدم مساعد Gemini الحالي بصلاحياته الآمنة.</p></Link>
-          <Link href={dashboardHref} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5"><UsersRound className="text-[#9f7d3d]" /><h3 className="mt-4 text-lg font-black">راجع كل الإحالات</h3><p className="mt-2 text-sm text-slate-500">شاهد الحالة والنتائج من المصدر الحالي.</p></Link>
+          <Link href={destination("tools", "ambassador-new-referral")} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5"><UserPlus className="text-[#9f7d3d]" /><h3 className="mt-4 text-lg font-black">أضف إحالة</h3><p className="mt-2 text-sm text-slate-500">سجّل عميلًا محتملًا مباشرة.</p></Link>
+          <Link href={destination("tools", "ambassador-assistant")} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5"><Sparkles className="text-[#9f7d3d]" /><h3 className="mt-4 text-lg font-black">جهّز رسالة</h3><p className="mt-2 text-sm text-slate-500">استخدم مساعد Gemini الحالي بصلاحياته الآمنة.</p></Link>
+          <Link href={destination("referrals")} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5"><UsersRound className="text-[#9f7d3d]" /><h3 className="mt-4 text-lg font-black">راجع كل الإحالات</h3><p className="mt-2 text-sm text-slate-500">شاهد الحالة والنتائج من المصدر الحالي.</p></Link>
         </section>
       </div>
     </main>

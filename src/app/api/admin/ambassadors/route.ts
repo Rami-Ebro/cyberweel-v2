@@ -12,6 +12,8 @@ import { AdminUserProfileError, validatedAdminUserProfile } from "@/lib/admin-us
 import { DEFAULT_AMBASSADOR_REWARD_LEVELS, utcMonthRange } from "@/lib/ambassador-rewards";
 import { sendAmbassadorInvitation } from "@/lib/client-invitation";
 import { shouldSendAcceptanceInvitation } from "@/lib/account-invitation-policy";
+import { consumeRateLimitSubject, hasTrustedOrigin, invalidOriginResponse, rateLimitResponse } from "@/lib/request-security";
+import { writeAdminAudit } from "@/lib/admin-audit";
 
 function rewardTotalsByCurrency(
   rewards: Array<{ amount: Prisma.Decimal; currency: string; status: string }>,
@@ -160,8 +162,32 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   if (!(await canAdmin(request, "ambassadors"))) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  if (!hasTrustedOrigin(request)) return invalidOriginResponse();
   const body = await request.json().catch(() => null);
   const notes = typeof body?.notes === "string" ? body.notes.trim() : "";
+
+  if (body?.entity === "invitation") {
+    const id = typeof body.id === "string" ? body.id : "";
+    const ambassador = await db.ambassador.findUnique({
+      where: { id }, include: { user: true },
+    });
+    if (!ambassador) return NextResponse.json({ error: "حساب السفير غير موجود" }, { status: 404 });
+    if (ambassador.status !== "ACTIVE" || !ambassador.user.isActive) {
+      return NextResponse.json({ error: "فعّل حساب السفير قبل إرسال الدعوة." }, { status: 409 });
+    }
+    const limit = await consumeRateLimitSubject({ action: "ambassador-invitation", subject: ambassador.userId, limit: 3, windowMs: 60 * 60 * 1000 });
+    if (!limit.allowed) return rateLimitResponse(limit);
+    const invitation = await sendAmbassadorInvitation(
+      ambassador.userId, ambassador.user.email, request.nextUrl.origin,
+      ambassador.user.preferredLanguage === "en" ? "en" : "ar",
+    ).catch(() => ({ sent: false, error: "EMAIL_SEND_FAILED" }));
+    const access = await currentAdminAccess(request);
+    await writeAdminAudit(db, {
+      actorId: access?.userId, action: "AMBASSADOR_INVITATION_RESEND", category: "NORMAL",
+      entityType: "Ambassador", entityId: id, metadata: { sent: invitation.sent, error: invitation.error || null },
+    });
+    return NextResponse.json({ ok: invitation.sent, invitationSent: invitation.sent, inviteError: invitation.error }, { status: invitation.sent ? 200 : 503 });
+  }
 
   if (body?.entity === "account") {
     const id = typeof body?.id === "string" ? body.id : "";
@@ -216,6 +242,11 @@ export async function PATCH(request: NextRequest) {
         ).catch((error) => {
           console.error("[ambassador-acceptance] Invitation failed after account creation", error);
           return { sent: false, error: "EMAIL_SEND_FAILED", invitationUrl: undefined };
+        });
+        await writeAdminAudit(db, {
+          actorId: access?.userId, action: "AMBASSADOR_INVITATION_SEND", category: "NORMAL",
+          entityType: "User", entityId: result.userId,
+          metadata: { sent: invitation.sent, error: invitation.error || null },
         });
         return NextResponse.json({
           ok: true,

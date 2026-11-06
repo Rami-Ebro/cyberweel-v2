@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { normalizePhone, phoneIdentityCandidates } from "@/lib/user-identity";
 import { canAdmin } from "@/lib/admin-permissions";
 import { currentAmbassador } from "@/lib/ambassador-auth";
 import { buildAmbassadorReferralUrl, formatAmbassadorReferralCode } from "@/lib/partner-referral";
@@ -47,7 +48,7 @@ async function dashboardAmbassador(request: NextRequest) {
         payoutDetails: true,
         profileCompletedAt: true,
         createdAt: true,
-        user: { select: { id: true, name: true, email: true, role: true, isActive: true } },
+        user: { select: { id: true, name: true, email: true, phone: true, role: true, isActive: true } },
       },
     });
     if (!ambassador) return null;
@@ -349,8 +350,8 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
-  const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
-  const contactMethod = typeof body?.contactMethod === "string" ? body.contactMethod.trim() : "";
+  const phone = typeof body?.phone === "string" ? normalizePhone(body.phone) : "";
+  const contactMethod = (typeof body?.contactMethod === "string" ? body.contactMethod.trim() : "") || phone || email;
   const company = typeof body?.company === "string" ? body.company.trim() : "";
   const needs = typeof body?.needs === "string" ? body.needs.trim() : "";
   const extraNotes = typeof body?.notes === "string" ? body.notes.trim() : "";
@@ -358,10 +359,10 @@ export async function POST(request: NextRequest) {
   if (
     !name ||
     name.length > 120 ||
-    !email ||
+    (!email && !phone) ||
     email.length > 254 ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-    phone.length > 40 ||
+    (Boolean(email) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) ||
+    phone.length > 40 || (Boolean(phone) && phone.replace(/\D/g, "").length < 8) ||
     !contactMethod ||
     contactMethod.length > 160 ||
     company.length > 160 ||
@@ -370,25 +371,26 @@ export async function POST(request: NextRequest) {
     extraNotes.length > 2000
   ) {
     return NextResponse.json(
-      { error: "INVALID_REFERRAL", message: "أدخل اسم العميل والبريد الإلكتروني ووسيلة تواصل إضافية واحتياجه بشكل صحيح." },
+      { error: "INVALID_REFERRAL", message: "أدخل اسم العميل واحتياجه وبريدًا إلكترونيًا صحيحًا أو رقم هاتف صحيحًا." },
       { status: 400 },
     );
   }
 
-  if (email === user.email.trim().toLowerCase()) {
+  const phoneCandidates = phoneIdentityCandidates(phone);
+  if ((email && email === user.email.trim().toLowerCase()) || (phone && user.phone && phoneCandidates.includes(normalizePhone(user.phone)))) {
     return NextResponse.json(
-      { error: "SELF_REFERRAL", message: "لا يمكنك تسجيل بريد حسابك كإحالة عميل." },
+      { error: "SELF_REFERRAL", message: "لا يمكنك تسجيل حسابك كإحالة عميل." },
       { status: 409 },
     );
   }
 
   const [existingReferral, existingUser] = await Promise.all([
     db.partnerReferral.findFirst({
-      where: { email: { equals: email, mode: "insensitive" } },
+      where: { OR: [...(email ? [{ email: { equals: email, mode: "insensitive" as const } }] : []), ...(phone ? [{ phone: { in: phoneCandidates } }] : [])] },
       select: { id: true, status: true, ambassadorId: true, convertedClientId: true },
     }),
-    db.user.findUnique({
-      where: { email },
+    db.user.findFirst({
+      where: { OR: [...(email ? [{ email }] : []), ...(phone ? [{ phone: { in: phoneCandidates } }] : [])] },
       select: { id: true, role: true },
     }),
   ]);
@@ -398,8 +400,8 @@ export async function POST(request: NextRequest) {
       {
         error: "DUPLICATE_REFERRAL_EMAIL",
         message: existingReferral.ambassadorId === user.ambassador!.id
-          ? "هذا البريد مسجل بالفعل ضمن إحالاتك. تابع الإحالة الحالية بدل إنشاء نسخة جديدة."
-          : "هذا البريد مسجل بالفعل كإحالة في CyberWeel ولا يمكن إنشاء إحالة مكررة.",
+          ? "بيانات التواصل هذه مسجلة بالفعل ضمن إحالاتك. تابع الإحالة الحالية بدل إنشاء نسخة جديدة."
+          : "بيانات التواصل هذه مسجلة بالفعل كإحالة في CyberWeel ولا يمكن إنشاء إحالة مكررة.",
       },
       { status: 409 },
     );
@@ -407,7 +409,7 @@ export async function POST(request: NextRequest) {
 
   if (existingUser) {
     return NextResponse.json(
-      { error: "EXISTING_ACCOUNT_EMAIL", message: "هذا البريد مرتبط بحساب موجود في CyberWeel ولا يمكن تسجيله كإحالة جديدة." },
+      { error: "EXISTING_ACCOUNT_EMAIL", message: "بيانات التواصل هذه مرتبطة بحساب موجود في CyberWeel ولا يمكن تسجيله كإحالة جديدة." },
       { status: 409 },
     );
   }
@@ -421,7 +423,7 @@ export async function POST(request: NextRequest) {
       data: {
         ambassadorId: user.ambassador!.id,
         name,
-        email,
+        email: email || null,
         phone: phone || null,
         company: company || null,
         contactMethod,
