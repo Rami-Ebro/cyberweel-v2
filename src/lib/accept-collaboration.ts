@@ -383,13 +383,27 @@ export async function decideCollaborationApplication(
       const email = normalizeEmail(application.email);
 
       const phone = application.phone ? normalizePhone(application.phone) || application.phone.trim() : null;
-      const user = (await tx.user.findUnique({
-        where: { email },
-        include: { partner: true, ambassador: true },
-      })) || (phone ? await tx.user.findFirst({
-        where: { phone: { in: phoneIdentityCandidates(phone) } },
-        include: { partner: true, ambassador: true },
-      }) : null);
+      // Re-check both identities on historical approvals before repairing a missing account.
+      const [emailUser, phoneUsers] = await Promise.all([
+        tx.user.findUnique({
+          where: { email },
+          include: { partner: true, ambassador: true, adminProfile: true },
+        }),
+        phone
+          ? tx.user.findMany({
+              where: { phone: { in: phoneIdentityCandidates(phone) } },
+              include: { partner: true, ambassador: true, adminProfile: true },
+              take: 2,
+            })
+          : [],
+      ]);
+      if (phoneUsers.length > 1 || (emailUser && phoneUsers[0] && emailUser.id !== phoneUsers[0].id)) {
+        throw new AcceptApplicationError("IDENTITY_CONFLICT", 409);
+      }
+      const user = emailUser || phoneUsers[0] || null;
+      if (user?.role === "ADMIN" || user?.adminProfile) {
+        throw new AcceptApplicationError("ADMIN_EMAIL", 409);
+      }
 
       if (input.type === "PARTNER") {
         if (user) {
