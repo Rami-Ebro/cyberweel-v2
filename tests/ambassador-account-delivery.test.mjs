@@ -69,3 +69,12 @@ test("accepted ambassador retry repairs missing account links without reactivati
   assert.match(acceptanceSource, /if \(!recoveredUser\.isActive\) \{/);
   assert.match(ambassadorAdminPageSource, /فحص ربط حساب السفير واستكماله/);
 });
+
+
+test("accepted ambassador reconciliation rejects admin identities and conflicting contact owners", () => {
+  const retryBranch = acceptanceSource.split('if (application.status === "ACCEPTED")')[1]?.split('if (application.status !== "PENDING")')[0] || "";
+  assert.match(retryBranch, /phoneUsers\.length > 1/);
+  assert.match(retryBranch, /emailUser\.id !== phoneUsers\[0\]\.id/);
+  assert.match(retryBranch, /user\?\.role === "ADMIN"/);
+  assert.match(retryBranch, /user\?\.adminProfile/);
+});
