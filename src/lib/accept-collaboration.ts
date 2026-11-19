@@ -383,13 +383,27 @@ export async function decideCollaborationApplication(
       const email = normalizeEmail(application.email);
 
       const phone = application.phone ? normalizePhone(application.phone) || application.phone.trim() : null;
-      const user = (await tx.user.findUnique({
-        where: { email },
-        include: { partner: true, ambassador: true },
-      })) || (phone ? await tx.user.findFirst({
-        where: { phone: { in: phoneIdentityCandidates(phone) } },
-        include: { partner: true, ambassador: true },
-      }) : null);
+      // Re-check both identities on historical approvals before repairing a missing account.
+      const [emailUser, phoneUsers] = await Promise.all([
+        tx.user.findUnique({
+          where: { email },
+          include: { partner: true, ambassador: true, adminProfile: true },
+        }),
+        phone
+          ? tx.user.findMany({
+              where: { phone: { in: phoneIdentityCandidates(phone) } },
+              include: { partner: true, ambassador: true, adminProfile: true },
+              take: 2,
+            })
+          : [],
+      ]);
+      if (phoneUsers.length > 1 || (emailUser && phoneUsers[0] && emailUser.id !== phoneUsers[0].id)) {
+        throw new AcceptApplicationError("IDENTITY_CONFLICT", 409);
+      }
+      const user = emailUser || phoneUsers[0] || null;
+      if (user?.role === "ADMIN" || user?.adminProfile) {
+        throw new AcceptApplicationError("ADMIN_EMAIL", 409);
+      }
 
       if (input.type === "PARTNER") {
         if (user) {
@@ -409,21 +423,35 @@ export async function decideCollaborationApplication(
         };
       }
 
-      if (user) {
-        await ensureAmbassadorForUser(
-          tx,
-          user.id,
-          application,
-          notes || application.decisionNotes || "",
-          user.phone,
-        );
+      // An accepted application can predate its account/ambassador record.
+      // Repair only missing links; never reactivate an existing suspended ambassador.
+      if (user?.ambassador) {
+        return {
+          ok: true,
+          idempotent: true,
+          userId: user.id,
+          email: user.email,
+        };
       }
 
+      const recoveredUser = user || await resolveOrCreateUser(tx, application, "AMBASSADOR", password);
+      if (!recoveredUser.isActive) {
+        throw new AcceptApplicationError("ACCOUNT_INACTIVE", 409);
+      }
+      await ensureAmbassadorForUser(
+        tx,
+        recoveredUser.id,
+        application,
+        notes || application.decisionNotes || "",
+        recoveredUser.phone,
+      );
+
+      // A newly recovered account needs its first secure password invitation.
       return {
         ok: true,
-        idempotent: true,
-        userId: user?.id ?? null,
-        email,
+        idempotent: false,
+        userId: recoveredUser.id,
+        email: recoveredUser.email,
       };
     }
 
@@ -480,6 +508,7 @@ export function acceptErrorMessage(code: string) {
     PHONE_EXISTS: "يوجد حساب مسجل برقم الهاتف، لذلك لم يُنشأ حساب مكرر.",
     IDENTITY_CONFLICT: "البريد الإلكتروني ورقم الهاتف مرتبطان بحسابين مختلفين.",
     ADMIN_EMAIL: "لا يمكن ربط هذا البريد بحساب شريك أو سفير لأنه حساب إدارة.",
+    ACCOUNT_INACTIVE: "الحساب موجود لكنه غير نشط. راجع حالة الحساب قبل استكمال التفعيل.",
     EMAIL_EXISTS: "يوجد حساب مسجل بهذا البريد الإلكتروني، لذلك لم يُنشأ حساب مكرر.",
   };
   return messages[code] || code;

@@ -61,3 +61,20 @@ test("admin accepts ambassadors without entering or transmitting a password", ()
   assert.match(ambassadorAdminRouteSource, /randomBytes\(32\)\.toString\("base64url"\)/);
   assert.doesNotMatch(ambassadorAdminRouteSource, /body\.password/);
 });
+
+
+test("accepted ambassador retry repairs missing account links without reactivating an existing ambassador", () => {
+  assert.match(acceptanceSource, /if \(user\?\.ambassador\) \{/);
+  assert.match(acceptanceSource, /const recoveredUser = user \|\| await resolveOrCreateUser\(tx, application, "AMBASSADOR", password\)/);
+  assert.match(acceptanceSource, /if \(!recoveredUser\.isActive\) \{/);
+  assert.match(ambassadorAdminPageSource, /فحص ربط حساب السفير واستكماله/);
+});
+
+
+test("accepted ambassador reconciliation rejects admin identities and conflicting contact owners", () => {
+  const retryBranch = acceptanceSource.split('if (application.status === "ACCEPTED")')[1]?.split('if (application.status !== "PENDING")')[0] || "";
+  assert.match(retryBranch, /phoneUsers\.length > 1/);
+  assert.match(retryBranch, /emailUser\.id !== phoneUsers\[0\]\.id/);
+  assert.match(retryBranch, /user\?\.role === "ADMIN"/);
+  assert.match(retryBranch, /user\?\.adminProfile/);
+});
