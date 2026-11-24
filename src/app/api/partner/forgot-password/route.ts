@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { deliverInvitation } from "@/lib/invitation-delivery";
 import { fingerprint, normalizeEmail } from "@/lib/partner-auth";
 import {
   consumeRateLimit,
@@ -42,21 +43,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, message: GENERIC_MESSAGE });
   }
 
-  await db.passwordResetToken.updateMany({
-    where: { userId: user.id, usedAt: null },
-    data: { usedAt: new Date() },
-  });
-
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
-  await db.passwordResetToken.create({
+  const resetToken = await db.passwordResetToken.create({
     data: { userId: user.id, tokenHash: fingerprint(token), expiresAt },
   });
 
   const resetUrl = `${request.nextUrl.origin}/partner/reset-password?token=${token}`;
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "CyberWeel <noreply@cyberweel.com>";
+  const from = process.env.EMAIL_FROM || process.env.CONTACT_FROM_EMAIL || "CyberWeel <noreply@cyberweel.com>";
 
   if (apiKey) {
     const emailCopy = user.preferredLanguage === "en"
@@ -68,19 +64,13 @@ export async function POST(request: NextRequest) {
           subject: "إعادة تعيين كلمة مرور CyberWeel",
           html: `<div dir="rtl" style="font-family:Arial,sans-serif"><h2>إعادة تعيين كلمة المرور</h2><p>اضغط على الرابط التالي لإنشاء كلمة مرور جديدة. الرابط صالح لمدة 30 دقيقة ويُستخدم مرة واحدة فقط.</p><p><a href="${resetUrl}">إعادة تعيين كلمة المرور</a></p><p>إذا لم تطلب ذلك، تجاهل الرسالة.</p></div>`,
         };
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from,
-        to: email,
-        subject: emailCopy.subject,
-        html: emailCopy.html,
-      }),
-    });
-    if (!response.ok) {
-      console.error("[password-reset] Resend failed", response.status, await response.text());
+    const result = await deliverInvitation({ to: email, ...emailCopy }, { apiKey, from });
+    if (!result.sent) {
+      await db.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } });
     }
+  } else {
+    console.error("[password-reset] EMAIL_NOT_CONFIGURED");
+    await db.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } });
   }
 
   return NextResponse.json({

@@ -13,6 +13,7 @@ async function ambassadorFromToken(token?: string | null) {
       id: true,
       name: true,
       email: true,
+      phone: true,
       role: true,
       isActive: true,
       ambassador: {

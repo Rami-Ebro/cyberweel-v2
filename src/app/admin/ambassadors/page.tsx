@@ -144,7 +144,13 @@ export default function AmbassadorsAdmin() {
         };
         throw new Error(labels[payload.error] || "تعذر حفظ القرار");
       }
-      setMessage(status === "ACCEPTED" ? "تم قبول الطلب وإنشاء حساب السفير." : "تم رفض الطلب.");
+      if (status === "ACCEPTED" && payload.invitationSent === false) {
+        setError("تم قبول الطلب وإنشاء الحساب، لكن تعذر إرسال بريد تعيين كلمة المرور. استخدم زر إعادة إرسال دعوة الدخول من حساب السفير.");
+      } else {
+        setMessage(status === "ACCEPTED"
+          ? payload.invitationSent ? "تم قبول الطلب وإنشاء الحساب وقبل مزود البريد إرسال الدعوة. تحقّق من وصولها إلى البريد أو الرسائل غير المرغوب فيها." : "الطلب مقبول مسبقًا. لإرسال دعوة جديدة استخدم زر إعادة إرسال دعوة الدخول."
+          : "تم رفض الطلب.");
+      }
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "تعذر حفظ القرار");
@@ -373,12 +379,39 @@ function AmbassadorActions({
   onUpdateStatus: (id: string, status: "ACTIVE" | "SUSPENDED") => Promise<void>;
   compact?: boolean;
 }) {
+  const [sendingInvite, setSendingInvite] = useState(false);
+  const [inviteNotice, setInviteNotice] = useState("");
+  const [inviteFailed, setInviteFailed] = useState(false);
+  async function resendInvitation() {
+    setSendingInvite(true);
+    setInviteNotice("");
+    try {
+      const response = await fetch("/api/admin/ambassadors", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity: "invitation", id: ambassador.id }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.invitationSent) throw new Error(payload.inviteError === "EMAIL_NOT_CONFIGURED"
+        ? "خدمة البريد غير مهيأة. راجع إعدادات الإرسال."
+        : response.status === 429 ? "بلغت حد المحاولات. حاول لاحقًا."
+        : "تعذر إرسال الدعوة. راجع إعدادات البريد وعنوان السفير ثم أعد المحاولة.");
+      setInviteFailed(false);
+      setInviteNotice("قبل مزود البريد إرسال الدعوة. اطلب من السفير التحقق من البريد والرسائل غير المرغوب فيها.");
+    } catch (cause) {
+      setInviteFailed(true);
+      setInviteNotice(cause instanceof Error ? cause.message : "تعذر إرسال الدعوة.");
+    } finally {
+      setSendingInvite(false);
+    }
+  }
   const size = compact ? "min-h-8 px-2 py-1.5 text-xs" : "min-h-11 px-3 py-2.5 text-sm";
 
   return (
     <div className="grid grid-cols-2 gap-2">
       <Link href={`/ambassador/dashboard?adminPreview=${ambassador.id}`} className={`inline-flex items-center justify-center rounded-lg border border-[#D8D2C4] font-bold hover:border-[#B89A5A] ${size}`}>عرض</Link>
       <button type="button" aria-expanded={editing} onClick={onToggleEdit} className={`rounded-lg border border-[#D8D2C4] font-bold hover:border-[#B89A5A] ${size}`}>{editing ? "إغلاق التعديل" : "تعديل"}</button>
+      {ambassador.status === "ACTIVE" && ambassador.user.isActive && <button type="button" disabled={busy || sendingInvite} onClick={() => void resendInvitation()} className={`col-span-2 rounded-lg border border-[#D8D2C4] font-bold disabled:opacity-40 ${size}`}>{sendingInvite ? "جارٍ إرسال الدعوة..." : "إعادة إرسال دعوة الدخول"}</button>}
+      {inviteNotice && <p role={inviteFailed ? "alert" : "status"} className={`col-span-2 text-xs leading-6 ${inviteFailed ? "text-rose-700" : "text-emerald-700"}`}>{inviteNotice}</p>}
       {ambassador.status !== "ACTIVE" && <button type="button" disabled={busy} onClick={() => void onUpdateStatus(ambassador.id, "ACTIVE")} className={`rounded-lg bg-emerald-600 font-bold text-white disabled:opacity-40 ${size}`}>تفعيل</button>}
       {ambassador.status !== "SUSPENDED" && <button type="button" disabled={busy} onClick={() => void onUpdateStatus(ambassador.id, "SUSPENDED")} className={`rounded-lg bg-rose-600 font-bold text-white disabled:opacity-40 ${size}`}>تعليق</button>}
     </div>
